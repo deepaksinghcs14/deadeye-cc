@@ -88,7 +88,8 @@ section:not(.hero-section)::before{
   padding:20px 0;font-family:"IBM Plex Mono",monospace;font-size:13px;
 }
 .nav .brand{color:var(--bone);font-weight:600;letter-spacing:.06em;display:inline-flex;align-items:center;gap:9px}
-.brand-mark{width:20px;height:20px;flex:none}
+.brand-mark{height:22px;width:auto;flex:none;display:inline-flex}
+.brand-mark img{height:22px;width:auto;display:block}
 .nav-links{display:flex;gap:22px}
 .nav-links a{color:var(--mute)}
 .nav-links a:hover{color:var(--brass);text-decoration:none}
@@ -132,15 +133,20 @@ section:not(.hero-section)::before{
   animation:driftRing 120s linear infinite;pointer-events:none}
 @keyframes driftRing{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.hero-art .ring{animation:none}}
-.hero-art .art-light{display:none}
+
+/* theme-swap: shared by the hero mark and the nav mark -- shows whichever
+   variant (dark lines on light bg / light lines on dark bg) matches the
+   current theme, same precedence order as the color tokens: OS preference,
+   then an explicit data-theme override. */
+.art-light{display:none}
 @media (prefers-color-scheme:light){
-  .hero-art .art-dark{display:none}
-  .hero-art .art-light{display:block}
+  .art-dark{display:none}
+  .art-light{display:block}
 }
-:root[data-theme="light"] .hero-art .art-dark{display:none}
-:root[data-theme="light"] .hero-art .art-light{display:block}
-:root[data-theme="dark"] .hero-art .art-dark{display:block}
-:root[data-theme="dark"] .hero-art .art-light{display:none}
+:root[data-theme="light"] .art-dark{display:none}
+:root[data-theme="light"] .art-light{display:block}
+:root[data-theme="dark"] .art-dark{display:block}
+:root[data-theme="dark"] .art-light{display:none}
 
 /* ---------- signature: token field ---------- */
 .field{
@@ -316,7 +322,10 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
 <div class="wrap">
   <nav class="nav">
     <span class="brand">
-      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="var(--brass)" stroke-width="1.4"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="1" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="1" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="23" y2="12"/></svg>
+      <span class="brand-mark">
+        <img class="art-dark" src="logo-dark.svg" alt="" width="18" height="22">
+        <img class="art-light" src="logo.svg" alt="" width="18" height="22">
+      </span>
       deadeye
     </span>
     <div class="nav-links">
