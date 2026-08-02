@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+## 0.3.1
+
+- Fix: the daemon's lockfile was treated as stale after 60 seconds
+  regardless of whether the daemon was actually still running -- a
+  healthy, merely-idle daemon can legitimately go up to 30 minutes
+  without writing anything, so its lock was always "stale" by that
+  measure. A later spawn attempt would delete the live daemon's
+  lockfile, notice the socket already answering, and exit -- deleting
+  the lockfile it had just re-created and leaving the still-running
+  daemon with no lockfile at all. Staleness now requires the recorded
+  pid actually being gone AND nothing answering the socket.
+- Fix: `deadeye uninstall` could never actually find the running
+  daemon's pid, because of the bug above -- confirmed live, a real
+  daemon's lockfile now survives well past the old 60s window, and
+  `deadeye uninstall --purge` actually stops the process instead of a
+  still-running daemon silently recreating the state dir the purge just
+  removed.
+- Fix: `deadeye uninstall` signaled whatever pid was in the lockfile
+  without checking it was actually a deadeye process -- on Unix,
+  `os.FindProcess` never errors regardless of whether that pid exists,
+  so a crashed daemon's pid, later recycled by the OS for an unrelated
+  process, would get signaled. Now gated on the daemon's socket actually
+  answering.
+- A session's in-memory dedup state (once-per-session injection, plan
+  gate, workflow-suggested markers, routing history) is now evicted at
+  SessionEnd, and per-project session summaries are capped at the 3
+  most recent -- both previously grew for as long as the daemon or the
+  machine stayed up.
+
 ## 0.3.0
 
 Per-project config, and routing correctness. The most behaviorally
