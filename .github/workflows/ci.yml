@@ -18,3 +18,5 @@ jobs:
           go-version-file: go.mod
 
       - run: make check
+
+      - run: bash -n hooks/*.sh

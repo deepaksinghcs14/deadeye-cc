@@ -21,8 +21,16 @@ fi
 
 if [ -z "$BIN" ]; then
   # Not installed yet: kick off a background, best-effort self-bootstrap for
-  # future invocations. This call still returns {} immediately.
-  ( "${CLAUDE_PLUGIN_ROOT}/hooks/bootstrap.sh" >/dev/null 2>&1 & ) 2>/dev/null
+  # future invocations. This call still returns {} immediately. Gated to
+  # SessionStart -- the first event of every session, so nothing is lost --
+  # rather than every hook call: verified live, a first-ever session's
+  # burst of PreToolUse/PostToolUse calls across the opening tool uses fired
+  # roughly one concurrent download attempt per call, all racing to install
+  # the same destination file. bootstrap.sh also has its own lock now, but
+  # there's no reason to spawn 20 of them when one per session does the job.
+  if [ "$EVENT" = "SessionStart" ]; then
+    ( "${CLAUDE_PLUGIN_ROOT}/hooks/bootstrap.sh" >/dev/null 2>&1 & ) 2>/dev/null
+  fi
   echo '{}'
   exit 0
 fi

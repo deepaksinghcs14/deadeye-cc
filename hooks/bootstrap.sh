@@ -14,6 +14,28 @@ set -u
 REPO="deepaksinghcs14/deadeye-cc"
 DEST_DIR="$HOME/.deadeye/bin"
 DEST="$DEST_DIR/deadeye"
+LOCK_DIR="$DEST_DIR/.bootstrap.lock"
+INSTALL_TMP=""
+
+mkdir -p "$DEST_DIR" 2>/dev/null || exit 0
+
+# One install/update at a time. deadeye-hook.sh only fires this on
+# SessionStart, but two Claude Code windows can start within the same
+# second -- without this, both race to curl+mv onto the same destination.
+# `mkdir` as a lock is atomic even across processes/machines sharing $HOME.
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  # Someone else is already installing. If that lock is old enough to be
+  # from a run that was SIGKILLed mid-install rather than one still in
+  # progress, clear it and take over; otherwise just exit -- the next
+  # SessionStart retries.
+  if [ -n "$(find "$LOCK_DIR" -maxdepth 0 -mmin +10 2>/dev/null)" ]; then
+    rmdir "$LOCK_DIR" 2>/dev/null
+    mkdir "$LOCK_DIR" 2>/dev/null || exit 0
+  else
+    exit 0
+  fi
+fi
+trap 'rmdir "$LOCK_DIR" 2>/dev/null; rm -f "$INSTALL_TMP"' EXIT
 
 PLUGIN_VERSION=""
 if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "$CLAUDE_PLUGIN_ROOT/.claude-plugin/plugin.json" ]; then
@@ -37,12 +59,29 @@ case "$ARCH" in
   *) exit 0 ;;
 esac
 
-BASE_URL="https://github.com/${REPO}/releases/latest/download"
+LATEST_URL="https://github.com/${REPO}/releases/latest/download"
 ASSET="deadeye_${OS}_${ARCH}"
 TMP="$(mktemp -d)" || exit 0
-trap 'rm -rf "$TMP"' EXIT
+trap 'rmdir "$LOCK_DIR" 2>/dev/null; rm -f "$INSTALL_TMP"; rm -rf "$TMP"' EXIT
 
-curl -fsSL -o "$TMP/deadeye" "$BASE_URL/$ASSET" || exit 0
+# Pin to the checked-out plugin's own version rather than always pulling
+# "latest" -- otherwise the version comparison above (against
+# plugin.json) and what actually gets downloaded (always latest) can
+# permanently disagree, re-downloading the full binary every single
+# session without ever converging. Fall back to latest once if the
+# pinned tag 404s (checkout ahead of the release, or an older plugin
+# checkout with no matching release asset name).
+if [ -n "$PLUGIN_VERSION" ]; then
+  BASE_URL="https://github.com/${REPO}/releases/download/v${PLUGIN_VERSION}"
+else
+  BASE_URL="$LATEST_URL"
+fi
+
+if ! curl -fsSL -o "$TMP/deadeye" "$BASE_URL/$ASSET"; then
+  [ "$BASE_URL" = "$LATEST_URL" ] && exit 0
+  BASE_URL="$LATEST_URL"
+  curl -fsSL -o "$TMP/deadeye" "$BASE_URL/$ASSET" || exit 0
+fi
 curl -fsSL -o "$TMP/checksums.txt" "$BASE_URL/checksums.txt" || exit 0
 
 WANT="$(grep " $ASSET\$" "$TMP/checksums.txt" | awk '{print $1}')"
@@ -55,6 +94,13 @@ else
 fi
 [ "$WANT" = "$GOT" ] || exit 0
 
-mkdir -p "$DEST_DIR"
-mv "$TMP/deadeye" "$DEST"
-chmod +x "$DEST"
+# Install atomically. $TMP (mktemp -d, usually $TMPDIR) is frequently a
+# different filesystem from $HOME, so `mv` straight into $DEST would
+# silently degrade to copy-then-unlink -- not atomic, and on an update it
+# would truncate-and-rewrite $DEST in place while deadeye-hook.sh's
+# `[ -x "$DEST" ]` check could see a half-written binary mid-copy.
+# chmod BEFORE the same-filesystem rename, then rename within $DEST_DIR --
+# that final step is what's actually atomic.
+chmod +x "$TMP/deadeye"
+INSTALL_TMP="$DEST_DIR/.deadeye.tmp.$$"
+cp "$TMP/deadeye" "$INSTALL_TMP" && mv "$INSTALL_TMP" "$DEST"
