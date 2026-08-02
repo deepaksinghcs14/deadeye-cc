@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 )
@@ -38,8 +39,8 @@ func looksFanOutShaped(prompt string) bool {
 // effort.level reports the CURRENT effort, not the model's maximum
 // supported level). Shipping the phrase-based trigger alone; add the
 // capability gate if/when a real signal for it turns up.
-func decideWorkflowHint(in hookio.Input, state *daemonState) (suggestion string, fired bool) {
-	if state.cfg.Mode.WorkflowHint != "on" {
+func decideWorkflowHint(in hookio.Input, cfg config.Config, state *daemonState) (suggestion string, fired bool) {
+	if cfg.Mode.WorkflowHint != "on" {
 		return "", false
 	}
 	if in.Prompt == "" || isSyntheticPrompt(in.Prompt) || !looksFanOutShaped(in.Prompt) {

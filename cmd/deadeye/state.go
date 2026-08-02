@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
@@ -36,14 +35,17 @@ type sessionState struct {
 	lastShownBytesSaved int // bytesSaved value at the last Stop summary shown -- avoids repeating a stale line
 }
 
-// daemonState is the daemon's whole world: config/catalog loaded once at
-// startup, the decision log, the outcomes log, and per-session state. All
-// mutation goes through its methods so the same mutex always guards
-// sessionState field access -- session() alone returning a bare pointer
-// would let two goroutines race on its fields.
+// daemonState is the daemon's whole world: catalog loaded once at startup,
+// the decision log, the outcomes log, and per-session state. Config is
+// deliberately NOT part of this -- the daemon serves every project and
+// session it's asked about, so config (including project-level
+// .deadeye.json and env-derived kill switches) is loaded fresh per request
+// via config.LoadFor, not cached here for the daemon's whole lifetime; see
+// LoadFor's comment. All mutation goes through daemonState's methods so the
+// same mutex always guards sessionState field access -- session() alone
+// returning a bare pointer would let two goroutines race on its fields.
 type daemonState struct {
 	mu       sync.Mutex
-	cfg      config.Config
 	cat      catalog.Catalog
 	logs     *logstore.Store
 	outcomes *lessons.Store
@@ -55,10 +57,10 @@ type daemonState struct {
 	sessions     map[string]*sessionState
 }
 
-func newDaemonState(cfg config.Config, cat catalog.Catalog, logs *logstore.Store) *daemonState {
+func newDaemonState(cat catalog.Catalog, logs *logstore.Store) *daemonState {
 	cached, _ := lessons.Scan(meta.OutcomesPath())
 	return &daemonState{
-		cfg: cfg, cat: cat, logs: logs,
+		cat: cat, logs: logs,
 		outcomes:     lessons.Open(meta.OutcomesPath()),
 		outcomeCache: cached,
 		sessions:     map[string]*sessionState{},

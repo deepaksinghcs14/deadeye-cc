@@ -7,6 +7,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
@@ -79,11 +80,49 @@ func Default() Config {
 }
 
 // Load returns Default() overlaid by ~/.deadeye/config.json, overlaid by
-// ./.deadeye.json relative to cwd. Either file may be absent.
+// ./.deadeye.json relative to this PROCESS's own cwd. Correct for the CLI
+// commands (status/route) -- each is a fresh, short-lived process already
+// running in the directory the user cares about. Never call this from
+// inside the daemon: see LoadFor.
 func Load() Config {
 	cfg := Default()
 	overlay(&cfg, meta.ConfigPath())
 	overlay(&cfg, ".deadeye.json")
+	return cfg
+}
+
+// LoadFor is Load, but for the daemon: cwd is the SESSION's working
+// directory (from the hook payload), not this process's own, and off is
+// the client's env-derived kill switches (see OffSwitches) folded in as
+// config rather than checked separately. Both matter because the daemon
+// is one long-lived process serving every project and session it's asked
+// about, spawned from whichever directory and environment happened to
+// start it -- verified live: a project's own .deadeye.json previously
+// governed every OTHER project's sessions too for as long as that daemon
+// stayed up (its idle timeout resets on every connection, so in practice
+// indefinitely), and DEADEYE_PREPROCESS=off set in a later shell had no
+// effect at all, while a fresh `deadeye status` process (which reads its
+// own real env) reported the switch as engaged. Call this once per
+// request, not once at daemon startup.
+func LoadFor(cwd string, off []string) Config {
+	cfg := Default()
+	overlay(&cfg, meta.ConfigPath())
+	if cwd != "" {
+		overlay(&cfg, filepath.Join(cwd, ".deadeye.json"))
+	}
+	if isOff(off, "DEADEYE") {
+		cfg.Mode.Routing = "off"
+		cfg.Mode.Effort = "off"
+		cfg.Mode.Preprocess = "off"
+		cfg.Mode.PlanGate = "off"
+		cfg.Mode.WorkflowHint = "off"
+	}
+	if isOff(off, "DEADEYE_PREPROCESS") {
+		cfg.Mode.Preprocess = "off"
+	}
+	if isOff(off, "DEADEYE_GATE") {
+		cfg.Mode.PlanGate = "off"
+	}
 	return cfg
 }
 
@@ -99,8 +138,31 @@ func overlay(cfg *Config, path string) {
 	_ = json.Unmarshal(b, cfg)
 }
 
-// KillSwitchOff reports whether the given env var is set to exactly "off".
-// Used for DEADEYE, DEADEYE_PREPROCESS, DEADEYE_GATE.
-func KillSwitchOff(envVar string) bool {
-	return os.Getenv(envVar) == "off"
+// killSwitchVars is the fixed set of env-var kill switches checked by
+// OffSwitches.
+var killSwitchVars = []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE"}
+
+// OffSwitches reports which of the three env-var kill switches are set to
+// exactly "off" in THIS process's environment. Meant to be called
+// client-side (the CLI process invoked per hook call, which has the
+// user's real, current environment) and carried across the wire in
+// proto.Request.Off -- the daemon must never call os.Getenv for these
+// itself; see LoadFor's comment for why.
+func OffSwitches() []string {
+	var off []string
+	for _, v := range killSwitchVars {
+		if os.Getenv(v) == "off" {
+			off = append(off, v)
+		}
+	}
+	return off
+}
+
+func isOff(off []string, name string) bool {
+	for _, o := range off {
+		if o == name {
+			return true
+		}
+	}
+	return false
 }

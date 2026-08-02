@@ -12,4 +12,11 @@ import "encoding/json"
 type Request struct {
 	Event   string          `json:"event"`
 	Payload json.RawMessage `json:"payload"`
+
+	// Off carries the client's env-derived kill switches (see
+	// config.OffSwitches) across the wire. The daemon is a long-lived
+	// process that may have been spawned minutes or days earlier from a
+	// different shell -- it must never read os.Getenv for these itself,
+	// only ever trust what the current client's real environment reports.
+	Off []string `json:"off,omitempty"`
 }

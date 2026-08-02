@@ -94,11 +94,11 @@ func planGateSoftTrigger(in hookio.Input, cfg config.PlanGate) (suggestion, mark
 // decidePlanGateSoft is called from decideUserPromptSubmit on every turn
 // (not just the first) -- a task can start on turn 3 just as easily as
 // turn 1.
-func decidePlanGateSoft(in hookio.Input, state *daemonState) (suggestion string, fired bool) {
-	if state.cfg.Mode.PlanGate == "off" || config.KillSwitchOff("DEADEYE_GATE") || isSyntheticPrompt(in.Prompt) {
+func decidePlanGateSoft(in hookio.Input, cfg config.Config, state *daemonState) (suggestion string, fired bool) {
+	if cfg.Mode.PlanGate == "off" || isSyntheticPrompt(in.Prompt) {
 		return "", false
 	}
-	suggestion, marker, fire := planGateSoftTrigger(in, state.cfg.PlanGate)
+	suggestion, marker, fire := planGateSoftTrigger(in, cfg.PlanGate)
 	if !fire {
 		return "", false
 	}
@@ -120,8 +120,8 @@ func decidePlanGateSoft(in hookio.Input, state *daemonState) (suggestion string,
 // indefinitely: "consent is sticky" is satisfied in the safe direction
 // (never nags twice for the same trigger) even though it can't
 // distinguish "approved" from "declined" to log the outcome precisely.
-func decidePlanGateHard(in hookio.Input, state *daemonState) hookio.Output {
-	if state.cfg.Mode.PlanGate != "hard" || config.KillSwitchOff("DEADEYE_GATE") {
+func decidePlanGateHard(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.PlanGate != "hard" {
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "noop"})
 		return hookio.Empty()
 	}

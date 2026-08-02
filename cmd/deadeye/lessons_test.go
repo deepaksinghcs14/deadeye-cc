@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
@@ -20,7 +19,7 @@ func testCatalogForLessons() catalog.Catalog {
 
 func TestCheckEscalationDetectsHigherTierRequest(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // newDaemonState seeds its outcome cache from disk -- isolate from the real ~/.deadeye
-	state := newDaemonState(config.Default(), testCatalogForLessons(), nil)
+	state := newDaemonState(testCatalogForLessons(), nil)
 	state.setLastRouting("s1", "shape-a", "cheap-id", "low", 0)
 
 	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)
@@ -36,7 +35,7 @@ func TestCheckEscalationDetectsHigherTierRequest(t *testing.T) {
 
 func TestCheckEscalationIgnoresSameOrLowerTier(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	state := newDaemonState(config.Default(), testCatalogForLessons(), nil)
+	state := newDaemonState(testCatalogForLessons(), nil)
 	state.setLastRouting("s1", "shape-a", "top-id", "high", 2)
 
 	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)  // same tier
@@ -49,7 +48,7 @@ func TestCheckEscalationIgnoresSameOrLowerTier(t *testing.T) {
 
 func TestCheckEscalationNoopWithoutPriorRouting(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	state := newDaemonState(config.Default(), testCatalogForLessons(), nil)
+	state := newDaemonState(testCatalogForLessons(), nil)
 	checkEscalation(hookio.Input{SessionID: "new-session"}, agentInput{Model: "opus"}, "shape-a", state)
 	if got := state.outcomesSnapshot(); len(got) != 0 {
 		t.Errorf("got %d outcomes, want 0 with no prior routing decision to compare against", len(got))
@@ -58,7 +57,7 @@ func TestCheckEscalationNoopWithoutPriorRouting(t *testing.T) {
 
 func TestCheckEscalationNoopWithoutExplicitModel(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	state := newDaemonState(config.Default(), testCatalogForLessons(), nil)
+	state := newDaemonState(testCatalogForLessons(), nil)
 	state.setLastRouting("s1", "shape-a", "cheap-id", "low", 0)
 	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{}, "shape-b", state)
 	if got := state.outcomesSnapshot(); len(got) != 0 {

@@ -42,9 +42,12 @@ func runHookTo(w io.Writer, r io.Reader, event string) {
 		saveCapture(event, raw)
 	}
 
-	if config.KillSwitchOff("DEADEYE") {
-		fmt.Fprint(w, "{}")
-		return
+	off := config.OffSwitches()
+	for _, v := range off {
+		if v == "DEADEYE" {
+			fmt.Fprint(w, "{}")
+			return
+		}
 	}
 
 	out := dialDaemon(event, raw)
@@ -68,7 +71,7 @@ func requestDaemon(event string, raw []byte) []byte {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(200 * time.Millisecond))
 
-	req := proto.Request{Event: event, Payload: raw}
+	req := proto.Request{Event: event, Payload: raw, Off: config.OffSwitches()}
 	b, err := json.Marshal(req)
 	if err != nil {
 		return []byte("{}")

@@ -85,19 +85,19 @@ func TestPlanGateFiresOnMultiFileWorkingTree(t *testing.T) {
 // event, and the plan gate's keyword heuristics fired on it as if a user
 // had typed an implementation request.
 func TestPlanGateIgnoresSyntheticPrompts(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	synthetic := "<task-notification>\n<task-id>abc123</task-id>\n<summary>Agent finished, please add these changes</summary>\n</task-notification>"
 	in := hookio.Input{SessionID: "s1", Prompt: synthetic, Cwd: t.TempDir()}
-	if _, fired := decidePlanGateSoft(in, state); fired {
+	if _, fired := decidePlanGateSoft(in, config.Default(), state); fired {
 		t.Error("plan gate fired on a synthetic task-notification prompt")
 	}
 }
 
 func TestPlanGateHardDefaultsOff(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	state.setPendingPlan("sess1", "some pending task")
 
-	out := decidePlanGateHard(hookio.Input{SessionID: "sess1", ToolName: "Edit"}, state)
+	out := decidePlanGateHard(hookio.Input{SessionID: "sess1", ToolName: "Edit"}, config.Default(), state)
 	if out.HookSpecificOutput != nil {
 		t.Errorf("hard layer fired with default config (plan_gate=%q), want no-op", config.Default().Mode.PlanGate)
 	}
@@ -106,16 +106,16 @@ func TestPlanGateHardDefaultsOff(t *testing.T) {
 func TestPlanGateHardAsksOnceThenClears(t *testing.T) {
 	cfg := config.Default()
 	cfg.Mode.PlanGate = "hard"
-	state := newDaemonState(cfg, catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	state.setPendingPlan("sess1", "pending task")
 
 	in := hookio.Input{SessionID: "sess1", ToolName: "Edit"}
-	first := decidePlanGateHard(in, state)
+	first := decidePlanGateHard(in, cfg, state)
 	if first.HookSpecificOutput == nil || first.HookSpecificOutput.PermissionDecision != hookio.PermissionAsk {
 		t.Fatalf("first Edit with a pending plan = %+v, want permissionDecision=ask", first)
 	}
 
-	second := decidePlanGateHard(in, state)
+	second := decidePlanGateHard(in, cfg, state)
 	if second.HookSpecificOutput != nil {
 		t.Errorf("second Edit after the gate already asked once = %+v, want no-op (gate clears after asking)", second)
 	}

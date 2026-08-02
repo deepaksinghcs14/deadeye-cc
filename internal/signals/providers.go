@@ -127,12 +127,37 @@ type GitChurn struct{}
 
 func (GitChurn) Name() string { return "gitchurn" }
 
-func (GitChurn) Assess(_ context.Context, s Scope) (Evidence, error) {
+func (GitChurn) Assess(ctx context.Context, s Scope) (Evidence, error) {
 	if s.Repo == "" || len(s.Files) == 0 {
 		return Evidence{}, fmt.Errorf("gitchurn: no repo/files to check")
 	}
+
+	// An untracked file has no commit history for `git log` to find --
+	// that's UNKNOWN, not "calm". Without this check, a brand-new file
+	// (arguably the highest-churn case there is) silently read as "0
+	// commits, confidence 0.82": the same root cause as the subdirectory
+	// bug below -- git doesn't error on a pathspec that matches nothing,
+	// so a genuine "nothing to report" and "can't tell" were
+	// indistinguishable. `git ls-files` (no --error-unmatch) prints only
+	// whichever of the given paths ARE tracked, exiting 0 either way, so
+	// empty output here means none of them are.
+	lsFiles := exec.CommandContext(ctx, "git", append([]string{"ls-files", "--"}, s.Files...)...)
+	lsFiles.Dir = s.Repo
+	trackedOut, err := lsFiles.Output()
+	if err != nil || strings.TrimSpace(string(trackedOut)) == "" {
+		return Evidence{}, fmt.Errorf("gitchurn: no scoped file is tracked")
+	}
+
+	// s.Repo must be the repo TOPLEVEL, not an arbitrary subdirectory --
+	// git prints scoped-file paths (from `git diff --name-only`) relative
+	// to the root, so running `git log -- <root-relative-path>` with
+	// cmd.Dir set to a subdirectory matches nothing and, per the same
+	// silent-empty-match behavior noted above, was laundered into "0
+	// commits" rather than surfaced as wrong scope. newScope (route.go)
+	// is what actually resolves the toplevel now; this provider just
+	// documents the assumption it depends on.
 	args := append([]string{"log", "--since=30.days", "--oneline", "--"}, s.Files...)
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = s.Repo
 	out, err := cmd.Output()
 	if err != nil {
@@ -175,7 +200,7 @@ func (TestPresence) Assess(_ context.Context, s Scope) (Evidence, error) {
 	}
 	covered := 0
 	for _, f := range s.Files {
-		if hasAdjacentTest(f) {
+		if hasAdjacentTest(s.Repo, f) {
 			covered++
 		}
 	}
@@ -189,7 +214,16 @@ func (TestPresence) Assess(_ context.Context, s Scope) (Evidence, error) {
 	}, nil
 }
 
-func hasAdjacentTest(path string) bool {
+// hasAdjacentTest resolves a relative path against repo before stat'ing
+// it -- the daemon that calls this may have been spawned from an entirely
+// different project's directory, so a bare os.Stat on a relative path
+// previously resolved against wherever the daemon happened to start,
+// silently checking the wrong project's filesystem. An already-absolute
+// path (as some callers -- notably tests -- pass) is used as-is.
+func hasAdjacentTest(repo, path string) bool {
+	if !filepath.IsAbs(path) && repo != "" {
+		path = filepath.Join(repo, path)
+	}
 	dir := filepath.Dir(path)
 	ext := filepath.Ext(path)
 	stem := strings.TrimSuffix(filepath.Base(path), ext)

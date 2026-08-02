@@ -2,6 +2,7 @@ package signals
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,6 +89,77 @@ func TestGitChurnErrorsWithoutFilesOrRepo(t *testing.T) {
 	}
 }
 
+// TestGitChurnErrorsOnUntrackedFile is the regression test for the other
+// half of the subdirectory bug: `git log -- <path>` doesn't error on a
+// pathspec that matches nothing, so a brand-new, never-committed file
+// previously read as "0 commits, confidence 0.82" -- the calmest possible
+// reading, with high confidence, for a file with NO history to read at all.
+func TestGitChurnErrorsOnUntrackedFile(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := initTestRepo(t)
+	if err := os.WriteFile(filepath.Join(dir, "never-committed.go"), []byte("package p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := GitChurn{}.Assess(context.Background(), Scope{Repo: dir, Files: []string{"never-committed.go"}})
+	if err == nil {
+		t.Fatal("expected an error for a file that was never committed -- no history to read is UNKNOWN, not calm")
+	}
+}
+
+// TestGitChurnFindsCommitsFromASubdirectoryScope is the regression test for
+// the actual live bug: scopedFiles reports paths relative to the repo
+// ROOT, but Scope.Repo was previously whatever subdirectory a session
+// happened to be in. `git log -- <root-relative-path>` run with cmd.Dir
+// set to a subdirectory matches nothing and exits 0 -- silently
+// indistinguishable from "genuinely 0 commits". Repo must be the toplevel
+// (which newScope in cmd/deadeye now resolves); this asserts the provider
+// itself reports real churn once given a correctly-rooted scope.
+func TestGitChurnFindsCommitsFromASubdirectoryScope(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := initTestRepo(t)
+	if err := os.MkdirAll(filepath.Join(dir, "pkg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "pkg", "a.go")
+	for i := 0; i < 5; i++ {
+		content := []byte(fmt.Sprintf("package pkg\n// rev %d\n", i))
+		if err := os.WriteFile(path, content, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		runGit(t, dir, "add", "pkg/a.go")
+		runGit(t, dir, "commit", "-q", "-m", fmt.Sprintf("rev %d", i))
+	}
+
+	evidence, err := GitChurn{}.Assess(context.Background(), Scope{Repo: dir, Files: []string{"pkg/a.go"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := evidence.Facts["commits_last_30d"].(int); got != 5 {
+		t.Errorf("commits_last_30d = %v, want 5 -- Repo=%s (the toplevel) with a root-relative file path must find its real history", evidence.Facts["commits_last_30d"], dir)
+	}
+}
+
+func initTestRepo(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	runGit(t, dir, "init", "-q")
+	return dir
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t.com", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t.com")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+}
+
 func TestTestPresenceDetectsAdjacentTest(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "foo.go")
@@ -109,6 +181,33 @@ func TestTestPresenceDetectsAdjacentTest(t *testing.T) {
 	}
 	if covered.Complexity >= uncovered.Complexity {
 		t.Errorf("covered complexity %v should be less than uncovered %v", covered.Complexity, uncovered.Complexity)
+	}
+}
+
+// TestTestPresenceResolvesRelativePathsAgainstRepoNotProcessCwd is the
+// regression test for hasAdjacentTest previously stat'ing a relative path
+// against whatever directory the calling PROCESS happened to be in --
+// wrong for a daemon that may have been spawned from an entirely different
+// project. This test's own process cwd is wherever `go test` runs from,
+// deliberately unrelated to dir, to prove resolution goes through s.Repo.
+func TestTestPresenceResolvesRelativePathsAgainstRepoNotProcessCwd(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "pkg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pkg", "a.go"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pkg", "a_test.go"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := TestPresence{}.Assess(context.Background(), Scope{Repo: dir, Files: []string{"pkg/a.go"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := got.Facts["files_with_adjacent_test"].(int); n != 1 {
+		t.Errorf("files_with_adjacent_test = %v, want 1 -- a relative path must resolve against Scope.Repo, not this test process's own cwd", got.Facts["files_with_adjacent_test"])
 	}
 }
 

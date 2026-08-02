@@ -24,18 +24,27 @@ func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
 // decide dispatches by event. A panic anywhere below still yields the
 // canonical no-op response (INV-5) -- the recover here is the top of the
 // policy call graph; individual handlers don't need their own.
+//
+// Config is loaded fresh here, once per request, from the SESSION's cwd
+// (in.Cwd) and the client's real env-derived kill switches (req.Off) --
+// never cached on daemonState across requests. See config.LoadFor's
+// comment: the daemon is one long-lived process serving every project and
+// session it's asked about, so a per-daemon-lifetime config would let one
+// project's .deadeye.json (or a stale env snapshot) govern every other
+// project's sessions too.
 func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	out = hookio.Empty()
 	defer func() { recover() }()
 
 	var in hookio.Input
 	_ = json.Unmarshal(req.Payload, &in)
+	cfg := config.LoadFor(in.Cwd, req.Off)
 
 	switch req.Event {
 	case "UserPromptSubmit":
-		out = decideUserPromptSubmit(in, state)
+		out = decideUserPromptSubmit(in, cfg, state)
 	case "PreToolUse":
-		out = decidePreToolUse(in, state)
+		out = decidePreToolUse(in, cfg, state)
 	case "Stop":
 		out = decideStop(in, state)
 	case "SessionEnd":
@@ -60,7 +69,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 // v2.1.220 (docs/verified.md §5.1); UserPromptSubmit's additionalContext
 // is the confirmed-working replacement, gated to fire exactly once per
 // session so it stays byte-stable (INV-4).
-func decideUserPromptSubmit(in hookio.Input, state *daemonState) hookio.Output {
+func decideUserPromptSubmit(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	var parts []string
 
 	if state.markInjectedIfFirst(in.SessionID) {
@@ -68,7 +77,7 @@ func decideUserPromptSubmit(in hookio.Input, state *daemonState) hookio.Output {
 		text := inject.Build(state.cat, memory)
 		tokens := inject.EstimateTokens(text)
 		reason := "session guidance injection"
-		if tokens > state.cfg.InjectionBudgetTokens {
+		if tokens > cfg.InjectionBudgetTokens {
 			reason = "session guidance injection (over INV-4 budget, shipped anyway -- trim before adding more)"
 		}
 		state.log(logstore.Record{
@@ -78,11 +87,11 @@ func decideUserPromptSubmit(in hookio.Input, state *daemonState) hookio.Output {
 		parts = append(parts, text)
 	}
 
-	if suggestion, fired := decidePlanGateSoft(in, state); fired {
+	if suggestion, fired := decidePlanGateSoft(in, cfg, state); fired {
 		parts = append(parts, suggestion)
 	}
 
-	if suggestion, fired := decideWorkflowHint(in, state); fired {
+	if suggestion, fired := decideWorkflowHint(in, cfg, state); fired {
 		parts = append(parts, suggestion)
 	}
 
@@ -142,14 +151,14 @@ type bashInput struct {
 // decidePreToolUse runs Bash preprocessing rules (PLAN.md §5.3), Agent
 // subagent routing (§5.2), and the plan-gate hard layer (§5.4) for
 // Edit/Write.
-func decidePreToolUse(in hookio.Input, state *daemonState) hookio.Output {
+func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	switch in.ToolName {
 	case "Bash":
-		return decideBashPreprocess(in, state)
+		return decideBashPreprocess(in, cfg, state)
 	case "Agent":
-		return decideAgentRouting(in, state)
+		return decideAgentRouting(in, cfg, state)
 	case "Edit", "Write":
-		return decidePlanGateHard(in, state)
+		return decidePlanGateHard(in, cfg, state)
 	default:
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "noop"})
 		return hookio.Empty()
@@ -175,22 +184,18 @@ type agentInput struct {
 // about the kernel's own default (which is already threshold-gated
 // internally, see internal/kernel), not about second-guessing a model the
 // caller specifically asked for.
-func decideAgentRouting(in hookio.Input, state *daemonState) hookio.Output {
-	if state.cfg.Mode.Routing == "off" || config.KillSwitchOff("DEADEYE") {
+func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.Routing == "off" {
 		return hookio.Empty()
 	}
 
 	var ai agentInput
 	_ = json.Unmarshal(in.ToolInput, &ai)
 
-	scope := signals.Scope{
-		Prompt: ai.Description + " " + ai.Prompt,
-		Files:  scopedFiles(in.Cwd),
-		Repo:   in.Cwd,
-	}
+	scope := newScope(ai.Description+" "+ai.Prompt, in.Cwd)
 	evidence := signals.AssessAll(context.Background(), scope, signals.Builtins())
 	shape := taskShapeKey(scope.Files, scope.Prompt, evidence)
-	threshold := lessons.AdjustedDownshiftThreshold(state.cfg.DownshiftThreshold, state.outcomesSnapshot(), shape)
+	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, state.outcomesSnapshot(), shape)
 	decision := kernel.Decide(evidence, state.cat, threshold)
 
 	checkEscalation(in, ai, shape, state)
@@ -201,7 +206,7 @@ func decideAgentRouting(in hookio.Input, state *daemonState) hookio.Output {
 	out := hookio.ForEvent("PreToolUse")
 	reason := fmt.Sprintf("deadeye recommends model=%s effort=%s -- %s", decision.Model, decision.Effort, decision.Reason)
 
-	if state.cfg.Mode.Routing == "enforce" && ai.Model == "" {
+	if cfg.Mode.Routing == "enforce" && ai.Model == "" {
 		if family, ok := state.cat.FamilyFor(decision.Model); ok {
 			updated, err := hookio.MergeToolInput(in.ToolInput, map[string]any{"model": family})
 			if err == nil {
@@ -219,8 +224,8 @@ func decideAgentRouting(in hookio.Input, state *daemonState) hookio.Output {
 	return out
 }
 
-func decideBashPreprocess(in hookio.Input, state *daemonState) hookio.Output {
-	if state.cfg.Mode.Preprocess != "on" || config.KillSwitchOff("DEADEYE_PREPROCESS") {
+func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.Preprocess != "on" {
 		return hookio.Empty()
 	}
 
@@ -229,7 +234,7 @@ func decideBashPreprocess(in hookio.Input, state *daemonState) hookio.Output {
 		return hookio.Empty()
 	}
 
-	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, state.cfg.DisabledRuleSet())
+	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, cfg.DisabledRuleSet())
 	if !applied {
 		return hookio.Empty()
 	}

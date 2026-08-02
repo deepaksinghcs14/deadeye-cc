@@ -9,18 +9,18 @@ import (
 )
 
 func TestWorkflowHintTriggersOnFanOutPhrasing(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	in := hookio.Input{SessionID: "s1", Prompt: "Audit every file across the codebase for dead code"}
-	suggestion, fired := decideWorkflowHint(in, state)
+	suggestion, fired := decideWorkflowHint(in, config.Default(), state)
 	if !fired || suggestion == "" {
 		t.Fatal("expected the workflow hint to fire on fan-out phrasing")
 	}
 }
 
 func TestWorkflowHintSkipsRoutinePrompts(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	in := hookio.Input{SessionID: "s1", Prompt: "Fix the typo in main.go"}
-	if _, fired := decideWorkflowHint(in, state); fired {
+	if _, fired := decideWorkflowHint(in, config.Default(), state); fired {
 		t.Error("workflow hint fired on a routine single-file prompt")
 	}
 }
@@ -28,13 +28,13 @@ func TestWorkflowHintSkipsRoutinePrompts(t *testing.T) {
 // TestWorkflowHintFiresAtMostOnceThisSession is INV-2/§5.5: "never more
 // than once per task."
 func TestWorkflowHintFiresOncePerTask(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	in := hookio.Input{SessionID: "s1", Prompt: "Audit every file across the codebase for dead code"}
 
-	if _, fired := decideWorkflowHint(in, state); !fired {
+	if _, fired := decideWorkflowHint(in, config.Default(), state); !fired {
 		t.Fatal("expected the first call to fire")
 	}
-	if _, fired := decideWorkflowHint(in, state); fired {
+	if _, fired := decideWorkflowHint(in, config.Default(), state); fired {
 		t.Error("workflow hint fired twice for the same task")
 	}
 }
@@ -42,9 +42,9 @@ func TestWorkflowHintFiresOncePerTask(t *testing.T) {
 func TestWorkflowHintRespectsModeOff(t *testing.T) {
 	cfg := config.Default()
 	cfg.Mode.WorkflowHint = "off"
-	state := newDaemonState(cfg, catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	in := hookio.Input{SessionID: "s1", Prompt: "Audit every file across the codebase for dead code"}
-	if _, fired := decideWorkflowHint(in, state); fired {
+	if _, fired := decideWorkflowHint(in, cfg, state); fired {
 		t.Error("workflow hint fired with mode.workflow_hint=off")
 	}
 }
@@ -53,10 +53,10 @@ func TestWorkflowHintRespectsModeOff(t *testing.T) {
 // a synthetic task-notification "prompt" must not trigger the advisor
 // even if it happens to contain fan-out-sounding phrasing.
 func TestWorkflowHintIgnoresSyntheticPrompts(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	synthetic := "<task-notification>\n<summary>Audit every file across the codebase for dead code, finished</summary>\n</task-notification>"
 	in := hookio.Input{SessionID: "s1", Prompt: synthetic}
-	if _, fired := decideWorkflowHint(in, state); fired {
+	if _, fired := decideWorkflowHint(in, config.Default(), state); fired {
 		t.Error("workflow hint fired on a synthetic task-notification prompt")
 	}
 }

@@ -13,6 +13,7 @@
 package sessionmem
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,6 +23,12 @@ import (
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
+
+// gitTimeout bounds every git subprocess here -- a stalled network mount or
+// a held .git/index.lock must not hang SessionEnd forever (INV-5: fail
+// open means timing out and treating it like "not a git repo", not hanging
+// the daemon goroutine handling it).
+const gitTimeout = 2 * time.Second
 
 func Dir() string { return filepath.Join(meta.StateDir(), "sessions") }
 
@@ -58,7 +65,9 @@ func sanitize(s string) string {
 }
 
 func gitOutput(cwd string, args ...string) string {
-	cmd := exec.Command("git", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = cwd
 	out, err := cmd.Output()
 	if err != nil {

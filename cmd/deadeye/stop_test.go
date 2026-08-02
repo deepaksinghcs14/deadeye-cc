@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 )
 
 func TestStopStaysQuietWithNoSavingsYet(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	out := decideStop(hookio.Input{SessionID: "s1"}, state)
 	if out.HookSpecificOutput != nil {
 		t.Errorf("Stop fired with nothing saved yet: %+v", out)
@@ -19,7 +18,7 @@ func TestStopStaysQuietWithNoSavingsYet(t *testing.T) {
 }
 
 func TestStopShowsSummaryAfterARewrite(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	state.log(logstore.Record{SessionID: "s1", Surface: "PreToolUse/Bash", Action: "rewrite", BytesBeforeEst: 30000, BytesAfter: 9600})
 
 	out := decideStop(hookio.Input{SessionID: "s1"}, state)
@@ -36,7 +35,7 @@ func TestStopShowsSummaryAfterARewrite(t *testing.T) {
 // once shown, the same cumulative total must not repeat on a later turn
 // where nothing new was saved.
 func TestStopDoesNotRepeatAStaleTotal(t *testing.T) {
-	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	state := newDaemonState(catalog.Catalog{}, nil)
 	state.log(logstore.Record{SessionID: "s1", Surface: "PreToolUse/Bash", Action: "rewrite", BytesBeforeEst: 30000, BytesAfter: 9600})
 
 	first := decideStop(hookio.Input{SessionID: "s1"}, state)

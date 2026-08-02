@@ -6,12 +6,36 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
+
+// gitTimeout bounds every git subprocess this plugin shells out to. A
+// hung git (a stalled network mount, a held .git/index.lock) must not wedge
+// a daemon goroutine or a CLI command forever -- fail-open per INV-5 means
+// timing out and returning no evidence, not hanging.
+const gitTimeout = 2 * time.Second
+
+// newScope builds a signals.Scope for prompt at cwd, shared by every call
+// site that used to build one ad hoc. Repo is resolved to the git
+// TOPLEVEL, not cwd itself -- scopedFiles' `git diff --name-only` always
+// reports paths relative to the repo root, never to whatever subdirectory
+// a session happens to be in. Verified live: from a subdirectory, `git log
+// -- <repo-root-relative-path>` run with cmd.Dir=cwd matches nothing and
+// exits 0 (git does not error on a non-matching pathspec) -- gitchurn was
+// laundering that into "0 commits, confidence 0.82", the calmest possible
+// reading, with high confidence, for a file that might have 40 commits.
+func newScope(prompt, cwd string) signals.Scope {
+	repo := gitOut(cwd, "rev-parse", "--show-toplevel")
+	if repo == "" {
+		repo = cwd
+	}
+	return signals.Scope{Prompt: prompt, Files: scopedFiles(cwd), Repo: repo}
+}
 
 // runRoute backs `deadeye route [task description]` / /deadeye-route: a
 // dry run of the kernel against either the given description or the
@@ -24,14 +48,10 @@ func runRoute(taskDescription string) {
 		fmt.Println("deadeye route:", err)
 		return
 	}
-	repo := gitOut(cwd, "rev-parse", "--show-toplevel")
-	if repo == "" {
-		repo = cwd
-	}
-	files := scopedFiles(cwd)
-
-	scope := signals.Scope{Prompt: taskDescription, Files: files, Repo: repo}
-	evidence := signals.AssessAll(context.Background(), scope, signals.Builtins())
+	scope := newScope(taskDescription, cwd)
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+	evidence := signals.AssessAll(ctx, scope, signals.Builtins())
 
 	cfg := config.Load()
 	cat := catalog.Load()
@@ -42,7 +62,7 @@ func runRoute(taskDescription string) {
 	} else {
 		fmt.Println("Task: (none given -- scoped to current working tree)")
 	}
-	fmt.Printf("Scope: %d file(s) in %s\n\n", len(files), repo)
+	fmt.Printf("Scope: %d file(s) in %s\n\n", len(scope.Files), scope.Repo)
 
 	if len(evidence) == 0 {
 		fmt.Println("Evidence: none (every provider skipped -- see docs/verified.md/PLAN.md §3.1 on degrading gracefully)")
@@ -83,8 +103,13 @@ func scopedFiles(cwd string) []string {
 	return files
 }
 
+// gitOut runs git bounded by gitTimeout -- a stalled network mount or a
+// held .git/index.lock must not hang the caller forever (INV-5: fail open
+// means timing out and returning "", not hanging).
 func gitOut(dir string, args ...string) string {
-	cmd := exec.Command("git", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
@@ -51,7 +50,7 @@ func runDaemon() {
 	defer l.Close()
 	_ = os.Chmod(sockPath, 0o600)
 
-	state := newDaemonState(config.Load(), catalog.Load(), logstore.Open(meta.LogPath()))
+	state := newDaemonState(catalog.Load(), logstore.Open(meta.LogPath()))
 
 	connCh := make(chan net.Conn)
 	go func() {

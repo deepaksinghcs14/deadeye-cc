@@ -29,10 +29,13 @@ func runStatus() {
 	fmt.Printf("  posture:       %s\n\n", cfg.Posture)
 
 	fmt.Println("Kill switches:")
+	off := config.OffSwitches()
 	for _, ev := range []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE"} {
 		state := "on"
-		if config.KillSwitchOff(ev) {
-			state = "OFF"
+		for _, o := range off {
+			if o == ev {
+				state = "OFF"
+			}
 		}
 		fmt.Printf("  %-20s %s\n", ev, state)
 	}
