@@ -47,10 +47,11 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 }
 
 // decideUserPromptSubmit delivers the once-per-session advisory injection
-// and, on every turn, the plan-gate soft check (PLAN.md §5.4) -- both
-// share this event, so a turn that trips both gets one combined
-// additionalContext rather than two separate hook responses (there's only
-// one additionalContext slot per response).
+// and, on every turn, the plan-gate soft check (PLAN.md §5.4) and the
+// workflow advisor (§5.5) -- all three share this event, so a turn that
+// trips more than one gets a single combined additionalContext rather
+// than separate hook responses (there's only one additionalContext slot
+// per response).
 //
 // SessionStart cannot put anything in the model's context in Claude Code
 // v2.1.220 (docs/verified.md §5.1); UserPromptSubmit's additionalContext
@@ -75,6 +76,10 @@ func decideUserPromptSubmit(in hookio.Input, state *daemonState) hookio.Output {
 	}
 
 	if suggestion, fired := decidePlanGateSoft(in, state); fired {
+		parts = append(parts, suggestion)
+	}
+
+	if suggestion, fired := decideWorkflowHint(in, state); fired {
 		parts = append(parts, suggestion)
 	}
 
