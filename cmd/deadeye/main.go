@@ -11,7 +11,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|capture|uninstall|version> [args]")
+		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|audit|capture|uninstall|version> [args]")
 		os.Exit(2)
 	}
 
@@ -22,6 +22,8 @@ func main() {
 		runDaemon()
 	case "status":
 		runStatus()
+	case "audit":
+		runAudit()
 	case "capture":
 		runCapture(argOr(2, ""))
 	case "uninstall":

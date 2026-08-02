@@ -11,7 +11,6 @@ import (
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
@@ -52,9 +51,7 @@ func runDaemon() {
 	defer l.Close()
 	_ = os.Chmod(sockPath, 0o600)
 
-	cfg := config.Load()
-	cat := catalog.Load()
-	logs := logstore.Open(meta.LogPath())
+	state := newDaemonState(config.Load(), catalog.Load(), logstore.Open(meta.LogPath()))
 
 	connCh := make(chan net.Conn)
 	go func() {
@@ -87,7 +84,7 @@ func runDaemon() {
 				}
 			}
 			idle.Reset(idleTimeout)
-			go handleConn(conn, cfg, cat, logs)
+			go handleConn(conn, state)
 		case <-idle.C:
 			return
 		case <-sigCh:
@@ -98,7 +95,7 @@ func runDaemon() {
 
 // handleConn reads one request to EOF (the client half-closes after
 // writing), decides, and writes the raw hookio.Output JSON back.
-func handleConn(conn net.Conn, cfg config.Config, cat catalog.Catalog, logs *logstore.Store) {
+func handleConn(conn net.Conn, state *daemonState) {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
 
@@ -114,35 +111,12 @@ func handleConn(conn net.Conn, cfg config.Config, cat catalog.Catalog, logs *log
 		return
 	}
 
-	out := decide(req, cfg, cat, logs)
+	out := decide(req, state)
 	b, err := json.Marshal(out)
 	if err != nil {
 		b = []byte("{}")
 	}
 	conn.Write(b)
-}
-
-// decide is Phase 0's entire kernel: record what arrived, change nothing.
-// internal/kernel and the real enforcement axes land in later phases; see
-// PLAN.md §9. A panic here (e.g. a malformed payload the log write can't
-// handle) still yields the canonical no-op response.
-func decide(req proto.Request, _ config.Config, _ catalog.Catalog, logs *logstore.Store) (out hookio.Output) {
-	out = hookio.Empty()
-	defer func() { recover() }()
-
-	var in hookio.Input
-	_ = json.Unmarshal(req.Payload, &in)
-
-	if logs != nil {
-		_ = logs.Append(logstore.Record{
-			TS:        time.Now().UTC().Format(time.RFC3339),
-			SessionID: in.SessionID,
-			Surface:   req.Event,
-			Action:    "noop",
-			Reason:    "phase0: no kernel yet",
-		})
-	}
-	return out
 }
 
 func acquireLock(path string) (*os.File, error) {
