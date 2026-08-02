@@ -31,18 +31,39 @@ type Signal interface {
 	Assess(ctx context.Context, s Scope) (Evidence, error)
 }
 
-// AssessAll runs every provider and collects whatever succeeds. Errors are
-// dropped silently (degradable per PLAN.md §3.1) -- a provider that can't
-// answer contributes nothing, which is exactly what INV-1 wants: it's
-// evidence-absence, not zero-complexity evidence.
+// AssessAll runs every provider and collects whatever succeeds, degrading
+// per PLAN.md §3.1. A skipped provider is recorded as an explicit
+// zero-confidence "unknown" Evidence item rather than silently dropped --
+// caught live: on a clean working tree, three of the four builtins error
+// out (nothing to assess), leaving only promptshape's evidence. The
+// kernel's own empty-evidence check only catches a wholly EMPTY set, not
+// "only the weakest signal had anything to say" -- so a vague-sounding but
+// keyword-free prompt against a clean tree could clear the confidence
+// threshold on promptshape's evidence ALONE and downshift to the cheapest
+// tier for an architecture-sized task, purely because committing your
+// work made every other signal go quiet. Emitting the gap as a
+// zero-confidence item routes it through the kernel's existing
+// min-confidence rule (a single low-confidence item always blocks
+// downshift) with no change to kernel.Decide itself, and makes the gap
+// visible in /deadeye-route instead of looking like agreement.
 func AssessAll(ctx context.Context, s Scope, providers []Signal) []Evidence {
 	var out []Evidence
+	var skipped []string
 	for _, p := range providers {
 		e, err := p.Assess(ctx, s)
 		if err != nil {
+			skipped = append(skipped, p.Name())
 			continue
 		}
 		out = append(out, e)
+	}
+	if len(skipped) > 0 {
+		out = append(out, Evidence{
+			Provider:   "unknown",
+			Complexity: 0,
+			Confidence: 0,
+			Facts:      map[string]any{"skipped": skipped},
+		})
 	}
 	return out
 }

@@ -17,15 +17,15 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
-// Outcome weights per PLAN.md §8's table. INV-9: "no error" is not
-// success -- clean completion is a very weak positive signal, escalation
-// is a strong negative one.
-const (
-	WeightEscalation = 1.0
-	WeightClean      = 0.05
-)
+// WeightEscalation is PLAN.md §8's table: escalation is a strong negative
+// signal. (There used to be a WeightClean alongside it for a "no error"
+// positive signal -- deleted, unused: nothing in this codebase ever wrote
+// a "clean" outcome, and per INV-9 a weak positive can't undo an
+// escalation's bias on its own anyway; see recencyWindow instead.)
+const WeightEscalation = 1.0
 
 // Outcome is one observed signal attached to a task shape.
 type Outcome struct {
@@ -39,31 +39,47 @@ type Outcome struct {
 }
 
 // smoothing keeps a single early escalation from permanently maxing out
-// the adjusted threshold for a task shape -- PLAN.md §8: "prior weight
-// growing with n ... simple Beta-style blending is fine, do not
-// over-engineer this."
+// the adjusted threshold for a task shape -- PLAN.md §8: "simple
+// Beta-style blending is fine, do not over-engineer this."
 const smoothing = 3.0
 
+// recencyWindow bounds how long an escalation keeps raising the
+// threshold. Without this, a single escalation makes downshifting
+// mathematically impossible for that task shape FOREVER: the minimum
+// confidence any builtin provider ever emits is 0.8 (testpresence) and the
+// maximum is 0.85, so one escalation alone raises the bar to
+// 0.8 + 0.2*(1/(1+3)) = 0.85 -- an unreachable threshold, in every
+// project (outcomes.jsonl is global, never rotated), forever. 30 days
+// reuses gitchurn's existing "recent activity" window rather than
+// inventing a new coefficient.
+const recencyWindow = 30 * 24 * time.Hour
+
 // AdjustedDownshiftThreshold raises the confidence bar required to
-// downshift a task shape, proportional to how often that shape has been
-// escalated before. Escalation-free or never-seen shapes get the
-// unmodified base threshold -- this only ever makes downshifting harder,
-// never easier, consistent with INV-1.
-func AdjustedDownshiftThreshold(base float64, outcomes []Outcome, taskShape string) float64 {
+// downshift a task shape, proportional to how recently and how often that
+// shape has been escalated. Outcomes older than recencyWindow don't count
+// at all -- a stale escalation eventually stops mattering rather than
+// pinning the shape to the ceiling forever. now is passed in (rather than
+// read internally) so this stays deterministic to test. An outcome whose
+// timestamp fails to parse is treated as recent -- unknown routes up here
+// same as everywhere else in this kernel, rather than being silently
+// dropped as if it never happened. Escalation-free or never-seen shapes
+// get the unmodified base threshold -- this only ever makes downshifting
+// harder, never easier, consistent with INV-1.
+func AdjustedDownshiftThreshold(base float64, outcomes []Outcome, taskShape string, now time.Time) float64 {
 	if base >= 1 {
 		return base
 	}
-	var escalationWeight, n float64
+	var escalationWeight float64
 	for _, o := range outcomes {
-		if o.TaskShape != taskShape {
+		if o.TaskShape != taskShape || o.Kind != "escalation" {
 			continue
 		}
-		n++
-		if o.Kind == "escalation" {
-			escalationWeight += o.Weight
+		if ts, err := time.Parse(time.RFC3339, o.TS); err == nil && now.Sub(ts) > recencyWindow {
+			continue
 		}
+		escalationWeight += o.Weight
 	}
-	if n == 0 {
+	if escalationWeight == 0 {
 		return base
 	}
 	bias := escalationWeight / (escalationWeight + smoothing)

@@ -37,12 +37,18 @@ func TestEmptyEvidenceIsCeiling(t *testing.T) {
 		t.Fatalf("empty evidence = %+v, want top tier / high effort", ceiling)
 	}
 
-	// No evidence-driven decision should ever outrank the ceiling.
+	// No evidence-driven decision should ever outrank (be MORE expensive
+	// than) the ceiling -- confident, bounded-complexity evidence is
+	// supposed to downshift BELOW it; that's the whole point. (Very-high-
+	// complexity evidence is deliberately excluded from this list: it
+	// legitimately upshifts PAST the ceiling's effort, to xhigh -- see
+	// TestVeryHighComplexityUpshiftsRegardlessOfConfidence -- so "the
+	// ceiling" is an upper bound for these bounded-complexity cases only,
+	// not an absolute cap across every possible decision.)
 	cases := [][]signals.Evidence{
 		{{Complexity: 0.1, Confidence: 0.95}},
 		{{Complexity: 0.4, Confidence: 0.9}},
 		{{Complexity: 0.6, Confidence: 0.85}},
-		{{Complexity: 0.95, Confidence: 0.1}}, // very-high-complexity upshift path
 	}
 	for _, ev := range cases {
 		d := Decide(ev, cat, 0.8)
@@ -79,12 +85,44 @@ func TestOneDisagreeingSignalBlocksDownshift(t *testing.T) {
 }
 
 // TestVeryHighComplexityUpshiftsRegardlessOfConfidence: upshifting is
-// always free (INV-1) -- no confidence threshold gates it.
+// always free (INV-1) -- no confidence threshold gates it. Effort goes all
+// the way to xhigh here specifically -- distinct from the plain "we don't
+// know" ceiling, which stays at "high" (see TestEmptyEvidenceIsCeiling).
 func TestVeryHighComplexityUpshiftsRegardlessOfConfidence(t *testing.T) {
 	cat := testCatalog()
 	d := Decide([]signals.Evidence{{Complexity: 0.95, Confidence: 0.01}}, cat, 0.8)
-	if d.Model != "top" || d.Effort != "high" {
-		t.Errorf("very-high-complexity evidence = %+v, want top tier / high effort", d)
+	if d.Model != "top" || d.Effort != "xhigh" {
+		t.Errorf("very-high-complexity evidence = %+v, want top tier / xhigh effort", d)
+	}
+}
+
+// TestCeilingCapsBelowTheMostExpensiveTier is the regression test for a
+// real bug caught live: with the real builtin catalog (tier 3 =
+// claude-fable-5, 2x opus's price), the ceiling picked the highest TIER,
+// which happens to be the most EXPENSIVE model -- three read-only
+// search-agent calls with thin evidence were all advised fable-5 in one
+// real session. ceilingTier caps this at tier 2 (opus-equivalent).
+func TestCeilingCapsBelowTheMostExpensiveTier(t *testing.T) {
+	cat := catalog.Catalog{Models: []catalog.Model{
+		{ID: "haiku-like", Tier: 0},
+		{ID: "sonnet-like", Tier: 1},
+		{ID: "opus-like", Tier: 2},
+		{ID: "priciest", Tier: 3},
+	}}
+	d := Decide(nil, cat, 0.8)
+	if d.Model != "opus-like" {
+		t.Errorf("ceiling model = %q, want %q -- ceilingTier=2 should exclude the catalog's most expensive tier", d.Model, "opus-like")
+	}
+}
+
+// TestCeilingFallsBackWhenNoModelAtOrUnderCeilingTier covers a catalog
+// override with nothing at or below ceilingTier -- must not return an
+// empty model id.
+func TestCeilingFallsBackWhenNoModelAtOrUnderCeilingTier(t *testing.T) {
+	cat := catalog.Catalog{Models: []catalog.Model{{ID: "only-option", Tier: 5}}}
+	d := Decide(nil, cat, 0.8)
+	if d.Model != "only-option" {
+		t.Errorf("ceiling model = %q, want %q (fallback to the catalog's own highest tier)", d.Model, "only-option")
 	}
 }
 

@@ -67,3 +67,54 @@ func TestDownshiftIsReachableThroughRealProviders(t *testing.T) {
 			"evidence: %+v, decision: %+v", evidence, decision)
 	}
 }
+
+// TestCleanTreeDoesNotDownshiftABigTask is the regression test for the
+// real-world C1 bug: on a clean working tree (everything committed,
+// nothing staged), filescope/gitchurn/testpresence all error out --
+// "nothing in scope to assess" -- leaving only promptshape's evidence.
+// A prompt with no complexity/vague keyword match gives promptshape high
+// confidence (0.85, "found nothing" is a reliable negative) at zero
+// complexity, which alone cleared the downshift threshold: committing
+// your work made deadeye recommend the CHEAPEST tier for an
+// architecture-sized delegation. AssessAll now emits the three skipped
+// providers as one zero-confidence "unknown" item, which should force the
+// ceiling here exactly as it would for genuinely no evidence at all.
+func TestCleanTreeDoesNotDownshiftABigTask(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := t.TempDir()
+	run := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t.com", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t.com")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-q")
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte("package p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", ".")
+	run("commit", "-q", "-m", "everything committed, tree is clean")
+
+	// No files in scope (scopedFiles reads git diff/diff --cached, both
+	// empty on a clean tree) and a prompt with no complexity/vague
+	// keyword -- exactly the scenario that previously downshifted.
+	scope := signals.Scope{
+		Prompt: "Implement the new billing reconciliation service end to end and wire it into the scheduler",
+		Files:  nil,
+		Repo:   dir,
+	}
+	evidence := signals.AssessAll(context.Background(), scope, signals.Builtins())
+
+	cat := catalog.Load()
+	ceiling := kernel.Decide(nil, cat, 0.8)
+	decision := kernel.Decide(evidence, cat, 0.8)
+
+	if decision != ceiling {
+		t.Fatalf("a clean tree downshifted a keyword-free, architecture-sized prompt -- "+
+			"evidence: %+v, decision: %+v, want ceiling: %+v", evidence, decision, ceiling)
+	}
+}

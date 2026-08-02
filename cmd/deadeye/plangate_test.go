@@ -4,12 +4,46 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 )
+
+// TestLooksImplementationShapedIgnoresSubstrings is the regression test
+// for D1: plain strings.Contains matched an implementation verb as a
+// SUBSTRING of an unrelated word, firing the plan gate on pure questions.
+// Verified live, each of these: "prefix" (fix), "address"/"padding" (add),
+// "removed" (remove/move), "changelog" (change).
+func TestLooksImplementationShapedIgnoresSubstrings(t *testing.T) {
+	falsePositives := []string{
+		"explain the prefix handling in the address parser",
+		"what does the changelog say",
+		"why was this removed",
+		"how does padding work here",
+	}
+	for _, p := range falsePositives {
+		if looksImplementationShaped(p) {
+			t.Errorf("looksImplementationShaped(%q) = true, want false (verb matched as a substring of an unrelated word)", p)
+		}
+	}
+
+	realRequests := []string{
+		"add a new field to the struct",
+		"adds a new field",   // -s inflection
+		"adding a new field", // -ing inflection
+		"implement the new endpoint",
+		"fix the parser",
+	}
+	for _, p := range realRequests {
+		if !looksImplementationShaped(p) {
+			t.Errorf("looksImplementationShaped(%q) = false, want true", p)
+		}
+	}
+}
 
 // TestPlanGateThresholdDiscipline is PLAN.md §5.4's explicit requirement:
 // "single-file, specific, low-radius prompts must pass through with zero
@@ -76,6 +110,49 @@ func TestPlanGateFiresOnMultiFileWorkingTree(t *testing.T) {
 	_, _, fire := planGateSoftTrigger(in, cfg)
 	if !fire {
 		t.Error("expected the gate to fire against a working tree with 2 staged files (MinFiles=2)")
+	}
+}
+
+// TestPlanGateSoftFiresOncePerMarker is the regression test for D2: the
+// soft gate previously re-suggested (and re-armed pendingPlanTask) on
+// every turn a trigger condition was re-met, even for the byte-identical
+// prompt -- INV-7's "never nag twice for the same trigger" only held
+// within a single already-pending cycle, not across the whole session.
+// Uses a vague prompt (fires on prompt shape alone) so this doesn't need a
+// working tree.
+func TestPlanGateSoftFiresOncePerMarker(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+	prompt := "Not sure, maybe look into a redesign of the architecture across the codebase?"
+	in := hookio.Input{SessionID: "s1", Prompt: prompt, Cwd: t.TempDir()}
+
+	if _, fired := decidePlanGateSoft(in, cfg, state); !fired {
+		t.Fatal("expected the first call to fire")
+	}
+	if _, fired := decidePlanGateSoft(in, cfg, state); fired {
+		t.Error("plan gate re-fired for the identical prompt marker within the same session")
+	}
+
+	// A genuinely different implementation-shaped prompt is a different
+	// task and must still be able to fire.
+	other := hookio.Input{SessionID: "s1", Prompt: "Not sure, maybe look into a redesign of the billing architecture?", Cwd: t.TempDir()}
+	if _, fired := decidePlanGateSoft(other, cfg, state); !fired {
+		t.Error("a different implementation-shaped prompt should still fire -- it's a different task")
+	}
+}
+
+// TestTruncatedMarkerIsRuneSafe is the regression test for the other half
+// of D2: marker[:60] byte-slicing could split a multi-byte UTF-8 rune in
+// half, corrupting the marker stored in session state and logged to
+// decisions.jsonl.
+func TestTruncatedMarkerIsRuneSafe(t *testing.T) {
+	prompt := strings.Repeat("界", 70) // 70 runes, 3 bytes each
+	got := truncatedMarker(prompt)
+	if !utf8.ValidString(got) {
+		t.Fatalf("truncatedMarker produced invalid UTF-8: %q", got)
+	}
+	if n := utf8.RuneCountInString(got); n != 60 {
+		t.Errorf("rune count = %d, want 60", n)
 	}
 }
 

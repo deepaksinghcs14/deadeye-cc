@@ -47,11 +47,8 @@ func decideWorkflowHint(in hookio.Input, cfg config.Config, state *daemonState) 
 		return "", false
 	}
 
-	marker := in.Prompt
-	if len(marker) > 60 {
-		marker = marker[:60]
-	}
-	if !state.markWorkflowSuggestedIfFirst(in.SessionID, marker) {
+	marker := truncatedMarker(in.Prompt)
+	if !state.markSuggestedIfFirst(in.SessionID, "workflow:"+marker) {
 		return "", false
 	}
 

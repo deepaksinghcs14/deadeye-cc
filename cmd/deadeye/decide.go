@@ -195,12 +195,21 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	scope := newScope(ai.Description+" "+ai.Prompt, in.Cwd)
 	evidence := signals.AssessAll(context.Background(), scope, signals.Builtins())
 	shape := taskShapeKey(scope.Files, scope.Prompt, evidence)
-	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, state.outcomesSnapshot(), shape)
+	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, state.outcomesSnapshot(), shape, time.Now())
 	decision := kernel.Decide(evidence, state.cat, threshold)
 
 	checkEscalation(in, ai, shape, state)
-	if tier, ok := state.cat.TierFor(decision.Model); ok {
-		state.setLastRouting(in.SessionID, shape, decision.Model, decision.Effort, tier)
+	// Only record this decision as "last routing" when the caller left
+	// model unset -- deadeye's recommendation was actually the one in
+	// play. When the caller passed an explicit model, this decision was
+	// never applied; recording it would let the NEXT call's explicit
+	// model get graded as an "escalation" against advice nobody acted on
+	// (verified: Claude passing model:"opus" on two consecutive Agent
+	// calls recorded a phantom escalation the user never triggered).
+	if ai.Model == "" {
+		if tier, ok := state.cat.TierFor(decision.Model); ok {
+			state.setLastRouting(in.SessionID, shape, decision.Model, decision.Effort, tier)
+		}
 	}
 
 	out := hookio.ForEvent("PreToolUse")

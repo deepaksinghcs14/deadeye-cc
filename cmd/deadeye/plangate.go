@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"regexp"
 	"strings"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
@@ -21,14 +22,19 @@ var implementationVerbs = []string{
 	"replace", "rename", "move", "redesign",
 }
 
+// implementationVerbRe matches implementationVerbs as whole words (plus a
+// plain -s/-es/-ing inflection), not substrings. Verified live firing on
+// pure questions with no implementation verb at all: "explain the pre*fix*
+// handling in the *add*ress parser", "what does the *change*log say", "why
+// was this re*move*d", "how does p*add*ing work" -- plain strings.Contains
+// matched "fix" inside "prefix", "add" inside "address"/"padding", "move"
+// inside "removed", "change" inside "changelog". Each of those armed the
+// gate (and, in "hard" mode, a permission prompt on the next unrelated
+// Edit) for a request that was never about implementing anything.
+var implementationVerbRe = regexp.MustCompile(`(?i)\b(` + strings.Join(implementationVerbs, "|") + `)(s|es|ing)?\b`)
+
 func looksImplementationShaped(prompt string) bool {
-	p := strings.ToLower(prompt)
-	for _, v := range implementationVerbs {
-		if strings.Contains(p, v) {
-			return true
-		}
-	}
-	return false
+	return implementationVerbRe.MatchString(prompt)
 }
 
 // isSyntheticPrompt reports whether a UserPromptSubmit's Prompt is
@@ -44,6 +50,19 @@ func isSyntheticPrompt(prompt string) bool {
 	return strings.HasPrefix(strings.TrimSpace(prompt), "<")
 }
 
+// truncatedMarker caps a task marker at 60 RUNES, not bytes -- byte-slicing
+// (prompt[:60]) can split a multi-byte UTF-8 rune in half, corrupting both
+// the marker stored in session state and the one written to the decision
+// log. Shared by the plan gate and the workflow advisor, the two callers
+// that turn a raw prompt into a short marker.
+func truncatedMarker(prompt string) string {
+	r := []rune(prompt)
+	if len(r) > 60 {
+		r = r[:60]
+	}
+	return string(r)
+}
+
 // planGateSoftTrigger evaluates PLAN.md §5.4's soft-layer triggers: (a)
 // vague enough to cause broad scanning, (b) multi-file scope. (c) "blast
 // radius > 0" needs the optional greybeard provider, which this plugin
@@ -55,7 +74,7 @@ func planGateSoftTrigger(in hookio.Input, cfg config.PlanGate) (suggestion, mark
 		return "", "", false
 	}
 
-	scope := signals.Scope{Prompt: in.Prompt, Files: scopedFiles(in.Cwd), Repo: in.Cwd}
+	scope := newScope(in.Prompt, in.Cwd)
 	evidence := signals.AssessAll(context.Background(), scope, []signals.Signal{signals.PromptShape{}, signals.FileScope{}})
 
 	vague, multiFile := false, false
@@ -83,23 +102,28 @@ func planGateSoftTrigger(in hookio.Input, cfg config.PlanGate) (suggestion, mark
 		reason = "multiple files touched"
 	}
 
-	marker = in.Prompt
-	if len(marker) > 60 {
-		marker = marker[:60]
-	}
+	marker = truncatedMarker(in.Prompt)
 	suggestion = "deadeye: plan gate triggered -- " + reason + ". Before editing files for this task, present a short plan (approach, files to touch, verification step) and wait for the user's go-ahead."
 	return suggestion, marker, true
 }
 
 // decidePlanGateSoft is called from decideUserPromptSubmit on every turn
 // (not just the first) -- a task can start on turn 3 just as easily as
-// turn 1.
+// turn 1. INV-7 "never nag twice for the same trigger" only held within a
+// single pending cycle before this: nothing recorded that a marker had
+// already been suggested, so the identical implementation-shaped prompt
+// (or the tree just getting dirtier on a later turn) re-armed the gate
+// even after the user had already consented once. markSuggestedIfFirst is
+// the same once-per-task dedupe the workflow advisor already had.
 func decidePlanGateSoft(in hookio.Input, cfg config.Config, state *daemonState) (suggestion string, fired bool) {
 	if cfg.Mode.PlanGate == "off" || isSyntheticPrompt(in.Prompt) {
 		return "", false
 	}
 	suggestion, marker, fire := planGateSoftTrigger(in, cfg.PlanGate)
 	if !fire {
+		return "", false
+	}
+	if !state.markSuggestedIfFirst(in.SessionID, "plan:"+marker) {
 		return "", false
 	}
 	state.setPendingPlan(in.SessionID, marker)

@@ -25,6 +25,17 @@ var effortOrder = []string{"low", "medium", "high", "xhigh"}
 // confidence threshold required.
 const veryHighComplexity = 0.9
 
+// ceilingTier caps the "we don't know" decision at this tier or below.
+// The highest tier in the catalog is the most EXPENSIVE model, not
+// necessarily the best default -- verified live: with thin evidence (a
+// clean working tree, a repo-wide search prompt with no keyword match),
+// the ceiling routed to claude-fable-5 at $10/$50 per MTok, 2x opus,
+// simply because it happened to be the priciest model in the catalog.
+// Routing every "unknown" case to whatever is most expensive makes a
+// cost-optimizing plugin cost-negative. Raise to a higher tier (or
+// remove the cap) to restore "always the single most capable model".
+const ceilingTier = 2
+
 // Grid search, not sequential choice (PLAN.md §3.2): conceptually this
 // enumerates (tier, effort) cells, estimates cost from catalog pricing,
 // and picks the cheapest cell clearing the evidence-derived capability
@@ -61,7 +72,7 @@ var bands = []struct {
 // downshift-*supporting* item from an otherwise-agreeing set never makes
 // the result cheaper.
 func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold float64) Decision {
-	ceiling := ceilingDecision(cat, "default ceiling: no evidence, or evidence insufficient to downshift", 0)
+	ceiling := ceilingDecision(cat, "default ceiling: no evidence, or evidence insufficient to downshift", 0, "high")
 
 	if len(evidence) == 0 {
 		return ceiling
@@ -78,7 +89,11 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 	}
 
 	if maxComplexity >= veryHighComplexity {
-		return ceilingDecision(cat, "evidence indicates very high complexity -- upshifted, no confidence threshold required", minConfidence)
+		// A genuinely very-high-complexity reading upshifts past even the
+		// default ceiling's effort, to xhigh -- distinct from "we don't
+		// know" (which stays at "high"). Upshifting is always free
+		// (INV-1): no confidence threshold gates this branch.
+		return ceilingDecision(cat, "evidence indicates very high complexity -- upshifted, no confidence threshold required", minConfidence, "xhigh")
 	}
 	if minConfidence < downshiftThreshold {
 		return ceiling
@@ -101,13 +116,24 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 	return ceiling
 }
 
-func ceilingDecision(cat catalog.Catalog, reason string, confidence float64) Decision {
-	model, effort := "", "high"
+func ceilingDecision(cat catalog.Catalog, reason string, confidence float64, effort string) Decision {
+	model := ""
 	best := -1
 	for _, m := range cat.Models {
-		if m.Tier > best {
+		if m.Tier <= ceilingTier && m.Tier > best {
 			best = m.Tier
 			model = m.ID
+		}
+	}
+	if best == -1 {
+		// No model at or under ceilingTier -- a catalog override with only
+		// higher tiers, say. Fall back to the catalog's own highest tier
+		// rather than returning an empty model id.
+		for _, m := range cat.Models {
+			if m.Tier > best {
+				best = m.Tier
+				model = m.ID
+			}
 		}
 	}
 	return Decision{Model: model, Effort: effort, Reason: reason, Confidence: confidence}

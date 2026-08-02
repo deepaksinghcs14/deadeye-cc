@@ -211,12 +211,24 @@ func TestTestPresenceResolvesRelativePathsAgainstRepoNotProcessCwd(t *testing.T)
 	}
 }
 
-func TestAssessAllDropsErroringProviders(t *testing.T) {
-	// Empty scope: every builtin provider errors (nothing to assess).
-	// AssessAll must degrade to zero evidence, not panic or synthesize
-	// zero-complexity evidence in providers' place.
+// TestSkippedProvidersBecomeUnknownEvidence is the regression test for
+// C1: an empty scope means every builtin provider errors (nothing to
+// assess). Rather than degrading to zero evidence (which the kernel
+// can't distinguish from "somehow zero providers were even asked"),
+// AssessAll must emit exactly one explicit zero-confidence "unknown" item
+// naming what was skipped -- see AssessAll's comment for why this matters:
+// it's what makes a low-confidence single-signal read (e.g. a clean
+// working tree) route to the ceiling instead of silently downshifting.
+func TestSkippedProvidersBecomeUnknownEvidence(t *testing.T) {
 	got := AssessAll(context.Background(), Scope{}, Builtins())
-	if len(got) != 0 {
-		t.Errorf("expected 0 evidence from an empty scope, got %d: %+v", len(got), got)
+	if len(got) != 1 {
+		t.Fatalf("expected exactly 1 (unknown) evidence item from an empty scope, got %d: %+v", len(got), got)
+	}
+	if got[0].Provider != "unknown" || got[0].Confidence != 0 {
+		t.Errorf("evidence = %+v, want Provider=unknown Confidence=0", got[0])
+	}
+	skipped, _ := got[0].Facts["skipped"].([]string)
+	if len(skipped) != len(Builtins()) {
+		t.Errorf("skipped = %v, want all %d builtins named", skipped, len(Builtins()))
 	}
 }

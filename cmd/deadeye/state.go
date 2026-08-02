@@ -27,7 +27,7 @@ type lastRouting struct {
 type sessionState struct {
 	injected            bool
 	pendingPlanTask     string          // non-empty = an edit/write is gated pending consent
-	workflowSuggested   map[string]bool // task marker -> already suggested this task
+	suggested           map[string]bool // dedupe key ("plan:"/"workflow:" + marker) -> already suggested this task
 	decisionCount       int             // decisions logged this session (Phase 1.5 session-memory input)
 	lastRouting         *lastRouting
 	bytesSaved          int // cumulative estimated bytes kept out of context by preprocessing rewrites this session
@@ -70,7 +70,7 @@ func newDaemonState(cat catalog.Catalog, logs *logstore.Store) *daemonState {
 func (d *daemonState) getOrCreate(sessionID string) *sessionState {
 	s, ok := d.sessions[sessionID]
 	if !ok {
-		s = &sessionState{workflowSuggested: map[string]bool{}}
+		s = &sessionState{suggested: map[string]bool{}}
 		d.sessions[sessionID] = s
 	}
 	return s
@@ -114,17 +114,19 @@ func (d *daemonState) clearPendingPlan(sessionID string) {
 	d.getOrCreate(sessionID).pendingPlanTask = ""
 }
 
-// markWorkflowSuggestedIfFirst reports whether the workflow advisor has
-// already fired for this task marker this session (INV-2/§5.5: never more
-// than once per task).
-func (d *daemonState) markWorkflowSuggestedIfFirst(sessionID, taskMarker string) bool {
+// markSuggestedIfFirst reports whether the given dedupe key (a surface
+// prefix -- "plan:" or "workflow:" -- plus a task marker) has already fired
+// this session. Shared by the plan gate and the workflow advisor
+// (INV-2/§5.5: neither should nag more than once per task) so both get the
+// same once-per-task guarantee from one map instead of two.
+func (d *daemonState) markSuggestedIfFirst(sessionID, key string) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	s := d.getOrCreate(sessionID)
-	if s.workflowSuggested[taskMarker] {
+	if s.suggested[key] {
 		return false
 	}
-	s.workflowSuggested[taskMarker] = true
+	s.suggested[key] = true
 	return true
 }
 
@@ -207,4 +209,15 @@ func (d *daemonState) getLastRouting(sessionID string) *lastRouting {
 	}
 	cp := *lr
 	return &cp
+}
+
+// clearLastRouting consumes the session's last routing decision after an
+// escalation has been recorded against it -- a prior decision should only
+// ever be graded once. Without this, two consecutive Agent calls that both
+// requested an explicit higher-tier model would record TWO escalation
+// outcomes against the same single prior recommendation.
+func (d *daemonState) clearLastRouting(sessionID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).lastRouting = nil
 }

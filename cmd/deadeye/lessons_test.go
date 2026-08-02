@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
@@ -62,6 +64,46 @@ func TestCheckEscalationNoopWithoutExplicitModel(t *testing.T) {
 	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{}, "shape-b", state)
 	if got := state.outcomesSnapshot(); len(got) != 0 {
 		t.Errorf("got %d outcomes, want 0 when the caller didn't request a specific model", len(got))
+	}
+}
+
+// TestCheckEscalationClearsLastRoutingAfterRecording is the regression
+// test for C3: an outcome must be consumed once. Before this fix, nothing
+// cleared lastRouting after grading it, so two consecutive explicit-model
+// Agent calls recorded TWO escalation outcomes against the same single
+// prior recommendation.
+func TestCheckEscalationClearsLastRoutingAfterRecording(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	state := newDaemonState(testCatalogForLessons(), nil)
+	state.setLastRouting("s1", "shape-a", "cheap-id", "low", 0)
+
+	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)
+	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)
+
+	if got := state.outcomesSnapshot(); len(got) != 1 {
+		t.Errorf("got %d outcomes, want exactly 1 -- the prior decision should only be graded once", len(got))
+	}
+}
+
+// TestDecideAgentRoutingSkipsLastRoutingForExplicitModel is the regression
+// test for C3's other half: when the caller supplies an explicit model,
+// deadeye's own recommendation was never applied, so there's nothing to
+// grade against on the NEXT call. Before this fix, setLastRouting ran
+// unconditionally, so two consecutive Agent calls that both passed an
+// explicit model (routine for e.g. a workflow script that always pins
+// model itself) recorded a phantom escalation nobody triggered.
+func TestDecideAgentRoutingSkipsLastRoutingForExplicitModel(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	state := newDaemonState(testCatalogForLessons(), nil)
+	toolInput, err := json.Marshal(map[string]any{"description": "d", "prompt": "p", "model": "opus"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := hookio.Input{SessionID: "s1", ToolName: "Agent", Cwd: t.TempDir(), ToolInput: toolInput}
+	decideAgentRouting(in, config.Default(), state)
+
+	if lr := state.getLastRouting("s1"); lr != nil {
+		t.Errorf("getLastRouting = %+v, want nil -- an explicit caller model means deadeye's recommendation was never applied", lr)
 	}
 }
 

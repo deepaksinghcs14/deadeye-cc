@@ -72,6 +72,10 @@ func checkEscalation(in hookio.Input, ai agentInput, currentShape string, state 
 		Kind:      "escalation",
 		Weight:    lessons.WeightEscalation,
 	})
+	// The prior decision has now been graded -- clear it so a SECOND
+	// consecutive explicit-model call doesn't record a second escalation
+	// against the same one.
+	state.clearLastRouting(in.SessionID)
 	state.log(logstore.Record{
 		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent",
 		Action: "escalation-detected", Reason: fmt.Sprintf("shape=%s recommended=%s(tier %d) requested-family=%s(tier %d)", prev.taskShape, prev.model, prev.tier, ai.Model, requestedTier),
