@@ -1,0 +1,4 @@
+# fixtures.example/goproj [fixtures.example/goproj.test]
+./main_test.go:6:9: undefined: helper
+FAIL	fixtures.example/goproj [build failed]
+FAIL

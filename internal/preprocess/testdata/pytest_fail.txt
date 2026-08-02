@@ -1,0 +1,20 @@
+[1m============================= test session starts ==============================[0m
+platform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0 -- /Users/deepaksingh/.claude/jobs/baeac04b/tmp/pytestenv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/deepaksingh/.claude/jobs/baeac04b/tmp/fixtures/pyproj
+[1mcollecting ... [0mcollected 1 item
+
+test_x.py::test_add [31mFAILED[0m[31m                                               [100%][0m
+
+=================================== FAILURES ===================================
+[31m[1m___________________________________ test_add ___________________________________[0m
+
+    [0m[94mdef[39;49;00m[90m [39;49;00m[92mtest_add[39;49;00m():[90m[39;49;00m
+>       [94massert[39;49;00m add([94m2[39;49;00m, [94m3[39;49;00m) == [94m6[39;49;00m[90m[39;49;00m
+[1m[31mE       assert 5 == 6[0m
+[1m[31mE        +  where 5 = add(2, 3)[0m
+
+[1m[31mtest_x.py[0m:5: AssertionError
+[36m[1m=========================== short test summary info ============================[0m
+[31mFAILED[0m test_x.py::[1mtest_add[0m - assert 5 == 6
+[31m============================== [31m[1m1 failed[0m[31m in 0.03s[0m[31m ===============================[0m

@@ -1,0 +1,6 @@
+=== RUN   TestAdd
+    main_test.go:8: Add(2,3) = 5, want 6
+--- FAIL: TestAdd (0.00s)
+FAIL
+FAIL	fixtures.example/goproj	0.460s
+FAIL

@@ -1,0 +1,4 @@
+=== RUN   TestAdd
+--- PASS: TestAdd (0.00s)
+PASS
+ok  	fixtures.example/goproj	0.534s

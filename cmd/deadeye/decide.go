@@ -229,7 +229,7 @@ func decideBashPreprocess(in hookio.Input, state *daemonState) hookio.Output {
 		return hookio.Empty()
 	}
 
-	rule, newCmd, applied := preprocess.Apply(bi.Command, state.cfg.DisabledRuleSet())
+	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, state.cfg.DisabledRuleSet())
 	if !applied {
 		return hookio.Empty()
 	}

@@ -7,6 +7,7 @@ package preprocess
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -18,7 +19,7 @@ type Rule struct {
 	Name       string
 	Note       string // human-readable savings/behavior note, shown in the decision log and /deadeye-audit
 	Advisory   bool
-	TryRewrite func(cmd string) (rewritten string, matched bool)
+	TryRewrite func(cwd, cmd string) (rewritten string, matched bool)
 
 	// EstBeforeBytes/EstAfterBytes are rough, static "typical case"
 	// estimates for /deadeye-audit -- not measurements of this specific
@@ -34,9 +35,27 @@ var (
 	testFilterRe  = regexp.MustCompile(`^(npm test|npx jest|pytest|go test|cargo test|mvn test)(\s|$)`)
 	buildFilterRe = regexp.MustCompile(`^(npm run build|go build|cargo build|tsc)(\s|$)`)
 	lintFilterRe  = regexp.MustCompile(`^(eslint|golangci-lint|ruff)(\s|$)`)
-	catLogRe      = regexp.MustCompile(`^cat\s+(\S+\.(?:log|out))\s*$`)
+	catLogRe      = regexp.MustCompile(`^cat\s+([\w./@+-]+\.(?:log|out))\s*$`)
 	bareGitDiffRe = regexp.MustCompile(`^git diff\s*$`)
+
+	// shellStructure flags a command as having shell control-flow structure
+	// (a comment, a command separator/chain, redirection, a line
+	// continuation) that captureThenFilter's textual `out=$(cmd 2>&1)`
+	// wrapping does not understand. Verified live, both directions:
+	// `go test ./... # skip flaky` -- the wrapper's own closing `2>&1); ec=$?;
+	// ...` tail gets swallowed by the comment, and the shell reports
+	// "unexpected EOF while looking for matching ')'" -- the command never
+	// runs at all. `go test ./... && ./report.sh` -- the appended `2>&1`
+	// binds to the LAST command in the chain, not the one that matched, so
+	// the actual test runner's stderr escapes the capture entirely (neither
+	// filtered nor visible). Rules only ever match a command by its leading
+	// tokens, never its whole shape, so this guard runs once for all of
+	// them: not rewriting is always safe, rewriting a command whose shape we
+	// didn't check is not.
+	shellStructure = regexp.MustCompile("[#;&|<>\\\\\n]")
 )
+
+func rewritable(cmd string) bool { return !shellStructure.MatchString(cmd) }
 
 // captureThenFilter wraps cmd so the ORIGINAL command's exit status survives
 // the filtering pipeline, portable across bash/zsh/sh. `set -o pipefail`
@@ -62,17 +81,39 @@ func captureThenFilter(cmd, filter string) string {
 		`exit $ec`
 }
 
+// testFilter and buildFilter are widened past their original shipped
+// versions, which were verified live to lose real failure content:
+//   - build-filter's original `error|Error|FAIL` matches NONE of Go's own
+//     compiler error text (`./main.go:4:2: undefined: foo`) -- a real `go
+//     build` failure survived filtering with ZERO diagnostics, just
+//     "no output survived filtering". `file:line:col` / `file(line,col)`
+//     covers go/tsc/clang; `-B 2` keeps the `# package/path` header Go
+//     prints above the errors.
+//   - test-filter's original `-A 5` (after-context only) drops the cause
+//     when Go's test runner reports a build failure -- the real
+//     `./foo_test.go:12:5: undefined: helper` lines print BEFORE `FAIL`, so
+//     only `FAIL [build failed]` survived. `-B 3` fixes that. The original
+//     pattern also matched none of a real mocha or pytest failure
+//     (`1 failing`, `AssertionError`, `FAILED tests/x.py::test_y`) --
+//     `AssertionError|[0-9]+ (failing|failed)|●|not ok|Traceback` covers
+//     mocha/jest/tap/pytest; verified against real captured output from
+//     each in internal/preprocess/testdata.
+var (
+	testFilter  = `grep -E "(FAIL|FAILED|ERROR|Error:|error:|panic:|--- FAIL|AssertionError|[0-9]+ (failing|failed)|✕|●|not ok|Traceback)" -B 3 -A 5 | head -n 120`
+	buildFilter = `grep -E "(error|Error|ERROR|FAIL|cannot |undefined|[^ ]+:[0-9]+:[0-9]+|[^ ]+\([0-9]+,[0-9]+\))" -B 2 -A 3 | head -n 120`
+)
+
 var Rules = []Rule{
 	{
 		Name:           "test-filter",
 		Note:           "caps verbose test output to failure context only",
 		EstBeforeBytes: 30000, // typical uncapped test-run dump
 		EstAfterBytes:  9600,  // ~120 lines * ~80 bytes
-		TryRewrite: func(cmd string) (string, bool) {
+		TryRewrite: func(cwd, cmd string) (string, bool) {
 			if !testFilterRe.MatchString(cmd) {
 				return cmd, false
 			}
-			return captureThenFilter(cmd, `grep -E "(FAIL|ERROR|error:|panic:|--- FAIL)" -A 5 | head -n 120`), true
+			return captureThenFilter(cmd, testFilter), true
 		},
 	},
 	{
@@ -80,11 +121,11 @@ var Rules = []Rule{
 		Note:           "keeps only build errors, drops successful-build noise",
 		EstBeforeBytes: 15000,
 		EstAfterBytes:  9600,
-		TryRewrite: func(cmd string) (string, bool) {
+		TryRewrite: func(cwd, cmd string) (string, bool) {
 			if !buildFilterRe.MatchString(cmd) {
 				return cmd, false
 			}
-			return captureThenFilter(cmd, `grep -E "error|Error|FAIL" -A 3 | head -n 120`), true
+			return captureThenFilter(cmd, buildFilter), true
 		},
 	},
 	{
@@ -92,16 +133,29 @@ var Rules = []Rule{
 		Note:           "tails large log files instead of dumping them whole",
 		EstBeforeBytes: 500000, // rule only fires above the 200KB threshold; this is a typical case, not this file's real size
 		EstAfterBytes:  16000,  // ~200 lines * ~80 bytes
-		TryRewrite: func(cmd string) (string, bool) {
+		TryRewrite: func(cwd, cmd string) (string, bool) {
 			m := catLogRe.FindStringSubmatch(strings.TrimSpace(cmd))
 			if m == nil {
 				return cmd, false
 			}
-			fi, err := os.Stat(m[1])
+			// The stat must resolve against the SESSION's cwd, not this
+			// process's -- verified live: the daemon serves every project
+			// from whichever directory happened to spawn it, so a relative
+			// path here previously resolved against an unrelated project
+			// and the rule silently never fired (or fired on the wrong
+			// file's size). The rewrite itself still emits the original
+			// relative path -- the command runs in the session's shell,
+			// which does have the right cwd.
+			path := m[1]
+			statPath := path
+			if !filepath.IsAbs(statPath) && cwd != "" {
+				statPath = filepath.Join(cwd, statPath)
+			}
+			fi, err := os.Stat(statPath)
 			if err != nil || fi.Size() <= 200*1024 {
 				return cmd, false
 			}
-			return "tail -n 200 " + m[1], true
+			return "tail -n 200 " + path, true
 		},
 	},
 	{
@@ -111,7 +165,7 @@ var Rules = []Rule{
 		Name:     "diff-cap",
 		Note:     "suggests --stat first for an unscoped git diff",
 		Advisory: true,
-		TryRewrite: func(cmd string) (string, bool) {
+		TryRewrite: func(cwd, cmd string) (string, bool) {
 			if !bareGitDiffRe.MatchString(strings.TrimSpace(cmd)) {
 				return cmd, false
 			}
@@ -123,7 +177,7 @@ var Rules = []Rule{
 		Note:           "caps linter output to a manageable head",
 		EstBeforeBytes: 20000,
 		EstAfterBytes:  12000,
-		TryRewrite: func(cmd string) (string, bool) {
+		TryRewrite: func(cwd, cmd string) (string, bool) {
 			if !lintFilterRe.MatchString(cmd) {
 				return cmd, false
 			}
@@ -134,12 +188,18 @@ var Rules = []Rule{
 
 // Apply runs the rule table in order against cmd, skipping disabled rule
 // names. Returns the zero Rule and applied=false if nothing matched.
-func Apply(cmd string, disabled map[string]bool) (rule Rule, newCmd string, applied bool) {
+// cwd is the session's working directory (needed by log-tail's stat; see
+// its comment) -- pass "" when unknown, which just disables that one rule's
+// relative-path handling rather than misattributing it to an unrelated cwd.
+func Apply(cwd, cmd string, disabled map[string]bool) (rule Rule, newCmd string, applied bool) {
+	if !rewritable(cmd) {
+		return Rule{}, cmd, false
+	}
 	for _, r := range Rules {
 		if disabled[r.Name] {
 			continue
 		}
-		if out, ok := r.TryRewrite(cmd); ok {
+		if out, ok := r.TryRewrite(cwd, cmd); ok {
 			return r, out, true
 		}
 	}

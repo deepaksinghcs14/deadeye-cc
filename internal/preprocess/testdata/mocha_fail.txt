@@ -1,0 +1,28 @@
+
+[0m[0m
+[0m  Array[0m
+[0m    #indexOf()[0m
+    [31m  1) should return -1 when not present[0m
+
+
+[92m [0m[32m 0 passing[0m[90m (4ms)[0m
+[31m  1 failing[0m
+
+[0m  1) Array
+       #indexOf()
+         should return -1 when not present:
+
+      [31mAssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+-1 !== 1
+[0m
+      [32m+ expected[0m [31m- actual[0m
+
+      [31m--1[0m
+      [32m+1[0m
+      [0m[90m
+      at Context.<anonymous> (test/x.test.js:5:14)
+      at process.processImmediate (node:internal/timers:504:21)
+[0m
+
+
