@@ -55,5 +55,5 @@ func decideWorkflowHint(in hookio.Input, state *daemonState) (suggestion string,
 	}
 
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit", Action: "workflow-suggest", Reason: marker})
-	return "This looks like fan-out work across many independent units. Consider the `ultracode` keyword to run it as a multi-agent workflow -- it can spend significantly more tokens than a single-agent pass, so it's worth it for genuinely broad work, not routine tasks.", true
+	return "deadeye: this looks like fan-out work across many independent units. Consider the `ultracode` keyword to run it as a multi-agent workflow -- it can spend significantly more tokens than a single-agent pass, so it's worth it for genuinely broad work, not routine tasks.", true
 }

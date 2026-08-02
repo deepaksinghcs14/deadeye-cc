@@ -87,7 +87,7 @@ func planGateSoftTrigger(in hookio.Input, cfg config.PlanGate) (suggestion, mark
 	if len(marker) > 60 {
 		marker = marker[:60]
 	}
-	suggestion = "Before editing files for this task, present a short plan (approach, files to touch, verification step) and wait for the user's go-ahead. (deadeye: plan gate triggered -- " + reason + ")"
+	suggestion = "deadeye: plan gate triggered -- " + reason + ". Before editing files for this task, present a short plan (approach, files to touch, verification step) and wait for the user's go-ahead."
 	return suggestion, marker, true
 }
 
@@ -133,7 +133,7 @@ func decidePlanGateHard(in hookio.Input, state *daemonState) hookio.Output {
 
 	out := hookio.ForEvent("PreToolUse")
 	out.HookSpecificOutput.PermissionDecision = hookio.PermissionAsk
-	out.HookSpecificOutput.PermissionDecisionReason = "Plan-first gate: this looks like a multi-file/high-radius change and no plan was approved. Approve to proceed, or ask for a plan."
+	out.HookSpecificOutput.PermissionDecisionReason = "deadeye: plan gate asked -- this looks like a multi-file/high-radius change and no plan was approved. Approve to proceed, or ask for a plan."
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "gate-ask", Reason: pending})
 	return out
 }
