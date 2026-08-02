@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+## 0.3.0
+
+Per-project config, and routing correctness. The most behaviorally
+significant release yet -- several of these are fixes to things that
+looked like they worked but didn't, verified live against the real
+built binary in each case.
+
+- Fix: `DEADEYE_PREPROCESS=off` / `DEADEYE_GATE=off` did nothing. The
+  daemon checked its own (frozen, possibly days-old) environment instead
+  of the current client's -- setting either after the daemon had started
+  had no effect, while a fresh `deadeye status` process reported them as
+  engaged. Kill switches are now read client-side and carried per-request;
+  toggling one takes effect on the very next call, no restart needed.
+- Fix: one daemon serves every project it's asked about, but config
+  (including project-level `.deadeye.json`) was loaded once at daemon
+  startup -- one project's config silently governed every other
+  project's sessions too, for as long as the daemon stayed up (in
+  practice, indefinitely). Config is now loaded fresh per request from
+  the session's own directory.
+- Fix: thin evidence (e.g. a clean working tree, where most signal
+  providers have nothing to assess) was read as evidence of *simplicity*
+  rather than *unknown* -- a keyword-free, architecture-sized prompt
+  against a freshly-committed tree could downshift to the cheapest model
+  tier. Skipped providers are now surfaced as explicit evidence of
+  absence, which routes to the ceiling like any other low-confidence
+  signal.
+- Fix: the ceiling (what "we don't know" resolves to) picked the catalog's
+  highest-priced model, not a reasonable default -- three read-only
+  search calls with thin evidence were advised the most expensive model
+  in the catalog this same session. Now caps at the opus-equivalent tier.
+- Fix: `xhigh` effort was unreachable despite being documented and having
+  a dedicated upshift path for genuinely very-high-complexity evidence.
+- Fix: git-churn and test-presence signals resolved paths against the
+  wrong directory when a session's cwd was a subdirectory of its repo --
+  a file with real recent commit history could read as "0 commits,
+  calmest possible reading, high confidence."
+- Fix: the plan gate's implementation-verb detection matched substrings
+  ("prefix" matched "fix", "address" matched "add", "changelog" matched
+  "change"), firing on pure questions with zero implementation intent.
+  Now matches whole words only.
+- Fix: the soft plan gate could re-suggest the identical prompt on a
+  later turn even after the user had already consented once -- it now
+  shares the workflow advisor's once-per-task dedupe.
+- Fix: a single escalation permanently raised a task shape's downshift
+  threshold to a bar no evidence set could ever clear again, in every
+  project, forever. Escalations now expire after 30 days, and a routing
+  decision the caller overrode with an explicit model is no longer
+  recorded as "applied" in the first place.
+- Every git subprocess this plugin shells out to is now bounded by a 2s
+  timeout -- a stalled mount or a held `.git/index.lock` no longer wedges
+  a daemon goroutine or a CLI command indefinitely.
+
 ## 0.2.5
 
 - Fix: build-filter's grep pattern matched none of Go's own compiler error
