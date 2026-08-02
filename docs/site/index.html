@@ -214,6 +214,12 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
   thead{display:none}
   .ticks{height:150px}
 }
+@media(max-width:640px){
+  .nav{flex-wrap:wrap;justify-content:center;gap:12px;text-align:center}
+  .nav-links{flex-wrap:wrap;justify-content:center;gap:6px 16px;font-size:12px}
+  .install .l{white-space:normal;word-break:break-all;overflow-x:visible}
+  .card-top{flex-direction:column;align-items:flex-start;gap:4px}
+}
 @media(prefers-reduced-motion:no-preference){
   .tick{animation:fade .5s ease both}
   @keyframes fade{from{opacity:0;transform:translateX(-6px)}to{opacity:.42}}
