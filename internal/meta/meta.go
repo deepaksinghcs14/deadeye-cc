@@ -22,7 +22,7 @@ const Name = "deadeye"
 // compiled-in dev string instead of the real tag on both, caught only by
 // checking the actual downloaded release binary's output, not by reading
 // this file.
-var Version = "0.2.4-dev"
+var Version = "0.2.5-dev"
 
 // StateDir returns ~/.deadeye, creating no directories itself.
 func StateDir() string {

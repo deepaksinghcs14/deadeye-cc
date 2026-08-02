@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## 0.2.5
+
+- Fix: build-filter's grep pattern matched none of Go's own compiler error
+  text -- a real broken `go build` reached the agent with zero diagnostics.
+  Widened to cover `file:line:col`/`file(line,col)` across go/tsc/clang, plus
+  `-B 2` for Go's package-header line. Verified against real captured output
+  (`internal/preprocess/testdata`), not hand-written approximations.
+- Fix: test-filter used after-context only, dropping a Go test-build
+  failure's cause (which prints *before* `FAIL`), and matched none of a real
+  mocha or pytest failure. Widened with `-B 3` plus AssertionError/"N
+  failing"/jest's bullet/tap's "not ok"/pytest's Traceback.
+- Fix: a command containing `#`, `&&`, a pipe, a heredoc, or a trailing `\`
+  that matched a rewrite rule got corrupted -- a trailing comment swallowed
+  the wrapper's own closing syntax (the command never ran at all), and in a
+  chain the appended `2>&1` bound to the last command, not the matched one
+  (its stderr escaped the capture entirely). Any command with shell
+  structure is now left unrewritten; not rewriting is always safe.
+- Fix: `log-tail`'s size check resolved a relative path against the
+  daemon's own directory rather than the session's, since one daemon
+  serves every project. Could silently never fire, or fire against an
+  unrelated file's size, depending on which project's hook happened to
+  start the daemon.
+- Fix: the self-bootstrapped binary always downloaded `releases/latest`
+  while comparing its version against `plugin.json` -- when those
+  disagreed, it re-downloaded the full binary every session, forever,
+  without ever converging. Now pins to the plugin's own released version,
+  falling back to latest once if that tag isn't found.
+- Fix: a first-ever session's opening burst of tool calls could fire many
+  concurrent bootstrap downloads racing to install the same file, with no
+  atomicity guarantee on the install itself. The bootstrap now takes its
+  own lock (with a stale-lock sweep) and installs via a same-filesystem
+  atomic rename.
+- The plan gate's hard-layer permission reason and the workflow-hint
+  suggestion now carry a `deadeye:` tag like every other surfaced
+  decision, instead of reading like an unattributed system message.
+- CI now runs on every push and PR (previously only at release-tag time),
+  and the release workflow asserts the pushed tag matches `plugin.json`'s
+  version before building.
+
 ## 0.2.4
 
 - Fix: the self-bootstrapped binary never updated after its first
