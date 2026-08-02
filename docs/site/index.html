@@ -59,8 +59,8 @@ section{padding:88px 0;border-top:1px solid var(--line)}
   display:flex;justify-content:space-between;align-items:center;
   padding:18px 0;font-family:"IBM Plex Mono",monospace;font-size:13px;
 }
-.nav .brand{color:var(--bone);font-weight:600;letter-spacing:.04em}
-.nav .brand::before{content:"◎ ";color:var(--brass)}
+.nav .brand{color:var(--bone);font-weight:600;letter-spacing:.04em;display:inline-flex;align-items:center;gap:8px}
+.nav .brand img{height:22px;width:auto;display:block}
 .nav-links{display:flex;gap:22px}
 .nav-links a{color:var(--mute)}
 .nav-links a:hover{color:var(--brass);text-decoration:none}
@@ -224,7 +224,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
 
 <div class="wrap">
   <nav class="nav">
-    <span class="brand">deadeye</span>
+    <span class="brand"><img src="logo-dark.svg" alt="" width="18" height="22">deadeye</span>
     <div class="nav-links">
       <a href="#how">How it decides</a>
       <a href="#measured">Measured</a>
@@ -251,26 +251,26 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
          not modelled. -->
     <div class="field">
       <div class="panel before">
-        <div class="panel-head"><span class="who">go test -v — raw</span><span class="cnt">484 bytes</span></div>
+        <div class="panel-head"><span class="who">go test -v — raw</span><span class="cnt">485 bytes</span></div>
         <div class="ticks" id="ticks" aria-hidden="true"></div>
         <div class="caption">14 lines — 4 PASS lines, 1 FAIL with its<br>context, carried into the conversation whole.</div>
       </div>
       <div class="panel after">
-        <div class="panel-head"><span class="who">go test -v — deadeye</span><span class="cnt">98 bytes</span></div>
+        <div class="panel-head"><span class="who">go test -v — deadeye</span><span class="cnt">99 bytes</span></div>
         <div class="real"><span class="d">$ go test ./... -v 2>&1 | grep -A 5 -E</span>
 <span class="d">  '(FAIL|ERROR|error:|panic:)' | head -120</span>
 
 <span class="f">--- FAIL: TestReconciliationAppliesTaxBeforeDiscount (0.00s)</span>
 FAIL
-FAIL	sitedemo/orders	0.468s
+FAIL	canondemo/orders	0.539s
 FAIL</div>
         <div class="caption">The rewrite happens before the command runs.</div>
       </div>
       <div class="field-foot">
-        One measured run, one repository. <b>Not an average, not a projection.</b>
-        This repo's own full suite (202 lines, 10,013 bytes, all passing)
-        filters to one confirmation line — see <code>/deadeye-audit</code>
-        for your own numbers.
+        <b>79.6% – 99.5% reduction, measured, not averaged.</b> This run: 485 → 99
+        bytes. This repo's own full suite (202 lines, 10,301 bytes, all passing):
+        10,301 → 55 bytes. Two real runs, not a blended figure across unlike
+        scenarios — see <code>/deadeye-audit</code> for your own numbers.
       </div>
     </div>
   </header>

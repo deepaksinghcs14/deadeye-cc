@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/github/v/release/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111&label=release" alt="Release">
   <img src="https://img.shields.io/github/license/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111" alt="MIT license">
   <img src="https://img.shields.io/badge/storage-1%20jsonl%20file-111111?style=flat-square" alt="One JSONL file">
+  <img src="https://img.shields.io/badge/measured%20reduction-79.6%25%20to%2099.5%25-111111?style=flat-square" alt="79.6% to 99.5% measured reduction">
 </p>
 
 He doesn't check twice or spray and pray — he doesn't need to. deadeye
@@ -25,21 +26,36 @@ stops it before they're gone. **[Site →](https://deepaksinghcs14.github.io/dea
 
 ## Before / after
 
-You ask your agent to run the test suite before merging.
+You ask your agent to run the test suite before merging, and one test is
+actually broken.
 
 Without deadeye:
 
-> All 202 lines of verbose output enter context — every `PASS`, every
-> timing line — whether or not anything failed.
+> All 14 lines of verbose output enter context — 4 `PASS` lines, then the
+> failure, no differently weighted than if all 5 had passed.
 
 With deadeye:
 
-> `deadeye: command exited 0, no output survived filtering`
+> ```
+> --- FAIL: TestReconciliationAppliesTaxBeforeDiscount (0.00s)
+> FAIL
+> FAIL	canondemo/orders	0.539s
+> FAIL
+> ```
 
-*(10,013 raw bytes, filtered before they ever entered context. When a test
-actually fails, the FAIL lines survive intact — verified both directions,
-including the failure mode a naive `pipefail | grep | head` rewrite has:
-it reports a passing suite as failed whenever the filter matches nothing.)*
+*(485 → 99 bytes on that real run — 79.6% reduction, and the failure
+detail survives intact. This repo's own full suite, all passing:
+10,301 → 55 bytes, 99.5% reduction. Two measured runs, not a blended
+average across unlike scenarios — see [the site](https://deepaksinghcs14.github.io/deadeye-cc/)
+for both in full, or `/deadeye-audit` for your own numbers. A naive
+`pipefail | grep | head` rewrite — the obvious first attempt — reports a
+passing suite as failed whenever the filter matches nothing; verified
+both directions before this shipped.)*
+
+deadeye also drops a one-line note at the end of a turn when it's kept
+something new out of context that session — `deadeye: ~9,600 bytes kept
+out of context this session (1 rewrite).` — quiet, and only when the
+total actually changed.
 
 ## How it works
 
