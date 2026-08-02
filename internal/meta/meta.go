@@ -17,7 +17,7 @@ const (
 
 	// Version is the binary version. Overridden at build time via
 	// -ldflags "-X .../meta.Version=...", goreleaser-style.
-	Version = "0.1.0-dev"
+	Version = "0.2.0-dev"
 )
 
 // StateDir returns ~/.deadeye, creating no directories itself.

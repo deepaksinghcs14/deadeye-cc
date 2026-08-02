@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Per-session savings summary: a single terse line via `Stop`'s
+  `additionalContext` when new preprocessing savings have accrued since
+  the last turn (`deadeye: ~N bytes kept out of context this session (M
+  rewrites).`), shown at most once per change so a stale total never
+  repeats.
+- Site: logo mark added to the nav.
+- README/site: the before/after now cites two separate real measurements
+  (485→99 bytes / 79.6% on a small suite with a real failure, 10,301→55
+  bytes / 99.5% on this repo's own full passing suite) instead of one
+  number, with a badge stating the range rather than a blended average.
+
+## 0.1.0
+
 ### Phase 0 — skeleton & plumbing
 
 - Plugin manifest and marketplace metadata (`.claude-plugin/`).
