@@ -1,9 +1,17 @@
 ---
 description: Show deadeye's savings report from the decision log
-allowed-tools: Bash(deadeye audit)
+allowed-tools: Bash(deadeye audit), Bash(~/.deadeye/bin/deadeye audit)
 ---
 
-Run `deadeye audit` and present its output: decisions per surface, decisions
+Run `deadeye audit`. If that reports "command not found", it's very likely
+just not on PATH -- deadeye never adds itself to PATH, it only resolves its
+own binary internally for hook invocations. Before concluding it's missing,
+retry with the self-bootstrap install path directly:
+`~/.deadeye/bin/deadeye audit`. Only if that also fails is it genuinely not
+bootstrapped yet (self-installs on first hook invocation -- running any tool
+once and retrying should resolve it).
+
+Present its output: decisions per surface, decisions
 per action, and preprocessing rewrite estimates (before/after bytes per
 rule, and the total). Every figure comes from the decision log --
 `~/.deadeye/decisions.jsonl` -- not an invented aggregate. Preprocessing

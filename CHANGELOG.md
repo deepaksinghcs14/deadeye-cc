@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.2.3
+
+- Fix: `/deadeye-status`, `/deadeye-audit`, and `/deadeye-route` hardcoded
+  `deadeye` as the command to run, assuming it resolved on PATH. It never
+  does -- the self-bootstrap installs to `~/.deadeye/bin/deadeye` and
+  nothing adds that to PATH; only the hook script's own internal
+  resolution knew the fallback. All three commands now retry against
+  `~/.deadeye/bin/deadeye` before reporting "not bootstrapped".
+
 ## 0.2.2
 
 - Fix: the plan gate and workflow-hint advisor could fire on a synthetic
