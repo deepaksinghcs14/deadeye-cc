@@ -5,13 +5,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|audit|capture|uninstall|version> [args]")
+		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|route|audit|capture|uninstall|version> [args]")
 		os.Exit(2)
 	}
 
@@ -22,6 +23,8 @@ func main() {
 		runDaemon()
 	case "status":
 		runStatus()
+	case "route":
+		runRoute(strings.Join(os.Args[2:], " "))
 	case "audit":
 		runAudit()
 	case "capture":

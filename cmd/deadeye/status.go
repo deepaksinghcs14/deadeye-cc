@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
@@ -45,6 +46,11 @@ func runStatus() {
 
 	fmt.Printf("Daemon: %s\n", daemonStatus())
 	fmt.Printf("Log:    %s (%d records)\n", meta.LogPath(), len(records))
+
+	if level := os.Getenv("CLAUDE_EFFORT"); level != "" {
+		fmt.Printf("\nCLAUDE_EFFORT=%s is set: the effort axis is inert for this session -- deadeye's\n", level)
+		fmt.Println("effort guidance is advisory only and cannot override a pinned level.")
+	}
 }
 
 func daemonStatus() string {
