@@ -44,6 +44,10 @@ jobs:
     # pattern is added there explicitly) -- deploying off main instead
     # sidesteps that with no repo settings change required.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Note: the first deploy after enabling Pages reported success via the
+    # API but served a stale negative-cached 404 at the actual URL.
+    # Disabling and re-enabling the Pages source, then redeploying, is what
+    # cleared it.
     needs: build
     runs-on: ubuntu-latest
     environment:
