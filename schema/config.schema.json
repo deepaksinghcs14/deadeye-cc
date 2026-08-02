@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/deepaksinghcs14/deadeye-cc/main/schema/config.schema.json",
+  "title": "deadeye config",
+  "description": "Schema for ~/.deadeye/config.json (global) and .deadeye.json (project overlay). Both are optional; a missing file is equivalent to {}.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "routing": {
+          "type": "string",
+          "enum": ["off", "advise", "enforce"],
+          "default": "advise",
+          "description": "Subagent model routing (Phase 3)."
+        },
+        "effort": {
+          "type": "string",
+          "enum": ["off", "advise", "enforce"],
+          "default": "advise",
+          "description": "Effort-level guidance (Phase 2)."
+        },
+        "preprocess": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "on",
+          "description": "Tool-output preprocessing rewrites (Phase 1)."
+        },
+        "plan_gate": {
+          "type": "string",
+          "enum": ["off", "soft", "hard"],
+          "default": "soft",
+          "description": "Plan-first gate before multi-file edits (Phase 4)."
+        },
+        "workflow_hint": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "on",
+          "description": "One-line workflow-authoring suggestion (Phase 5)."
+        }
+      }
+    },
+    "downshift_threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.8,
+      "description": "Minimum kernel confidence required to lower model tier or effort (INV-1). Upshifting is always free."
+    },
+    "posture": {
+      "type": "string",
+      "enum": ["frugal", "balanced", "quality"],
+      "default": "balanced",
+      "description": "Preset that adjusts downshift_threshold and default effort bias. Only sets config values -- no separate code path."
+    },
+    "injection_budget_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 400,
+      "description": "Ceiling on the total SessionStart advisory injection (INV-4)."
+    },
+    "preprocess": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "disabled_rules": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Preprocessing rule names to disable (Phase 1)."
+        }
+      }
+    },
+    "plan_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_files": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 2
+        },
+        "radius_trigger": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "tiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "override": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Path to a catalog override; normally set via ~/.deadeye/catalog.json instead."
+        }
+      }
+    }
+  }
+}

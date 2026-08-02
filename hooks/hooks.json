@@ -1,0 +1,97 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" SessionStart",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" SessionStart",
+            "timeout": 5,
+            "statusMessage": "deadeye: orienting..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" UserPromptSubmit",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" UserPromptSubmit",
+            "timeout": 5,
+            "statusMessage": "deadeye: reading prompt..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" PreToolUse",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" PreToolUse",
+            "timeout": 5,
+            "statusMessage": "deadeye: routing..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" PostToolUse",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" PostToolUse",
+            "timeout": 5,
+            "statusMessage": "deadeye: observing..."
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" SubagentStart",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" SubagentStart",
+            "timeout": 5,
+            "statusMessage": "deadeye: tracking subagent..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" Stop",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" Stop",
+            "timeout": 5,
+            "statusMessage": "deadeye: wrapping up..."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" SessionEnd",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" SessionEnd",
+            "timeout": 5,
+            "statusMessage": "deadeye: saving session..."
+          }
+        ]
+      }
+    ]
+  }
+}
