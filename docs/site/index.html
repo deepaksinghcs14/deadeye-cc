@@ -242,8 +242,9 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
   <header class="hero">
     <h1>deadeye<span class="dot">.</span></h1>
     <p class="tagline">He doesn't waste shots.</p>
-    <p class="sub">A Claude Code plugin that fits the model, the effort, and the
-      context to the task — before the tokens are spent.</p>
+    <p class="sub">A Claude Code plugin that picks the right model, effort
+      level, and amount of context for the task in front of it — before
+      the tokens are spent, not after.</p>
 
     <div class="install">
       <div class="l"><span class="p">$</span> /plugin marketplace add deepaksinghcs14/deadeye-cc</div>
@@ -273,10 +274,11 @@ FAIL</div>
         <div class="caption">The rewrite happens before the command runs.</div>
       </div>
       <div class="field-foot">
-        <b>79.6% – 99.5% reduction, measured, not averaged.</b> This run: 485 → 99
-        bytes. This repo's own full suite (202 lines, 10,301 bytes, all passing):
-        10,301 → 55 bytes. Two real runs, not a blended figure across unlike
-        scenarios — see <code>/deadeye-audit</code> for your own numbers.
+        <b>79.6%–99.5% smaller, measured on real runs, not averaged.</b> This
+        run: 485 bytes shrank to 99. This repo's own full test suite (202
+        lines, 10,301 bytes, all passing): shrank to 55 bytes. Two separate
+        real measurements, not one number blended across different
+        situations — run <code>/deadeye-audit</code> to see your own numbers.
       </div>
     </div>
   </header>
@@ -285,19 +287,20 @@ FAIL</div>
 <div class="wrap">
 <section id="how">
   <p class="eyebrow">How it decides</p>
-  <h2>A kernel, not a keyword list</h2>
-  <p class="lede">Every other router matches words in your prompt — "architecture"
-    appears, escalate. deadeye reads the shape of the actual task, then searches
-    the model × effort grid for the cheapest cell that clears the job. The
-    reasoning is always printable.</p>
+  <h2>Reads the task, not keywords</h2>
+  <p class="lede">A lot of routing tools just match words in your prompt —
+    see "architecture," assume it's a big job. deadeye instead looks at a
+    few real signals about the task, then works out the cheapest model and
+    effort level that should still get it done properly. The reasoning
+    behind every decision is always visible, never a black box.</p>
 
   <div class="two">
     <div>
       <ul class="rules">
-        <li><b>Observe</b><span>Files in scope, recent git churn, whether adjacent tests exist, how specific the request reads. Four cheap, deterministic signals — no LLM call, no network.</span></li>
-        <li><b>Decide</b><span>Cost is a function of model and effort together — Sonnet at high competes with Opus at low. The kernel picks the cheapest cell that clears the evidence-backed floor, not a tier chosen by rule of thumb.</span></li>
-        <li><b>Enforce</b><span>Rewrites the model when a subagent spawns — only if you left it unset. Filters output before it lands. Asks before multi-file edits that skipped a plan.</span></li>
-        <li><b>Learn</b><span>When you explicitly pick a bigger model than it recommended, that's logged and raises the bar for that kind of task next time. Revert/test-fail detection is still on the list.</span></li>
+        <li><b>Look</b><span>Which files are touched, recent git activity, whether tests exist nearby, how specific the request reads. Four cheap signals — no LLM call, no network request.</span></li>
+        <li><b>Decide</b><span>Model and effort level matter together — a mid-tier model on high effort can match a top-tier model on low effort. deadeye works out the cheapest combination that should still clear the bar for this task, not a fixed tier picked by rule of thumb.</span></li>
+        <li><b>Apply</b><span>Picks the model when a subagent starts — but only if you didn't already pick one yourself. Trims noisy output before it enters context. Asks before a multi-file edit that skipped a plan.</span></li>
+        <li><b>Learn</b><span>If you manually pick a bigger model than it recommended, that gets logged and makes it more cautious for that kind of task next time. Detecting "this edit actually broke something later" is still on the roadmap.</span></li>
       </ul>
     </div>
     <div>
@@ -315,9 +318,9 @@ FAIL</div>
   confidence: 0.80
   reason:     all evidence supports downshift:
               low complexity, confidence &gt;= threshold</div>
-      <p class="note" style="margin-top:14px">Real output, this repo, this session.
-        Nothing is enforced until you set the axis to <code>enforce</code> —
-        default is advice.</p>
+      <p class="note" style="margin-top:14px">Real output, from this repo, this
+        session. Nothing actually changes unless you turn a setting to
+        <code>enforce</code> — by default, deadeye only advises.</p>
     </div>
   </div>
 </section>
@@ -325,19 +328,19 @@ FAIL</div>
 <section>
   <p class="eyebrow">Range card</p>
   <h2>Five things it manages</h2>
-  <p class="lede">Each axis runs independently, each has its own mode, and each
+  <p class="lede">Each one works on its own, has its own on/off setting, and
     can be switched off without touching the others.</p>
 
   <div class="card">
-    <div class="card-top"><span>Axis / effect / default mode</span><span>off · advise · enforce</span></div>
+    <div class="card-top"><span>What / effect / default setting</span><span>off · advise · enforce</span></div>
     <table>
-      <thead><tr><th>Axis</th><th>What it does</th><th>Default</th></tr></thead>
+      <thead><tr><th>What</th><th>What it does</th><th>Default</th></tr></thead>
       <tbody>
-        <tr><td class="axis">Output</td><td class="desc">Rewrites verbose commands before they run — test suites, builds, linters, log tails. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
-        <tr><td class="axis">Effort</td><td class="desc">Injected guidance on when to request lower effort for mechanical steps. Inert if <code>CLAUDE_EFFORT</code> pins the session — <code>/deadeye-status</code> says so plainly.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
-        <tr><td class="axis">Model</td><td class="desc">Rewrites the model on subagent spawn. Tiers come from a compiled-in pricing table, refreshed each release — there's no reachable live-pricing API from a hook's process.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
-        <tr><td class="axis">Plan gate</td><td class="desc">Asks once before multi-file edits that skipped a plan, then stays quiet for that task.</td><td class="mode"><span class="pill soft">soft</span></td></tr>
-        <tr><td class="axis">Workflow</td><td class="desc">Suggests <code>ultracode</code> when the work is genuine fan-out. Recommends only — never starts one for you.</td><td class="mode"><span class="pill">on</span></td></tr>
+        <tr><td class="axis">Output</td><td class="desc">Trims verbose command output before it enters context — test suites, builds, linters, log tails. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
+        <tr><td class="axis">Effort</td><td class="desc">Suggests lower effort for mechanical steps. Has no effect if <code>CLAUDE_EFFORT</code> is already pinned for the session — <code>/deadeye-status</code> tells you plainly if that's the case.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
+        <tr><td class="axis">Model</td><td class="desc">Picks the model when a subagent starts. Prices come from a table built into the binary, refreshed each release — there's no live pricing API a background hook process could reach.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
+        <tr><td class="axis">Plan gate</td><td class="desc">Asks once before a multi-file edit that skipped writing a plan first, then stays quiet for the rest of that task.</td><td class="mode"><span class="pill soft">soft</span></td></tr>
+        <tr><td class="axis">Workflow</td><td class="desc">Suggests the <code>ultracode</code> keyword when a task looks like genuine parallel/fan-out work. Only ever suggests it — never starts one for you.</td><td class="mode"><span class="pill">on</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -345,11 +348,12 @@ FAIL</div>
 
 <section id="measured">
   <p class="eyebrow">Measured, not estimated</p>
-  <h2>Every number here traces to a logged decision</h2>
-  <p class="lede">Bytes kept out of context are logged with the rule that fired.
-    Decisions are logged with their inputs. There is no coefficient anywhere
-    that turns a tool-call count into a savings figure — if it's not a row in
-    <code>decisions.jsonl</code>, it isn't printed.</p>
+  <h2>Every number here comes from a logged decision</h2>
+  <p class="lede">Every time deadeye trims something, it logs which rule
+    fired. Every decision is logged with what went into it. Nothing here is
+    a made-up formula that turns "we ran N tool calls" into a savings
+    number — if it isn't a real row in <code>decisions.jsonl</code>, it
+    doesn't get printed.</p>
 
   <div class="term"><span class="c">/deadeye-audit</span>  <span class="m">real session, this repo -- add Mark() + test, subagent delegated</span>
 
@@ -371,34 +375,37 @@ FAIL</div>
   total               ~45,000 → ~19,200 bytes <span class="g">(~25,800 saved)</span>
 
 Cross-check these figures against /usage's plugin attribution.</div>
-  <p class="note" style="margin-top:16px">Real <code>/deadeye-audit</code> output, unedited: an
-    actual feature task (add a method, write its test, verify with
-    <code>go build</code>/<code>go test</code>, delegate part of it to a subagent) run
-    through the installed plugin, not a scripted demo. Model routing advised a
-    downshift before the subagent spawned, both commands' verbose output got
-    filtered, and the turn closed with a Stop summary. The 25,800 figure is the
-    rewrite rules' own per-invocation estimate — same number this audit always
-    prints, and it says so itself. The <code>485 → 99</code> and
-    <code>10,301 → 55</code> numbers above are the fresh, actually-measured ones;
-    this log is here to show routing, rewriting, and the Stop summary firing
-    together on one real task. Yours will show whatever your own log contains.</p>
+  <p class="note" style="margin-top:16px">Real <code>/deadeye-audit</code> output, unedited: a
+    real feature task (add a method, write its test, verify with
+    <code>go build</code>/<code>go test</code>, hand part of it to a subagent) run
+    through the installed plugin — not a scripted demo. deadeye suggested a
+    cheaper model before the subagent started, both commands had their
+    output trimmed, and the turn ended with a savings summary. The 25,800
+    figure is each rewrite rule's own estimate (the same number this
+    command always prints, and it labels it as an estimate right there in
+    the output). The <code>485 → 99</code> and <code>10,301 → 55</code>
+    numbers above are the real measured ones; this log is here to show
+    model-picking, output-trimming, and the end-of-turn summary all firing
+    together on one real task. Yours will show whatever your own log
+    contains.</p>
 </section>
 
 <section>
   <p class="eyebrow">The rule behind everything</p>
-  <h2>Unknown routes up</h2>
+  <h2>When it doesn't know, it goes big</h2>
   <div class="two">
     <div>
-      <p class="lede" style="margin-bottom:0">Missing evidence never buys a cheaper
-        model. If deadeye can't tell how far a change reaches, it assumes far.
-        Downshifting requires positive evidence above a confidence threshold;
-        upshifting is free.</p>
+      <p class="lede" style="margin-bottom:0">Missing information never buys a
+        cheaper model. If deadeye can't tell how big or risky a change really
+        is, it assumes the worst case. Picking something cheaper always
+        needs real supporting evidence above a minimum confidence level;
+        picking something more capable never needs a reason.</p>
     </div>
     <div>
       <ul class="rules">
-        <li><b>Wrong expensive is recoverable</b><span>It costs money. Wrong cheap costs you a bad diff and the session it takes to find it.</span></li>
-        <li><b>Never writes your settings</b><span>deadeye keeps its own state in one JSONL file. Your <code>settings.json</code> is yours.</span></li>
-        <li><b>Fails open, always</b><span>Any error in any hook and the call passes through untouched. A policy layer must never block your work.</span></li>
+        <li><b>Wrong-but-expensive is recoverable</b><span>Worst case, it costs you some money. Wrong-but-cheap costs you a bad diff, plus the time spent finding it.</span></li>
+        <li><b>Never touches your settings</b><span>deadeye keeps its own state in one file. Your <code>settings.json</code> stays yours, untouched.</span></li>
+        <li><b>Never blocks your work</b><span>If anything inside deadeye errors, that call just passes through untouched. A tool like this should never be the reason your work stops.</span></li>
       </ul>
     </div>
   </div>
@@ -423,20 +430,24 @@ Cross-check these figures against /usage's plugin attribution.</div>
 
     <div class="faq">
       <details open><summary>Does it phone home?</summary>
-        <p>No. One JSONL file on your machine, at <code>~/.deadeye/</code>.
-        No hosted service, no API keys, no telemetry.</p></details>
+        <p>No. Everything it remembers lives in one file on your own machine,
+        at <code>~/.deadeye/</code>. No hosted service, no API keys, no
+        telemetry.</p></details>
       <details><summary>Will it make Claude dumber?</summary>
-        <p>That's the failure mode it's built against. Unknown scope routes up,
-        and downshifting needs positive evidence. If you find a case where it
-        under-powered a task, that's a bug — file it with the
-        <code>/deadeye-route</code> output.</p></details>
-      <details><summary>It rewrote a command I needed in full.</summary>
-        <p>Rules are conservative by design and each one can be disabled
-        individually via config. A rule that loses information the agent needed is
-        a broken rule — file it with the command.</p></details>
-      <details><summary>Can it change my main session's model?</summary>
-        <p>No, and nothing can do that reliably mid-session. deadeye enforces on
-        subagents, where the spend concentrates, and advises on the main
+        <p>That's exactly the failure mode it's built to avoid. When it isn't
+        confident about a task, it defaults to the more capable option —
+        picking something cheaper always needs real evidence first. If you
+        find a case where it under-powered a task, that's a bug — report it
+        along with the <code>/deadeye-route</code> output.</p></details>
+      <details><summary>It rewrote a command and I needed the full output.</summary>
+        <p>Each rewrite rule is conservative by design, and every one of them
+        can be turned off individually in config. A rule that loses
+        information the agent actually needed is a bug in that rule —
+        please report it along with the command.</p></details>
+      <details><summary>Can it change the model my main session is using?</summary>
+        <p>No — nothing can do that reliably partway through a session.
+        deadeye actually changes the model for subagents, where most of the
+        token spend happens, and only advises (never enforces) on the main
         session.</p></details>
       <details><summary>Why "deadeye"?</summary>
         <p>Because efficiency isn't spending less — it's not missing.</p></details>
@@ -448,8 +459,8 @@ Cross-check these figures against /usage's plugin attribution.</div>
 <footer>
   <div class="wrap">
     <div class="pair">
-      <div class="tool"><b>greybeard</b><span>Remembers what depends on what. Cross-repo graph, so your agent stops making locally-correct, globally-breaking changes.</span></div>
-      <div class="tool"><b>deadeye</b><span>Never wastes a shot. Fits model, effort, and context to the task.</span></div>
+      <div class="tool"><b>greybeard</b><span>Tracks what depends on what across repos, so your agent stops making changes that look fine locally but break something else.</span></div>
+      <div class="tool"><b>deadeye</b><span>Never wastes a shot. Picks the right model, effort, and context for the task.</span></div>
     </div>
     MIT · <a href="https://github.com/deepaksinghcs14/deadeye-cc">github.com/deepaksinghcs14/deadeye-cc</a> ·
     <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/CHANGELOG.md">changelog</a>

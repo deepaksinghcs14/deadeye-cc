@@ -18,11 +18,13 @@
   <img src="https://img.shields.io/badge/measured%20reduction-79.6%25%20to%2099.5%25-111111?style=flat-square" alt="79.6% to 99.5% measured reduction">
 </p>
 
-He doesn't check twice or spray and pray — he doesn't need to. deadeye
-watches every subagent spawn, every verbose test dump, every plan-worthy
-edit, and picks exactly the model, effort, and context the task actually
-needs. Your agent spends tokens by default; deadeye is the discipline that
-stops it before they're gone. **[Site →](https://deepaksinghcs14.github.io/deadeye-cc/)**
+He doesn't check twice or spray and pray — he doesn't need to. deadeye is
+a Claude Code plugin that watches what your agent is about to do — spawn a
+subagent, dump a noisy test log, make a big multi-file edit — and picks
+the cheapest model, effort level, and amount of context that will still
+get the job done right. Left on its own, Claude Code tends to spend more
+tokens than a task actually needs. deadeye catches that before the tokens
+are gone. **[Site →](https://deepaksinghcs14.github.io/deadeye-cc/)**
 
 ## Before / after
 
@@ -43,26 +45,27 @@ With deadeye:
 > FAIL
 > ```
 
-*(485 → 99 bytes on that real run — 79.6% reduction, and the failure
-detail survives intact. This repo's own full suite, all passing:
-10,301 → 55 bytes, 99.5% reduction. Two measured runs, not a blended
-average across unlike scenarios — see [the site](https://deepaksinghcs14.github.io/deadeye-cc/)
-for both in full, or `/deadeye-audit` for your own numbers. A naive
-`pipefail | grep | head` rewrite — the obvious first attempt — reports a
-passing suite as failed whenever the filter matches nothing; verified
-both directions before this shipped.)*
+*(On that real run: 485 bytes shrank to 99 — a 79.6% reduction — and the
+failure details stayed fully intact. On this repo's own full test suite,
+which all passes: 10,301 bytes shrank to 55, a 99.5% reduction. Those are
+two separate real measurements, not one number averaged across different
+situations — see [the site](https://deepaksinghcs14.github.io/deadeye-cc/)
+for both in full, or run `/deadeye-audit` to see your own numbers. One
+gotcha worth knowing: an early, naive version of this filter could report
+a passing test suite as "failed" whenever the filter pattern matched
+nothing. That's fixed now, and tested against both directions.)*
 
-deadeye also drops a one-line note at the end of a turn when it's kept
-something new out of context that session — `deadeye: ~9,600 bytes kept
-out of context this session (1 rewrite).` — quiet, and only when the
-total actually changed.
+deadeye also shows one quiet line at the end of a turn, telling you how
+much it's kept out of context so far this session — `deadeye: ~9,600
+bytes kept out of context this session (1 rewrite).` It only shows up
+when that total has actually grown since the last time you saw it.
 
 ## Real task, end to end
 
-Not a scripted demo — an actual feature task run through the installed
-plugin: add a `Mark()` method to a small package, with a test, verified by
-`go test` and `go build`, part of it handed off to a subagent. The decision
-log for that one turn:
+Not a scripted demo — a real feature task run through the installed
+plugin: add a `Mark()` method to a small package, write a test for it,
+verify with `go test` and `go build`, and hand part of the work off to a
+subagent. Here's the decision log for that one turn:
 
 ```
 PreToolUse/Agent   advise         all evidence supports downshift: low complexity, confidence >= threshold
@@ -72,32 +75,35 @@ PreToolUse/Bash    rewrite        reason=build-filter
 Stop               savings-shown  bytes_after=25800
 ```
 
-Model routing recommended a downshift before the subagent spawned, both the
-test and build commands got their verbose output filtered, and the turn
-closed with `deadeye: ~25,800 bytes kept out of context this session (2
-rewrites).` That 25,800 is the rewrite rules' own per-invocation estimate
-(same number `/deadeye-audit` prints, and it says so itself — not a fresh
-measurement of this particular task's output, which was small enough that
-there wasn't much to trim). The `485 → 99` and `10,301 → 55` figures above
-are the real measured ones; this example is here to show the routing,
-rewriting, and Stop summary firing together on one genuine task, not to
-add a third headline number.
+deadeye recommended a cheaper model before the subagent even started, both
+the test and build commands had their noisy output trimmed, and the turn
+ended with `deadeye: ~25,800 bytes kept out of context this session (2
+rewrites).` That 25,800 number is an estimate each rewrite rule carries
+around (the same number `/deadeye-audit` prints, and it labels it as an
+estimate right there in the output) — not a fresh measurement of this
+specific task, whose real output happened to be pretty small. The
+`485 → 99` and `10,301 → 55` numbers above are the actual measured ones;
+this example is here to show the model-picking, output-trimming, and
+end-of-turn summary all working together on one real task, not to add a
+third headline number.
 
 ## How it works
 
 ```
-1. Observe   task shape from cheap, deterministic signals -- files in scope, git churn, adjacent tests, prompt shape
-2. Decide    grid search over (model, effort); the cheapest cell that clears the evidence-backed floor wins
-3. Enforce   rewrites the subagent's model, filters verbose Bash output, gates multi-file edits behind a plan
-4. Learn     an explicit escalation (you picked bigger than it recommended) raises the bar for that task shape next time
+1. Look      Checks a few cheap, deterministic signals: files touched, recent git activity, whether tests exist nearby, how the request reads
+2. Decide    Picks the cheapest (model, effort) combination that should still clear the bar for this task
+3. Apply     Rewrites the subagent's model, trims noisy command output, and asks before risky multi-file edits
+4. Learn     If you manually pick a bigger model than it recommended, it remembers and gets more cautious for that kind of task next time
 ```
 
-The rule under all four: **unknown routes up.** Missing or unreliable
-evidence never buys a cheaper model or lower effort — the kernel defaults to
-the ceiling, and downshifting requires confidence above a threshold.
-Upshifting is always free. Every decision is printable — run
-`/deadeye-route` any time to see the live reasoning, not a black box. Full
-schema: [`schema/config.schema.json`](schema/config.schema.json).
+The rule behind all four steps: **when it doesn't know, it goes big.**
+Missing or shaky evidence never buys a cheaper model or a lower effort
+level — deadeye defaults to the most capable option. Picking something
+cheaper requires real supporting evidence and a minimum confidence level;
+picking something more capable never needs a reason. Every decision is
+printable — run `/deadeye-route` any time to see the full reasoning, not
+a black box. Full config schema:
+[`schema/config.schema.json`](schema/config.schema.json).
 
 ## Install
 
@@ -135,25 +141,27 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 
 | Command | What it does |
 |---|---|
-| `/deadeye-status` | Modes, kill switches, model catalog, daemon health |
-| `/deadeye-route [task]` | Dry-run the kernel's decision, with full reasoning |
-| `/deadeye-audit` | Savings report straight from the decision log |
-| `deadeye uninstall --purge` | Remove the binary, socket, and all local state |
+| `/deadeye-status` | Shows current modes, kill switches, model list, and whether the background daemon is running |
+| `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without actually doing anything |
+| `/deadeye-audit` | Prints a savings report straight from the decision log |
+| `deadeye uninstall --purge` | Removes the binary, its background process, and all local state |
 
-## The five axes
+## The five things it controls
 
-| Axis | Modes | What it does |
+| What | Modes | What it does |
 |---|---|---|
-| Output | `off` / `on` | Rewrites verbose Bash commands before they run — test suites, builds, linters, log tails |
-| Effort | `off` / `advise` | Requests lower effort for mechanical steps; inert if `CLAUDE_EFFORT` pins the session |
-| Model | `off` / `advise` / `enforce` | Rewrites the model on subagent spawn — only when you left it unset |
-| Plan gate | `off` / `soft` / `hard` | Suggests (or asks for) a short plan before multi-file edits |
-| Workflow | `off` / `on` | Flags genuinely fan-out tasks — recommends only, never triggers one itself |
+| Command output | `off` / `on` | Trims verbose Bash output before it enters context — test suites, builds, linters, log tails |
+| Effort level | `off` / `advise` | Suggests using lower effort for mechanical steps; has no effect if `CLAUDE_EFFORT` is already pinned for the session |
+| Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one yourself |
+| Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit |
+| Workflow suggestion | `off` / `on` | Flags tasks that look like they'd benefit from running many things in parallel — only ever suggests it, never starts one on its own |
 
-Each axis runs independently and can be switched off without touching the
-others. Config: `~/.deadeye/config.json`, overlaid by project-level
-`.deadeye.json`. Kill switches: `DEADEYE=off` disables everything;
-`DEADEYE_PREPROCESS=off` and `DEADEYE_GATE=off` disable just those axes.
+Each of these five works independently — you can turn any one off without
+affecting the others. Settings live in `~/.deadeye/config.json`, with an
+optional project-level `.deadeye.json` that overrides it for one repo.
+Three env vars act as kill switches: `DEADEYE=off` turns everything off;
+`DEADEYE_PREPROCESS=off` and `DEADEYE_GATE=off` turn off just the output
+trimming or just the plan gate, respectively.
 
 ## Development
 
@@ -169,27 +177,33 @@ from at runtime, so this is a release-time step, not a background refresh.
 ## FAQ
 
 **Does it phone home?**
-No. One JSONL file on your machine, at `~/.deadeye/`. No hosted service, no
-API keys, no telemetry.
+No. Everything it remembers lives in one file on your own machine, at
+`~/.deadeye/`. No hosted service, no API keys, no telemetry.
 
-**Why not route with an LLM call, or embeddings?**
-Four cheap, deterministic signals — file count, git churn, adjacent tests,
-prompt shape — are enough for a coarse routing decision, and they cost
-nothing to compute. A classifier call would spend tokens deciding how to
-save tokens, and add a network dependency this tool is built to avoid.
+**Why not just ask an LLM which model to use?**
+Four cheap, predictable signals — how many files are touched, recent git
+activity, whether tests exist nearby, and how the request is phrased — are
+enough to make a reasonable call, and they're free to check (no extra API
+call needed). Asking an LLM to decide would spend tokens just to figure out
+how to save tokens, and would add a network dependency this tool is
+specifically built to avoid.
 
 **Will it make Claude dumber?**
-That's the failure mode it's built against. Unknown scope routes up, and
-downshifting needs positive evidence above a confidence threshold. If you
-find a case where it under-powered a task, that's a bug — file it with the
-`/deadeye-route` output.
+That's exactly the failure mode it's built to avoid. When deadeye isn't
+confident about a task, it defaults to the more capable option — picking
+something cheaper always requires real evidence first. If you ever find a
+case where it under-powered a task, that's a bug — report it along with
+the `/deadeye-route` output.
 
-**What doesn't it know?**
-Whether an edit actually broke something later (revert/test-fail detection
-isn't built yet — only explicit escalations are), which repos depend on the
-one you're editing (that's [greybeard](https://github.com/deepaksinghcs14/greybeard)'s
-job), and which way you answered a plan-gate permission prompt — no hook
-surface reports that back, so it asks once and stays quiet either way.
+**What doesn't it know how to do (yet)?**
+It can't tell whether an edit actually broke something later — it only
+knows when you manually pick a bigger model than it suggested, not whether
+a test started failing afterward. It doesn't know which other repos depend
+on the one you're editing — that's a different tool's job,
+[greybeard](https://github.com/deepaksinghcs14/greybeard). And it can't
+tell whether you approved or declined a plan-gate prompt, because Claude
+Code doesn't report that back to plugins — so it just asks once per task
+and doesn't ask again either way.
 
 **Why "deadeye"?**
 Because efficiency isn't spending less — it's not missing.
