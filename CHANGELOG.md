@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.2.1
+
+- Fix: `Version` was declared as a `const`, so goreleaser's
+  `-ldflags -X .../meta.Version=...` silently never overrode it -- every
+  v0.1.0 and v0.2.0 release binary reported its compiled-in dev version
+  string via `deadeye version` instead of the real tag. `-ldflags -X` can
+  only patch a package-level string variable; it fails silently on a
+  const. Fixed by making `Version` a `var`; added a regression test that
+  builds a throwaway binary with the same ldflags and asserts the
+  override actually lands.
+
+## 0.2.0
+
 - Per-session savings summary: a single terse line via `Stop`'s
   `additionalContext` when new preprocessing savings have accrued since
   the last turn (`deadeye: ~N bytes kept out of context this session (M
