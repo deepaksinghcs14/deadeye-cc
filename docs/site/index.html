@@ -15,18 +15,34 @@
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#14181C;
-  --slate:#1B2127;
-  --raised:#222A31;
-  --line:#2E383F;
-  --bone:#E8E4DA;
-  --mute:#8B959C;
-  --brass:#C8963E;
-  --brass-dim:#8A6A2E;
-  --rust:#8A4B3C;
-  --verd:#6E9080;
-  --shadow:0 1px 0 rgba(232,228,218,.04);
+  --ink:#14181C; --slate:#1B2127; --raised:#232B32; --line:#2E383F;
+  --bone:#ECE6D8; --mute:#8B959C; --mute-dim:#5B646B;
+  --brass:#C89A46; --brass-dim:#8A6A2E; --brass-glow:rgba(200,154,70,.14);
+  --rust:#B15C46; --verd:#7BA090;
+  --shadow:0 1px 0 rgba(236,230,216,.04);
+  --radius:3px;
 }
+@media (prefers-color-scheme: light){
+  :root{
+    --ink:#F3EFE4; --slate:#FFFFFF; --raised:#FBF9F2; --line:#DCD4C0;
+    --bone:#20241F; --mute:#6B6255; --mute-dim:#9A9284;
+    --brass:#9A6B1E; --brass-dim:#B9924A; --brass-glow:rgba(154,107,30,.10);
+    --rust:#A2432D; --verd:#3F7A63;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#14181C; --slate:#1B2127; --raised:#232B32; --line:#2E383F;
+  --bone:#ECE6D8; --mute:#8B959C; --mute-dim:#5B646B;
+  --brass:#C89A46; --brass-dim:#8A6A2E; --brass-glow:rgba(200,154,70,.14);
+  --rust:#B15C46; --verd:#7BA090;
+}
+:root[data-theme="light"]{
+  --ink:#F3EFE4; --slate:#FFFFFF; --raised:#FBF9F2; --line:#DCD4C0;
+  --bone:#20241F; --mute:#6B6255; --mute-dim:#9A9284;
+  --brass:#9A6B1E; --brass-dim:#B9924A; --brass-glow:rgba(154,107,30,.10);
+  --rust:#A2432D; --verd:#3F7A63;
+}
+
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{
@@ -38,63 +54,99 @@ body{
 a{color:var(--brass);text-decoration:none}
 a:hover{text-decoration:underline}
 :focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+code{font-family:"IBM Plex Mono",monospace;background:var(--brass-glow);padding:1px 5px;border-radius:2px;font-size:.92em}
 
 /* ---------- structural type ---------- */
 .eyebrow{
   font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.22em;
   text-transform:uppercase;color:var(--brass-dim);margin:0 0 14px;
+  display:flex;align-items:center;gap:10px;
 }
+.eyebrow::before{content:"";width:18px;height:1px;background:var(--brass-dim)}
 h2{
   font-family:"Saira Condensed",sans-serif;font-weight:700;
   font-size:clamp(28px,4vw,44px);letter-spacing:.01em;line-height:1.05;
-  margin:0 0 10px;text-transform:uppercase;
+  margin:0 0 10px;text-transform:uppercase;text-wrap:balance;
 }
-h3{font-family:"Saira Condensed",sans-serif;font-weight:600;font-size:20px;
+h3{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:20px;
   text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px}
 .lede{color:var(--mute);max-width:62ch;margin:0 0 34px}
-section{padding:88px 0;border-top:1px solid var(--line)}
+section{padding:88px 0;position:relative}
+section:not(.hero-section)::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:1px;
+  background:repeating-linear-gradient(90deg,var(--line) 0 10px,transparent 10px 22px);
+}
+
+/* ---------- reveal-on-scroll ---------- */
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
 
 /* ---------- nav ---------- */
 .nav{
   display:flex;justify-content:space-between;align-items:center;
-  padding:18px 0;font-family:"IBM Plex Mono",monospace;font-size:13px;
+  padding:20px 0;font-family:"IBM Plex Mono",monospace;font-size:13px;
 }
-.nav .brand{color:var(--bone);font-weight:600;letter-spacing:.04em;display:inline-flex;align-items:center;gap:8px}
-.nav .brand img{height:22px;width:auto;display:block}
+.nav .brand{color:var(--bone);font-weight:600;letter-spacing:.06em;display:inline-flex;align-items:center;gap:9px}
+.brand-mark{width:20px;height:20px;flex:none}
 .nav-links{display:flex;gap:22px}
 .nav-links a{color:var(--mute)}
 .nav-links a:hover{color:var(--brass);text-decoration:none}
 
 /* ---------- hero ---------- */
-.hero{padding:56px 0 20px;border-top:none}
+.hero-section{padding:60px 0 20px}
+.hero-section::before{display:none}
+.hero-top{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:center}
 .hero h1{
   font-family:"Saira Condensed",sans-serif;font-weight:700;
-  font-size:clamp(64px,13vw,148px);line-height:.82;letter-spacing:-.01em;
+  font-size:clamp(64px,10vw,148px);line-height:.82;letter-spacing:-.01em;
   margin:0 0 18px;text-transform:lowercase;
 }
-.hero h1 .dot{color:var(--brass)}
+.hero h1 .dot{color:var(--brass);display:inline-block;animation:pulseDot 3.2s ease-in-out infinite}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.hero h1 .dot{animation:none}}
 .tagline{
-  font-family:"Saira Condensed",sans-serif;font-weight:600;
-  font-size:clamp(22px,3.4vw,34px);text-transform:uppercase;letter-spacing:.05em;
-  margin:0 0 16px;
+  font-family:"Saira Condensed",sans-serif;font-weight:700;
+  font-size:clamp(20px,3vw,28px);text-transform:uppercase;letter-spacing:.05em;
+  margin:0 0 16px;color:var(--brass);
 }
 .hero p.sub{color:var(--mute);max-width:54ch;margin:0 0 30px;font-size:17px}
 
 .install{
   display:inline-flex;flex-direction:column;gap:8px;
-  background:var(--slate);border:1px solid var(--line);border-radius:3px;
+  background:var(--slate);border:1px solid var(--line);border-radius:var(--radius);
   padding:16px 20px;font-family:"IBM Plex Mono",monospace;font-size:13.5px;
-  margin-bottom:14px;
+  margin-bottom:14px;position:relative;
 }
+.install::before{content:"INSTALL";position:absolute;top:-9px;left:16px;background:var(--ink);
+  padding:0 8px;font-size:9.5px;letter-spacing:.2em;color:var(--brass-dim)}
 .install .l{white-space:nowrap;overflow-x:auto}
 .install .p{color:var(--brass);user-select:none}
-.note{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mute)}
+.note{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mute-dim)}
+
+/* ---------- hero art (the deadeye mark) ---------- */
+.hero-art{position:relative;display:flex;align-items:center;justify-content:center}
+.hero-art svg{width:100%;max-width:280px;height:auto;filter:drop-shadow(0 18px 40px rgba(0,0,0,.35))}
+.hero-art .ring{position:absolute;inset:0;margin:auto;width:112%;max-width:320px;aspect-ratio:1;
+  border:1px solid var(--brass-dim);border-radius:50%;opacity:.28;
+  animation:driftRing 120s linear infinite;pointer-events:none}
+@keyframes driftRing{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.hero-art .ring{animation:none}}
+.hero-art .art-light{display:none}
+@media (prefers-color-scheme:light){
+  .hero-art .art-dark{display:none}
+  .hero-art .art-light{display:block}
+}
+:root[data-theme="light"] .hero-art .art-dark{display:none}
+:root[data-theme="light"] .hero-art .art-light{display:block}
+:root[data-theme="dark"] .hero-art .art-dark{display:block}
+:root[data-theme="dark"] .hero-art .art-light{display:none}
 
 /* ---------- signature: token field ---------- */
 .field{
   display:grid;grid-template-columns:1fr 1fr;gap:0;
-  border:1px solid var(--line);border-radius:3px;overflow:hidden;
-  margin-top:52px;background:var(--slate);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  margin-top:48px;background:var(--slate);
 }
 .panel{padding:22px 24px 26px;position:relative}
 .panel + .panel{border-left:1px solid var(--line)}
@@ -104,9 +156,12 @@ section{padding:88px 0;border-top:1px solid var(--line)}
   text-transform:uppercase;margin-bottom:16px;
 }
 .panel-head .who{color:var(--mute)}
-.panel-head .cnt{font-size:19px;letter-spacing:0;font-weight:600}
-.before .cnt{color:var(--rust)}
-.after .cnt{color:var(--verd)}
+.bracket{position:relative;display:inline-flex;padding:2px 10px;font-variant-numeric:tabular-nums}
+.bracket::before,.bracket::after{content:"";position:absolute;top:0;bottom:0;width:7px;border-color:currentColor;border-style:solid}
+.bracket::before{left:0;border-width:1.5px 0 1.5px 1.5px}
+.bracket::after{right:0;border-width:1.5px 1.5px 1.5px 0}
+.before .bracket{color:var(--rust);font-size:19px;font-weight:600}
+.after .bracket{color:var(--verd);font-size:19px;font-weight:600}
 .ticks{height:210px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
 .tick{height:2px;background:var(--rust);opacity:.42;border-radius:1px}
 .after .ticks{gap:0;justify-content:flex-start}
@@ -118,17 +173,39 @@ section{padding:88px 0;border-top:1px solid var(--line)}
 .real .d{color:var(--mute)}
 .caption{
   margin-top:16px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;
-  color:var(--mute);
+  color:var(--mute-dim);
 }
 .field-foot{
   grid-column:1/-1;border-top:1px solid var(--line);padding:14px 24px;
   font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mute);
   background:var(--ink);
 }
-.field-foot b{color:var(--bone);font-weight:500}
+.field-foot b{color:var(--bone);font-weight:600}
+
+/* ---------- turret dial (ordered process) ---------- */
+.dial{list-style:none;padding:0;margin:0;counter-reset:click}
+.dial li{
+  padding:20px 0 20px 54px;border-bottom:1px solid var(--line);position:relative;
+  counter-increment:click;
+}
+.dial li:first-child{padding-top:0}
+.dial li:last-child{border-bottom:none;padding-bottom:0}
+.dial li::before{
+  content:counter(click);position:absolute;left:0;top:20px;
+  width:34px;height:34px;border:1px solid var(--brass-dim);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--brass);
+  background:var(--brass-glow);
+}
+.dial li:first-child::before{top:0}
+.dial b{
+  font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:17px;
+  text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;
+}
+.dial span{color:var(--mute);font-size:14.5px}
 
 /* ---------- range card ---------- */
-.card{border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.card{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
 .card-top{
   background:var(--slate);padding:12px 20px;border-bottom:1px solid var(--line);
   font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;
@@ -144,7 +221,7 @@ th{
   text-transform:uppercase;color:var(--mute);font-weight:500;padding-bottom:10px;
 }
 td.axis{
-  font-family:"Saira Condensed",sans-serif;font-weight:600;font-size:18px;
+  font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:18px;
   text-transform:uppercase;letter-spacing:.04em;width:24%;white-space:nowrap;
 }
 td.desc{color:var(--mute);width:56%}
@@ -158,10 +235,12 @@ td.mode{width:20%}
 
 /* ---------- terminal blocks ---------- */
 .term{
-  background:var(--slate);border:1px solid var(--line);border-radius:3px;
+  background:var(--slate);border:1px solid var(--line);border-radius:var(--radius);
   font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.8;
-  padding:20px 22px;overflow-x:auto;white-space:pre;color:var(--bone);
+  padding:20px 22px;overflow-x:auto;white-space:pre;color:var(--bone);position:relative;
 }
+.term::before{content:"● ● ●";position:absolute;top:9px;right:15px;font-size:8px;
+  letter-spacing:3px;color:var(--line)}
 .term .c{color:var(--brass)}
 .term .m{color:var(--mute)}
 .term .g{color:var(--verd)}
@@ -171,22 +250,25 @@ td.mode{width:20%}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
 .rules{list-style:none;padding:0;margin:0}
 .rules li{padding:18px 0;border-bottom:1px solid var(--line)}
+.rules li:first-child{padding-top:0}
 .rules li:last-child{border-bottom:none}
 .rules b{
-  font-family:"Saira Condensed",sans-serif;font-weight:600;font-size:17px;
+  font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:17px;
   text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;
 }
 .rules span{color:var(--mute);font-size:14.5px}
 
 /* ---------- faq ---------- */
 .faq details{border-bottom:1px solid var(--line);padding:18px 0}
+.faq details:first-child{padding-top:0}
 .faq summary{
-  cursor:pointer;font-family:"Saira Condensed",sans-serif;font-weight:600;
+  cursor:pointer;font-family:"Saira Condensed",sans-serif;font-weight:700;
   font-size:19px;text-transform:uppercase;letter-spacing:.03em;list-style:none;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
 }
 .faq summary::-webkit-details-marker{display:none}
-.faq summary::before{content:"+ ";color:var(--brass)}
-.faq details[open] summary::before{content:"− "}
+.faq summary::after{content:"+";color:var(--brass);font-size:22px;line-height:1;flex:none}
+.faq details[open] summary::after{content:"−"}
 .faq p{color:var(--mute);margin:12px 0 0;max-width:70ch}
 
 /* ---------- footer ---------- */
@@ -196,11 +278,11 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
   display:flex;gap:14px;align-items:center;margin-bottom:22px;flex-wrap:wrap;
 }
 .pair .tool{
-  border:1px solid var(--line);border-radius:3px;padding:12px 16px;
+  border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;
   background:var(--slate);flex:1;min-width:230px;
 }
-.pair .tool b{color:var(--bone);display:block;font-weight:600}
-.pair .tool span{font-size:12px}
+.pair .tool b{color:var(--bone);display:block;font-weight:600;font-family:"Saira Condensed",sans-serif;text-transform:uppercase;letter-spacing:.03em;font-size:15px}
+.pair .tool span{font-size:12px;display:block;margin-top:4px;line-height:1.6}
 
 @media(max-width:820px){
   .field{grid-template-columns:1fr}
@@ -213,12 +295,15 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
   tr{display:block;border-bottom:1px solid var(--line)}
   thead{display:none}
   .ticks{height:150px}
+  .hero-top{grid-template-columns:1fr;gap:8px}
+  .hero-art{order:-1;max-width:200px;margin:0 auto 8px}
 }
 @media(max-width:640px){
   .nav{flex-wrap:wrap;justify-content:center;gap:12px;text-align:center}
   .nav-links{flex-wrap:wrap;justify-content:center;gap:6px 16px;font-size:12px}
   .install .l{white-space:normal;word-break:break-all;overflow-x:visible}
   .card-top{flex-direction:column;align-items:flex-start;gap:4px}
+  .hero-art{max-width:150px}
 }
 @media(prefers-reduced-motion:no-preference){
   .tick{animation:fade .5s ease both}
@@ -230,7 +315,10 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
 
 <div class="wrap">
   <nav class="nav">
-    <span class="brand"><img src="logo-dark.svg" alt="" width="18" height="22">deadeye</span>
+    <span class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="var(--brass)" stroke-width="1.4"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="1" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="1" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="23" y2="12"/></svg>
+      deadeye
+    </span>
     <div class="nav-links">
       <a href="#how">How it decides</a>
       <a href="#measured">Measured</a>
@@ -239,18 +327,105 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
     </div>
   </nav>
 
+  <section class="hero-section">
   <header class="hero">
-    <h1>deadeye<span class="dot">.</span></h1>
-    <p class="tagline">He doesn't waste shots.</p>
-    <p class="sub">A Claude Code plugin that picks the right model, effort
-      level, and amount of context for the task in front of it — before
-      the tokens are spent, not after.</p>
+    <div class="hero-top">
+      <div class="hero-copy">
+        <h1>deadeye<span class="dot">.</span></h1>
+        <p class="tagline">He doesn't waste shots.</p>
+        <p class="sub">A Claude Code plugin that picks the right model, effort
+          level, and amount of context for the task in front of it — before
+          the tokens are spent, not after.</p>
 
-    <div class="install">
-      <div class="l"><span class="p">$</span> /plugin marketplace add deepaksinghcs14/deadeye-cc</div>
-      <div class="l"><span class="p">$</span> /plugin install deadeye@deadeye</div>
+        <div class="install">
+          <div class="l"><span class="p">$</span> /plugin marketplace add deepaksinghcs14/deadeye-cc</div>
+          <div class="l"><span class="p">$</span> /plugin install deadeye@deadeye</div>
+        </div>
+        <div class="note">Hooks register themselves. Binary bootstraps on first use, sha256-verified.</div>
+      </div>
+
+      <div class="hero-art" aria-hidden="true">
+        <div class="ring"></div>
+        <svg class="art-dark" viewBox="0 0 1000 1220" xmlns="http://www.w3.org/2000/svg">
+          <g transform="translate(500,200) scale(1.26) translate(-500,-200)">
+          <path d="M418 762 C 420 838, 414 878, 396 906 C 470 946, 552 946, 620 904 C 600 876, 592 836, 594 760" fill="#161616" stroke="#ecebe6" stroke-width="20" stroke-linejoin="round"/>
+          <path d="M212 1200 C 220 1078, 268 986, 356 936 C 396 914, 420 906, 448 900 C 470 936, 540 936, 566 898 C 596 906, 622 916, 660 938 C 748 990, 792 1080, 800 1200 Z" fill="#161616" stroke="#ecebe6" stroke-width="21" stroke-linejoin="round"/>
+          <path d="M448 900 C 468 964, 476 1064, 470 1200" fill="none" stroke="#ecebe6" stroke-width="15" stroke-linecap="round"/>
+          <path d="M566 898 C 552 962, 546 1062, 552 1200" fill="none" stroke="#ecebe6" stroke-width="15" stroke-linecap="round"/>
+          <path d="M436 892 C 466 926, 546 926, 578 890 C 596 906, 604 934, 592 956 C 548 986, 462 986, 420 954 C 410 932, 418 906, 436 892 Z" fill="#6e6b64" stroke="#ecebe6" stroke-width="17" stroke-linejoin="round"/>
+          <g fill="none" stroke="#a8a59d" stroke-width="9" stroke-linecap="round">
+            <path d="M462 916 C 470 940, 468 958, 458 970"/>
+            <path d="M548 914 C 542 938, 544 956, 554 968"/>
+          </g>
+          <path d="M500 178 C 372 174, 288 262, 276 400 C 266 494, 280 586, 314 664 C 348 742, 410 796, 468 812 C 490 818, 512 818, 534 812 C 594 796, 654 742, 688 664 C 722 586, 734 494, 724 400 C 712 262, 628 174, 500 178 Z" fill="#161616" stroke="#ecebe6" stroke-width="21" stroke-linejoin="round"/>
+          <g fill="#161616" stroke="#ecebe6" stroke-width="16">
+            <path d="M286 486 C 250 476, 234 514, 254 552 C 268 578, 292 588, 306 576"/>
+            <path d="M716 486 C 752 474, 772 512, 754 550 C 742 576, 718 588, 704 576"/>
+          </g>
+          <path d="M282 402 C 272 306, 306 220, 374 184 C 430 152, 500 142, 560 154 C 650 172, 706 236, 718 324 C 723 352, 725 378, 722 402 C 702 352, 668 322, 622 310 C 556 292, 450 296, 384 328 C 338 350, 300 372, 282 402 Z" fill="#ecebe6" stroke="#ecebe6" stroke-width="17" stroke-linejoin="round"/>
+          <g fill="none" stroke="#ecebe6" stroke-width="15" stroke-linecap="round">
+            <path d="M408 170 C 398 140, 406 118, 426 106"/>
+            <path d="M502 146 C 498 114, 512 94, 534 88"/>
+            <path d="M596 160 C 602 130, 620 114, 644 110"/>
+          </g>
+          <g fill="none" stroke="#ecebe6" stroke-width="17" stroke-linecap="round">
+            <path d="M336 452 C 372 434, 414 432, 446 444"/>
+            <path d="M562 428 C 598 410, 646 412, 678 430"/>
+          </g>
+          <path d="M340 528 C 372 508, 416 508, 446 526" fill="none" stroke="#ecebe6" stroke-width="18" stroke-linecap="round"/>
+          <path d="M356 556 C 380 570, 412 570, 434 558" fill="none" stroke="#ecebe6" stroke-width="10" stroke-linecap="round"/>
+          <path d="M546 516 C 580 470, 664 468, 698 512 C 668 566, 578 568, 546 516 Z" fill="#161616" stroke="#ecebe6" stroke-width="17" stroke-linejoin="round"/>
+          <circle cx="622" cy="516" r="30" fill="#c8963e" stroke="#ecebe6" stroke-width="12"/>
+          <circle cx="622" cy="516" r="11" fill="#161616"/>
+          <circle cx="634" cy="504" r="6" fill="#161616"/>
+          <path d="M512 522 C 508 574, 502 610, 494 630 C 510 644, 534 644, 550 632" fill="none" stroke="#ecebe6" stroke-width="13" stroke-linecap="round"/>
+          <path d="M436 706 C 480 716, 540 716, 578 704" fill="none" stroke="#ecebe6" stroke-width="14" stroke-linecap="round"/>
+          <path d="M580 710 C 632 726, 674 744, 706 762" fill="none" stroke="#ecebe6" stroke-width="12" stroke-linecap="round"/>
+          <circle cx="718" cy="768" r="14" fill="#6e6b64" stroke="#ecebe6" stroke-width="10"/>
+          <path d="M568 578 C 602 592, 654 590, 684 574" fill="none" stroke="#ecebe6" stroke-width="9" stroke-linecap="round"/>
+          </g>
+        </svg>
+        <svg class="art-light" viewBox="0 0 1000 1220" xmlns="http://www.w3.org/2000/svg">
+          <g transform="translate(500,200) scale(1.26) translate(-500,-200)">
+          <path d="M418 762 C 420 838, 414 878, 396 906 C 470 946, 552 946, 620 904 C 600 876, 592 836, 594 760" fill="#ffffff" stroke="#111" stroke-width="20" stroke-linejoin="round"/>
+          <path d="M212 1200 C 220 1078, 268 986, 356 936 C 396 914, 420 906, 448 900 C 470 936, 540 936, 566 898 C 596 906, 622 916, 660 938 C 748 990, 792 1080, 800 1200 Z" fill="#ffffff" stroke="#111" stroke-width="21" stroke-linejoin="round"/>
+          <path d="M448 900 C 468 964, 476 1064, 470 1200" fill="none" stroke="#111" stroke-width="15" stroke-linecap="round"/>
+          <path d="M566 898 C 552 962, 546 1062, 552 1200" fill="none" stroke="#111" stroke-width="15" stroke-linecap="round"/>
+          <path d="M436 892 C 466 926, 546 926, 578 890 C 596 906, 604 934, 592 956 C 548 986, 462 986, 420 954 C 410 932, 418 906, 436 892 Z" fill="#c9c6be" stroke="#111" stroke-width="17" stroke-linejoin="round"/>
+          <g fill="none" stroke="#8d8a82" stroke-width="9" stroke-linecap="round">
+            <path d="M462 916 C 470 940, 468 958, 458 970"/>
+            <path d="M548 914 C 542 938, 544 956, 554 968"/>
+          </g>
+          <path d="M500 178 C 372 174, 288 262, 276 400 C 266 494, 280 586, 314 664 C 348 742, 410 796, 468 812 C 490 818, 512 818, 534 812 C 594 796, 654 742, 688 664 C 722 586, 734 494, 724 400 C 712 262, 628 174, 500 178 Z" fill="#ffffff" stroke="#111" stroke-width="21" stroke-linejoin="round"/>
+          <g fill="#ffffff" stroke="#111" stroke-width="16">
+            <path d="M286 486 C 250 476, 234 514, 254 552 C 268 578, 292 588, 306 576"/>
+            <path d="M716 486 C 752 474, 772 512, 754 550 C 742 576, 718 588, 704 576"/>
+          </g>
+          <path d="M282 402 C 272 306, 306 220, 374 184 C 430 152, 500 142, 560 154 C 650 172, 706 236, 718 324 C 723 352, 725 378, 722 402 C 702 352, 668 322, 622 310 C 556 292, 450 296, 384 328 C 338 350, 300 372, 282 402 Z" fill="#111" stroke="#111" stroke-width="17" stroke-linejoin="round"/>
+          <g fill="none" stroke="#111" stroke-width="15" stroke-linecap="round">
+            <path d="M408 170 C 398 140, 406 118, 426 106"/>
+            <path d="M502 146 C 498 114, 512 94, 534 88"/>
+            <path d="M596 160 C 602 130, 620 114, 644 110"/>
+          </g>
+          <g fill="none" stroke="#111" stroke-width="17" stroke-linecap="round">
+            <path d="M336 452 C 372 434, 414 432, 446 444"/>
+            <path d="M562 428 C 598 410, 646 412, 678 430"/>
+          </g>
+          <path d="M340 528 C 372 508, 416 508, 446 526" fill="none" stroke="#111" stroke-width="18" stroke-linecap="round"/>
+          <path d="M356 556 C 380 570, 412 570, 434 558" fill="none" stroke="#111" stroke-width="10" stroke-linecap="round"/>
+          <path d="M546 516 C 580 470, 664 468, 698 512 C 668 566, 578 568, 546 516 Z" fill="#ffffff" stroke="#111" stroke-width="17" stroke-linejoin="round"/>
+          <circle cx="622" cy="516" r="30" fill="#c8963e" stroke="#111" stroke-width="12"/>
+          <circle cx="622" cy="516" r="11" fill="#111"/>
+          <circle cx="634" cy="504" r="6" fill="#ffffff"/>
+          <path d="M512 522 C 508 574, 502 610, 494 630 C 510 644, 534 644, 550 632" fill="none" stroke="#111" stroke-width="13" stroke-linecap="round"/>
+          <path d="M436 706 C 480 716, 540 716, 578 704" fill="none" stroke="#111" stroke-width="14" stroke-linecap="round"/>
+          <path d="M580 710 C 632 726, 674 744, 706 762" fill="none" stroke="#111" stroke-width="12" stroke-linecap="round"/>
+          <circle cx="718" cy="768" r="14" fill="#c9c6be" stroke="#111" stroke-width="10"/>
+          <path d="M568 578 C 602 592, 654 590, 684 574" fill="none" stroke="#111" stroke-width="9" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </div>
     </div>
-    <div class="note">Hooks register themselves. Binary bootstraps on first use, sha256-verified.</div>
 
     <!-- Real run, captured live: a small Go package, 4 passing tests plus
          one genuine failure (a tax-before-discount ordering bug). Every
@@ -258,12 +433,12 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
          not modelled. -->
     <div class="field">
       <div class="panel before">
-        <div class="panel-head"><span class="who">go test -v — raw</span><span class="cnt">485 bytes</span></div>
+        <div class="panel-head"><span class="who">go test -v — raw</span><span class="bracket">485 bytes</span></div>
         <div class="ticks" id="ticks" aria-hidden="true"></div>
         <div class="caption">14 lines — 4 PASS lines, 1 FAIL with its<br>context, carried into the conversation whole.</div>
       </div>
       <div class="panel after">
-        <div class="panel-head"><span class="who">go test -v — deadeye</span><span class="cnt">99 bytes</span></div>
+        <div class="panel-head"><span class="who">go test -v — deadeye</span><span class="bracket">99 bytes</span></div>
         <div class="real"><span class="d">$ go test ./... -v 2>&1 | grep -A 5 -E</span>
 <span class="d">  '(FAIL|ERROR|error:|panic:)' | head -120</span>
 
@@ -282,10 +457,11 @@ FAIL</div>
       </div>
     </div>
   </header>
+  </section>
 </div>
 
 <div class="wrap">
-<section id="how">
+<section id="how" class="reveal">
   <p class="eyebrow">How it decides</p>
   <h2>Reads the task, not keywords</h2>
   <p class="lede">A lot of routing tools just match words in your prompt —
@@ -296,7 +472,7 @@ FAIL</div>
 
   <div class="two">
     <div>
-      <ul class="rules">
+      <ul class="dial">
         <li><b>Look</b><span>Which files are touched, recent git activity, whether tests exist nearby, how specific the request reads. Four cheap signals — no LLM call, no network request.</span></li>
         <li><b>Decide</b><span>Model and effort level matter together — a mid-tier model on high effort can match a top-tier model on low effort. deadeye works out the cheapest combination that should still clear the bar for this task, not a fixed tier picked by rule of thumb.</span></li>
         <li><b>Apply</b><span>Picks the model when a subagent starts — but only if you didn't already pick one yourself. Trims noisy output before it enters context. Asks before a multi-file edit that skipped a plan.</span></li>
@@ -325,7 +501,7 @@ FAIL</div>
   </div>
 </section>
 
-<section>
+<section class="reveal">
   <p class="eyebrow">Range card</p>
   <h2>Five things it manages</h2>
   <p class="lede">Each one works on its own, has its own on/off setting, and
@@ -346,7 +522,7 @@ FAIL</div>
   </div>
 </section>
 
-<section id="measured">
+<section id="measured" class="reveal">
   <p class="eyebrow">Measured, not estimated</p>
   <h2>Every number here comes from a logged decision</h2>
   <p class="lede">Every time deadeye trims something, it logs which rule
@@ -390,7 +566,7 @@ Cross-check these figures against /usage's plugin attribution.</div>
     contains.</p>
 </section>
 
-<section>
+<section class="reveal">
   <p class="eyebrow">The rule behind everything</p>
   <h2>When it doesn't know, it goes big</h2>
   <div class="two">
@@ -411,7 +587,7 @@ Cross-check these figures against /usage's plugin attribution.</div>
   </div>
 </section>
 
-<section id="install">
+<section id="install" class="reveal">
   <p class="eyebrow">Install</p>
   <h2>Two commands</h2>
   <div class="two">
@@ -468,25 +644,34 @@ Cross-check these figures against /usage's plugin attribution.</div>
 </footer>
 
 <script>
-// Signature: render the raw-output panel as a field of lines. Line count and
-// widths are cosmetic; the byte counts above them are the real measurement.
 (function(){
   var el=document.getElementById('ticks');
-  if(!el)return;
-  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var n=14; // the real line count of the captured raw output
-  var seed=7;
-  function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647;}
-  var frag=document.createDocumentFragment();
-  for(var i=0;i<n;i++){
-    var d=document.createElement('div');
-    d.className='tick';
-    d.style.height='10px';
-    d.style.width=(28+rnd()*70).toFixed(1)+'%';
-    if(!reduce)d.style.animationDelay=(i*24)+'ms';
-    frag.appendChild(d);
+  if(el){
+    var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var n=14; // the real line count of the captured raw output
+    var seed=7;
+    function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647;}
+    var frag=document.createDocumentFragment();
+    for(var i=0;i<n;i++){
+      var d=document.createElement('div');
+      d.className='tick';
+      d.style.height='10px';
+      d.style.width=(28+rnd()*70).toFixed(1)+'%';
+      if(!reduce)d.style.animationDelay=(i*24)+'ms';
+      frag.appendChild(d);
+    }
+    el.appendChild(frag);
   }
-  el.appendChild(frag);
+
+  var reveals=document.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window && reveals.length){
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+    },{threshold:.12});
+    reveals.forEach(function(r){io.observe(r);});
+  } else {
+    reveals.forEach(function(r){r.classList.add('in');});
+  }
 })();
 </script>
 </body>
