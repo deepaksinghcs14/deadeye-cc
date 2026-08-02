@@ -7,8 +7,12 @@ on:
       - "schema/**"
       - ".github/workflows/pages.yml"
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+    paths:
+      - "docs/site/**"
+      - "schema/**"
+      - ".github/workflows/pages.yml"
 
 permissions:
   contents: read
@@ -33,9 +37,13 @@ jobs:
           path: docs/site
 
   deploy:
-    # Deploy only on release tags -- PRs touching the site just build to
-    # confirm it isn't broken (PLAN.md §12.1).
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Deploy only on push to main -- PRs touching the site just build to
+    # confirm it isn't broken. Originally gated on release tags (PLAN.md
+    # §12.1), but tag refs hit the github-pages environment's deployment
+    # protection rules by default (only branches are allowed unless a tag
+    # pattern is added there explicitly) -- deploying off main instead
+    # sidesteps that with no repo settings change required.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     environment:
