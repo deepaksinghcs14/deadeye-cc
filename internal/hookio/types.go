@@ -51,6 +51,17 @@ const (
 // Stop/SubagentStop accept hookSpecificOutput at all; SessionStart does
 // NOT (use Output.SystemMessage for that event instead -- see ForEvent
 // and docs/verified.md V6 for how this was confirmed live).
+//
+// UpdatedInput does NOT have merge semantics -- corrected live in Phase 3
+// (docs/verified.md), overturning an earlier docs-derived assumption that
+// it did. A real session sending {"model": "haiku"} for an Agent call got:
+// "PreToolUse hook for Agent returned updatedInput that failed schema
+// validation: The required parameter `description` is missing" -- Claude
+// Code validates UpdatedInput as if it WERE the complete new tool_input.
+// The Bash preprocessing rewrites happened to work anyway because Bash's
+// other fields are all optional, which is what let the wrong assumption
+// go unnoticed. Always build UpdatedInput with MergeToolInput, never a
+// bare map of just the changed keys.
 type HookSpecificOutput struct {
 	HookEventName            string          `json:"hookEventName"`
 	PermissionDecision       string          `json:"permissionDecision,omitempty"`
@@ -84,4 +95,22 @@ func Empty() Output { return Output{} }
 // for SessionStart -- see Output.SystemMessage instead.
 func ForEvent(event string) Output {
 	return Output{HookSpecificOutput: &HookSpecificOutput{HookEventName: event}}
+}
+
+// MergeToolInput overlays changes on top of the original tool_input and
+// returns the full merged object, because UpdatedInput replaces rather
+// than merges server-side (see the warning on HookSpecificOutput). This
+// is the only safe way to build UpdatedInput for a tool with required
+// fields beyond the one being changed.
+func MergeToolInput(original json.RawMessage, overlay map[string]any) (json.RawMessage, error) {
+	merged := map[string]any{}
+	if len(original) > 0 {
+		if err := json.Unmarshal(original, &merged); err != nil {
+			return nil, err
+		}
+	}
+	for k, v := range overlay {
+		merged[k] = v
+	}
+	return json.Marshal(merged)
 }

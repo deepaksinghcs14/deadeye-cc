@@ -33,6 +33,42 @@ func TestForEventSetsRequiredHookEventName(t *testing.T) {
 	}
 }
 
+// TestMergeToolInputPreservesOtherFields is the regression test for the
+// bug a live session caught: UpdatedInput replaces tool_input wholesale,
+// it does not merge server-side. A rewrite that only sends the changed
+// key would silently drop every other required field -- confirmed live
+// against the real Agent tool ("The required parameter `description` is
+// missing") even though the same shortcut happened to work harmlessly for
+// Bash, whose other fields are all optional.
+func TestMergeToolInputPreservesOtherFields(t *testing.T) {
+	original := json.RawMessage(`{"description":"d","prompt":"p","subagent_type":"general-purpose"}`)
+	merged, err := MergeToolInput(original, map[string]any{"model": "haiku"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(merged, &got); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{"description": "d", "prompt": "p", "subagent_type": "general-purpose", "model": "haiku"}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("merged[%q] = %v, want %v (full merged: %s)", k, got[k], v, merged)
+		}
+	}
+}
+
+func TestMergeToolInputHandlesEmptyOriginal(t *testing.T) {
+	merged, err := MergeToolInput(nil, map[string]any{"command": "echo hi"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(merged) != `{"command":"echo hi"}` {
+		t.Errorf("merged = %s, want {\"command\":\"echo hi\"}", merged)
+	}
+}
+
 // TestGoldenPayloads unmarshals every captured fixture (real payloads from
 // a live `claude -p --plugin-dir` session against Claude Code v2.1.220,
 // DEADEYE_CAPTURE=1 -- see docs/verified.md) and checks the fields this

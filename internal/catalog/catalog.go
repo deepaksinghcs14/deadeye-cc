@@ -52,6 +52,20 @@ func (c Catalog) TierFor(id string) (int, bool) {
 	return 0, false
 }
 
+// FamilyFor returns a model's family alias by id (e.g. "haiku"), and
+// whether it was found. The Agent tool's model parameter accepts only the
+// short family alias (sonnet|opus|haiku|fable), not a full model id --
+// confirmed from the tool's own schema -- so routing enforcement rewrites
+// to Family, not ID.
+func (c Catalog) FamilyFor(id string) (string, bool) {
+	for _, m := range c.Models {
+		if m.ID == id {
+			return m.Family, true
+		}
+	}
+	return "", false
+}
+
 // Cheapest returns the lowest-tier model in the catalog.
 func (c Catalog) Cheapest() (Model, bool) {
 	if len(c.Models) == 0 {

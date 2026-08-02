@@ -29,6 +29,18 @@ func TestCheapestIsTierZero(t *testing.T) {
 	}
 }
 
+func TestFamilyForMatchesEveryModel(t *testing.T) {
+	for _, m := range builtin.Models {
+		got, ok := builtin.FamilyFor(m.ID)
+		if !ok || got != m.Family {
+			t.Errorf("FamilyFor(%q) = (%q, %v), want (%q, true)", m.ID, got, ok, m.Family)
+		}
+	}
+	if _, ok := builtin.FamilyFor("no-such-model"); ok {
+		t.Error("FamilyFor matched an unknown model id")
+	}
+}
+
 func TestLoadFallsBackToBuiltinWhenNoOverride(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // meta.StateDir() resolves under $HOME
 	c := Load()

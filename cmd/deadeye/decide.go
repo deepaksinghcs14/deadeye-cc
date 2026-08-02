@@ -1,16 +1,20 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/inject"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/preprocess"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/sessionmem"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
 
 func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
@@ -83,14 +87,75 @@ type bashInput struct {
 	Command string `json:"command"`
 }
 
-// decidePreToolUse runs Bash preprocessing rules (PLAN.md §5.3). Edit/Write
-// gets the plan-gate hard layer in Phase 4.
+// decidePreToolUse runs Bash preprocessing rules (PLAN.md §5.3) and Agent
+// subagent routing (§5.2). Edit/Write gets the plan-gate hard layer in
+// Phase 4.
 func decidePreToolUse(in hookio.Input, state *daemonState) hookio.Output {
-	if in.ToolName != "Bash" {
+	switch in.ToolName {
+	case "Bash":
+		return decideBashPreprocess(in, state)
+	case "Agent":
+		return decideAgentRouting(in, state)
+	default:
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "noop"})
 		return hookio.Empty()
 	}
-	return decideBashPreprocess(in, state)
+}
+
+type agentInput struct {
+	Description  string `json:"description"`
+	Prompt       string `json:"prompt"`
+	SubagentType string `json:"subagent_type"`
+	Model        string `json:"model"`
+}
+
+// decideAgentRouting recommends (advise) or rewrites (enforce) the model
+// for a subagent delegation. Confirmed live (docs/verified.md §10.1/§10.2):
+// PreToolUse fires for the Agent tool call with full tool_input visible,
+// and the tool has no effort parameter at all -- only model, and only as
+// the short family alias (sonnet|opus|haiku|fable), not a full model id.
+//
+// Enforce mode only fills in model when the caller left it unset. An
+// explicit caller-chosen model is never overridden -- PLAN.md's "enforce
+// may always raise, may lower only above the confidence threshold" is
+// about the kernel's own default (which is already threshold-gated
+// internally, see internal/kernel), not about second-guessing a model the
+// caller specifically asked for.
+func decideAgentRouting(in hookio.Input, state *daemonState) hookio.Output {
+	if state.cfg.Mode.Routing == "off" || config.KillSwitchOff("DEADEYE") {
+		return hookio.Empty()
+	}
+
+	var ai agentInput
+	_ = json.Unmarshal(in.ToolInput, &ai)
+
+	scope := signals.Scope{
+		Prompt: ai.Description + " " + ai.Prompt,
+		Files:  scopedFiles(in.Cwd),
+		Repo:   in.Cwd,
+	}
+	evidence := signals.AssessAll(context.Background(), scope, signals.Builtins())
+	decision := kernel.Decide(evidence, state.cat, state.cfg.DownshiftThreshold)
+
+	out := hookio.ForEvent("PreToolUse")
+	reason := fmt.Sprintf("deadeye recommends model=%s effort=%s -- %s", decision.Model, decision.Effort, decision.Reason)
+
+	if state.cfg.Mode.Routing == "enforce" && ai.Model == "" {
+		if family, ok := state.cat.FamilyFor(decision.Model); ok {
+			updated, err := hookio.MergeToolInput(in.ToolInput, map[string]any{"model": family})
+			if err == nil {
+				out.HookSpecificOutput.UpdatedInput = updated
+				out.HookSpecificOutput.PermissionDecision = hookio.PermissionAllow
+				out.HookSpecificOutput.PermissionDecisionReason = reason
+				state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "enforce", Reason: decision.Reason})
+				return out
+			}
+		}
+	}
+
+	out.HookSpecificOutput.AdditionalContext = reason
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "advise", Reason: decision.Reason})
+	return out
 }
 
 func decideBashPreprocess(in hookio.Input, state *daemonState) hookio.Output {
@@ -115,7 +180,7 @@ func decideBashPreprocess(in hookio.Input, state *daemonState) hookio.Output {
 		return out
 	}
 
-	updated, err := json.Marshal(map[string]string{"command": newCmd})
+	updated, err := hookio.MergeToolInput(in.ToolInput, map[string]any{"command": newCmd})
 	if err != nil {
 		return hookio.Empty()
 	}
