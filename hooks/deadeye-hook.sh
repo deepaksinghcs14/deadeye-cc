@@ -11,6 +11,12 @@ if command -v deadeye >/dev/null 2>&1; then
   BIN="$(command -v deadeye)"
 elif [ -x "$HOME/.deadeye/bin/deadeye" ]; then
   BIN="$HOME/.deadeye/bin/deadeye"
+  if [ "$EVENT" = "SessionStart" ]; then
+    # Once per session: check whether the self-bootstrapped binary is
+    # behind plugin.json's version and update it in the background for
+    # next time. Never touches a PATH-installed (user-managed) binary.
+    ( "${CLAUDE_PLUGIN_ROOT}/hooks/bootstrap.sh" >/dev/null 2>&1 & ) 2>/dev/null
+  fi
 fi
 
 if [ -z "$BIN" ]; then

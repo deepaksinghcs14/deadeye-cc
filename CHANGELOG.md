@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.2.4
+
+- Fix: the self-bootstrapped binary never updated after its first
+  install -- `bootstrap.sh` exited immediately if anything already
+  existed at `~/.deadeye/bin/deadeye`, so `claude plugin update` would
+  bump `plugin.json`'s version and report success while the actual
+  binary silently stayed on whatever version first bootstrapped it.
+  `bootstrap.sh` now compares the installed binary's `version` output
+  against `plugin.json`'s version and re-downloads on a mismatch;
+  `deadeye-hook.sh` triggers that check once per session, on
+  `SessionStart`, without adding latency to the hot path. Never touches
+  a PATH-installed (user-managed) binary.
+
 ## 0.2.3
 
 - Fix: `/deadeye-status`, `/deadeye-audit`, and `/deadeye-route` hardcoded
