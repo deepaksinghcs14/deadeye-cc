@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.2.2
+
+- Fix: the plan gate and workflow-hint advisor could fire on a synthetic
+  `UserPromptSubmit` -- a background subagent's task-completion
+  notification is delivered through a genuine `UserPromptSubmit` hook
+  event carrying raw `<task-notification>...` text, which the keyword
+  heuristics matched as if a user had typed an implementation request.
+  Caught by running a real multi-step task with subagent delegation, not
+  a synthetic test. Both advisors now skip any prompt that isn't
+  user-typed.
+- README/site: published a real end-to-end task's `/deadeye-audit` log
+  (add a method + test, verified by `go build`/`go test`, delegated to a
+  subagent) alongside the existing measured before/after numbers.
+
 ## 0.2.1
 
 - Fix: `Version` was declared as a `const`, so goreleaser's
