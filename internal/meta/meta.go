@@ -9,16 +9,20 @@ import (
 	"path/filepath"
 )
 
-const (
-	// Name is the display name and command-line identity: "deadeye". The
-	// -cc suffix exists only in surfaces that must be globally unique
-	// (repo, module, install path) and is never used here.
-	Name = "deadeye"
+// Name is the display name and command-line identity: "deadeye". The -cc
+// suffix exists only in surfaces that must be globally unique (repo,
+// module, install path) and is never used here.
+const Name = "deadeye"
 
-	// Version is the binary version. Overridden at build time via
-	// -ldflags "-X .../meta.Version=...", goreleaser-style.
-	Version = "0.2.0-dev"
-)
+// Version is the binary version. Overridden at build time via
+// -ldflags "-X .../meta.Version=...", goreleaser-style -- deliberately a
+// var, not a const: `go build -ldflags -X` can only patch a package-level
+// string variable. It silently no-ops on a const, which is exactly what
+// happened to the v0.1.0/v0.2.0 releases -- `deadeye version` reported the
+// compiled-in dev string instead of the real tag on both, caught only by
+// checking the actual downloaded release binary's output, not by reading
+// this file.
+var Version = "0.2.0-dev"
 
 // StateDir returns ~/.deadeye, creating no directories itself.
 func StateDir() string {
