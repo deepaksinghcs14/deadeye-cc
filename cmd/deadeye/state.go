@@ -17,6 +17,7 @@ type sessionState struct {
 	injected          bool
 	pendingPlanTask   string          // non-empty = an edit/write is gated pending consent
 	workflowSuggested map[string]bool // task marker -> already suggested this task
+	decisionCount     int             // decisions logged this session (Phase 1.5 session-memory input)
 }
 
 // daemonState is the daemon's whole world: config/catalog loaded once at
@@ -97,9 +98,22 @@ func (d *daemonState) markWorkflowSuggestedIfFirst(sessionID, taskMarker string)
 	return true
 }
 
+// log appends r to the decision log and counts it against r.SessionID's
+// running total (used by Phase 1.5's session-memory write at SessionEnd).
 func (d *daemonState) log(r logstore.Record) {
+	if r.SessionID != "" {
+		d.mu.Lock()
+		d.getOrCreate(r.SessionID).decisionCount++
+		d.mu.Unlock()
+	}
 	if d.logs == nil {
 		return
 	}
 	_ = d.logs.Append(r)
+}
+
+func (d *daemonState) decisionCount(sessionID string) int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.getOrCreate(sessionID).decisionCount
 }

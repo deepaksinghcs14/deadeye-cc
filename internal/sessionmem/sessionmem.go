@@ -1,0 +1,148 @@
+// Package sessionmem implements PLAN.md §5.7: a compact per-project
+// session summary (branch, recent commits, modified files, decisions
+// logged) written at SessionEnd and injected at the start of the next
+// session, to cut the re-orientation tax a fresh session pays rediscovering
+// the project.
+//
+// ponytail: no native-resume-overlap guard. PLAN.md §5.7 calls for
+// detecting whether Claude Code's own native resume-from-summary is
+// active for the session and standing down if so (§10.10, unresolved --
+// see docs/verified.md). Without a confirmed detection signal this ships
+// unconditionally; worst case is a redundant paragraph of context, not a
+// correctness problem. Add the guard once §10.10 is answered live.
+package sessionmem
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
+)
+
+func Dir() string { return filepath.Join(meta.StateDir(), "sessions") }
+
+const (
+	freshnessGuard = 30 * time.Second // skip summaries this fresh when loading -- likely same-session artifacts
+	headLines      = 25
+)
+
+// ProjectKey derives a filesystem-safe project identifier from cwd: the
+// git repo root's basename if available, else cwd's own basename.
+func ProjectKey(cwd string) string {
+	base := cwd
+	if root := gitOutput(cwd, "rev-parse", "--show-toplevel"); root != "" {
+		base = root
+	}
+	name := filepath.Base(base)
+	if name == "" || name == "." || name == string(filepath.Separator) {
+		name = "project"
+	}
+	return sanitize(name)
+}
+
+func sanitize(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('-')
+		}
+	}
+	return b.String()
+}
+
+func gitOutput(cwd string, args ...string) string {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = cwd
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// Write creates a per-session summary file at SessionEnd. Skipped
+// entirely when the session had no git activity and no logged decisions
+// -- "skip when the session had no meaningful activity" per PLAN.md §5.7.
+func Write(cwd, sessionID string, decisionCount int) error {
+	branch := gitOutput(cwd, "rev-parse", "--abbrev-ref", "HEAD")
+	if branch == "" {
+		return nil // not a git repo
+	}
+	commits := gitOutput(cwd, "log", "-5", "--oneline")
+	status := gitOutput(cwd, "status", "--porcelain")
+	if commits == "" && status == "" && decisionCount == 0 {
+		return nil
+	}
+
+	if err := os.MkdirAll(Dir(), 0o700); err != nil {
+		return err
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Session summary: %s\n\nbranch: %s\n\n", ProjectKey(cwd), branch)
+	if commits != "" {
+		b.WriteString("Recent commits:\n")
+		for _, line := range strings.Split(commits, "\n") {
+			fmt.Fprintf(&b, "  %s\n", line)
+		}
+		b.WriteString("\n")
+	}
+	if status != "" {
+		b.WriteString("Modified/staged files:\n")
+		for _, line := range strings.Split(status, "\n") {
+			fmt.Fprintf(&b, "  %s\n", line)
+		}
+		b.WriteString("\n")
+	}
+	if decisionCount > 0 {
+		fmt.Fprintf(&b, "deadeye logged %d decisions this session.\n", decisionCount)
+	}
+
+	path := filepath.Join(Dir(), fmt.Sprintf("%s_%d.md", ProjectKey(cwd), time.Now().UnixNano()))
+	return os.WriteFile(path, []byte(b.String()), 0o600)
+}
+
+// LoadRecent returns the head (<=25 lines) of the most recent summary for
+// cwd's project, skipping anything written within the freshness guard.
+// Returns "" if there is none.
+func LoadRecent(cwd string) string {
+	entries, err := os.ReadDir(Dir())
+	if err != nil {
+		return ""
+	}
+	prefix := ProjectKey(cwd) + "_"
+	var newestPath string
+	var newestTime time.Time
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), prefix) {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil || time.Since(info.ModTime()) < freshnessGuard {
+			continue
+		}
+		if info.ModTime().After(newestTime) {
+			newestTime = info.ModTime()
+			newestPath = filepath.Join(Dir(), e.Name())
+		}
+	}
+	if newestPath == "" {
+		return ""
+	}
+	b, err := os.ReadFile(newestPath)
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(string(b), "\n")
+	if len(lines) > headLines {
+		lines = lines[:headLines]
+	}
+	return strings.Join(lines, "\n")
+}

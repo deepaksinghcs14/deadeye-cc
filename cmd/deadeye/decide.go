@@ -10,6 +10,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/preprocess"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/sessionmem"
 )
 
 func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
@@ -29,6 +30,8 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 		out = decideUserPromptSubmit(in, state)
 	case "PreToolUse":
 		out = decidePreToolUse(in, state)
+	case "SessionEnd":
+		out = decideSessionEnd(in, state)
 	default:
 		state.log(logstore.Record{
 			TS: nowRFC3339(), SessionID: in.SessionID, Surface: req.Event,
@@ -49,7 +52,8 @@ func decideUserPromptSubmit(in hookio.Input, state *daemonState) hookio.Output {
 		return hookio.Empty()
 	}
 
-	text := inject.Build(state.cat, "")
+	memory := sessionmem.LoadRecent(in.Cwd)
+	text := inject.Build(state.cat, memory)
 	tokens := inject.EstimateTokens(text)
 	reason := "session guidance injection"
 	if tokens > state.cfg.InjectionBudgetTokens {
@@ -63,6 +67,16 @@ func decideUserPromptSubmit(in hookio.Input, state *daemonState) hookio.Output {
 	out := hookio.ForEvent("UserPromptSubmit")
 	out.HookSpecificOutput.AdditionalContext = text
 	return out
+}
+
+// decideSessionEnd writes Phase 1.5's session-memory summary before the
+// count of this session's own decisions is polluted by logging the
+// SessionEnd event itself.
+func decideSessionEnd(in hookio.Input, state *daemonState) hookio.Output {
+	count := state.decisionCount(in.SessionID)
+	_ = sessionmem.Write(in.Cwd, in.SessionID, count)
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionEnd", Action: "noop"})
+	return hookio.Empty()
 }
 
 type bashInput struct {
