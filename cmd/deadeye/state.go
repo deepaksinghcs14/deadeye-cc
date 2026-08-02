@@ -211,6 +211,15 @@ func (d *daemonState) getLastRouting(sessionID string) *lastRouting {
 	return &cp
 }
 
+// endSession evicts sessionID's in-memory state at SessionEnd. Call this
+// last, after anything else in the SessionEnd handler still needs the
+// session's current counters.
+func (d *daemonState) endSession(sessionID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.sessions, sessionID)
+}
+
 // clearLastRouting consumes the session's last routing decision after an
 // escalation has been recorded against it -- a prior decision should only
 // ever be graded once. Without this, two consecutive Agent calls that both

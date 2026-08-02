@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -115,7 +116,49 @@ func Write(cwd, sessionID string, decisionCount int) error {
 	}
 
 	path := filepath.Join(Dir(), fmt.Sprintf("%s_%d.md", ProjectKey(cwd), time.Now().UnixNano()))
-	return os.WriteFile(path, []byte(b.String()), 0o600)
+	if err := os.WriteFile(path, []byte(b.String()), 0o600); err != nil {
+		return err
+	}
+	pruneOldSummaries(ProjectKey(cwd))
+	return nil
+}
+
+// keepSummaries caps how many past summaries a single project accumulates.
+// Write creates one new file per session forever otherwise, and
+// LoadRecent stats every matching file on every session start -- so an
+// unbounded count means startup cost grows with how many sessions a
+// project has EVER had, not just the handful that matter. 3, not 1:
+// LoadRecent's own freshness guard skips the newest file for a short
+// window after it's written, so keeping only 1 could leave nothing
+// eligible to load immediately after a session ends.
+const keepSummaries = 3
+
+// pruneOldSummaries deletes all but the newest keepSummaries files for
+// projectKey. Best-effort: a failure here just means one extra file
+// survives to the next prune, not a correctness problem.
+func pruneOldSummaries(projectKey string) {
+	entries, err := os.ReadDir(Dir())
+	if err != nil {
+		return
+	}
+	prefix := projectKey + "_"
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasPrefix(e.Name(), prefix) {
+			names = append(names, e.Name())
+		}
+	}
+	if len(names) <= keepSummaries {
+		return
+	}
+	// Filenames are "<project>_<unixnano>.md" -- the nanosecond suffix
+	// sorts lexically the same as chronologically for any realistic time
+	// range, so a plain string sort avoids a stat() per file just to rank
+	// them by age.
+	sort.Sort(sort.Reverse(sort.StringSlice(names)))
+	for _, name := range names[keepSummaries:] {
+		os.Remove(filepath.Join(Dir(), name))
+	}
 }
 
 // LoadRecent returns the head (<=25 lines) of the most recent summary for

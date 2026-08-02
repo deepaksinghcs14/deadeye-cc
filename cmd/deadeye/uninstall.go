@@ -49,10 +49,30 @@ func stopDaemon() {
 	if err != nil {
 		return
 	}
+	// On Unix, os.FindProcess(pid) never errors regardless of whether pid
+	// actually exists -- it's not a real existence check on this
+	// platform. Gate the signal on the socket actually answering instead:
+	// without this, a daemon that was OOM-killed (lockfile survives) and
+	// whose pid was later recycled by the OS for an unrelated process
+	// would get SIGINT'd by `deadeye uninstall`.
+	if !probeAlive(meta.SocketPath()) {
+		return
+	}
 	proc, err := os.FindProcess(pid)
 	if err != nil {
 		return
 	}
 	_ = proc.Signal(os.Interrupt)
-	time.Sleep(100 * time.Millisecond)
+
+	// Poll rather than a fixed sleep, so --purge's os.RemoveAll below
+	// doesn't race a daemon that hasn't actually exited yet -- a
+	// still-running daemon's next logstore.Append does MkdirAll and would
+	// recreate the state dir the purge just removed.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if !probeAlive(meta.SocketPath()) {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
 }

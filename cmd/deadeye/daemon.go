@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
@@ -121,7 +122,7 @@ func handleConn(conn net.Conn, state *daemonState) {
 func acquireLock(path string) (*os.File, error) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
-		if info, statErr := os.Stat(path); statErr == nil && time.Since(info.ModTime()) > 60*time.Second {
+		if lockIsStale(path) {
 			_ = os.Remove(path)
 			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		}
@@ -129,6 +130,37 @@ func acquireLock(path string) (*os.File, error) {
 	}
 	_, _ = f.WriteString(strconv.Itoa(os.Getpid()))
 	return f, nil
+}
+
+// lockIsStale reports whether the lockfile at path belongs to a daemon
+// that's actually gone, rather than one that's just been quiet a while.
+// The old heuristic (mtime older than 60s) was unfixable by simply
+// refreshing it on some later write: a healthy, idle daemon can
+// legitimately go up to idleTimeout (30 minutes, reset on every
+// connection) without writing anything at all, so its lock was ALWAYS
+// "stale" by this measure after the first minute of its life. That let
+// any later spawn attempt delete the LIVE daemon's lockfile; the spawn
+// then found the socket already answering and exited via its own deferred
+// cleanup, which deleted the lockfile it had just (re)created -- leaving
+// the still-running daemon with no lockfile at all, which is also why
+// `deadeye uninstall` could never find a pid to signal.
+//
+// Stale now requires BOTH signals: the recorded pid is gone AND nothing
+// answers the socket. Pid-aliveness alone breaks across a pid recycle (a
+// crashed daemon's pid reassigned to an unrelated process would look
+// "alive" forever); socket-aliveness alone breaks during the eventual
+// winner's own brief startup window between acquiring the lock and
+// finishing net.Listen.
+func lockIsStale(path string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil {
+		return true // an unparseable lock was never written by a real daemon
+	}
+	return !processAlive(pid) && !probeAlive(meta.SocketPath())
 }
 
 func probeAlive(sockPath string) bool {

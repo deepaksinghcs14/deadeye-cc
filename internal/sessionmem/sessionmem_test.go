@@ -77,6 +77,30 @@ func TestWriteAndLoadRecent(t *testing.T) {
 	}
 }
 
+// TestWriteKeepsOnlyRecentSummaries is the regression test for E4: Write
+// created one new file per session forever, and LoadRecent stats every
+// matching file on every session start -- so an unbounded count meant
+// startup cost grew with how many sessions a project has EVER had.
+func TestWriteKeepsOnlyRecentSummaries(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	repo := initGitRepo(t)
+
+	for i := 0; i < 6; i++ {
+		if err := Write(repo, "sess", i+1); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(time.Millisecond) // guarantee distinct nanosecond filenames
+	}
+
+	entries, err := os.ReadDir(Dir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != keepSummaries {
+		t.Errorf("got %d summary files after 6 writes, want %d (pruned)", len(entries), keepSummaries)
+	}
+}
+
 func TestLoadRecentRespectsFreshnessGuard(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repo := initGitRepo(t)

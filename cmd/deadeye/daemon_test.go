@@ -3,7 +3,10 @@ package main
 import (
 	"net"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -53,6 +56,71 @@ func TestDaemonRoundTripP95(t *testing.T) {
 
 	if p95 > 50*time.Millisecond {
 		t.Fatalf("p95 = %s, want < 50ms (INV-8)", p95)
+	}
+}
+
+// TestLockIsStaleOnlyWhenDeadAndSilent is the regression test for E1: the
+// old mtime-based heuristic (>60s old) called a healthy, merely-idle
+// daemon's lock "stale" -- idleTimeout alone lets a daemon go 30 minutes
+// without writing anything. Staleness now requires BOTH the recorded pid
+// being gone AND nothing answering the socket.
+func TestLockIsStaleOnlyWhenDeadAndSilent(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate meta.SocketPath() from any real daemon on this machine
+	lockPath := filepath.Join(t.TempDir(), "deadeye.lock")
+
+	// Our own pid is alive; nothing answers the (isolated, nonexistent)
+	// socket. Must NOT be stale on the pid-alive signal alone.
+	if err := os.WriteFile(lockPath, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if lockIsStale(lockPath) {
+		t.Error("a lockfile naming our own (definitely alive) pid was reported stale")
+	}
+
+	// A definitely-dead pid (a throwaway child process that has already
+	// exited) with no socket answering -- must be stale.
+	cmd := exec.Command("true")
+	if err := cmd.Run(); err != nil {
+		t.Skip("could not run a throwaway process for a known-dead pid")
+	}
+	if err := os.WriteFile(lockPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !lockIsStale(lockPath) {
+		t.Error("a lockfile naming a dead pid with no socket answering was NOT reported stale")
+	}
+}
+
+// TestUninstallStopsRunningDaemon is the regression test for E1+E3
+// together: `deadeye uninstall --purge` previously could never actually
+// find the running daemon's pid, because the lockfile it needed to read
+// had already been deleted out from under it by the mtime-staleness bug
+// (a later spawn attempt saw the live daemon's lock as "stale," deleted
+// it, then deleted its own replacement on exit). With a correct lock, the
+// daemon keeps its lockfile for its whole life, so uninstall can actually
+// stop it and the purge doesn't race a still-running daemon recreating
+// the state dir it just removed.
+func TestUninstallStopsRunningDaemon(t *testing.T) {
+	// Same short-/tmp-dir requirement as TestDaemonRoundTripP95 -- unix
+	// socket paths are capped at ~104 bytes on macOS/BSD.
+	home, err := os.MkdirTemp("/tmp", "de")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(home) })
+	t.Setenv("HOME", home)
+
+	go runDaemon()
+	waitForSocket(t, 2*time.Second)
+
+	runUninstall([]string{"--purge"})
+
+	if probeAlive(meta.SocketPath()) {
+		t.Fatal("daemon still answering after uninstall --purge")
+	}
+	time.Sleep(500 * time.Millisecond)
+	if _, err := os.Stat(meta.StateDir()); err == nil {
+		t.Error("state dir reappeared after purge -- a still-running daemon must have recreated it")
 	}
 }
 

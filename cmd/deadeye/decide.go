@@ -141,6 +141,14 @@ func decideSessionEnd(in hookio.Input, state *daemonState) hookio.Output {
 	count := state.decisionCount(in.SessionID)
 	_ = sessionmem.Write(in.Cwd, in.SessionID, count)
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionEnd", Action: "noop"})
+	// Session state is daemon-lifetime advisory dedup only, never
+	// persisted -- but nothing ever removed an entry, so across a
+	// long-lived daemon (idle timeout resets on every connection, so in
+	// practice a daily user's daemon runs for as long as the machine is
+	// up) every session id the machine has ever seen accumulated here
+	// forever. Evict last, after the log/write above, so they still see
+	// this session's real decisionCount.
+	state.endSession(in.SessionID)
 	return hookio.Empty()
 }
 
