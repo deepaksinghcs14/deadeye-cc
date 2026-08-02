@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>deadeye — he doesn't waste shots</title>
+<meta name="description" content="A Claude Code plugin that fits model, effort, and context to each task via a deterministic policy kernel. Measured, not estimated.">
+<meta property="og:title" content="deadeye">
+<meta property="og:description" content="He doesn't waste shots. Fits the model, effort, and context to the task — fewer tokens, same quality.">
+<meta property="og:image" content="https://deepaksinghcs14.github.io/deadeye-cc/logo.svg">
+<meta property="og:url" content="https://deepaksinghcs14.github.io/deadeye-cc/">
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --bg-alt: #efece3;
+    --card: #ffffff;
+    --ink: #111111;
+    --ink-soft: #4a4a46;
+    --line: #d9d5c9;
+    --accent: #c8963e;
+    --accent-ink: #111111;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131211;
+      --bg-alt: #1a1917;
+      --card: #1e1c19;
+      --ink: #f2efe8;
+      --ink-soft: #b9b4a8;
+      --line: #34312b;
+      --accent: #d9a94a;
+      --accent-ink: #111111;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f5f0; --bg-alt: #efece3; --card: #ffffff; --ink: #111111;
+    --ink-soft: #4a4a46; --line: #d9d5c9; --accent: #c8963e; --accent-ink: #111111;
+  }
+  :root[data-theme="dark"] {
+    --bg: #131211; --bg-alt: #1a1917; --card: #1e1c19; --ink: #f2efe8;
+    --ink-soft: #b9b4a8; --line: #34312b; --accent: #d9a94a; --accent-ink: #111111;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 64px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  h1, h2, h3 { font-weight: 650; letter-spacing: -0.01em; }
+  h2 { font-size: 1.5rem; margin: 0 0 8px; }
+  .kicker { color: var(--accent); font-family: var(--mono); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 12px; }
+  p.lede { color: var(--ink-soft); font-size: 1.05rem; max-width: 60ch; }
+  code, pre { font-family: var(--mono); }
+  pre {
+    background: var(--bg-alt); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px; overflow-x: auto; font-size: 0.85rem; line-height: 1.5;
+  }
+  code.inline { background: var(--bg-alt); border: 1px solid var(--line); border-radius: 4px; padding: 0.1em 0.4em; font-size: 0.9em; }
+  a { color: var(--accent); }
+
+  .hero { padding-top: 72px; display: flex; gap: 32px; align-items: center; flex-wrap: wrap; }
+  .hero-text { flex: 1 1 380px; min-width: 280px; }
+  .hero-logo { flex: 0 0 160px; width: 160px; }
+  .hero-logo img { width: 100%; height: auto; display: block; }
+  .logo-dark { display: none; }
+  @media (prefers-color-scheme: dark) {
+    .logo-light { display: none; }
+    .logo-dark { display: block; }
+  }
+  :root[data-theme="dark"] .logo-light { display: none; }
+  :root[data-theme="dark"] .logo-dark { display: block; }
+  :root[data-theme="light"] .logo-light { display: block; }
+  :root[data-theme="light"] .logo-dark { display: none; }
+  .hero h1 { font-size: 2.4rem; margin: 0 0 6px; }
+  .metaphor { font-size: 1.15rem; color: var(--ink-soft); margin: 0 0 20px; font-style: italic; }
+  .install {
+    background: var(--bg-alt); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; font-family: var(--mono); font-size: 0.9rem; margin: 20px 0;
+  }
+  .install div + div { margin-top: 6px; color: var(--ink-soft); }
+  .install .prompt { color: var(--accent); }
+
+  .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 28px; }
+  @media (max-width: 640px) { .before-after { grid-template-columns: 1fr; } }
+  .ba-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .ba-card h3 { margin: 0 0 8px; font-size: 0.95rem; }
+  .ba-card .count { font-family: var(--mono); font-size: 1.4rem; color: var(--accent); }
+  .ba-card p { margin: 4px 0 0; color: var(--ink-soft); font-size: 0.85rem; }
+
+  .axes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 24px; }
+  .axis-card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .axis-card h3 { margin: 0 0 6px; font-size: 1rem; }
+  .axis-card .mode { display: inline-block; font-family: var(--mono); font-size: 0.75rem; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--line); margin-bottom: 8px; }
+  .axis-card p { margin: 0; color: var(--ink-soft); font-size: 0.88rem; }
+
+  .diagram { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--mono); font-size: 0.85rem; margin: 20px 0; }
+  .diagram .step { background: var(--bg-alt); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+  .diagram .arrow { color: var(--ink-soft); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 16px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink-soft); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  footer { padding: 40px 0 80px; color: var(--ink-soft); font-size: 0.85rem; }
+  .badge { display: inline-block; font-family: var(--mono); font-size: 0.78rem; border: 1px solid var(--line); border-radius: 20px; padding: 3px 10px; margin-right: 8px; }
+  details summary { cursor: pointer; font-weight: 600; margin: 16px 0 4px; }
+  .faq-item { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<main>
+
+  <section class="hero">
+    <div class="hero-text">
+      <p class="kicker">Claude Code plugin</p>
+      <h1>deadeye</h1>
+      <p class="metaphor">He doesn't waste shots.</p>
+      <p class="lede">Fits the model, effort, and context to the task — fewer tokens, same quality. A deterministic policy kernel behind Claude Code hooks: every decision logged, every number measured.</p>
+
+      <div class="install">
+        <div><span class="prompt">&gt;</span> /plugin marketplace add deepaksinghcs14/deadeye-cc</div>
+        <div><span class="prompt">&gt;</span> /plugin install deadeye@deadeye</div>
+      </div>
+    </div>
+    <div class="hero-logo">
+      <img class="logo-light" src="./logo.svg" alt="deadeye logo" />
+      <img class="logo-dark" src="./logo-dark.svg" alt="deadeye logo" />
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">Before / after</p>
+    <h2>A real test run, from this repo's own suite</h2>
+    <p class="lede">Not a hypothetical. <code class="inline">go test ./... -v</code> in this repo, captured raw, then run through deadeye's <code class="inline">test-filter</code> rewrite.</p>
+    <div class="before-after">
+      <div class="ba-card">
+        <h3>Raw output</h3>
+        <div class="count">10,001 bytes</div>
+        <p>Full verbose test output — every package, every PASS line, timing noise.</p>
+      </div>
+      <div class="ba-card">
+        <h3>Filtered</h3>
+        <div class="count">55 bytes</div>
+        <p><code class="inline">deadeye: command exited 0, no output survived filtering</code> — the exit code and a one-line confirmation. Nothing failed, so nothing to show.</p>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:16px;">The exit code is preserved exactly — verified against both a passing and a failing suite before this shipped. A naive <code class="inline">pipefail | grep | head</code> rewrite (the obvious first attempt) reports a passing suite as failed whenever the filter matches nothing; deadeye's rewrite doesn't.</p>
+  </section>
+
+  <section>
+    <p class="kicker">How it decides</p>
+    <h2>Signals → grid search → decision → log</h2>
+    <div class="diagram">
+      <div class="step">signals</div><div class="arrow">→</div>
+      <div class="step">evidence</div><div class="arrow">→</div>
+      <div class="step">kernel.Decide</div><div class="arrow">→</div>
+      <div class="step">decision</div><div class="arrow">→</div>
+      <div class="step">decisions.jsonl</div>
+    </div>
+    <p class="lede">Four built-in providers assess a task — prompt shape, file scope, recent git churn, adjacent test coverage — each contributing a complexity estimate and a confidence in that estimate. The kernel picks the cheapest (model, effort) cell that clears the evidence-backed floor. Missing or unreliable evidence never buys a cheaper answer: it defaults to the ceiling.</p>
+    <p class="lede">This is real <code class="inline">/deadeye-route</code> output, not a mockup:</p>
+    <pre>Task: "fix the null check in handler.go"
+Scope: 1 file(s) in ~/handler-fix
+
+Evidence:
+  promptshape    complexity=0.00 confidence=0.85 facts=map[word_count:6]
+  filescope      complexity=0.15 confidence=0.85 facts=map[file_count:1]
+  gitchurn       complexity=0.30 confidence=0.82 facts=map[commits_last_30d:1]
+  testpresence   complexity=0.10 confidence=0.80 facts=map[files_checked:1 files_with_adjacent_test:1]
+
+Decision:
+  model:      claude-haiku-4-5-20251001
+  effort:     medium
+  confidence: 0.80
+  reason:     all evidence supports downshift: low complexity, confidence &gt;= threshold</pre>
+  </section>
+
+  <section>
+    <p class="kicker">Measured, not estimated</p>
+    <h2>Every figure in <code class="inline">/deadeye-audit</code> comes from the decision log</h2>
+    <p class="lede">No invented savings formula, no assumed average. If it's not in <code class="inline">~/.deadeye/decisions.jsonl</code>, it doesn't get reported. Cross-check against <code class="inline">/usage</code>'s own plugin attribution — that's the ground truth, this is just a friendlier view of the same log.</p>
+    <pre>11 decisions logged (~/.deadeye/decisions.jsonl)
+
+By surface:
+  PostToolUse              4
+  PreToolUse/Agent         1
+  PreToolUse/Bash          2
+  SessionEnd               1
+  Stop                     1
+  SubagentStart            1
+  UserPromptSubmit         1
+
+By action:
+  advise                   1
+  inject                   1
+  noop                     7
+  rewrite                  2
+
+Preprocessing rewrites (estimated bytes -- see each rule's
+EstBeforeBytes/EstAfterBytes, not a measurement of this run):
+  build-filter       1x   ~15000 -&gt; ~9600 bytes
+  test-filter        1x   ~30000 -&gt; ~9600 bytes
+  total                   ~45000 -&gt; ~19200 bytes (~25800 saved)
+
+Cross-check these figures against /usage's plugin attribution.</pre>
+  </section>
+
+  <section>
+    <p class="kicker">The five axes</p>
+    <h2>Every axis has a mode: off, advise, or enforce</h2>
+    <div class="axes">
+      <div class="axis-card">
+        <span class="mode">on / off</span>
+        <h3>Preprocessing</h3>
+        <p>Rewrites verbose Bash commands (test/build/lint runs, large log tails) before they execute, so the output never lands. Exit-code-safe, never guesses at semantics.</p>
+      </div>
+      <div class="axis-card">
+        <span class="mode">advise</span>
+        <h3>Effort</h3>
+        <p>Injected guidance on when to ask for lower effort on mechanical steps. Inert if <code class="inline">CLAUDE_EFFORT</code> pins the session — <code class="inline">/deadeye-status</code> says so plainly.</p>
+      </div>
+      <div class="axis-card">
+        <span class="mode">advise / enforce</span>
+        <h3>Model routing</h3>
+        <p>Recommends or rewrites the model on Agent-tool delegations, using the same kernel decision <code class="inline">/deadeye-route</code> shows you. Never overrides an explicit model request.</p>
+      </div>
+      <div class="axis-card">
+        <span class="mode">soft / hard</span>
+        <h3>Plan gate</h3>
+        <p>Suggests a plan-first approach on vague or multi-file prompts. The hard layer (off by default) asks for permission before an ungated Edit/Write.</p>
+      </div>
+      <div class="axis-card">
+        <span class="mode">recommend-only</span>
+        <h3>Workflow advisor</h3>
+        <p>Flags genuinely fan-out tasks ("audit every file across the codebase") with a one-line suggestion. Never triggers a workflow itself — only ever a suggestion.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="kicker">Docs</p>
+    <h2>Install</h2>
+    <pre>/plugin marketplace add deepaksinghcs14/deadeye-cc
+/plugin install deadeye@deadeye</pre>
+
+    <h2 style="margin-top:32px;">Configuration</h2>
+    <p class="lede">Global <code class="inline">~/.deadeye/config.json</code>, overlaid by project-level <code class="inline">.deadeye.json</code>. Schema: <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/schema/config.schema.json">schema/config.schema.json</a>.</p>
+    <table>
+      <tr><th>Key</th><th>Default</th><th>Meaning</th></tr>
+      <tr><td><code class="inline">mode.preprocess</code></td><td>on</td><td>Bash rewrite rules</td></tr>
+      <tr><td><code class="inline">mode.effort</code></td><td>advise</td><td>Effort guidance</td></tr>
+      <tr><td><code class="inline">mode.routing</code></td><td>advise</td><td>Subagent model routing</td></tr>
+      <tr><td><code class="inline">mode.plan_gate</code></td><td>soft</td><td>off / soft / hard</td></tr>
+      <tr><td><code class="inline">mode.workflow_hint</code></td><td>on</td><td>Workflow advisor</td></tr>
+      <tr><td><code class="inline">downshift_threshold</code></td><td>0.8</td><td>Confidence required to downshift (INV-1)</td></tr>
+      <tr><td><code class="inline">posture</code></td><td>balanced</td><td>frugal / balanced / quality preset</td></tr>
+    </table>
+
+    <h2 style="margin-top:32px;">Commands</h2>
+    <table>
+      <tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code class="inline">/deadeye-status</code></td><td>Modes, kill switches, catalog, daemon health</td></tr>
+      <tr><td><code class="inline">/deadeye-route [task]</code></td><td>Dry-run the kernel with full reasoning</td></tr>
+      <tr><td><code class="inline">/deadeye-audit</code></td><td>Savings report from the decision log</td></tr>
+    </table>
+
+    <h2 style="margin-top:32px;">FAQ</h2>
+    <div class="faq-item"><details><summary>Does it phone home?</summary><p class="lede">No telemetry, no network calls at runtime. One JSONL file, local, at <code class="inline">~/.deadeye/</code>.</p></details></div>
+    <div class="faq-item"><details><summary>How do I turn it off?</summary><p class="lede"><code class="inline">DEADEYE=off</code> disables everything. <code class="inline">DEADEYE_PREPROCESS=off</code> and <code class="inline">DEADEYE_GATE=off</code> disable just those axes.</p></details></div>
+    <div class="faq-item"><details><summary>How do I uninstall?</summary><p class="lede"><code class="inline">deadeye uninstall --purge</code> removes the binary, the daemon socket, and <code class="inline">~/.deadeye</code> entirely.</p></details></div>
+    <div class="faq-item"><details><summary>What if a hook errors?</summary><p class="lede">Every hook fails open: an error or panic anywhere always yields a no-op response. A broken policy layer should never block real work.</p></details></div>
+  </section>
+
+  <footer>
+    <span class="badge">MIT</span>
+    <span class="badge">v0.1.0-dev</span>
+    <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/CHANGELOG.md">Changelog</a>
+    · <a href="https://github.com/deepaksinghcs14/deadeye-cc">GitHub</a>
+  </footer>
+
+</main>
+</body>
+</html>

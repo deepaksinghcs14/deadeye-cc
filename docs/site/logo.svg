@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1220" width="1000" height="1220">
+  <!-- deadeye: the young one who never wastes a shot.
+       Hand-sketch style, same hand as greybeard. Where the old man's grey is the
+       beard, the kid's black is the hair — and the open eye is the only lit thing here. -->
+
+  <!-- ink specks -->
+  <g fill="#111">
+    <circle cx="118" cy="205" r="6"/>
+    <circle cx="152" cy="452" r="4"/>
+    <path d="M112 640 l15 -6 5 12 -14 6 z"/>
+    <circle cx="898" cy="262" r="5"/>
+    <circle cx="880" cy="596" r="7"/>
+    <path d="M905 470 l14 5 -7 12 -12 -6 z"/>
+    <circle cx="252" cy="104" r="4"/>
+    <circle cx="782" cy="118" r="6"/>
+    <circle cx="96" cy="880" r="5"/>
+    <circle cx="932" cy="905" r="4"/>
+    <path d="M852 1075 l12 -4 5 10 -12 5 z"/>
+    <circle cx="140" cy="1092" r="6"/>
+  </g>
+
+  <g transform="translate(500,200) scale(1.26) translate(-500,-200)">
+  <!-- neck -->
+  <path d="M418 762 C 420 838, 414 878, 396 906 C 470 946, 552 946, 620 904
+           C 600 876, 592 836, 594 760"
+        fill="#ffffff" stroke="#111" stroke-width="20" stroke-linejoin="round"/>
+
+  <!-- shoulders / jacket -->
+  <path d="M212 1200 C 220 1078, 268 986, 356 936
+           C 396 914, 420 906, 448 900
+           C 470 936, 540 936, 566 898
+           C 596 906, 622 916, 660 938
+           C 748 990, 792 1080, 800 1200 Z"
+        fill="#ffffff" stroke="#111" stroke-width="21" stroke-linejoin="round"/>
+  <path d="M448 900 C 468 964, 476 1064, 470 1200"
+        fill="none" stroke="#111" stroke-width="15" stroke-linecap="round"/>
+  <path d="M566 898 C 552 962, 546 1062, 552 1200"
+        fill="none" stroke="#111" stroke-width="15" stroke-linecap="round"/>
+
+  <!-- bandana knot at the throat: the family grey, worn small -->
+  <path d="M436 892 C 466 926, 546 926, 578 890
+           C 596 906, 604 934, 592 956
+           C 548 986, 462 986, 420 954
+           C 410 932, 418 906, 436 892 Z"
+        fill="#c9c6be" stroke="#111" stroke-width="17" stroke-linejoin="round"/>
+  <g fill="none" stroke="#8d8a82" stroke-width="9" stroke-linecap="round">
+    <path d="M462 916 C 470 940, 468 958, 458 970"/>
+    <path d="M548 914 C 542 938, 544 956, 554 968"/>
+  </g>
+
+  <!-- face: younger, leaner, jaw comes to a point -->
+  <path d="M500 178
+           C 372 174, 288 262, 276 400
+           C 266 494, 280 586, 314 664
+           C 348 742, 410 796, 468 812
+           C 490 818, 512 818, 534 812
+           C 594 796, 654 742, 688 664
+           C 722 586, 734 494, 724 400
+           C 712 262, 628 174, 500 178 Z"
+        fill="#ffffff" stroke="#111" stroke-width="21" stroke-linejoin="round"/>
+
+  <!-- ears -->
+  <g fill="#ffffff" stroke="#111" stroke-width="16">
+    <path d="M286 486 C 250 476, 234 514, 254 552 C 268 578, 292 588, 306 576"/>
+    <path d="M716 486 C 752 474, 772 512, 754 550 C 742 576, 718 588, 704 576"/>
+  </g>
+
+  <!-- the hair: black, plenty of it, cut by someone in a hurry -->
+  <path d="M282 402
+           C 272 306, 306 220, 374 184
+           C 430 152, 500 142, 560 154
+           C 650 172, 706 236, 718 324
+           C 723 352, 725 378, 722 402
+           C 702 352, 668 322, 622 310
+           C 556 292, 450 296, 384 328
+           C 338 350, 300 372, 282 402 Z"
+        fill="#111" stroke="#111" stroke-width="17" stroke-linejoin="round"/>
+  <g fill="none" stroke="#111" stroke-width="15" stroke-linecap="round">
+    <path d="M408 170 C 398 140, 406 118, 426 106"/>
+    <path d="M502 146 C 498 114, 512 94, 534 88"/>
+    <path d="M596 160 C 602 130, 620 114, 644 110"/>
+  </g>
+
+  <!-- brows: thin and sharp. left one down over the squint, right one lifted -->
+  <g fill="none" stroke="#111" stroke-width="17" stroke-linecap="round">
+    <path d="M336 452 C 372 434, 414 432, 446 444"/>
+    <path d="M562 428 C 598 410, 646 412, 678 430"/>
+  </g>
+
+  <!-- left eye: squeezed shut. a hard line and a crease -->
+  <path d="M340 528 C 372 508, 416 508, 446 526"
+        fill="none" stroke="#111" stroke-width="18" stroke-linecap="round"/>
+  <path d="M356 556 C 380 570, 412 570, 434 558"
+        fill="none" stroke="#111" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- right eye: the aiming eye. wide, sharp, and the only lit thing on the page -->
+  <path d="M546 516 C 580 470, 664 468, 698 512
+           C 668 566, 578 568, 546 516 Z"
+        fill="#ffffff" stroke="#111" stroke-width="17" stroke-linejoin="round"/>
+  <circle cx="622" cy="516" r="30" fill="#c8963e" stroke="#111" stroke-width="12"/>
+  <circle cx="622" cy="516" r="11" fill="#111"/>
+  <circle cx="634" cy="504" r="6" fill="#ffffff"/>
+
+  <!-- nose: straight, unbroken so far -->
+  <path d="M512 522 C 508 574, 502 610, 494 630 C 510 644, 534 644, 550 632"
+        fill="none" stroke="#111" stroke-width="13" stroke-linecap="round"/>
+
+  <!-- mouth: flat. he is not going to say anything -->
+  <path d="M436 706 C 480 716, 540 716, 578 704"
+        fill="none" stroke="#111" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- matchstick, parked in the corner. unlit -->
+  <path d="M580 710 C 632 726, 674 744, 706 762"
+        fill="none" stroke="#111" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="718" cy="768" r="14" fill="#c9c6be" stroke="#111" stroke-width="10"/>
+
+  <!-- a line under the aiming eye. he has been squinting a while -->
+  <path d="M568 578 C 602 592, 654 590, 684 574"
+        fill="none" stroke="#111" stroke-width="9" stroke-linecap="round"/>
+  </g>
+</svg>
