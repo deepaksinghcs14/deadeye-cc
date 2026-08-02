@@ -36,6 +36,8 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 		out = decideUserPromptSubmit(in, state)
 	case "PreToolUse":
 		out = decidePreToolUse(in, state)
+	case "Stop":
+		out = decideStop(in, state)
 	case "SessionEnd":
 		out = decideSessionEnd(in, state)
 	default:
@@ -92,6 +94,35 @@ func decideUserPromptSubmit(in hookio.Input, state *daemonState) hookio.Output {
 	out := hookio.ForEvent("UserPromptSubmit")
 	out.HookSpecificOutput.AdditionalContext = strings.Join(parts, "\n\n")
 	return out
+}
+
+// decideStop shows a single terse line when new preprocessing savings have
+// accrued since the last turn -- subtle by design: one line, only on
+// change, phrased like the rest of Claude Code's own hook feedback rather
+// than a banner. Stop fires once per turn, not once per session, so this
+// naturally updates as the session progresses without repeating a stale
+// total when nothing new happened.
+func decideStop(in hookio.Input, state *daemonState) hookio.Output {
+	bytesSaved, rewrites, changed := state.newSavingsToShow(in.SessionID)
+	if !changed {
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "Stop", Action: "noop"})
+		return hookio.Empty()
+	}
+
+	out := hookio.ForEvent("Stop")
+	out.HookSpecificOutput.AdditionalContext = fmt.Sprintf(
+		"deadeye: ~%d bytes kept out of context this session (%d rewrite%s).",
+		bytesSaved, rewrites, plural(rewrites),
+	)
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "Stop", Action: "savings-shown", BytesAfter: bytesSaved})
+	return out
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // decideSessionEnd writes Phase 1.5's session-memory summary before the

@@ -26,11 +26,14 @@ type lastRouting struct {
 // critical, so a fresh daemon mid-session just re-injects once more,
 // which is harmless.
 type sessionState struct {
-	injected          bool
-	pendingPlanTask   string          // non-empty = an edit/write is gated pending consent
-	workflowSuggested map[string]bool // task marker -> already suggested this task
-	decisionCount     int             // decisions logged this session (Phase 1.5 session-memory input)
-	lastRouting       *lastRouting
+	injected            bool
+	pendingPlanTask     string          // non-empty = an edit/write is gated pending consent
+	workflowSuggested   map[string]bool // task marker -> already suggested this task
+	decisionCount       int             // decisions logged this session (Phase 1.5 session-memory input)
+	lastRouting         *lastRouting
+	bytesSaved          int // cumulative estimated bytes kept out of context by preprocessing rewrites this session
+	rewriteCount        int
+	lastShownBytesSaved int // bytesSaved value at the last Stop summary shown -- avoids repeating a stale line
 }
 
 // daemonState is the daemon's whole world: config/catalog loaded once at
@@ -124,11 +127,17 @@ func (d *daemonState) markWorkflowSuggestedIfFirst(sessionID, taskMarker string)
 }
 
 // log appends r to the decision log and counts it against r.SessionID's
-// running total (used by Phase 1.5's session-memory write at SessionEnd).
+// running total (used by Phase 1.5's session-memory write at SessionEnd,
+// and the Stop savings summary).
 func (d *daemonState) log(r logstore.Record) {
 	if r.SessionID != "" {
 		d.mu.Lock()
-		d.getOrCreate(r.SessionID).decisionCount++
+		s := d.getOrCreate(r.SessionID)
+		s.decisionCount++
+		if r.Action == "rewrite" {
+			s.bytesSaved += r.BytesBeforeEst - r.BytesAfter
+			s.rewriteCount++
+		}
 		d.mu.Unlock()
 	}
 	if d.logs == nil {
@@ -141,6 +150,21 @@ func (d *daemonState) decisionCount(sessionID string) int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.getOrCreate(sessionID).decisionCount
+}
+
+// newSavingsToShow reports the session's current cumulative bytesSaved and
+// rewriteCount, and whether that total has grown since the last time a
+// Stop summary was shown -- so the one-line note only appears when there's
+// something new to say, not on every single turn.
+func (d *daemonState) newSavingsToShow(sessionID string) (bytesSaved, rewrites int, changed bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	if s.bytesSaved <= s.lastShownBytesSaved {
+		return s.bytesSaved, s.rewriteCount, false
+	}
+	s.lastShownBytesSaved = s.bytesSaved
+	return s.bytesSaved, s.rewriteCount, true
 }
 
 // recordOutcome appends to outcomes.jsonl and the in-memory cache used by
