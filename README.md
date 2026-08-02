@@ -57,6 +57,32 @@ something new out of context that session — `deadeye: ~9,600 bytes kept
 out of context this session (1 rewrite).` — quiet, and only when the
 total actually changed.
 
+## Real task, end to end
+
+Not a scripted demo — an actual feature task run through the installed
+plugin: add a `Mark()` method to a small package, with a test, verified by
+`go test` and `go build`, part of it handed off to a subagent. The decision
+log for that one turn:
+
+```
+PreToolUse/Agent   advise         all evidence supports downshift: low complexity, confidence >= threshold
+SubagentStart      noop
+PreToolUse/Bash    rewrite        reason=test-filter
+PreToolUse/Bash    rewrite        reason=build-filter
+Stop               savings-shown  bytes_after=25800
+```
+
+Model routing recommended a downshift before the subagent spawned, both the
+test and build commands got their verbose output filtered, and the turn
+closed with `deadeye: ~25,800 bytes kept out of context this session (2
+rewrites).` That 25,800 is the rewrite rules' own per-invocation estimate
+(same number `/deadeye-audit` prints, and it says so itself — not a fresh
+measurement of this particular task's output, which was small enough that
+there wasn't much to trim). The `485 → 99` and `10,301 → 55` figures above
+are the real measured ones; this example is here to show the routing,
+rewriting, and Stop summary firing together on one genuine task, not to
+add a third headline number.
+
 ## How it works
 
 ```

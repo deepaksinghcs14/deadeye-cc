@@ -351,18 +351,18 @@ FAIL</div>
     that turns a tool-call count into a savings figure — if it's not a row in
     <code>decisions.jsonl</code>, it isn't printed.</p>
 
-  <div class="term"><span class="c">/deadeye-audit</span>  <span class="m">real session, this repo</span>
+  <div class="term"><span class="c">/deadeye-audit</span>  <span class="m">real session, this repo -- add Mark() + test, subagent delegated</span>
 
-<span class="m">11 decisions logged</span>
+<span class="m">17 decisions logged</span>
 
 <span class="m">by surface</span>
-  PostToolUse       4        PreToolUse/Bash    2
+  PostToolUse       7        PreToolUse/Edit    3
   PreToolUse/Agent  1        SessionEnd         1
-  Stop              1        SubagentStart      1
-  UserPromptSubmit  1
+  PreToolUse/Bash   2        Stop               2
+  SubagentStart     1
 
 <span class="m">by action</span>
-  advise  1    inject  1    noop  7    rewrite  2
+  advise  1    noop  13    rewrite  2    savings-shown  1
 
 <span class="m">preprocessing rewrites</span>  <span class="m">(estimated bytes -- see each rule's</span>
 <span class="m">EstBeforeBytes/EstAfterBytes, not a measurement of this run)</span>
@@ -371,8 +371,17 @@ FAIL</div>
   total               ~45,000 → ~19,200 bytes <span class="g">(~25,800 saved)</span>
 
 Cross-check these figures against /usage's plugin attribution.</div>
-  <p class="note" style="margin-top:16px">Real <code>/deadeye-audit</code> output, unedited.
-    Yours will show whatever your own log contains.</p>
+  <p class="note" style="margin-top:16px">Real <code>/deadeye-audit</code> output, unedited: an
+    actual feature task (add a method, write its test, verify with
+    <code>go build</code>/<code>go test</code>, delegate part of it to a subagent) run
+    through the installed plugin, not a scripted demo. Model routing advised a
+    downshift before the subagent spawned, both commands' verbose output got
+    filtered, and the turn closed with a Stop summary. The 25,800 figure is the
+    rewrite rules' own per-invocation estimate — same number this audit always
+    prints, and it says so itself. The <code>485 → 99</code> and
+    <code>10,301 → 55</code> numbers above are the fresh, actually-measured ones;
+    this log is here to show routing, rewriting, and the Stop summary firing
+    together on one real task. Yours will show whatever your own log contains.</p>
 </section>
 
 <section>
