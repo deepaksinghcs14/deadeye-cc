@@ -42,7 +42,7 @@ func decideWorkflowHint(in hookio.Input, state *daemonState) (suggestion string,
 	if state.cfg.Mode.WorkflowHint != "on" {
 		return "", false
 	}
-	if in.Prompt == "" || !looksFanOutShaped(in.Prompt) {
+	if in.Prompt == "" || isSyntheticPrompt(in.Prompt) || !looksFanOutShaped(in.Prompt) {
 		return "", false
 	}
 

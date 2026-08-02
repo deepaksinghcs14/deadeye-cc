@@ -31,6 +31,19 @@ func looksImplementationShaped(prompt string) bool {
 	return false
 }
 
+// isSyntheticPrompt reports whether a UserPromptSubmit's Prompt is
+// actually a system-generated notification (e.g. a background task
+// finishing) rather than something the user typed. Caught live: a
+// background subagent completion delivered its `<task-notification>...`
+// payload through a real UserPromptSubmit event, and the plan gate's
+// keyword/vagueness heuristics fired on it as if it were a genuine
+// implementation request. Real user prompts don't start with a raw XML
+// tag, so this is a cheap, general guard rather than hardcoding just the
+// one tag name observed.
+func isSyntheticPrompt(prompt string) bool {
+	return strings.HasPrefix(strings.TrimSpace(prompt), "<")
+}
+
 // planGateSoftTrigger evaluates PLAN.md §5.4's soft-layer triggers: (a)
 // vague enough to cause broad scanning, (b) multi-file scope. (c) "blast
 // radius > 0" needs the optional greybeard provider, which this plugin
@@ -82,7 +95,7 @@ func planGateSoftTrigger(in hookio.Input, cfg config.PlanGate) (suggestion, mark
 // (not just the first) -- a task can start on turn 3 just as easily as
 // turn 1.
 func decidePlanGateSoft(in hookio.Input, state *daemonState) (suggestion string, fired bool) {
-	if state.cfg.Mode.PlanGate == "off" || config.KillSwitchOff("DEADEYE_GATE") {
+	if state.cfg.Mode.PlanGate == "off" || config.KillSwitchOff("DEADEYE_GATE") || isSyntheticPrompt(in.Prompt) {
 		return "", false
 	}
 	suggestion, marker, fire := planGateSoftTrigger(in, state.cfg.PlanGate)

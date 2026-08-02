@@ -79,6 +79,20 @@ func TestPlanGateFiresOnMultiFileWorkingTree(t *testing.T) {
 	}
 }
 
+// TestPlanGateIgnoresSyntheticPrompts is the regression test for a real
+// bug caught live: a background subagent completing delivers a
+// `<task-notification>...` payload through a genuine UserPromptSubmit
+// event, and the plan gate's keyword heuristics fired on it as if a user
+// had typed an implementation request.
+func TestPlanGateIgnoresSyntheticPrompts(t *testing.T) {
+	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	synthetic := "<task-notification>\n<task-id>abc123</task-id>\n<summary>Agent finished, please add these changes</summary>\n</task-notification>"
+	in := hookio.Input{SessionID: "s1", Prompt: synthetic, Cwd: t.TempDir()}
+	if _, fired := decidePlanGateSoft(in, state); fired {
+		t.Error("plan gate fired on a synthetic task-notification prompt")
+	}
+}
+
 func TestPlanGateHardDefaultsOff(t *testing.T) {
 	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
 	state.setPendingPlan("sess1", "some pending task")

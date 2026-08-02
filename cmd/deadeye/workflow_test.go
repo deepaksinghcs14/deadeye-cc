@@ -48,3 +48,15 @@ func TestWorkflowHintRespectsModeOff(t *testing.T) {
 		t.Error("workflow hint fired with mode.workflow_hint=off")
 	}
 }
+
+// TestWorkflowHintIgnoresSyntheticPrompts mirrors the plan-gate regression:
+// a synthetic task-notification "prompt" must not trigger the advisor
+// even if it happens to contain fan-out-sounding phrasing.
+func TestWorkflowHintIgnoresSyntheticPrompts(t *testing.T) {
+	state := newDaemonState(config.Default(), catalog.Catalog{}, nil)
+	synthetic := "<task-notification>\n<summary>Audit every file across the codebase for dead code, finished</summary>\n</task-notification>"
+	in := hookio.Input{SessionID: "s1", Prompt: synthetic}
+	if _, fired := decideWorkflowHint(in, state); fired {
+		t.Error("workflow hint fired on a synthetic task-notification prompt")
+	}
+}
