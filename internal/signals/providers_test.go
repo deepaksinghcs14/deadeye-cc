@@ -26,6 +26,32 @@ func TestPromptShapeVagueVsSpecific(t *testing.T) {
 	}
 }
 
+// TestPromptShapeQuestionMarkAloneStaysHighConfidence is the regression
+// test for a real bug: a plain, specific prompt that happens to end in
+// "?" (extremely common -- "what is 2+2?", "does X handle Y?") must not
+// lose confidence just for that. Confidence should only drop when an
+// actual complexity/vague keyword fires; question-mark count and word
+// count are objective facts, not fuzzy guesses.
+func TestPromptShapeQuestionMarkAloneStaysHighConfidence(t *testing.T) {
+	got, err := PromptShape{}.Assess(context.Background(), Scope{Prompt: "What is 2+2?"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.85 {
+		t.Errorf("confidence = %v, want 0.85 for a plain question with no complexity/vague keyword", got.Confidence)
+	}
+}
+
+func TestPromptShapeKeywordMatchLowersConfidence(t *testing.T) {
+	got, err := PromptShape{}.Assess(context.Background(), Scope{Prompt: "Please refactor this module"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.35 {
+		t.Errorf("confidence = %v, want 0.35 once a complexity keyword (refactor) fires", got.Confidence)
+	}
+}
+
 func TestPromptShapeErrorsOnEmpty(t *testing.T) {
 	if _, err := (PromptShape{}).Assess(context.Background(), Scope{}); err == nil {
 		t.Fatal("expected error for empty prompt")

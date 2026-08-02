@@ -32,15 +32,23 @@ func (PromptShape) Assess(_ context.Context, s Scope) (Evidence, error) {
 		return Evidence{}, fmt.Errorf("promptshape: no prompt to assess")
 	}
 
+	// fuzzyMatch tracks whether a complexity/vague WORD fired -- that's
+	// the genuinely uncertain part (translating scattered keyword hits
+	// into a numeric magnitude is a guess). Question-mark count and word
+	// count are objective, exactly countable facts, not guesses, so they
+	// contribute to the complexity score without affecting confidence.
 	score := 0.0
+	fuzzyMatch := false
 	for _, w := range complexityWords {
 		if strings.Contains(prompt, w) {
 			score += 0.15
+			fuzzyMatch = true
 		}
 	}
 	for _, w := range vagueWords {
 		if strings.Contains(prompt, w) {
 			score += 0.1
+			fuzzyMatch = true
 		}
 	}
 	score += 0.1 * float64(strings.Count(prompt, "?"))
@@ -52,10 +60,33 @@ func (PromptShape) Assess(_ context.Context, s Scope) (Evidence, error) {
 		score = 1
 	}
 
+	// Confidence is about trust in THIS estimate, not in the provider
+	// overall: no fuzzy keyword match is a fairly reliable negative result
+	// (0.85); once one fires, confidence drops to 0.35, capped as the
+	// plan's weakest signal. A high complexity reading still forces the
+	// ceiling via kernel.Decide's free-upshift path regardless of
+	// confidence, so the cap costs nothing there.
+	//
+	// This split matters and had two real bugs on the way to it: a flat
+	// low confidence made downshifting UNREACHABLE for every real prompt
+	// (any nonempty prompt participates, and kernel.Decide requires the
+	// MINIMUM confidence across all evidence to clear downshift_threshold).
+	// The first fix (confidence keyed to score>0) was still broken --
+	// gating on the WHOLE score let one stray "?" (extremely common in
+	// ordinary task descriptions) drop confidence to 0.35 with no genuine
+	// complexity signal at all. Gating on fuzzyMatch specifically (word
+	// hits only) fixes both: caught by reproducing Phase 6's escalation
+	// detection live and getting a ceiling decision from a plain,
+	// question-mark-terminated "what is 2+2?" delegation that should have
+	// downshifted.
+	confidence := 0.85
+	if fuzzyMatch {
+		confidence = 0.35
+	}
 	return Evidence{
 		Provider:   "promptshape",
 		Complexity: score,
-		Confidence: 0.35, // weakest signal, capped
+		Confidence: confidence,
 		Facts:      map[string]any{"word_count": wordCount},
 	}, nil
 }
@@ -85,7 +116,7 @@ func (FileScope) Assess(_ context.Context, s Scope) (Evidence, error) {
 	return Evidence{
 		Provider:   "filescope",
 		Complexity: complexity,
-		Confidence: 0.6,
+		Confidence: 0.85, // a file count is a fact, not a guess
 		Facts:      map[string]any{"file_count": n},
 	}, nil
 }
@@ -126,7 +157,7 @@ func (GitChurn) Assess(_ context.Context, s Scope) (Evidence, error) {
 	return Evidence{
 		Provider:   "gitchurn",
 		Complexity: complexity,
-		Confidence: 0.5,
+		Confidence: 0.82, // a commit count is a fact, same footing as the other measured (non-heuristic) signals
 		Facts:      map[string]any{"commits_last_30d": commits},
 	}, nil
 }
@@ -153,7 +184,7 @@ func (TestPresence) Assess(_ context.Context, s Scope) (Evidence, error) {
 	return Evidence{
 		Provider:   "testpresence",
 		Complexity: complexity,
-		Confidence: 0.55,
+		Confidence: 0.8, // file existence is a fact; ratio-to-complexity mapping is the only guess
 		Facts:      map[string]any{"files_with_adjacent_test": covered, "files_checked": len(s.Files)},
 	}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
@@ -63,6 +64,36 @@ func runAudit() {
 		}
 		fmt.Printf("  %-16s %-6s ~%d -> ~%d bytes (~%d saved)\n", "total", "", totalBefore, totalAfter, totalBefore-totalAfter)
 		fmt.Println()
+	}
+
+	outcomes, _ := lessons.Scan(meta.OutcomesPath())
+	if len(outcomes) > 0 {
+		byShape := map[string]struct {
+			n      int
+			weight float64
+		}{}
+		for _, o := range outcomes {
+			if o.Kind != "escalation" {
+				continue
+			}
+			e := byShape[o.TaskShape]
+			e.n++
+			e.weight += o.Weight
+			byShape[o.TaskShape] = e
+		}
+		if len(byShape) > 0 {
+			fmt.Println("Escalations (caller requested a higher-tier model than deadeye's last recommendation for this task shape):")
+			shapes := make([]string, 0, len(byShape))
+			for s := range byShape {
+				shapes = append(shapes, s)
+			}
+			sort.Strings(shapes)
+			for _, s := range shapes {
+				e := byShape[s]
+				fmt.Printf("  %-40s %dx (weight %.1f) -- adjusted downshift threshold is now higher for this shape\n", s, e.n, e.weight)
+			}
+			fmt.Println()
+		}
 	}
 
 	fmt.Println("Cross-check these figures against /usage's plugin attribution.")

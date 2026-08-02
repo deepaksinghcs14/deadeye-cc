@@ -5,8 +5,20 @@ import (
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
+
+// lastRouting is the most recent Agent-routing decision made this
+// session, kept so the next Agent call can be checked for escalation
+// (Phase 6 / PLAN.md §8).
+type lastRouting struct {
+	taskShape string
+	model     string
+	effort    string
+	tier      int
+}
 
 // sessionState tracks per-session dedup flags for the advisory surfaces
 // (once-per-session injection, plan gate, workflow hint). Daemon-lifetime
@@ -18,23 +30,36 @@ type sessionState struct {
 	pendingPlanTask   string          // non-empty = an edit/write is gated pending consent
 	workflowSuggested map[string]bool // task marker -> already suggested this task
 	decisionCount     int             // decisions logged this session (Phase 1.5 session-memory input)
+	lastRouting       *lastRouting
 }
 
 // daemonState is the daemon's whole world: config/catalog loaded once at
-// startup, the decision log, and per-session state. All mutation goes
-// through its methods so the same mutex always guards sessionState field
-// access -- session() alone returning a bare pointer would let two
-// goroutines race on its fields.
+// startup, the decision log, the outcomes log, and per-session state. All
+// mutation goes through its methods so the same mutex always guards
+// sessionState field access -- session() alone returning a bare pointer
+// would let two goroutines race on its fields.
 type daemonState struct {
 	mu       sync.Mutex
 	cfg      config.Config
 	cat      catalog.Catalog
 	logs     *logstore.Store
-	sessions map[string]*sessionState
+	outcomes *lessons.Store
+	// outcomeCache mirrors what's on disk in outcomes.jsonl so Phase 6's
+	// per-call threshold adjustment doesn't re-read the file on every
+	// Agent routing decision. Loaded once at startup, appended to in
+	// lockstep with outcomes.Append.
+	outcomeCache []lessons.Outcome
+	sessions     map[string]*sessionState
 }
 
 func newDaemonState(cfg config.Config, cat catalog.Catalog, logs *logstore.Store) *daemonState {
-	return &daemonState{cfg: cfg, cat: cat, logs: logs, sessions: map[string]*sessionState{}}
+	cached, _ := lessons.Scan(meta.OutcomesPath())
+	return &daemonState{
+		cfg: cfg, cat: cat, logs: logs,
+		outcomes:     lessons.Open(meta.OutcomesPath()),
+		outcomeCache: cached,
+		sessions:     map[string]*sessionState{},
+	}
 }
 
 func (d *daemonState) getOrCreate(sessionID string) *sessionState {
@@ -116,4 +141,44 @@ func (d *daemonState) decisionCount(sessionID string) int {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.getOrCreate(sessionID).decisionCount
+}
+
+// recordOutcome appends to outcomes.jsonl and the in-memory cache used by
+// AdjustedDownshiftThreshold, keeping both in lockstep.
+func (d *daemonState) recordOutcome(o lessons.Outcome) {
+	d.mu.Lock()
+	d.outcomeCache = append(d.outcomeCache, o)
+	d.mu.Unlock()
+	if d.outcomes != nil {
+		_ = d.outcomes.Append(o)
+	}
+}
+
+func (d *daemonState) outcomesSnapshot() []lessons.Outcome {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	out := make([]lessons.Outcome, len(d.outcomeCache))
+	copy(out, d.outcomeCache)
+	return out
+}
+
+// setLastRouting records the most recent Agent-routing decision for
+// escalation detection on the session's next Agent call.
+func (d *daemonState) setLastRouting(sessionID, taskShape, model, effort string, tier int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).lastRouting = &lastRouting{taskShape: taskShape, model: model, effort: effort, tier: tier}
+}
+
+// getLastRouting returns a copy of the session's last routing decision,
+// or nil if none has been made yet.
+func (d *daemonState) getLastRouting(sessionID string) *lastRouting {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	lr := d.getOrCreate(sessionID).lastRouting
+	if lr == nil {
+		return nil
+	}
+	cp := *lr
+	return &cp
 }

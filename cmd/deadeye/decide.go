@@ -11,6 +11,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/inject"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/preprocess"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
@@ -157,7 +158,14 @@ func decideAgentRouting(in hookio.Input, state *daemonState) hookio.Output {
 		Repo:   in.Cwd,
 	}
 	evidence := signals.AssessAll(context.Background(), scope, signals.Builtins())
-	decision := kernel.Decide(evidence, state.cat, state.cfg.DownshiftThreshold)
+	shape := taskShapeKey(scope.Files, scope.Prompt, evidence)
+	threshold := lessons.AdjustedDownshiftThreshold(state.cfg.DownshiftThreshold, state.outcomesSnapshot(), shape)
+	decision := kernel.Decide(evidence, state.cat, threshold)
+
+	checkEscalation(in, ai, shape, state)
+	if tier, ok := state.cat.TierFor(decision.Model); ok {
+		state.setLastRouting(in.SessionID, shape, decision.Model, decision.Effort, tier)
+	}
 
 	out := hookio.ForEvent("PreToolUse")
 	reason := fmt.Sprintf("deadeye recommends model=%s effort=%s -- %s", decision.Model, decision.Effort, decision.Reason)
