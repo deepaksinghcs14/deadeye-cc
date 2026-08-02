@@ -26,6 +26,7 @@ type Input struct {
 	PermissionMode string          `json:"permission_mode,omitempty"`
 	Effort         *Effort         `json:"effort,omitempty"`
 	HookEventName  string          `json:"hook_event_name"`
+	Prompt         string          `json:"prompt,omitempty"` // UserPromptSubmit only
 	ToolName       string          `json:"tool_name,omitempty"`
 	ToolInput      json.RawMessage `json:"tool_input,omitempty"`
 	ToolUseID      string          `json:"tool_use_id,omitempty"`

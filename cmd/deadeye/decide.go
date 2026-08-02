@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
@@ -45,31 +46,45 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	return out
 }
 
-// decideUserPromptSubmit delivers the once-per-session advisory injection.
+// decideUserPromptSubmit delivers the once-per-session advisory injection
+// and, on every turn, the plan-gate soft check (PLAN.md §5.4) -- both
+// share this event, so a turn that trips both gets one combined
+// additionalContext rather than two separate hook responses (there's only
+// one additionalContext slot per response).
+//
 // SessionStart cannot put anything in the model's context in Claude Code
 // v2.1.220 (docs/verified.md §5.1); UserPromptSubmit's additionalContext
 // is the confirmed-working replacement, gated to fire exactly once per
 // session so it stays byte-stable (INV-4).
 func decideUserPromptSubmit(in hookio.Input, state *daemonState) hookio.Output {
-	if !state.markInjectedIfFirst(in.SessionID) {
-		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit", Action: "noop", Reason: "already injected this session"})
+	var parts []string
+
+	if state.markInjectedIfFirst(in.SessionID) {
+		memory := sessionmem.LoadRecent(in.Cwd)
+		text := inject.Build(state.cat, memory)
+		tokens := inject.EstimateTokens(text)
+		reason := "session guidance injection"
+		if tokens > state.cfg.InjectionBudgetTokens {
+			reason = "session guidance injection (over INV-4 budget, shipped anyway -- trim before adding more)"
+		}
+		state.log(logstore.Record{
+			TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit",
+			Action: "inject", Reason: reason, BytesAfter: len(text),
+		})
+		parts = append(parts, text)
+	}
+
+	if suggestion, fired := decidePlanGateSoft(in, state); fired {
+		parts = append(parts, suggestion)
+	}
+
+	if len(parts) == 0 {
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit", Action: "noop"})
 		return hookio.Empty()
 	}
 
-	memory := sessionmem.LoadRecent(in.Cwd)
-	text := inject.Build(state.cat, memory)
-	tokens := inject.EstimateTokens(text)
-	reason := "session guidance injection"
-	if tokens > state.cfg.InjectionBudgetTokens {
-		reason = "session guidance injection (over INV-4 budget, shipped anyway -- trim before adding more)"
-	}
-	state.log(logstore.Record{
-		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit",
-		Action: "inject", Reason: reason, BytesAfter: len(text),
-	})
-
 	out := hookio.ForEvent("UserPromptSubmit")
-	out.HookSpecificOutput.AdditionalContext = text
+	out.HookSpecificOutput.AdditionalContext = strings.Join(parts, "\n\n")
 	return out
 }
 
@@ -87,15 +102,17 @@ type bashInput struct {
 	Command string `json:"command"`
 }
 
-// decidePreToolUse runs Bash preprocessing rules (PLAN.md §5.3) and Agent
-// subagent routing (§5.2). Edit/Write gets the plan-gate hard layer in
-// Phase 4.
+// decidePreToolUse runs Bash preprocessing rules (PLAN.md §5.3), Agent
+// subagent routing (§5.2), and the plan-gate hard layer (§5.4) for
+// Edit/Write.
 func decidePreToolUse(in hookio.Input, state *daemonState) hookio.Output {
 	switch in.ToolName {
 	case "Bash":
 		return decideBashPreprocess(in, state)
 	case "Agent":
 		return decideAgentRouting(in, state)
+	case "Edit", "Write":
+		return decidePlanGateHard(in, state)
 	default:
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "noop"})
 		return hookio.Empty()
