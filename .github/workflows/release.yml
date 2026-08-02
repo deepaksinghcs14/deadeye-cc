@@ -20,6 +20,14 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Tag matches plugin.json version
+        run: |
+          plugin_version="$(grep -o '"version"[^,]*' .claude-plugin/plugin.json | head -1 | sed -E 's/.*"([^"]+)"$/\1/')"
+          test "v$plugin_version" = "${GITHUB_REF_NAME}" || {
+            echo "::error::tag ${GITHUB_REF_NAME} does not match plugin.json version v$plugin_version"
+            exit 1
+          }
+
       - name: Test
         run: go test ./...
 
