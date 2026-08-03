@@ -28,7 +28,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|Agent",
+        "matcher": "Bash|Edit|Write|Agent|Read",
         "hooks": [
           {
             "type": "command",
@@ -42,7 +42,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|Edit|Write|Agent",
+        "matcher": "Bash|Edit|Write|Agent|mcp__.*",
         "hooks": [
           {
             "type": "command",

@@ -32,11 +32,15 @@ type Rule struct {
 }
 
 var (
-	testFilterRe  = regexp.MustCompile(`^(npm test|npx jest|pytest|go test|cargo test|mvn test)(\s|$)`)
-	buildFilterRe = regexp.MustCompile(`^(npm run build|go build|cargo build|tsc)(\s|$)`)
-	lintFilterRe  = regexp.MustCompile(`^(eslint|golangci-lint|ruff)(\s|$)`)
-	catLogRe      = regexp.MustCompile(`^cat\s+([\w./@+-]+\.(?:log|out))\s*$`)
-	bareGitDiffRe = regexp.MustCompile(`^git diff\s*$`)
+	testFilterRe    = regexp.MustCompile(`^(npm test|npx jest|pytest|go test|cargo test|mvn test|gradle test|\./gradlew test|dotnet test|bundle exec rspec|rspec|phpunit|\./vendor/bin/phpunit)(\s|$)`)
+	buildFilterRe   = regexp.MustCompile(`^(npm run build|go build|cargo build|tsc|docker build)(\s|$)`)
+	lintFilterRe    = regexp.MustCompile(`^(eslint|golangci-lint|ruff)(\s|$)`)
+	installFilterRe = regexp.MustCompile(`^(npm install|npm ci|yarn install|pnpm install|pip install|pip3 install)(\s|$)`)
+	kubectlLogsRe   = regexp.MustCompile(`^kubectl logs(\s|$)`)
+	catLogRe        = regexp.MustCompile(`^cat\s+([\w./@+-]+\.(?:log|out))\s*$`)
+	catLargeRe      = regexp.MustCompile(`^cat\s+([\w./@+-]+\.(?:json|txt|csv|xml|ya?ml))\s*$`)
+	bareGitDiffRe   = regexp.MustCompile(`^git diff\s*$`)
+	bareGitHistRe   = regexp.MustCompile(`^git (log|show)\s*$`)
 
 	// shellStructure flags a command as having shell control-flow structure
 	// (a comment, a command separator/chain, redirection, a line
@@ -99,7 +103,7 @@ func captureThenFilter(cmd, filter string) string {
 //     mocha/jest/tap/pytest; verified against real captured output from
 //     each in internal/preprocess/testdata.
 var (
-	testFilter  = `grep -E "(FAIL|FAILED|ERROR|Error:|error:|panic:|--- FAIL|AssertionError|[0-9]+ (failing|failed)|✕|●|not ok|Traceback)" -B 3 -A 5 | head -n 120`
+	testFilter  = `grep -E "(FAIL|FAILED|Failed|ERROR|Error:|error:|panic:|--- FAIL|AssertionError|[0-9]+ (failing|failed|failures?)|Failures?:|✕|●|not ok|Traceback)" -B 3 -A 5 | head -n 120`
 	buildFilter = `grep -E "(error|Error|ERROR|FAIL|cannot |undefined|[^ ]+:[0-9]+:[0-9]+|[^ ]+\([0-9]+,[0-9]+\))" -B 2 -A 3 | head -n 120`
 )
 
@@ -182,6 +186,76 @@ var Rules = []Rule{
 				return cmd, false
 			}
 			return captureThenFilter(cmd, `head -n 150`), true
+		},
+	},
+	{
+		// Package installs spam progress lines that carry nothing an agent
+		// can act on; only errors and deprecation warnings matter. npm's
+		// failure marker is "npm ERR!", pip's is "ERROR:".
+		Name:           "install-filter",
+		Note:           "keeps only errors/warnings from package-install output",
+		EstBeforeBytes: 20000,
+		EstAfterBytes:  2000,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			if !installFilterRe.MatchString(cmd) {
+				return cmd, false
+			}
+			return captureThenFilter(cmd, `grep -E "(ERR!|ERROR:|error:|WARN|warning)" -B 1 -A 3 | head -n 100`), true
+		},
+	},
+	{
+		// Pod logs are unbounded app output -- the recent tail is what a
+		// debugging agent almost always wants. kubectl's own --tail flag
+		// would change the command's argv; wrapping keeps it untouched.
+		Name:           "logs-tail",
+		Note:           "tails pod logs instead of dumping them whole",
+		EstBeforeBytes: 100000,
+		EstAfterBytes:  16000,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			if !kubectlLogsRe.MatchString(cmd) {
+				return cmd, false
+			}
+			if strings.Contains(cmd, "--tail") {
+				return cmd, false // caller already bounded it
+			}
+			return captureThenFilter(cmd, `tail -n 200`), true
+		},
+	},
+	{
+		// Advisory only -- unlike .log/.out, truncating a structured file
+		// (JSON/CSV/YAML) can cut it mid-record, so suggest a targeted tool
+		// rather than rewriting. Same 200KB threshold as log-tail.
+		Name:     "cat-large",
+		Note:     "large structured file -- consider jq, head, or grep instead of cat-ing it whole",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			m := catLargeRe.FindStringSubmatch(strings.TrimSpace(cmd))
+			if m == nil {
+				return cmd, false
+			}
+			statPath := m[1]
+			if !filepath.IsAbs(statPath) && cwd != "" {
+				statPath = filepath.Join(cwd, statPath)
+			}
+			fi, err := os.Stat(statPath)
+			if err != nil || fi.Size() <= 200*1024 {
+				return cmd, false
+			}
+			return cmd, true
+		},
+	},
+	{
+		// Advisory, same reasoning as diff-cap: a bare `git log`/`git show`
+		// in a long-lived repo dumps unbounded history, but truncating it
+		// silently could hide the commit the caller was after.
+		Name:     "history-cap",
+		Note:     "unbounded git history dump -- consider --oneline -20, or scoping to a path",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			if !bareGitHistRe.MatchString(strings.TrimSpace(cmd)) {
+				return cmd, false
+			}
+			return cmd, true
 		},
 	},
 }

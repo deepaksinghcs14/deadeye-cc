@@ -38,9 +38,12 @@ func TestDaemonRoundTripP95(t *testing.T) {
 
 	n := 30
 	durations := make([]time.Duration, n)
-	payload := []byte(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo hi"}}`)
 
 	for i := 0; i < n; i++ {
+		// Vary the command per iteration -- the benchmark measures round-trip
+		// cost, and an identical consecutive command now (correctly) draws a
+		// repeat-command advisory instead of "{}".
+		payload := []byte(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo hi ` + strconv.Itoa(i) + `"}}`)
 		start := time.Now()
 		out := requestDaemon("PreToolUse", payload)
 		durations[i] = time.Since(start)

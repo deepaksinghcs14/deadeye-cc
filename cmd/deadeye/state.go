@@ -32,7 +32,10 @@ type sessionState struct {
 	lastRouting         *lastRouting
 	bytesSaved          int // cumulative estimated bytes kept out of context by preprocessing rewrites this session
 	rewriteCount        int
-	lastShownBytesSaved int // bytesSaved value at the last Stop summary shown -- avoids repeating a stale line
+	lastShownBytesSaved int               // bytesSaved value at the last Stop summary shown -- avoids repeating a stale line
+	readFiles           map[string]int64  // Read'd file path -> mtime (unix nanos) at read time, for duplicate-read advice
+	lastBashCommand     string            // previous Bash command, cleared by any Edit/Write -- consecutive-repeat detection
+	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
 }
 
 // daemonState is the daemon's whole world: catalog loaded once at startup,
@@ -70,7 +73,11 @@ func newDaemonState(cat catalog.Catalog, logs *logstore.Store) *daemonState {
 func (d *daemonState) getOrCreate(sessionID string) *sessionState {
 	s, ok := d.sessions[sessionID]
 	if !ok {
-		s = &sessionState{suggested: map[string]bool{}}
+		s = &sessionState{
+			suggested:       map[string]bool{},
+			readFiles:       map[string]int64{},
+			pendingRewrites: map[string]string{},
+		}
 		d.sessions[sessionID] = s
 	}
 	return s
@@ -209,6 +216,61 @@ func (d *daemonState) getLastRouting(sessionID string) *lastRouting {
 	}
 	cp := *lr
 	return &cp
+}
+
+// markFileRead records path's mtime for sessionID and reports whether it
+// was already read this session WITH the same mtime -- i.e. a repeat read
+// of an unchanged file, the one case where re-reading buys nothing. A
+// changed mtime (the model or the user edited it) is not a repeat.
+func (d *daemonState) markFileRead(sessionID, path string, mtime int64) (unchangedRepeat bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	prev, seen := s.readFiles[path]
+	s.readFiles[path] = mtime
+	return seen && prev == mtime
+}
+
+// noteBashCommand records cmd as the session's most recent Bash command
+// and reports whether it's an immediate repeat -- the same command run
+// again with no Edit/Write in between (clearLastBash handles the
+// in-between part), which is the retry-loop pathology worth flagging.
+func (d *daemonState) noteBashCommand(sessionID, cmd string) (consecutiveRepeat bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	repeat := s.lastBashCommand != "" && s.lastBashCommand == cmd
+	s.lastBashCommand = cmd
+	return repeat
+}
+
+// clearLastBash forgets the session's previous Bash command -- called on
+// Edit/Write, since a repeat AFTER a change is a legitimate re-run, not a
+// retry loop.
+func (d *daemonState) clearLastBash(sessionID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).lastBashCommand = ""
+}
+
+// notePendingRewrite records that rewrittenCmd (the command actually
+// executed) came from rule, so PostToolUse can attribute the real output
+// size back to the rule that produced it.
+func (d *daemonState) notePendingRewrite(sessionID, rewrittenCmd, rule string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).pendingRewrites[rewrittenCmd] = rule
+}
+
+// consumePendingRewrite returns (and forgets) the rule name that produced
+// rewrittenCmd, or "" if this command wasn't one of ours.
+func (d *daemonState) consumePendingRewrite(sessionID, rewrittenCmd string) string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	rule := s.pendingRewrites[rewrittenCmd]
+	delete(s.pendingRewrites, rewrittenCmd)
+	return rule
 }
 
 // endSession evicts sessionID's in-memory state at SessionEnd. Call this

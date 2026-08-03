@@ -29,6 +29,7 @@ type Input struct {
 	Prompt         string          `json:"prompt,omitempty"` // UserPromptSubmit only
 	ToolName       string          `json:"tool_name,omitempty"`
 	ToolInput      json.RawMessage `json:"tool_input,omitempty"`
+	ToolResponse   json.RawMessage `json:"tool_response,omitempty"` // PostToolUse only
 	ToolUseID      string          `json:"tool_use_id,omitempty"`
 	AgentID        string          `json:"agent_id,omitempty"`
 	AgentType      string          `json:"agent_type,omitempty"`

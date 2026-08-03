@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## 0.4.0
+
+Nine new token-minimization surfaces, all advise-first per the project's
+standing rule: enforcement only after advisory precision is proven.
+
+- New rewrite rules: `gradle test`/`./gradlew test`, `dotnet test`,
+  `rspec`/`bundle exec rspec`, `phpunit` (test-filter); `docker build`
+  (build-filter); `npm install`/`npm ci`/`yarn install`/`pnpm install`/
+  `pip install` (new install-filter -- keeps errors and warnings, drops
+  progress spam); `kubectl logs` without `--tail` (new logs-tail --
+  wraps with a 200-line tail). The test filter also learned rspec's
+  `N failures`/`Failure/Error:` and dotnet's mixed-case `Failed` formats.
+- Duplicate-Read detection: re-reading a file that hasn't changed since
+  it was last read this session draws a one-line advisory. An edit to
+  the file (mtime change) resets it -- re-reading changed files is
+  legitimate.
+- Large-file Read advisory: a whole-file `Read` of anything over 200KB
+  suggests Grep or an offset/limit read; a bounded read of the same file
+  stays quiet.
+- `cat` of a large structured file (`.json`/`.csv`/`.xml`/`.yaml`/`.txt`
+  over 200KB) draws an advisory -- never a rewrite, since truncating
+  structured data can cut mid-record.
+- Bare `git log` / `git show` draw the same style of advisory as the
+  existing `git diff` one: suggest `--oneline -20` or a path scope.
+- Consecutive-repeat detection: the same Bash command run twice with no
+  Edit/Write in between (the retry-loop pathology) draws an advisory.
+  An intervening edit clears it -- re-running after a fix is legitimate.
+- Subagent brevity guidance: one line injected at SubagentStart asking
+  for terse, structured results, since subagent output lands in the
+  parent's context whole. (Whether this surface delivers injected
+  context is unverified -- harmless no-op if not, and the decision log
+  records it either way for correlation.)
+- Real measurement: a rewritten command's actual output size is now
+  logged at PostToolUse (`measured`, attributed to the rule), alongside
+  the pre-run estimates -- ground truth for tuning every rule.
+- MCP observation: every `mcp__*` tool response's size is logged
+  (`observed`) to build the evidence base for which MCP tools deserve a
+  rule -- their inputs can't be rewritten safely, so measurement first.
+
 ## 0.3.2
 
 - The first daemon start (effectively install time -- the bootstrap

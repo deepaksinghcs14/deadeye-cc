@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -45,6 +47,10 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 		out = decideUserPromptSubmit(in, cfg, state)
 	case "PreToolUse":
 		out = decidePreToolUse(in, cfg, state)
+	case "PostToolUse":
+		out = decidePostToolUse(in, state)
+	case "SubagentStart":
+		out = decideSubagentStart(in, state)
 	case "Stop":
 		out = decideStop(in, state)
 	case "SessionEnd":
@@ -165,7 +171,12 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 		return decideBashPreprocess(in, cfg, state)
 	case "Agent":
 		return decideAgentRouting(in, cfg, state)
+	case "Read":
+		return decideReadAdvice(in, state)
 	case "Edit", "Write":
+		// An edit invalidates the consecutive-repeat heuristic: re-running
+		// the same command AFTER a change is legitimate verification.
+		state.clearLastBash(in.SessionID)
 		return decidePlanGateHard(in, cfg, state)
 	default:
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "noop"})
@@ -257,8 +268,19 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 		return hookio.Empty()
 	}
 
+	// Consecutive-repeat check: the same command run twice with no
+	// Edit/Write in between (Edit/Write clears the marker) is the
+	// retry-loop pathology -- nothing changed, so the output won't either.
+	repeat := state.noteBashCommand(in.SessionID, bi.Command)
+
 	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, cfg.DisabledRuleSet())
 	if !applied {
+		if repeat {
+			out := hookio.ForEvent("PreToolUse")
+			out.HookSpecificOutput.AdditionalContext = "deadeye: identical to the previous command, with no file changes in between -- the output is unlikely to differ."
+			state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "repeat-command"})
+			return out
+		}
 		return hookio.Empty()
 	}
 
@@ -274,10 +296,104 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 		return hookio.Empty()
 	}
 	out.HookSpecificOutput.UpdatedInput = updated
+	// Remember the rewritten command so PostToolUse can attribute the REAL
+	// output size back to this rule -- the logged bytes here are estimates
+	// (the command hasn't run yet), the PostToolUse "measured" record is
+	// the ground truth.
+	state.notePendingRewrite(in.SessionID, newCmd, rule.Name)
 	state.log(logstore.Record{
 		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash",
 		Action: "rewrite", Reason: rule.Name,
 		BytesBeforeEst: rule.EstBeforeBytes, BytesAfter: rule.EstAfterBytes,
 	})
+	return out
+}
+
+type readInput struct {
+	FilePath string `json:"file_path"`
+	Offset   int    `json:"offset"`
+	Limit    int    `json:"limit"`
+}
+
+// largeReadBytes is the size past which a full-file Read gets a
+// grep-first suggestion -- same threshold the log-tail rewrite uses.
+const largeReadBytes = 200 * 1024
+
+// decideReadAdvice targets the two biggest silent token sinks in long
+// sessions: re-reading a file that hasn't changed since it was last read,
+// and full-reading a large file that a Grep or offset/limit read would
+// have answered. Advisory only -- a Read is never blocked or rewritten.
+func decideReadAdvice(in hookio.Input, state *daemonState) hookio.Output {
+	var ri readInput
+	if err := json.Unmarshal(in.ToolInput, &ri); err != nil || ri.FilePath == "" {
+		return hookio.Empty()
+	}
+
+	fi, err := os.Stat(ri.FilePath)
+	if err != nil {
+		return hookio.Empty() // can't assess -- stay quiet, the Read itself will surface the error
+	}
+
+	var advice []string
+	if state.markFileRead(in.SessionID, ri.FilePath, fi.ModTime().UnixNano()) {
+		advice = append(advice, "deadeye: "+filepath.Base(ri.FilePath)+" was already read this session and hasn't changed since.")
+	}
+	// A partial read (offset/limit) of a big file is exactly the right
+	// move -- only a full read of one earns the suggestion.
+	if fi.Size() > largeReadBytes && ri.Offset == 0 && ri.Limit == 0 {
+		advice = append(advice, fmt.Sprintf("deadeye: %s is %dKB -- consider Grep or an offset/limit read instead of the whole file.", filepath.Base(ri.FilePath), fi.Size()/1024))
+	}
+
+	if len(advice) == 0 {
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Read", Action: "noop"})
+		return hookio.Empty()
+	}
+	out := hookio.ForEvent("PreToolUse")
+	out.HookSpecificOutput.AdditionalContext = strings.Join(advice, " ")
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Read", Action: "advise", Reason: "read-advice"})
+	return out
+}
+
+// decidePostToolUse measures instead of deciding: a rewritten Bash
+// command's REAL output size (the logged rewrite bytes are per-rule
+// estimates made before the command ran), and the response sizes of MCP
+// tools (evidence for which ones deserve a rule of their own -- their
+// inputs can't be rewritten safely, so observation comes first).
+func decidePostToolUse(in hookio.Input, state *daemonState) hookio.Output {
+	switch {
+	case in.ToolName == "Bash":
+		var bi bashInput
+		if err := json.Unmarshal(in.ToolInput, &bi); err == nil && bi.Command != "" {
+			if rule := state.consumePendingRewrite(in.SessionID, bi.Command); rule != "" {
+				state.log(logstore.Record{
+					TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PostToolUse",
+					Action: "measured", Reason: rule, BytesAfter: len(in.ToolResponse),
+				})
+				return hookio.Empty()
+			}
+		}
+	case strings.HasPrefix(in.ToolName, "mcp__"):
+		state.log(logstore.Record{
+			TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PostToolUse",
+			Action: "observed", Reason: in.ToolName, BytesAfter: len(in.ToolResponse),
+		})
+		return hookio.Empty()
+	}
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PostToolUse", Action: "noop"})
+	return hookio.Empty()
+}
+
+// decideSubagentStart injects one line asking the subagent for terse,
+// structured results -- subagent output lands in the parent's context
+// whole, so prose padding there is paid for twice. UNVERIFIED surface:
+// docs/verified.md confirmed SessionStart cannot inject context in Claude
+// Code v2.1.220, and SubagentStart hasn't been probed either way. If the
+// surface ignores additionalContext this is a harmless no-op; the
+// decision log will show inject-subagent firing either way, which is how
+// to correlate whether it lands.
+func decideSubagentStart(in hookio.Input, state *daemonState) hookio.Output {
+	out := hookio.ForEvent("SubagentStart")
+	out.HookSpecificOutput.AdditionalContext = "deadeye: return terse, structured results -- your full output lands in the parent agent's context, so every byte of prose padding is paid for twice."
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "inject-subagent"})
 	return out
 }

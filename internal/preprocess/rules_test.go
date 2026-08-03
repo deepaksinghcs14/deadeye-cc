@@ -20,11 +20,27 @@ func TestApplyGolden(t *testing.T) {
 		{"go test", "go test ./...", "test-filter", false, true},
 		{"go test with args", "go test -run TestFoo ./pkg", "test-filter", false, true},
 		{"pytest", "pytest -x", "test-filter", false, true},
+		{"gradle", "gradle test", "test-filter", false, true},
+		{"gradlew", "./gradlew test", "test-filter", false, true},
+		{"dotnet", "dotnet test", "test-filter", false, true},
+		{"rspec via bundler", "bundle exec rspec spec/", "test-filter", false, true},
+		{"bare rspec", "rspec spec/models", "test-filter", false, true},
+		{"phpunit", "phpunit tests/", "test-filter", false, true},
+		{"vendored phpunit", "./vendor/bin/phpunit", "test-filter", false, true},
 		{"go build", "go build ./...", "build-filter", false, true},
 		{"tsc", "tsc --noEmit", "build-filter", false, true},
+		{"docker build", "docker build -t app .", "build-filter", false, true},
 		{"eslint", "eslint .", "lint-filter", false, true},
+		{"npm install", "npm install", "install-filter", false, true},
+		{"npm ci", "npm ci", "install-filter", false, true},
+		{"pip install", "pip install -r requirements.txt", "install-filter", false, true},
+		{"kubectl logs", "kubectl logs my-pod", "logs-tail", false, true},
+		{"kubectl logs already bounded", "kubectl logs my-pod --tail=50", "", false, false},
 		{"bare git diff", "git diff", "diff-cap", true, true},
 		{"git diff with path", "git diff -- foo.go", "", false, false},
+		{"bare git log", "git log", "history-cap", true, true},
+		{"bare git show", "git show", "history-cap", true, true},
+		{"scoped git log", "git log --oneline -20", "", false, false},
 		{"unrelated command", "echo hello", "", false, false},
 		{"looks similar but isn't", "go test-runner ./...", "", false, false},
 		{"embedded, not prefix", "echo go test", "", false, false},
@@ -237,6 +253,114 @@ func TestFilterCollapsesGenuinePassToTheFallbackLine(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "no output survived filtering") {
 		t.Errorf("a genuinely passing run should collapse to the fallback line, got: %s", out)
+	}
+}
+
+// TestFilterSurvivesTranscribedRunnerFormats covers the runners whose
+// toolchains aren't installed on the dev machine: these snippets are
+// TRANSCRIBED from each tool's documented output format rather than
+// captured live (unlike testdata/*.txt, which are real runs). Weaker
+// evidence, better than none -- if a real capture ever contradicts one of
+// these, trust the capture.
+func TestFilterSurvivesTranscribedRunnerFormats(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("no sh on PATH")
+	}
+	cases := []struct {
+		name        string
+		output      string
+		mustContain string
+	}{
+		{
+			name:        "rspec failure summary",
+			output:      "....F\n\nFailures:\n\n  1) Order applies tax before discount\n     Failure/Error: expect(total).to eq(108)\n\n5 examples, 1 failure\n",
+			mustContain: "Failure/Error",
+		},
+		{
+			name:        "gradle test failure",
+			output:      "> Task :test FAILED\n\nOrderTest > appliesTax FAILED\n    org.opentest4j.AssertionFailedError at OrderTest.java:42\n\nBUILD FAILED in 12s\n",
+			mustContain: "FAILED",
+		},
+		{
+			name:        "dotnet test failure",
+			output:      "Failed!  - Failed:     1, Passed:     4, Skipped:     0, Total:     5\n  Failed OrderTests.AppliesTax [12 ms]\n  Error Message:\n   Assert.Equal() Failure\n",
+			mustContain: "Failed",
+		},
+		{
+			name:        "phpunit failure",
+			output:      "FAILURES!\nTests: 5, Assertions: 9, Failures: 1.\n\n1) OrderTest::testAppliesTax\nFailed asserting that 107 matches expected 108.\n",
+			mustContain: "FAILURES!",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			wrapped := captureThenFilter("printf '%s' "+shellQuote(c.output)+"; exit 1", testFilter)
+			out, err := exec.Command("sh", "-c", wrapped).Output()
+			if err != nil {
+				ee, ok := err.(*exec.ExitError)
+				if !ok || ee.ExitCode() != 1 {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+			if !strings.Contains(string(out), c.mustContain) {
+				t.Errorf("filtered output missing %q:\n%s", c.mustContain, out)
+			}
+		})
+	}
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// TestInstallFilterKeepsErrors: npm's failure marker is "npm ERR!", pip's
+// is "ERROR:"; progress spam has neither and must collapse to the
+// fallback line.
+func TestInstallFilterKeepsErrors(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("no sh on PATH")
+	}
+	npmFail := "npm ERR! code ERESOLVE\nnpm ERR! ERESOLVE unable to resolve dependency tree\n"
+	wrapped := captureThenFilter("printf '%s' "+shellQuote(npmFail)+"; exit 1", `grep -E "(ERR!|ERROR:|error:|WARN|warning)" -B 1 -A 3 | head -n 100`)
+	out, _ := exec.Command("sh", "-c", wrapped).Output()
+	if !strings.Contains(string(out), "ERESOLVE") {
+		t.Errorf("npm error detail lost: %s", out)
+	}
+
+	progressOnly := "added 1204 packages in 32s\n147 packages are looking for funding\n"
+	wrapped = captureThenFilter("printf '%s' "+shellQuote(progressOnly), `grep -E "(ERR!|ERROR:|error:|WARN|warning)" -B 1 -A 3 | head -n 100`)
+	out, err := exec.Command("sh", "-c", wrapped).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(out), "no output survived filtering") {
+		t.Errorf("progress spam should collapse to the fallback line, got: %s", out)
+	}
+}
+
+// TestCatLargeAdvisesOnBigStructuredFiles: .json/.csv/etc get an advisory
+// (never a rewrite -- truncating structured data can cut mid-record),
+// with the same 200KB threshold and cwd resolution as log-tail.
+func TestCatLargeAdvisesOnBigStructuredFiles(t *testing.T) {
+	dir := t.TempDir()
+	big := filepath.Join(dir, "dump.json")
+	small := filepath.Join(dir, "small.json")
+	if err := os.WriteFile(big, make([]byte, 300*1024), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(small, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rule, newCmd, applied := Apply(dir, "cat dump.json", nil)
+	if !applied || rule.Name != "cat-large" || !rule.Advisory {
+		t.Fatalf("large json: rule=%q advisory=%v applied=%v, want cat-large advisory", rule.Name, rule.Advisory, applied)
+	}
+	if newCmd != "cat dump.json" {
+		t.Errorf("advisory must not rewrite: got %q", newCmd)
+	}
+	if _, _, applied := Apply(dir, "cat small.json", nil); applied {
+		t.Error("small structured file should not trigger anything")
 	}
 }
 
