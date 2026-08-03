@@ -30,7 +30,7 @@
           "type": "string",
           "enum": ["off", "on"],
           "default": "on",
-          "description": "Tool-output preprocessing rewrites (Phase 1)."
+          "description": "Context hygiene: Bash-output rewrite rules, plus the duplicate-Read / large-Read / repeat-command advisories and the subagent brevity note."
         },
         "plan_gate": {
           "type": "string",
@@ -67,7 +67,7 @@
           "type": "array",
           "items": { "type": "string" },
           "default": [],
-          "description": "Preprocessing rule names to disable (Phase 1)."
+          "description": "Preprocessing rule names to disable individually: test-filter, build-filter, log-tail, diff-cap, lint-filter, install-filter, logs-tail, cat-large, history-cap."
         }
       }
     },

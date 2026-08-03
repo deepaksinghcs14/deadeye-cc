@@ -50,7 +50,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	case "PostToolUse":
 		out = decidePostToolUse(in, state)
 	case "SubagentStart":
-		out = decideSubagentStart(in, state)
+		out = decideSubagentStart(in, cfg, state)
 	case "Stop":
 		out = decideStop(in, state)
 	case "SessionEnd":
@@ -172,7 +172,7 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 	case "Agent":
 		return decideAgentRouting(in, cfg, state)
 	case "Read":
-		return decideReadAdvice(in, state)
+		return decideReadAdvice(in, cfg, state)
 	case "Edit", "Write":
 		// An edit invalidates the consecutive-repeat heuristic: re-running
 		// the same command AFTER a change is legitimate verification.
@@ -323,7 +323,12 @@ const largeReadBytes = 200 * 1024
 // sessions: re-reading a file that hasn't changed since it was last read,
 // and full-reading a large file that a Grep or offset/limit read would
 // have answered. Advisory only -- a Read is never blocked or rewritten.
-func decideReadAdvice(in hookio.Input, state *daemonState) hookio.Output {
+// Gated under mode.preprocess: it's context hygiene, same family as the
+// Bash-output rules, and every surface must have an off switch.
+func decideReadAdvice(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.Preprocess != "on" {
+		return hookio.Empty()
+	}
 	var ri readInput
 	if err := json.Unmarshal(in.ToolInput, &ri); err != nil || ri.FilePath == "" {
 		return hookio.Empty()
@@ -390,8 +395,12 @@ func decidePostToolUse(in hookio.Input, state *daemonState) hookio.Output {
 // Code v2.1.220, and SubagentStart hasn't been probed either way. If the
 // surface ignores additionalContext this is a harmless no-op; the
 // decision log will show inject-subagent firing either way, which is how
-// to correlate whether it lands.
-func decideSubagentStart(in hookio.Input, state *daemonState) hookio.Output {
+// to correlate whether it lands. Gated under mode.preprocess -- context
+// hygiene, and every surface must have an off switch.
+func decideSubagentStart(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.Preprocess != "on" {
+		return hookio.Empty()
+	}
 	out := hookio.ForEvent("SubagentStart")
 	out.HookSpecificOutput.AdditionalContext = "deadeye: return terse, structured results -- your full output lands in the parent agent's context, so every byte of prose padding is paid for twice."
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "inject-subagent"})

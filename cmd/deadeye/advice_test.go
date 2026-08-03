@@ -39,10 +39,10 @@ func TestReadAdviceFlagsUnchangedRepeat(t *testing.T) {
 	}
 	in := hookio.Input{SessionID: "s1", ToolName: "Read", ToolInput: readToolInput(t, path, nil)}
 
-	if out := decideReadAdvice(in, state); out.HookSpecificOutput != nil {
+	if out := decideReadAdvice(in, config.Default(), state); out.HookSpecificOutput != nil {
 		t.Errorf("first read advised: %+v", out.HookSpecificOutput)
 	}
-	out := decideReadAdvice(in, state)
+	out := decideReadAdvice(in, config.Default(), state)
 	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "already read") {
 		t.Fatalf("unchanged repeat read not flagged: %+v", out.HookSpecificOutput)
 	}
@@ -53,7 +53,7 @@ func TestReadAdviceFlagsUnchangedRepeat(t *testing.T) {
 	if err := os.Chtimes(path, future, future); err != nil {
 		t.Fatal(err)
 	}
-	if out := decideReadAdvice(in, state); out.HookSpecificOutput != nil {
+	if out := decideReadAdvice(in, config.Default(), state); out.HookSpecificOutput != nil {
 		t.Errorf("read after a change was flagged: %+v", out.HookSpecificOutput)
 	}
 }
@@ -68,12 +68,12 @@ func TestReadAdviceFlagsFullReadOfLargeFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out := decideReadAdvice(hookio.Input{SessionID: "s1", ToolName: "Read", ToolInput: readToolInput(t, path, nil)}, state)
+	out := decideReadAdvice(hookio.Input{SessionID: "s1", ToolName: "Read", ToolInput: readToolInput(t, path, nil)}, config.Default(), state)
 	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "Grep") {
 		t.Fatalf("full read of a 300KB file not flagged: %+v", out.HookSpecificOutput)
 	}
 
-	bounded := decideReadAdvice(hookio.Input{SessionID: "s2", ToolName: "Read", ToolInput: readToolInput(t, path, map[string]any{"offset": 100, "limit": 50})}, state)
+	bounded := decideReadAdvice(hookio.Input{SessionID: "s2", ToolName: "Read", ToolInput: readToolInput(t, path, map[string]any{"offset": 100, "limit": 50})}, config.Default(), state)
 	if bounded.HookSpecificOutput != nil {
 		t.Errorf("bounded read of a large file was flagged: %+v", bounded.HookSpecificOutput)
 	}
@@ -183,13 +183,36 @@ func TestPostToolUseObservesMCPTools(t *testing.T) {
 	}
 }
 
+// TestAdvisorySurfacesRespectPreprocessOff: every surface must have an
+// off switch -- the Read advisories and subagent brevity note sit under
+// mode.preprocess (same family as the Bash-output rules), so turning that
+// off must silence them too.
+func TestAdvisorySurfacesRespectPreprocessOff(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+	cfg.Mode.Preprocess = "off"
+
+	path := filepath.Join(t.TempDir(), "big.txt")
+	if err := os.WriteFile(path, make([]byte, 300*1024), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	in := hookio.Input{SessionID: "s1", ToolName: "Read", ToolInput: readToolInput(t, path, nil)}
+	decideReadAdvice(in, cfg, state) // first read records it
+	if out := decideReadAdvice(in, cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("read advice fired with mode.preprocess=off: %+v", out.HookSpecificOutput)
+	}
+	if out := decideSubagentStart(hookio.Input{SessionID: "s1", AgentID: "a1"}, cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("subagent brevity note fired with mode.preprocess=off: %+v", out.HookSpecificOutput)
+	}
+}
+
 // TestSubagentStartInjectsBrevityGuidance: subagent output lands in the
 // parent's context whole, so ask for terse results. (Whether the surface
 // actually delivers additionalContext is unverified -- see the handler's
 // comment -- but the response must at least be well-formed.)
 func TestSubagentStartInjectsBrevityGuidance(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, nil)
-	out := decideSubagentStart(hookio.Input{SessionID: "s1", AgentID: "a1"}, state)
+	out := decideSubagentStart(hookio.Input{SessionID: "s1", AgentID: "a1"}, config.Default(), state)
 	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "terse") {
 		t.Errorf("expected brevity guidance, got %+v", out.HookSpecificOutput)
 	}

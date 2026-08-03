@@ -47,13 +47,16 @@ With deadeye:
 
 *(On that real run: 485 bytes shrank to 99 — a 79.6% reduction — and the
 failure details stayed fully intact. On this repo's own full test suite,
-which all passes: 10,301 bytes shrank to 55, a 99.5% reduction. Those are
-two separate real measurements, not one number averaged across different
-situations — see [the site](https://deepaksinghcs14.github.io/deadeye-cc/)
-for both in full, or run `/deadeye-audit` to see your own numbers. One
-gotcha worth knowing: an early, naive version of this filter could report
-a passing test suite as "failed" whenever the filter pattern matched
-nothing. That's fixed now, and tested against both directions.)*
+which all passes: 10,301 bytes shrank to 55, a 99.5% reduction. On a real
+`npm install express mocha`: 553 bytes of progress/funding/audit spam
+shrank to 55, a 90.1% reduction, with errors and warnings still passed
+through when they occur. Three separate real measurements, not one number
+averaged across different situations — see
+[the site](https://deepaksinghcs14.github.io/deadeye-cc/) for details, or
+run `/deadeye-audit` to see your own numbers. One gotcha worth knowing: an
+early, naive version of this filter could report a passing test suite as
+"failed" whenever the filter pattern matched nothing. That's fixed now,
+and tested against both directions.)*
 
 deadeye also shows one quiet line at the end of a turn, telling you how
 much it's kept out of context so far this session — `deadeye: ~9,600
@@ -150,7 +153,7 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 
 | What | Modes | What it does |
 |---|---|---|
-| Command output | `off` / `on` | Trims verbose Bash output before it enters context — test suites, builds, linters, log tails |
+| Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Also flags wasteful reads: re-reading a file that hasn't changed, whole-reads of huge files, and running the identical command twice in a row |
 | Effort level | `off` / `advise` | Suggests using lower effort for mechanical steps; has no effect if `CLAUDE_EFFORT` is already pinned for the session |
 | Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one yourself |
 | Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit |
@@ -160,8 +163,9 @@ Each of these five works independently — you can turn any one off without
 affecting the others. Settings live in `~/.deadeye/config.json`, with an
 optional project-level `.deadeye.json` that overrides it for one repo.
 Three env vars act as kill switches: `DEADEYE=off` turns everything off;
-`DEADEYE_PREPROCESS=off` and `DEADEYE_GATE=off` turn off just the output
-trimming or just the plan gate, respectively.
+`DEADEYE_PREPROCESS=off` and `DEADEYE_GATE=off` turn off just the context
+hygiene (output trimming plus the read/repeat advisories) or just the
+plan gate, respectively.
 
 ## Development
 

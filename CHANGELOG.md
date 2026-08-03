@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.4.1
+
+- Fix: the duplicate-Read / large-Read advisories and the subagent
+  brevity note shipped in 0.4.0 without an off switch. They now sit
+  under `mode.preprocess` (and its `DEADEYE_PREPROCESS=off` kill
+  switch), same family as the Bash-output rules -- every surface must
+  be switchable off without touching the others.
+- The schema now names every disable-able rule in
+  `preprocess.disabled_rules`' description, and `mode.preprocess`'s
+  description covers the advisory surfaces it gates.
+- README/site: a third real measurement joins the before/after -- an
+  actual `npm install express mocha`, 553 bytes of progress spam
+  filtered to 55 (90.1%), with errors and warnings still passed through.
+
 ## 0.4.0
 
 Nine new token-minimization surfaces, all advise-first per the project's

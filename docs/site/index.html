@@ -456,9 +456,11 @@ FAIL</div>
       <div class="field-foot">
         <b>79.6%–99.5% smaller, measured on real runs, not averaged.</b> This
         run: 485 bytes shrank to 99. This repo's own full test suite (202
-        lines, 10,301 bytes, all passing): shrank to 55 bytes. Two separate
-        real measurements, not one number blended across different
-        situations — run <code>/deadeye-audit</code> to see your own numbers.
+        lines, 10,301 bytes, all passing): shrank to 55 bytes. A real
+        <code>npm install express mocha</code>: 553 bytes of progress spam
+        shrank to 55, errors still passed through. Three separate real
+        measurements, not one number blended across different situations —
+        run <code>/deadeye-audit</code> to see your own numbers.
       </div>
     </div>
   </header>
@@ -517,7 +519,7 @@ FAIL</div>
     <table>
       <thead><tr><th>What</th><th>What it does</th><th>Default</th></tr></thead>
       <tbody>
-        <tr><td class="axis">Output</td><td class="desc">Trims verbose command output before it enters context — test suites, builds, linters, log tails. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
+        <tr><td class="axis">Context</td><td class="desc">Trims verbose command output before it enters context — test suites across nine language ecosystems, builds, linters, package installs, pod logs, log tails. Also flags wasteful reads: re-reading unchanged files, whole-reads of huge files, identical commands run twice in a row. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
         <tr><td class="axis">Effort</td><td class="desc">Suggests lower effort for mechanical steps. Has no effect if <code>CLAUDE_EFFORT</code> is already pinned for the session — <code>/deadeye-status</code> tells you plainly if that's the case.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Model</td><td class="desc">Picks the model when a subagent starts. Prices come from a table built into the binary, refreshed each release — there's no live pricing API a background hook process could reach.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Plan gate</td><td class="desc">Asks once before a multi-file edit that skipped writing a plan first, then stays quiet for the rest of that task.</td><td class="mode"><span class="pill soft">soft</span></td></tr>
@@ -605,7 +607,7 @@ Cross-check these figures against /usage's plugin attribution.</div>
 
       <h3 style="margin-top:34px">Turn it off</h3>
       <div class="term"><span class="m">DEADEYE=off</span>              everything
-<span class="m">DEADEYE_PREPROCESS=off</span>   output rewriting
+<span class="m">DEADEYE_PREPROCESS=off</span>   context hygiene
 <span class="m">DEADEYE_GATE=off</span>         plan gate</div>
     </div>
 
