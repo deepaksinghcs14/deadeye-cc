@@ -65,14 +65,14 @@ func renderGain(logPath string) {
 		}
 	}
 
-	fmt.Println("  deadeye gain                    this machine's decision log, nothing invented")
+	fmt.Println("  " + cHead("deadeye gain") + cDim("                    this machine's decision log, nothing invented"))
 	fmt.Println()
-	fmt.Printf("  Rewrites          %d verbose commands trimmed before entering context\n", rewrites)
+	fmt.Printf("  %s          %s verbose commands trimmed before entering context\n", cHead("Rewrites"), cValue(fmt.Sprintf("%d", rewrites)))
 	if rewrites > 0 {
-		fmt.Printf("    estimated       ~%s -> ~%s bytes (per-rule typical-case constants, not runs)\n", fmtBytes(estBefore), fmtBytes(estAfter))
+		fmt.Printf("    %s       ~%s -> ~%s bytes %s\n", cWarn("estimated"), fmtBytes(estBefore), fmtBytes(estAfter), cDim("(per-rule typical-case constants, not runs)"))
 	}
 	if measuredRuns > 0 {
-		fmt.Printf("    measured        %d real runs, %s bytes of actual filtered output\n", measuredRuns, fmtBytes(measuredBytes))
+		fmt.Printf("    %s        %d real runs, %s bytes of actual filtered output\n", cGood("measured"), measuredRuns, cGood(fmtBytes(measuredBytes)))
 		rules := make([]string, 0, len(perRuleMeasured))
 		for rule := range perRuleMeasured {
 			rules = append(rules, rule)
@@ -83,19 +83,19 @@ func renderGain(logPath string) {
 			fmt.Printf("      %-14s %dx  %s bytes real output\n", rule, e[0], fmtBytes(e[1]))
 		}
 	}
-	fmt.Printf("  Advisories        %d nudges (repeat reads, large files, plan-first, routing)\n", advisories)
+	fmt.Printf("  %s        %s nudges %s\n", cHead("Advisories"), cValue(fmt.Sprintf("%d", advisories)), cDim("(repeat reads, large files, plan-first, routing)"))
 	if mcpObserved > 0 {
-		fmt.Printf("  MCP observed      %d responses, %s bytes (evidence base, no rules yet)\n", mcpObserved, fmtBytes(mcpBytes))
+		fmt.Printf("  %s      %d responses, %s bytes %s\n", cHead("MCP observed"), mcpObserved, fmtBytes(mcpBytes), cDim("(evidence base, no rules yet)"))
 	}
 	if coderInjects > 0 {
-		fmt.Printf("  Coder mode        %d session injections\n", coderInjects)
+		fmt.Printf("  %s        %s session injections\n", cHead("Coder mode"), cValue(fmt.Sprintf("%d", coderInjects)))
 	}
 	fmt.Println()
-	fmt.Println("  No per-repo savings % is shown: the unbuilt version of your code was")
-	fmt.Println("  never written, so there is no baseline to subtract from.")
-	fmt.Println("  This repo:  /deadeye-debt  (shortcuts you deferred)")
-	fmt.Println("              /deadeye-sweep (what's still cuttable)")
-	fmt.Println("  Full detail: /deadeye-audit")
+	fmt.Println(cDim("  No per-repo savings % is shown: the unbuilt version of your code was"))
+	fmt.Println(cDim("  never written, so there is no baseline to subtract from."))
+	fmt.Println("  This repo:  " + cValue("/deadeye-debt") + cDim("  (shortcuts you deferred)"))
+	fmt.Println("              " + cValue("/deadeye-sweep") + cDim(" (what's still cuttable)"))
+	fmt.Println("  Full detail: " + cValue("/deadeye-audit"))
 }
 
 func fmtBytes(n int) string {

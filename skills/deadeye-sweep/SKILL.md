@@ -1,13 +1,6 @@
 ---
 name: deadeye-sweep
-description: >
-  Whole-repo audit for over-engineering -- like /deadeye-review, but
-  scanning the entire codebase instead of a diff. Returns a ranked list
-  of what to delete, simplify, or replace with stdlib/native
-  equivalents. Use when the user says "audit this codebase for
-  over-engineering", "what can I delete from this repo", "find bloat",
-  or invokes /deadeye-sweep. One-shot report; does not apply fixes.
-  (For deadeye's token-savings report, use /deadeye-audit instead.)
+description: Whole-repo over-engineering audit, ranked by biggest cut first.
 license: MIT
 ---
 

@@ -1,12 +1,6 @@
 ---
 name: explore
-description: >
-  Progressive-disclosure codebase exploration that keeps raw file contents
-  out of the main conversation: a file index first, then grep'd signatures,
-  then targeted reads only for what the upcoming change actually touches.
-  Use before implementing a change in unfamiliar code, when scope is
-  uncertain, or when the task needs "where does X happen" answered before
-  "how do I change X". Returns a structured summary, not raw file dumps.
+description: Progressive codebase exploration: index, then signatures, then targeted reads only.
 context: fork
 agent: Explore
 ---

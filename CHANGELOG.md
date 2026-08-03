@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.5.2
+
+- CLI output (`status`, `gain`, `audit`, `route`) is now colored when
+  stdout is a terminal: brass section headers, green for on/up/measured,
+  amber for estimates and cautions, red for OFF/down, dim annotations.
+  Piped output (and NO_COLOR) stays plain bytes, so scripts and tests
+  are unaffected. Injected suggestions stay uncolored by design -- they
+  are model-context text, not terminal output.
+- Every skill and command description is now a single line, so the
+  command picker shows them in full instead of truncating.
+
 ## 0.5.1
 
 - Fix: the first session after a daemon exit (boot, 30-minute idle

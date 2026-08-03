@@ -1,5 +1,5 @@
 ---
-description: Show deadeye's current modes, kill switches, model catalog, and daemon health
+description: Modes, coder level, kill switches, catalog, daemon health
 allowed-tools: Bash(deadeye status), Bash(~/.deadeye/bin/deadeye status)
 ---
 

@@ -65,20 +65,20 @@ func runRoute(taskDescription string) {
 	fmt.Printf("Scope: %d file(s) in %s\n\n", len(scope.Files), scope.Repo)
 
 	if len(evidence) == 0 {
-		fmt.Println("Evidence: none (every provider skipped -- see docs/verified.md/PLAN.md §3.1 on degrading gracefully)")
+		fmt.Println(cHead("Evidence:") + cDim(" none (every provider skipped -- degrading gracefully is correct per INV-1)"))
 	} else {
-		fmt.Println("Evidence:")
+		fmt.Println(cHead("Evidence"))
 		for _, e := range evidence {
 			fmt.Printf("  %-14s complexity=%.2f confidence=%.2f facts=%v\n", e.Provider, e.Complexity, e.Confidence, e.Facts)
 		}
 	}
 	fmt.Println()
 
-	fmt.Println("Decision:")
-	fmt.Printf("  model:      %s\n", decision.Model)
-	fmt.Printf("  effort:     %s\n", decision.Effort)
+	fmt.Println(cHead("Decision"))
+	fmt.Printf("  model:      %s\n", cValue(decision.Model))
+	fmt.Printf("  effort:     %s\n", cValue(decision.Effort))
 	fmt.Printf("  confidence: %.2f\n", decision.Confidence)
-	fmt.Printf("  reason:     %s\n", decision.Reason)
+	fmt.Printf("  reason:     %s\n", cDim(decision.Reason))
 	fmt.Printf("\nMode: routing=%s, effort=%s (advise = shown only; enforce = actually rewrites Agent tool calls)\n", cfg.Mode.Routing, cfg.Mode.Effort)
 }
 

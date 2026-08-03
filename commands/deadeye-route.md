@@ -1,5 +1,5 @@
 ---
-description: Dry-run deadeye's kernel decision for a task, with full reasoning
+description: Dry-run the routing decision for a task, with reasoning
 argument-hint: "[task description]"
 allowed-tools: Bash(deadeye route:*), Bash(~/.deadeye/bin/deadeye route:*)
 ---

@@ -1,5 +1,5 @@
 ---
-description: Show deadeye's savings report from the decision log
+description: Token-savings report from the decision log
 allowed-tools: Bash(deadeye audit), Bash(~/.deadeye/bin/deadeye audit)
 ---
 

@@ -1,10 +1,6 @@
 ---
 name: deadeye-help
-description: >
-  Quick-reference card for deadeye: coder-mode levels, every command,
-  config knobs, kill switches, and how to update. One-shot display, not
-  a persistent mode. Use when the user says "deadeye help", "what
-  deadeye commands", "how do I use deadeye", or invokes /deadeye-help.
+description: Quick-reference card for every deadeye command and setting.
 license: MIT
 ---
 

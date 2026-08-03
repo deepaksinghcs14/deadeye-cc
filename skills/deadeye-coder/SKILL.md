@@ -1,18 +1,6 @@
 ---
 name: deadeye-coder
-description: >
-  Deadeye's coder mode: forces the leanest solution that actually works --
-  simplest, shortest, most minimal. A senior dev who questions whether the
-  task needs to exist at all (YAGNI), reaches for the standard library
-  before custom code, native platform features before dependencies, one
-  line before fifty. Intensity levels: spotter, marksman (default),
-  sniper. Use on ANY coding task: writing, adding, refactoring, fixing,
-  reviewing, or designing code, and choosing libraries or dependencies.
-  Also use whenever the user says "coder mode", "be lazy", "simplest
-  solution", "minimal solution", "yagni", "do less", or "shortest path",
-  or complains about over-engineering, bloat, boilerplate, or unnecessary
-  dependencies. Do NOT use for non-coding requests (general knowledge,
-  prose, translation, summaries, recipes).
+description: Lean-first coding persona (YAGNI, stdlib-first, shortest diff). Levels: spotter, marksman, sniper.
 argument-hint: "[spotter|marksman|sniper|off]"
 license: MIT
 ---

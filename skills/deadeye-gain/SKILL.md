@@ -1,12 +1,6 @@
 ---
 name: deadeye-gain
-description: >
-  Show deadeye's measured impact as a compact scoreboard, rendered from
-  this machine's own decision log -- real measured bytes, per-rule
-  estimates clearly labeled as estimates, never an invented number. Use
-  when the user says "deadeye gain", "what does deadeye save", "show
-  deadeye impact", or invokes /deadeye-gain. One-shot display, not a
-  persistent mode.
+description: Measured-impact scoreboard from the decision log -- real numbers only.
 license: MIT
 ---
 

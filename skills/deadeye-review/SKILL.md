@@ -1,13 +1,6 @@
 ---
 name: deadeye-review
-description: >
-  Code review focused exclusively on over-engineering in the current
-  diff. Finds what to delete: reinvented standard library, unneeded
-  dependencies, speculative abstractions, dead flexibility. One line per
-  finding. Use when the user says "review for over-engineering", "what
-  can we delete", "is this over-engineered", "simplify review", or
-  invokes /deadeye-review. Complements correctness-focused review -- this
-  one only hunts complexity.
+description: Over-engineering review of the current diff -- what to delete and what replaces it.
 license: MIT
 ---
 

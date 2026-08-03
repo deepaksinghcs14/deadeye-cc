@@ -39,22 +39,22 @@ func runAudit() {
 		}
 	}
 
-	fmt.Printf("%d decisions logged (%s)\n\n", len(records), meta.LogPath())
+	fmt.Printf("%s decisions logged %s\n\n", cValue(fmt.Sprintf("%d", len(records))), cDim("("+meta.LogPath()+")"))
 
-	fmt.Println("By surface:")
+	fmt.Println(cHead("By surface"))
 	for _, s := range sortedKeys(bySurface) {
 		fmt.Printf("  %-24s %d\n", s, bySurface[s])
 	}
 	fmt.Println()
 
-	fmt.Println("By action:")
+	fmt.Println(cHead("By action"))
 	for _, a := range sortedKeys(byAction) {
 		fmt.Printf("  %-24s %d\n", a, byAction[a])
 	}
 	fmt.Println()
 
 	if len(byRule) > 0 {
-		fmt.Println("Preprocessing rewrites (estimated bytes -- see each rule's EstBeforeBytes/EstAfterBytes, not a measurement of this run):")
+		fmt.Println(cHead("Preprocessing rewrites") + cWarn(" (estimated bytes -- per-rule constants, not a measurement of this run)"))
 		totalBefore, totalAfter := 0, 0
 		for _, rule := range sortedRuleKeys(byRule) {
 			e := byRule[rule]
@@ -62,7 +62,7 @@ func runAudit() {
 			totalBefore += e.before
 			totalAfter += e.after
 		}
-		fmt.Printf("  %-16s %-6s ~%d -> ~%d bytes (~%d saved)\n", "total", "", totalBefore, totalAfter, totalBefore-totalAfter)
+		fmt.Printf("  %-16s %-6s ~%d -> ~%d bytes %s\n", "total", "", totalBefore, totalAfter, cGood(fmt.Sprintf("(~%d saved)", totalBefore-totalAfter)))
 		fmt.Println()
 	}
 
@@ -82,7 +82,7 @@ func runAudit() {
 			byShape[o.TaskShape] = e
 		}
 		if len(byShape) > 0 {
-			fmt.Println("Escalations (caller requested a higher-tier model than deadeye's last recommendation for this task shape):")
+			fmt.Println(cHead("Escalations") + cDim(" (caller requested a higher tier than the last recommendation for this shape)"))
 			shapes := make([]string, 0, len(byShape))
 			for s := range byShape {
 				shapes = append(shapes, s)
@@ -96,7 +96,7 @@ func runAudit() {
 		}
 	}
 
-	fmt.Println("Cross-check these figures against /usage's plugin attribution.")
+	fmt.Println(cDim("Cross-check these figures against /usage's plugin attribution."))
 }
 
 func sortedKeys(m map[string]int) []string {
