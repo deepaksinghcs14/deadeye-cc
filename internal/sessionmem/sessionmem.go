@@ -4,12 +4,12 @@
 // session, to cut the re-orientation tax a fresh session pays rediscovering
 // the project.
 //
-// deadeye: no native-resume-overlap guard. PLAN.md §5.7 calls for
-// detecting whether Claude Code's own native resume-from-summary is
-// active for the session and standing down if so (§10.10, unresolved --
-// see docs/verified.md). Without a confirmed detection signal this ships
-// unconditionally; worst case is a redundant paragraph of context, not a
-// correctness problem. Add the guard once §10.10 is answered live.
+// Native-restore guard (PLAN.md §5.7/§10.10): SessionStart's source field
+// distinguishes resume/compact -- sessions whose context Claude Code
+// itself just restored -- from startup/clear. The daemon marks those
+// sessions and decideUserPromptSubmit skips LoadRecent for them, so this
+// summary never repeats what the transcript replay or compaction summary
+// already carries.
 package sessionmem
 
 import (

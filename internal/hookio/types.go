@@ -27,6 +27,7 @@ type Input struct {
 	Effort         *Effort         `json:"effort,omitempty"`
 	HookEventName  string          `json:"hook_event_name"`
 	Prompt         string          `json:"prompt,omitempty"` // UserPromptSubmit only
+	Source         string          `json:"source,omitempty"` // SessionStart only: startup|resume|clear|compact
 	ToolName       string          `json:"tool_name,omitempty"`
 	ToolInput      json.RawMessage `json:"tool_input,omitempty"`
 	ToolResponse   json.RawMessage `json:"tool_response,omitempty"` // PostToolUse only

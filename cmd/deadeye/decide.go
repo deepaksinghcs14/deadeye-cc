@@ -15,6 +15,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/preprocess"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/sessionmem"
@@ -44,9 +45,9 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 
 	switch req.Event {
 	case "SessionStart":
-		out = decideCoderSessionStart(in, cfg, req.PluginRoot, state)
+		out = decideCoderSessionStart(in, cfg, req.PluginRoot, req.ConfigDir, state)
 	case "UserPromptSubmit":
-		out = decideUserPromptSubmit(in, cfg, state)
+		out = decideUserPromptSubmit(in, cfg, req.ClientVersion, state)
 	case "PreToolUse":
 		out = decidePreToolUse(in, cfg, state)
 	case "PostToolUse":
@@ -77,7 +78,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 // v2.1.220 (docs/verified.md §5.1); UserPromptSubmit's additionalContext
 // is the confirmed-working replacement, gated to fire exactly once per
 // session so it stays byte-stable (INV-4).
-func decideUserPromptSubmit(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion string, state *daemonState) hookio.Output {
 	var parts []string
 
 	// Coder-mode tracker first: a /deadeye-coder command's confirmation
@@ -90,7 +91,14 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, state *daemonSta
 	}
 
 	if state.markInjectedIfFirst(in.SessionID) {
-		memory := sessionmem.LoadRecent(in.Cwd)
+		// Native-restore guard (PLAN.md §5.7/§10.10): a resumed or
+		// compacted session already carries its own context, so the memory
+		// paragraph would be a redundant repeat of what Claude Code itself
+		// just restored. The rest of the injection still applies.
+		memory := ""
+		if !state.nativeRestoreFor(in.SessionID) {
+			memory = sessionmem.LoadRecent(in.Cwd)
+		}
 		text := inject.Build(state.cat, memory, cfg.Mode.Effort != "off")
 		tokens := inject.EstimateTokens(text)
 		reason := "session guidance injection"
@@ -108,7 +116,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, state *daemonSta
 		parts = append(parts, suggestion)
 	}
 
-	if suggestion, fired := decideWorkflowHint(in, cfg, state); fired {
+	if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired {
 		parts = append(parts, suggestion)
 	}
 
@@ -157,6 +165,7 @@ func plural(n int) string {
 func decideSessionEnd(in hookio.Input, state *daemonState) hookio.Output {
 	count := state.decisionCount(in.SessionID)
 	_ = sessionmem.Write(in.Cwd, in.SessionID, count)
+	os.Remove(meta.CoderModePathFor(in.SessionID)) // this session's statusline badge file
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionEnd", Action: "noop"})
 	// Session state is daemon-lifetime advisory dedup only, never
 	// persisted -- but nothing ever removed an entry, so across a

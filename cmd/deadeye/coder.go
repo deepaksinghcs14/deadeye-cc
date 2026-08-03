@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/coder"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
@@ -32,40 +33,77 @@ func effectiveCoderLevel(sessionID string, cfg config.Config, state *daemonState
 	return level
 }
 
-// writeCoderModeFile mirrors the active level to ~/.deadeye/coder-mode for
-// the statusline script -- display only, never authoritative.
-// deadeye: one global mode file across concurrent sessions, last writer
-// wins -- per-session badges need Claude Code to pass session_id to
-// statusline commands.
-func writeCoderModeFile(level string) {
+// writeCoderModeFile mirrors the active level for the statusline script --
+// display only, never authoritative. Per-session file first (the script
+// resolves it via the session_id in its stdin JSON, so concurrent sessions
+// each see their own badge); the global file stays as the fallback for
+// statusline invocations whose stdin carries no session_id, where
+// last-writer-wins is the best available answer.
+func writeCoderModeFile(sessionID, level string) {
+	paths := []string{meta.CoderModePath()}
+	if sessionID != "" {
+		paths = append(paths, meta.CoderModePathFor(sessionID))
+	}
 	if level == coder.LevelOff || level == "" {
-		os.Remove(meta.CoderModePath())
+		for _, p := range paths {
+			os.Remove(p)
+		}
 		return
 	}
 	_ = os.MkdirAll(meta.StateDir(), 0o700)
-	_ = os.WriteFile(meta.CoderModePath(), []byte(level+"\n"), 0o600)
+	for _, p := range paths {
+		_ = os.WriteFile(p, []byte(level+"\n"), 0o600)
+	}
+	sweepStaleModeFiles()
+}
+
+// sweepStaleModeFiles removes per-session mode files older than 48h --
+// sessions killed without a SessionEnd (crash, SIGKILL) leak theirs, and
+// this opportunistic sweep at write time is the only cleanup they get.
+func sweepStaleModeFiles() {
+	entries, err := os.ReadDir(meta.StateDir())
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || len(name) <= len("coder-mode.") || name[:len("coder-mode.")] != "coder-mode." {
+			continue
+		}
+		if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > 48*time.Hour {
+			os.Remove(filepath.Join(meta.StateDir(), name))
+		}
+	}
 }
 
 // decideCoderSessionStart delivers the persona at every session start --
 // including source: compact, so the ruleset survives compaction (raw
 // stdout delivery, docs/verified.md §11).
-func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot string, state *daemonState) hookio.Output {
+func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, configDir string, state *daemonState) hookio.Output {
+	// A resume replays the full transcript and a compact carries Claude
+	// Code's own summary -- either way the re-orientation tax deadeye's
+	// session memory exists to cut is already paid, so the next-prompt
+	// injection stands down on its memory paragraph (PLAN.md §5.7/§10.10).
+	if in.Source == "resume" || in.Source == "compact" {
+		state.markNativeRestore(in.SessionID)
+	}
+
 	level := effectiveCoderLevel(in.SessionID, cfg, state)
 	if !coder.Active(level) {
-		writeCoderModeFile(coder.LevelOff)
+		writeCoderModeFile(in.SessionID, coder.LevelOff)
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionStart", Action: "noop"})
 		return hookio.Empty()
 	}
 
 	state.setCoderLevel(in.SessionID, level)
-	writeCoderModeFile(level)
+	writeCoderModeFile(in.SessionID, level)
 
 	text := coder.Instructions(level)
 	reason := "coder ruleset injection"
 	if inject.EstimateTokens(text) > cfg.Coder.InjectionBudgetTokens {
 		reason = "coder ruleset injection (over budget, shipped anyway -- trim before adding more)"
 	}
-	if nudge := statuslineNudge(pluginRoot, state, in.SessionID); nudge != "" {
+	if nudge := statuslineNudge(pluginRoot, configDir, state, in.SessionID); nudge != "" {
 		text += "\n\n" + nudge
 	}
 
@@ -83,21 +121,23 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot stri
 // itself never writes Claude's settings -- the flag file records that the
 // offer was made, and the shell-safe guard keeps an exotic plugin path
 // out of a suggested command.
-func statuslineNudge(pluginRoot string, state *daemonState, sessionID string) string {
+func statuslineNudge(pluginRoot, configDir string, state *daemonState, sessionID string) string {
 	if pluginRoot == "" {
 		return ""
 	}
 	if _, err := os.Stat(meta.StatuslineNudgedPath()); err == nil {
 		return "" // already nudged, ever
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
+	// configDir is the client's CLAUDE_CONFIG_DIR, carried over the wire
+	// (the daemon never reads env); empty means the ~/.claude default.
+	if configDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ""
+		}
+		configDir = filepath.Join(home, ".claude")
 	}
-	// deadeye: assumes ~/.claude -- CLAUDE_CONFIG_DIR overrides aren't
-	// visible to the daemon (env is client-side only); support it by
-	// carrying the value over the wire if anyone actually hits this.
-	settingsPath := filepath.Join(home, ".claude", "settings.json")
+	settingsPath := filepath.Join(configDir, "settings.json")
 	b, err := os.ReadFile(settingsPath)
 	if err == nil {
 		var settings map[string]any
@@ -113,9 +153,9 @@ func statuslineNudge(pluginRoot string, state *daemonState, sessionID string) st
 
 	script := filepath.Join(pluginRoot, "hooks", "deadeye-statusline.sh")
 	if !coder.IsShellSafe(script) {
-		return "deadeye: a statusline badge showing the coder level is available at hooks/deadeye-statusline.sh inside the deadeye plugin directory. OFFER the user (once) to add it as their statusLine command in ~/.claude/settings.json -- never edit their settings without asking."
+		return "deadeye: a statusline badge showing the coder level is available at hooks/deadeye-statusline.sh inside the deadeye plugin directory. OFFER the user (once) to add it as their statusLine command in " + settingsPath + " -- never edit their settings without asking."
 	}
-	return "deadeye: a statusline badge showing the coder level is available. OFFER the user (once) to add this to ~/.claude/settings.json -- never edit their settings without asking:\n  \"statusLine\": { \"type\": \"command\", \"command\": \"bash \\\"" + script + "\\\"\" }"
+	return "deadeye: a statusline badge showing the coder level is available. OFFER the user (once) to add this to " + settingsPath + " -- never edit their settings without asking:\n  \"statusLine\": { \"type\": \"command\", \"command\": \"bash \\\"" + script + "\\\"\" }"
 }
 
 // coderTracker handles /deadeye-coder invocations and deactivation
@@ -133,7 +173,7 @@ func coderTracker(in hookio.Input, cfg config.Config, state *daemonState) string
 	switch cmd.Kind {
 	case coder.KindSwitch, coder.KindReviewSwitch:
 		state.setCoderLevel(in.SessionID, cmd.Level)
-		writeCoderModeFile(cmd.Level)
+		writeCoderModeFile(in.SessionID, cmd.Level)
 		log("coder-switch", cmd.Level)
 		return "DEADEYE CODER CHANGED — level: " + cmd.Level
 	case coder.KindSwitchBad:
@@ -144,12 +184,12 @@ func coderTracker(in hookio.Input, cfg config.Config, state *daemonState) string
 			level = coder.LevelMarksman
 		}
 		state.setCoderLevel(in.SessionID, level)
-		writeCoderModeFile(level)
+		writeCoderModeFile(in.SessionID, level)
 		log("coder-switch", level+" (unrecognized: "+cmd.Raw+")")
 		return "DEADEYE CODER CHANGED — level: " + level + " (didn't recognize \"" + cmd.Raw + "\")"
 	case coder.KindOff:
 		state.setCoderLevel(in.SessionID, coder.LevelOff)
-		writeCoderModeFile(coder.LevelOff)
+		writeCoderModeFile(in.SessionID, coder.LevelOff)
 		log("coder-off", "")
 		return "DEADEYE CODER OFF"
 	case coder.KindReport:

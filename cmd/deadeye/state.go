@@ -37,6 +37,7 @@ type sessionState struct {
 	lastBashCommand     string            // previous Bash command, cleared by any Edit/Write -- consecutive-repeat detection
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
 	coderLevel          string            // coder-mode session level; "" = unset (config default applies), "off" = explicitly off
+	nativeRestore       bool              // SessionStart arrived with source resume/compact -- Claude Code restored context itself
 }
 
 // daemonState is the daemon's whole world: catalog loaded once at startup,
@@ -288,6 +289,23 @@ func (d *daemonState) coderLevelFor(sessionID string) string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.getOrCreate(sessionID).coderLevel
+}
+
+// markNativeRestore records that this session's context was restored by
+// Claude Code itself (SessionStart source resume/compact) -- the
+// next-prompt injection then skips the session-memory paragraph, whose
+// whole content the restored transcript or compaction summary already
+// covers (PLAN.md §5.7 / §10.10).
+func (d *daemonState) markNativeRestore(sessionID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).nativeRestore = true
+}
+
+func (d *daemonState) nativeRestoreFor(sessionID string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.getOrCreate(sessionID).nativeRestore
 }
 
 // endSession evicts sessionID's in-memory state at SessionEnd. Call this

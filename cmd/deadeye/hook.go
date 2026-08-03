@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
@@ -84,7 +85,12 @@ func requestDaemon(event string, raw []byte) []byte {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(200 * time.Millisecond))
 
-	req := proto.Request{Event: event, Payload: raw, Off: config.OffSwitches(), PluginRoot: os.Getenv("CLAUDE_PLUGIN_ROOT")}
+	req := proto.Request{
+		Event: event, Payload: raw, Off: config.OffSwitches(),
+		PluginRoot:    os.Getenv("CLAUDE_PLUGIN_ROOT"),
+		ConfigDir:     os.Getenv("CLAUDE_CONFIG_DIR"),
+		ClientVersion: clientVersion(),
+	}
 	b, err := json.Marshal(req)
 	if err != nil {
 		return []byte("{}")
@@ -128,4 +134,24 @@ func awaitDaemon(budget time.Duration) net.Conn {
 		}
 	}
 	return nil
+}
+
+// clientVersion parses the Claude Code version from CLAUDE_CODE_EXECPATH's
+// basename (.../versions/2.1.220 -- verified live in a real hook env).
+// "" when the layout is unrecognized; the daemon fails open on "".
+func clientVersion() string {
+	base := filepath.Base(os.Getenv("CLAUDE_CODE_EXECPATH"))
+	for i, r := range base {
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		if r == '.' && i > 0 {
+			continue
+		}
+		return ""
+	}
+	if base == "" || base == "." {
+		return ""
+	}
+	return base
 }

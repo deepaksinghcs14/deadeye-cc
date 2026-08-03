@@ -22,7 +22,7 @@ const Name = "deadeye"
 // compiled-in dev string instead of the real tag on both, caught only by
 // checking the actual downloaded release binary's output, not by reading
 // this file.
-var Version = "0.5.3-dev"
+var Version = "0.6.0-dev"
 
 // StateDir returns ~/.deadeye, creating no directories itself.
 func StateDir() string {
@@ -35,8 +35,25 @@ func StateDir() string {
 	return filepath.Join(home, ".deadeye")
 }
 
-func SocketPath() string           { return filepath.Join(StateDir(), "deadeye.sock") }
-func CoderModePath() string        { return filepath.Join(StateDir(), "coder-mode") }
+func SocketPath() string    { return filepath.Join(StateDir(), "deadeye.sock") }
+func CoderModePath() string { return filepath.Join(StateDir(), "coder-mode") }
+
+// CoderModePathFor is the per-session statusline mirror -- the statusline
+// script picks it via the session_id in its stdin JSON, falling back to
+// the global CoderModePath. The id is sanitized so a hostile payload
+// can't traverse out of the state dir.
+func CoderModePathFor(sessionID string) string {
+	safe := make([]rune, 0, len(sessionID))
+	for _, r := range sessionID {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-':
+			safe = append(safe, r)
+		default:
+			safe = append(safe, '_')
+		}
+	}
+	return filepath.Join(StateDir(), "coder-mode."+string(safe))
+}
 func StatuslineNudgedPath() string { return filepath.Join(StateDir(), "statusline-nudged") }
 func LockPath() string             { return filepath.Join(StateDir(), "deadeye.lock") }
 func LogPath() string              { return filepath.Join(StateDir(), "decisions.jsonl") }

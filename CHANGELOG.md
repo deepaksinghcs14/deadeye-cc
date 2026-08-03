@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 0.6.0
+
+All four `deadeye:` debt markers paid down:
+
+- **Per-session statusline badges.** The statusline script now reads the
+  session_id Claude Code pipes to it on stdin and picks that session's own
+  mode file, so two concurrent sessions at different coder levels each
+  show their own badge instead of last-writer-wins. The global file
+  remains as a fallback; stale per-session files are swept after 48h.
+- **`CLAUDE_CONFIG_DIR` honored.** The statusline nudge now checks
+  settings.json under the client's real config dir (carried over the
+  wire -- the daemon still never reads env), not a hardcoded `~/.claude`.
+- **Workflow hint gated on client version.** The Claude Code version is
+  parsed from `CLAUDE_CODE_EXECPATH` in the hook environment (verified
+  live) and rides the request; clients older than 2.1.154 -- which lack
+  the Workflow tool -- no longer get the ultracode hint. Unknown versions
+  fail open.
+- **Session memory stands down on native restore.** When SessionStart
+  reports source `resume` or `compact`, Claude Code itself restored the
+  session's context, so the next-prompt injection skips the session-memory
+  paragraph instead of repeating what's already there (PLAN.md §5.7).
+
 ## 0.5.3
 
 - CLI colors now honor the standard `FORCE_COLOR` convention, not just a

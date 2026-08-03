@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
@@ -21,7 +22,7 @@ func coderTestState(t *testing.T) *daemonState {
 
 func TestCoderSessionStartInjectsDefaultLevel(t *testing.T) {
 	state := coderTestState(t)
-	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, config.Default(), "", state)
+	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, config.Default(), "", "", state)
 	if out.Raw == nil {
 		t.Fatal("expected a raw SessionStart injection at the default level")
 	}
@@ -43,7 +44,7 @@ func TestCoderSessionStartOffIsSilent(t *testing.T) {
 	state := coderTestState(t)
 	cfg := config.Default()
 	cfg.Coder.DefaultLevel = "off"
-	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", state)
+	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	if out.Raw != nil || out.HookSpecificOutput != nil {
 		t.Errorf("expected silence with default off, got %+v", out)
 	}
@@ -54,7 +55,7 @@ func TestCoderSessionStartKillSwitchBeatsSessionLevel(t *testing.T) {
 	state.setCoderLevel("s1", "sniper") // an already-active session choice
 	cfg := config.Default()
 	cfg.Coder.Disabled = true // DEADEYE_CODER=off arrived on this request
-	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", state)
+	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	if out.Raw != nil {
 		t.Error("kill switch must silence an already-active session level")
 	}
@@ -67,10 +68,10 @@ func TestCoderSessionStartKillSwitchBeatsSessionLevel(t *testing.T) {
 func TestCoderSessionStartReinjectsSwitchedLevel(t *testing.T) {
 	state := coderTestState(t)
 	cfg := config.Default()
-	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	coderTracker(hookio.Input{SessionID: "s1", Prompt: "/deadeye-coder sniper"}, cfg, state)
 
-	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", state)
+	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	if out.Raw == nil || !strings.Contains(string(out.Raw), "level: sniper") {
 		t.Errorf("compaction re-inject used the wrong level: %.80s", out.Raw)
 	}
@@ -132,7 +133,7 @@ func TestCoderTrackerDefaultPersists(t *testing.T) {
 // additionalContext slot, ahead of the once-per-session advisory.
 func TestCoderTrackerConfirmationLeadsCombinedContext(t *testing.T) {
 	state := coderTestState(t)
-	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-coder sniper", Cwd: t.TempDir()}, config.Default(), state)
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-coder sniper", Cwd: t.TempDir()}, config.Default(), "", state)
 	if out.HookSpecificOutput == nil {
 		t.Fatal("expected combined context")
 	}
@@ -148,7 +149,7 @@ func TestCoderTrackerConfirmationLeadsCombinedContext(t *testing.T) {
 func TestCoderTrackerIgnoresSyntheticPrompts(t *testing.T) {
 	state := coderTestState(t)
 	synthetic := "<task-notification>/deadeye-coder sniper</task-notification>"
-	out := decideUserPromptSubmit(hookio.Input{SessionID: "s9", Prompt: synthetic, Cwd: t.TempDir()}, config.Default(), state)
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s9", Prompt: synthetic, Cwd: t.TempDir()}, config.Default(), "", state)
 	if out.HookSpecificOutput != nil && strings.Contains(out.HookSpecificOutput.AdditionalContext, "CODER CHANGED") {
 		t.Error("tracker fired on a synthetic prompt")
 	}
@@ -216,7 +217,7 @@ func TestCoderActionsAreLogged(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, logstore.Open(logPath))
 	cfg := config.Default()
 
-	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	coderTracker(hookio.Input{SessionID: "s1", Prompt: "/deadeye-coder sniper"}, cfg, state)
 	coderTracker(hookio.Input{SessionID: "s1", Prompt: "normal mode"}, cfg, state)
 	coderSubagentText(hookio.Input{SessionID: "s2"}, cfg, state)
@@ -244,4 +245,70 @@ func readFileTrim(path string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(b)), nil
+}
+
+func TestCoderModeFilePerSession(t *testing.T) {
+	state := coderTestState(t)
+	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, config.Default(), "", "", state)
+	if b, err := readFileTrim(meta.CoderModePathFor("s1")); err != nil || b != "marksman" {
+		t.Errorf("per-session mode file = %q, %v; want marksman", b, err)
+	}
+	// Two concurrent sessions each keep their own badge.
+	state.setCoderLevel("s2", "sniper")
+	decideCoderSessionStart(hookio.Input{SessionID: "s2"}, config.Default(), "", "", state)
+	if b, _ := readFileTrim(meta.CoderModePathFor("s1")); b != "marksman" {
+		t.Errorf("s1 badge clobbered by s2: %q", b)
+	}
+	if b, _ := readFileTrim(meta.CoderModePathFor("s2")); b != "sniper" {
+		t.Errorf("s2 badge = %q; want sniper", b)
+	}
+	// SessionEnd removes only that session's file.
+	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, state)
+	if _, err := os.Stat(meta.CoderModePathFor("s1")); err == nil {
+		t.Error("s1 per-session mode file should be gone after SessionEnd")
+	}
+	if _, err := os.Stat(meta.CoderModePathFor("s2")); err != nil {
+		t.Error("s2 per-session mode file must survive s1's SessionEnd")
+	}
+}
+
+func TestStatuslineNudgeHonorsConfigDir(t *testing.T) {
+	state := coderTestState(t)
+	confDir := t.TempDir()
+	// A statusLine already configured in the CLAUDE_CONFIG_DIR settings must
+	// suppress the nudge -- proving the override path is the one consulted.
+	os.WriteFile(filepath.Join(confDir, "settings.json"), []byte(`{"statusLine":{"type":"command","command":"x"}}`), 0o600)
+	if n := statuslineNudge("/plugin/root", confDir, state, "s1"); n != "" {
+		t.Errorf("nudge fired despite existing statusLine in CLAUDE_CONFIG_DIR: %q", n)
+	}
+	// And with an empty config dir there, the nudge names that dir's path.
+	confDir2 := t.TempDir()
+	if n := statuslineNudge("/plugin/root", confDir2, state, "s1"); !strings.Contains(n, confDir2) {
+		t.Errorf("nudge should name the override settings path, got: %q", n)
+	}
+}
+
+func TestNativeRestoreSkipsSessionMemory(t *testing.T) {
+	state := coderTestState(t)
+	cwd := t.TempDir()
+	// A summary that WOULD be injected on a cold start.
+	dir := filepath.Join(os.Getenv("HOME"), ".deadeye", "sessions")
+	os.MkdirAll(dir, 0o700)
+	old := filepath.Join(dir, filepath.Base(cwd)+"_1.md")
+	os.WriteFile(old, []byte("# Session summary: x\nbranch: main\n"), 0o600)
+	oldTime := time.Now().Add(-time.Hour)
+	os.Chtimes(old, oldTime, oldTime) // beat the freshness guard
+
+	decideCoderSessionStart(hookio.Input{SessionID: "s1", Source: "resume"}, config.Default(), "", "", state)
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "hello", Cwd: cwd}, config.Default(), "", state)
+	if strings.Contains(out.HookSpecificOutput.AdditionalContext, "Session summary") {
+		t.Error("resumed session must not re-inject the session-memory summary")
+	}
+
+	// Control: a startup session in the same cwd does get it.
+	decideCoderSessionStart(hookio.Input{SessionID: "s2", Source: "startup"}, config.Default(), "", "", state)
+	out2 := decideUserPromptSubmit(hookio.Input{SessionID: "s2", Prompt: "hello", Cwd: cwd}, config.Default(), "", state)
+	if !strings.Contains(out2.HookSpecificOutput.AdditionalContext, "Session summary") {
+		t.Error("startup session should still inject the session-memory summary")
+	}
 }

@@ -24,4 +24,15 @@ type Request struct {
 	// the env belongs to the client process, never the daemon. Used only
 	// by the statusline nudge to compose the suggested command path.
 	PluginRoot string `json:"plugin_root,omitempty"`
+
+	// ConfigDir is the client's CLAUDE_CONFIG_DIR (usually empty --
+	// ~/.claude). Same doctrine as Off. Used only by the statusline nudge
+	// to find the user's settings.json.
+	ConfigDir string `json:"config_dir,omitempty"`
+
+	// ClientVersion is the Claude Code version serving this hook, parsed
+	// client-side from CLAUDE_CODE_EXECPATH (.../versions/2.1.220 --
+	// verified present in real hook environments). "" when the layout is
+	// unrecognized; consumers must fail open on "".
+	ClientVersion string `json:"client_version,omitempty"`
 }
