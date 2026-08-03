@@ -6,6 +6,10 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer back to this schema, for editor validation/autocomplete. Ignored by deadeye itself."
+    },
     "mode": {
       "type": "object",
       "additionalProperties": false,

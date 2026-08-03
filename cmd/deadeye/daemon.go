@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
@@ -28,6 +29,10 @@ func runDaemon() {
 	if err := os.MkdirAll(meta.StateDir(), 0o700); err != nil {
 		return
 	}
+	// First daemon start is effectively install time (the bootstrap spawns
+	// it on the first hook call) -- seed a config.json with every default
+	// spelled out so users tweak a file instead of authoring one.
+	config.WriteDefaultIfMissing()
 
 	lock, err := acquireLock(meta.LockPath())
 	if err != nil {

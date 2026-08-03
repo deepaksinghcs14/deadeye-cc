@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.3.2
+
+- The first daemon start (effectively install time -- the bootstrap
+  spawns it on the first hook call) now seeds `~/.deadeye/config.json`
+  with every default spelled out, plus a `$schema` pointer for editor
+  validation and autocomplete. Users tweak an existing file instead of
+  authoring one from scratch. An existing config is never touched.
 - Fix: three documented config knobs did nothing. `posture` and
   `plan_gate.radius_trigger` are deleted outright -- no code path ever
   read either, so setting them changed nothing but the status printout.

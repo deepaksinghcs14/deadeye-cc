@@ -83,6 +83,38 @@ func Default() Config {
 	}
 }
 
+// WriteDefaultIfMissing creates ~/.deadeye/config.json with every default
+// spelled out, so users tweak an existing file instead of writing one from
+// scratch (nothing else ever creates it -- installing the plugin left users
+// to discover the file format on their own). O_EXCL: an existing file is
+// never touched, whatever its content. Best-effort -- a failure just means
+// the user creates the file themselves, same as before this existed.
+func WriteDefaultIfMissing() {
+	f, err := os.OpenFile(meta.ConfigPath(), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	// The $schema pointer gives schema-aware editors validation and
+	// autocomplete on the knobs. json.Unmarshal ignores it on load.
+	seed := Default()
+	// nil marshals as `null`; an empty list reads better in a file that
+	// exists specifically to be hand-edited.
+	seed.Preprocess.DisabledRules = []string{}
+	out := struct {
+		Schema string `json:"$schema"`
+		Config
+	}{
+		Schema: "https://raw.githubusercontent.com/deepaksinghcs14/deadeye-cc/main/schema/config.schema.json",
+		Config: seed,
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return
+	}
+	f.Write(append(b, '\n'))
+}
+
 // Load returns Default() overlaid by ~/.deadeye/config.json, overlaid by
 // ./.deadeye.json relative to this PROCESS's own cwd. Correct for the CLI
 // commands (status/route) -- each is a fresh, short-lived process already
