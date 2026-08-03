@@ -2,10 +2,9 @@
 // injected at session start, filtered to one of three intensity levels
 // (spotter/marksman/sniper), with a prompt-parsed mode tracker.
 //
-// Adapted from the ponytail plugin v4.8.4 by Dietrich Gebert (MIT,
-// https://github.com/dietrichgebert/ponytail) -- the ladder, rules, and
-// carve-outs are ported; the persona voice, level vocabulary, and marker
-// convention are deadeye's own. See docs/THIRD-PARTY.md.
+// Portions adapted from an MIT-licensed work -- notice in
+// THIRD-PARTY.md. The persona voice, level vocabulary, and marker
+// convention are deadeye's own.
 package coder
 
 import (
@@ -32,8 +31,8 @@ const (
 	LevelReview   = "review"
 )
 
-// legacyAliases lets ponytail muscle-memory keep working -- accepted on
-// input, never displayed.
+// legacyAliases keeps common lite/full/ultra muscle-memory working --
+// accepted on input, never displayed.
 var legacyAliases = map[string]string{
 	"lite":  LevelSpotter,
 	"full":  LevelMarksman,
@@ -136,9 +135,9 @@ const (
 )
 
 // commandRe accepts /deadeye-coder, @deadeye-coder, $deadeye-coder, and
-// the plugin-qualified /deadeye:deadeye-coder form. Captured live
-// (testdata/payloads/): known slash commands arrive in UserPromptSubmit as
-// the literal typed string.
+// the plugin-qualified /deadeye:deadeye-coder form. Verified live: known
+// slash commands arrive in UserPromptSubmit as the literal typed string
+// (unknown ones never fire the hook at all).
 var (
 	coderCmdRe  = regexp.MustCompile(`^[/@$](?:deadeye:)?deadeye-coder(?:\s+(.*))?$`)
 	reviewCmdRe = regexp.MustCompile(`^[/@$](?:deadeye:)?deadeye-review(?:\s|$)`)

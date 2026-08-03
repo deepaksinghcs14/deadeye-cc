@@ -4,7 +4,7 @@
 // session, to cut the re-orientation tax a fresh session pays rediscovering
 // the project.
 //
-// ponytail: no native-resume-overlap guard. PLAN.md §5.7 calls for
+// deadeye: no native-resume-overlap guard. PLAN.md §5.7 calls for
 // detecting whether Claude Code's own native resume-from-summary is
 // active for the session and standing down if so (§10.10, unresolved --
 // see docs/verified.md). Without a confirmed detection signal this ships

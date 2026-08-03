@@ -2,8 +2,7 @@
 # Statusline badge for deadeye's coder mode: reads the level the daemon
 # mirrors to ~/.deadeye/coder-mode and prints a colored [DEADEYE] tag.
 # Silent when the mode is off/absent -- an empty statusline segment, not
-# an error. Ported statusline pattern from ponytail (MIT); colors and
-# vocabulary are deadeye's own.
+# an error.
 set -u
 
 MODE_FILE="$HOME/.deadeye/coder-mode"

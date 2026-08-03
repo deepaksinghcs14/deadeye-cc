@@ -32,7 +32,7 @@ func looksFanOutShaped(prompt string) bool {
 // (no learning axis here, "too few, too expensive samples"), at most once
 // per task.
 //
-// ponytail: no version/model-capability gate. PLAN.md §5.5 also wants this
+// deadeye: no version/model-capability gate. PLAN.md §5.5 also wants this
 // gated on "environment supports workflows (version >= 2.1.154, session
 // model supports xhigh)" -- neither signal is available from hook input
 // (no Claude Code version field observed in any captured payload, and

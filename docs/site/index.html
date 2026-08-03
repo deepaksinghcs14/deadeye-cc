@@ -545,8 +545,7 @@ FAIL</div>
   <p class="lede">Beyond routing and trimming, deadeye can inject a coding
     persona: a lazy-senior-dev discipline that pushes every change toward
     the leanest solution that actually works. Injected at every session
-    start — it survives compaction — and travels into subagents too.
-    Adapted from ponytail (MIT), rebuilt deadeye-native in Go.</p>
+    start — it survives compaction — and travels into subagents too.</p>
 
   <div class="two">
     <div>
@@ -694,15 +693,13 @@ Cross-check these figures against /usage's plugin attribution.</div>
         deadeye actually changes the model for subagents, where most of the
         token spend happens, and only advises (never enforces) on the main
         session.</p></details>
-      <details><summary>Is coder mode just ponytail?</summary>
-        <p>It's an adapted port of
-        <a href="https://github.com/dietrichgebert/ponytail">ponytail</a>
-        (MIT, credited in THIRD-PARTY.md): the engineering ladder and
-        safety carve-outs are ported, while the persona voice, the
-        spotter/marksman/sniper levels, and the Go-native implementation
-        are deadeye's own. If you run standalone ponytail, uninstall it
-        before enabling coder mode — two personas means paying for the
-        ruleset twice every session.</p></details>
+      <details><summary>Does coder mode cut corners on safety?</summary>
+        <p>No. The persona never simplifies away input validation at
+        trust boundaries, error handling that prevents data loss,
+        security measures, or accessibility basics — at any level. And
+        every deliberate shortcut it does take gets a
+        <code>deadeye:</code> marker with an upgrade trigger, so
+        <code>/deadeye-debt</code> can hold it accountable later.</p></details>
       <details><summary>Why "deadeye"?</summary>
         <p>Because efficiency isn't spending less — it's not missing.</p></details>
     </div>

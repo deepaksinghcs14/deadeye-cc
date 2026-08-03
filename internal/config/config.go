@@ -37,8 +37,8 @@ type PlanGate struct {
 	MinFiles int `json:"min_files"`
 }
 
-// Coder configures the coder-mode persona (ported from ponytail, MIT --
-// see internal/coder). DefaultLevel is what new sessions start at
+// Coder configures the coder-mode persona (see internal/coder;
+// third-party notice in THIRD-PARTY.md). DefaultLevel is what new sessions start at
 // (off|spotter|marksman|sniper -- never review, which is session-only).
 // SubagentMatcher optionally scopes subagent injection to agent types
 // matching the regex ("" = all). InjectionBudgetTokens is the persona's

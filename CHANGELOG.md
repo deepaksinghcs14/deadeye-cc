@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+## 0.5.0
+
+Coder mode: a lean-first coding persona, built Go-native into the
+daemon. (Portions adapted from an MIT-licensed work -- notice in
+THIRD-PARTY.md.)
+
+- **On by default at level `marksman`.** The persona ruleset is injected
+  at every session start -- including after compaction -- and travels
+  into subagents. Three intensity levels: `spotter` (names the leaner
+  alternative, builds what's asked), `marksman` (the lean-first ladder
+  enforced -- default), `sniper` (maximum minimalism). lite/full/ultra
+  are accepted as hidden input aliases.
+- Switch with `/deadeye-coder spotter|marksman|sniper|off`; report with
+  bare `/deadeye-coder`; persist a default with `/deadeye-coder default
+  <level>` (writes deadeye's own `~/.deadeye/config.json`, never
+  Claude's settings). Say exactly `normal mode` or `stop coder` to turn
+  it off mid-session -- whole-message match only, so mentioning those
+  words inside a task never kills the mode.
+- New skills: `/deadeye-review` (diff over-engineering review),
+  `/deadeye-sweep` (repo-wide audit), `/deadeye-debt` (ledger of
+  `deadeye:` shortcut markers), `/deadeye-gain` (measured-impact
+  scoreboard -- real bytes labeled as measured, estimates labeled as
+  estimates, never an invented per-repo %), `/deadeye-help` (reference
+  card). New CLI: `deadeye gain`.
+- Optional statusline badge (`hooks/deadeye-statusline.sh`) shows the
+  live level; deadeye offers the setup once and never edits your
+  settings itself. Config: `coder.default_level`,
+  `coder.subagent_matcher`, `coder.injection_budget_tokens`. Kill
+  switch: `DEADEYE_CODER=off`.
+- Under the hood: SessionStart raw-stdout injection (re-verified live --
+  supersedes the earlier "SessionStart cannot inject" finding, which had
+  only ever tested JSON fields), level filtering from one embedded
+  canonical ruleset with a canary test against the skill file, and
+  per-session level state in the daemon so a mid-session switch survives
+  compaction re-injection.
+- If you run another lean-coding persona plugin, uninstall it before
+  enabling coder mode -- two personas double-inject every session.
+
 ## 0.4.1
 
 - Fix: the duplicate-Read / large-Read advisories and the subagent

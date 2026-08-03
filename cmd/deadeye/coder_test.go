@@ -63,7 +63,7 @@ func TestCoderSessionStartKillSwitchBeatsSessionLevel(t *testing.T) {
 // TestCoderSessionStartReinjectsSwitchedLevel: a compact-source
 // SessionStart mid-session must re-inject at the level the session
 // SWITCHED to, not the config default -- this is the one behavior where
-// daemon-side session state beats ponytail's global flag file.
+// daemon-side session state beats a global flag file.
 func TestCoderSessionStartReinjectsSwitchedLevel(t *testing.T) {
 	state := coderTestState(t)
 	cfg := config.Default()

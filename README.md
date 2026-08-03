@@ -185,10 +185,9 @@ instead of forgotten. An optional statusline badge shows the live level;
 deadeye will offer (once) to set it up, and never edits your settings
 itself.
 
-> **Migrating from ponytail?** Coder mode is an adapted port of
-> [ponytail](https://github.com/dietrichgebert/ponytail) (MIT). If you
-> have the standalone ponytail plugin installed, uninstall it — running
-> both means every session pays for two overlapping personas.
+> **Already running another lean-coding persona plugin?** Uninstall it
+> before enabling coder mode — two overlapping personas means paying for
+> both rulesets every session.
 
 ## The six things it controls
 
@@ -254,15 +253,6 @@ and doesn't ask again either way.
 **Why "deadeye"?**
 Because efficiency isn't spending less — it's not missing.
 
-## Acknowledgements
-
-Coder mode, the review/sweep/debt/gain/help skills, and the statusline
-badge are adapted from [ponytail](https://github.com/dietrichgebert/ponytail)
-v4.8.4 by Dietrich Gebert (MIT) — the engineering ladder and safety
-carve-outs are ported; the persona voice, the spotter/marksman/sniper
-levels, and the Go implementation are deadeye's own. Full notice in
-[THIRD-PARTY.md](THIRD-PARTY.md).
-
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — third-party notices in [THIRD-PARTY.md](THIRD-PARTY.md).

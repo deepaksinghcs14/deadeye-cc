@@ -3,10 +3,9 @@ name: deadeye-debt
 description: >
   Harvest every `deadeye:` marker comment in the codebase into a debt
   ledger, so the deliberate shortcuts coder mode leaves behind get
-  tracked instead of rotting into "later means never". Also finds legacy
-  `ponytail:` markers. Use when the user says "deadeye debt", "what did
-  we defer", "list the shortcuts", or invokes /deadeye-debt. One-shot
-  report; changes nothing.
+  tracked instead of rotting into "later means never". Use when the user
+  says "deadeye debt", "what did we defer", "list the shortcuts", or
+  invokes /deadeye-debt. One-shot report; changes nothing.
 license: MIT
 ---
 
@@ -24,13 +23,10 @@ This skill collects them into a ledger.
 Run:
 
 ```
-grep -rnE '(#|//) ?(deadeye|ponytail):' . \
+grep -rnE '(#|//) ?deadeye:' . \
   --exclude-dir=node_modules --exclude-dir=.git \
   --exclude-dir=dist --exclude-dir=build --exclude-dir=vendor
 ```
-
-(`ponytail:` markers are legacy from the upstream convention this was
-ported from — report them identically, noting the marker type.)
 
 ## Ledger format
 

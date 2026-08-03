@@ -118,7 +118,7 @@ func TestNormalizeLevelAndAliases(t *testing.T) {
 	cases := map[string]string{
 		"spotter": LevelSpotter, "MARKSMAN": LevelMarksman, " sniper ": LevelSniper,
 		"off": LevelOff, "review": LevelReview,
-		// ponytail muscle-memory aliases
+		// legacy muscle-memory aliases
 		"lite": LevelSpotter, "full": LevelMarksman, "ultra": LevelSniper,
 	}
 	for in, want := range cases {
