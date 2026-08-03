@@ -35,10 +35,12 @@ func StateDir() string {
 	return filepath.Join(home, ".deadeye")
 }
 
-func SocketPath() string          { return filepath.Join(StateDir(), "deadeye.sock") }
-func LockPath() string            { return filepath.Join(StateDir(), "deadeye.lock") }
-func LogPath() string             { return filepath.Join(StateDir(), "decisions.jsonl") }
-func OutcomesPath() string        { return filepath.Join(StateDir(), "outcomes.jsonl") }
-func CapturesDir() string         { return filepath.Join(StateDir(), "captures") }
-func ConfigPath() string          { return filepath.Join(StateDir(), "config.json") }
-func CatalogOverridePath() string { return filepath.Join(StateDir(), "catalog.json") }
+func SocketPath() string           { return filepath.Join(StateDir(), "deadeye.sock") }
+func CoderModePath() string        { return filepath.Join(StateDir(), "coder-mode") }
+func StatuslineNudgedPath() string { return filepath.Join(StateDir(), "statusline-nudged") }
+func LockPath() string             { return filepath.Join(StateDir(), "deadeye.lock") }
+func LogPath() string              { return filepath.Join(StateDir(), "decisions.jsonl") }
+func OutcomesPath() string         { return filepath.Join(StateDir(), "outcomes.jsonl") }
+func CapturesDir() string          { return filepath.Join(StateDir(), "captures") }
+func ConfigPath() string           { return filepath.Join(StateDir(), "config.json") }
+func CatalogOverridePath() string  { return filepath.Join(StateDir(), "catalog.json") }

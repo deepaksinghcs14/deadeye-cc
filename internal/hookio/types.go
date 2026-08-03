@@ -85,6 +85,13 @@ type Output struct {
 	TerminalSequence   string              `json:"terminalSequence,omitempty"`
 	PermissionDecision string              `json:"permissionDecision,omitempty"` // allow|deny|ask (top-level; no defer)
 	HookSpecificOutput *HookSpecificOutput `json:"hookSpecificOutput,omitempty"`
+
+	// Raw, when non-nil, is written to the hook's stdout VERBATIM instead
+	// of marshaling this struct -- the SessionStart raw-plain-text
+	// injection path (docs/verified.md §11: raw stdout reaches model
+	// context on SessionStart; the JSON-field forms never did). Never
+	// serialized itself.
+	Raw []byte `json:"-"`
 }
 
 // Empty is the canonical no-op hook response.

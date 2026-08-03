@@ -117,6 +117,13 @@ func handleConn(conn net.Conn, state *daemonState) {
 	}
 
 	out := decide(req, state)
+	if out.Raw != nil {
+		// Raw plain text (SessionStart injection) -- the hook script echoes
+		// daemon output verbatim, and raw stdout is what reaches model
+		// context on this surface (docs/verified.md §11).
+		conn.Write(out.Raw)
+		return
+	}
 	b, err := json.Marshal(out)
 	if err != nil {
 		b = []byte("{}")

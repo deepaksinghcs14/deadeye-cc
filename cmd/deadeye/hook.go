@@ -71,7 +71,7 @@ func requestDaemon(event string, raw []byte) []byte {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(200 * time.Millisecond))
 
-	req := proto.Request{Event: event, Payload: raw, Off: config.OffSwitches()}
+	req := proto.Request{Event: event, Payload: raw, Off: config.OffSwitches(), PluginRoot: os.Getenv("CLAUDE_PLUGIN_ROOT")}
 	b, err := json.Marshal(req)
 	if err != nil {
 		return []byte("{}")

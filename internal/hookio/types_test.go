@@ -101,3 +101,18 @@ func TestGoldenPayloads(t *testing.T) {
 		})
 	}
 }
+
+// TestRawNeverSerializes: Output.Raw is a transport instruction (write
+// verbatim), never a JSON field -- an Output that also carried Raw in its
+// marshaled form would leak bytes into a JSON hook response.
+func TestRawNeverSerializes(t *testing.T) {
+	out := Empty()
+	out.Raw = []byte("DEADEYE CODER ACTIVE")
+	b, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "{}" {
+		t.Errorf("marshal = %s, want {} (Raw must be json:\"-\")", b)
+	}
+}

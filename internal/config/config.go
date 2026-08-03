@@ -37,6 +37,27 @@ type PlanGate struct {
 	MinFiles int `json:"min_files"`
 }
 
+// Coder configures the coder-mode persona (ported from ponytail, MIT --
+// see internal/coder). DefaultLevel is what new sessions start at
+// (off|spotter|marksman|sniper -- never review, which is session-only).
+// SubagentMatcher optionally scopes subagent injection to agent types
+// matching the regex ("" = all). InjectionBudgetTokens is the persona's
+// own logged ceiling, separate from the 400-token advisory budget: the
+// ruleset is an explicit opt-in and byte-stable per level, so INV-4's
+// no-silent-creep intent holds via its own ceiling rather than by
+// squeezing under the advisory one.
+type Coder struct {
+	DefaultLevel          string `json:"default_level"`
+	SubagentMatcher       string `json:"subagent_matcher"`
+	InjectionBudgetTokens int    `json:"injection_budget_tokens"`
+
+	// Disabled is set by LoadFor when a kill switch (DEADEYE or
+	// DEADEYE_CODER) is engaged for the current request -- distinct from
+	// DefaultLevel because the switch must silence an already-active
+	// SESSION level too, not just stop new sessions from starting one.
+	Disabled bool `json:"-"`
+}
+
 // Config mirrors schema/config.schema.json. `tiers.override` is
 // deliberately not modeled here: internal/catalog.Load() already reads
 // ~/.deadeye/catalog.json directly as a wholesale override, so a second
@@ -51,6 +72,7 @@ type Config struct {
 	InjectionBudgetTokens int        `json:"injection_budget_tokens"`
 	Preprocess            Preprocess `json:"preprocess"`
 	PlanGate              PlanGate   `json:"plan_gate"`
+	Coder                 Coder      `json:"coder"`
 }
 
 // DisabledRuleSet returns Preprocess.DisabledRules as a lookup set for
@@ -80,6 +102,11 @@ func Default() Config {
 		DownshiftThreshold:    0.8,
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
+		Coder: Coder{
+			DefaultLevel:          "marksman",
+			SubagentMatcher:       "",
+			InjectionBudgetTokens: 1600,
+		},
 	}
 }
 
@@ -152,6 +179,7 @@ func LoadFor(cwd string, off []string) Config {
 		cfg.Mode.Preprocess = "off"
 		cfg.Mode.PlanGate = "off"
 		cfg.Mode.WorkflowHint = "off"
+		cfg.Coder.Disabled = true
 	}
 	if isOff(off, "DEADEYE_PREPROCESS") {
 		cfg.Mode.Preprocess = "off"
@@ -159,7 +187,34 @@ func LoadFor(cwd string, off []string) Config {
 	if isOff(off, "DEADEYE_GATE") {
 		cfg.Mode.PlanGate = "off"
 	}
+	if isOff(off, "DEADEYE_CODER") {
+		cfg.Coder.Disabled = true
+	}
 	return cfg
+}
+
+// WriteCoderDefault persists level as coder.default_level in deadeye's OWN
+// ~/.deadeye/config.json ("/deadeye-coder default <level>"). Read-modify-
+// write on the raw JSON so unknown fields and the $schema pointer survive.
+// This never touches Claude's settings.json -- deadeye only ever writes
+// its own state dir.
+func WriteCoderDefault(level string) error {
+	path := meta.ConfigPath()
+	raw := map[string]any{}
+	if b, err := os.ReadFile(path); err == nil {
+		_ = json.Unmarshal(b, &raw) // malformed existing file: start fresh below
+	}
+	coderRaw, _ := raw["coder"].(map[string]any)
+	if coderRaw == nil {
+		coderRaw = map[string]any{}
+	}
+	coderRaw["default_level"] = level
+	raw["coder"] = coderRaw
+	b, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(b, '\n'), 0o600)
 }
 
 func overlay(cfg *Config, path string) {
@@ -176,7 +231,7 @@ func overlay(cfg *Config, path string) {
 
 // killSwitchVars is the fixed set of env-var kill switches checked by
 // OffSwitches.
-var killSwitchVars = []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE"}
+var killSwitchVars = []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE", "DEADEYE_CODER"}
 
 // OffSwitches reports which of the three env-var kill switches are set to
 // exactly "off" in THIS process's environment. Meant to be called

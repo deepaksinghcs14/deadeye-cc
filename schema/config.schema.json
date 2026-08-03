@@ -83,6 +83,29 @@
         }
       }
     },
+    "coder": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default_level": {
+          "type": "string",
+          "enum": ["off", "spotter", "marksman", "sniper"],
+          "default": "marksman",
+          "description": "Coder-mode intensity new sessions start at. spotter = flags the leaner alternative but builds what's asked; marksman = the lean-first ladder enforced (default); sniper = maximum minimalism, challenges the requirement itself. Switch mid-session with /deadeye-coder."
+        },
+        "subagent_matcher": {
+          "type": "string",
+          "default": "",
+          "description": "Optional regex on agent_type scoping which subagents receive the coder ruleset. Empty = all subagents. A regex that fails to compile fails open (injects)."
+        },
+        "injection_budget_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1600,
+          "description": "Logged ceiling for the coder ruleset injection -- separate from the 400-token advisory budget, since the persona is an explicit opt-in and byte-stable per level."
+        }
+      }
+    },
     "tiers": {
       "type": "object",
       "additionalProperties": false,

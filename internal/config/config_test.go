@@ -111,3 +111,64 @@ func TestWriteDefaultIfMissing(t *testing.T) {
 		t.Errorf("an existing config.json was overwritten: %s", b2)
 	}
 }
+
+// TestLoadForCoderKillSwitches: both DEADEYE and DEADEYE_CODER must set
+// Coder.Disabled -- distinct from default_level, because the switch has to
+// silence an already-active session level too.
+func TestLoadForCoderKillSwitches(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	if cfg := LoadFor("", nil); cfg.Coder.Disabled || cfg.Coder.DefaultLevel != "marksman" {
+		t.Errorf("clean load: got Disabled=%v level=%q, want enabled marksman", cfg.Coder.Disabled, cfg.Coder.DefaultLevel)
+	}
+	if cfg := LoadFor("", []string{"DEADEYE_CODER"}); !cfg.Coder.Disabled {
+		t.Error("DEADEYE_CODER did not disable coder mode")
+	}
+	if cfg := LoadFor("", []string{"DEADEYE"}); !cfg.Coder.Disabled {
+		t.Error("DEADEYE did not disable coder mode")
+	}
+	if cfg := LoadFor("", []string{"DEADEYE_PREPROCESS"}); cfg.Coder.Disabled {
+		t.Error("DEADEYE_PREPROCESS must not touch coder mode")
+	}
+}
+
+// TestWriteCoderDefaultPreservesUnknownFields: the read-modify-write must
+// keep the $schema pointer and any fields this build doesn't know about.
+func TestWriteCoderDefaultPreservesUnknownFields(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".deadeye"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(home, ".deadeye", "config.json")
+	seed := `{"$schema":"https://example/schema.json","future_knob":42,"coder":{"subagent_matcher":"Explore"}}`
+	if err := os.WriteFile(path, []byte(seed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteCoderDefault("sniper"); err != nil {
+		t.Fatal(err)
+	}
+
+	var raw map[string]any
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if raw["$schema"] != "https://example/schema.json" {
+		t.Error("$schema pointer lost")
+	}
+	if raw["future_knob"] != float64(42) {
+		t.Error("unknown field lost")
+	}
+	coderRaw := raw["coder"].(map[string]any)
+	if coderRaw["default_level"] != "sniper" {
+		t.Errorf("default_level = %v, want sniper", coderRaw["default_level"])
+	}
+	if coderRaw["subagent_matcher"] != "Explore" {
+		t.Error("sibling coder field lost")
+	}
+}

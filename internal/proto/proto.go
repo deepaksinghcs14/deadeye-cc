@@ -19,4 +19,9 @@ type Request struct {
 	// different shell -- it must never read os.Getenv for these itself,
 	// only ever trust what the current client's real environment reports.
 	Off []string `json:"off,omitempty"`
+
+	// PluginRoot is the client's CLAUDE_PLUGIN_ROOT, same doctrine as Off:
+	// the env belongs to the client process, never the daemon. Used only
+	// by the statusline nudge to compose the suggested command path.
+	PluginRoot string `json:"plugin_root,omitempty"`
 }
