@@ -1,0 +1,61 @@
+---
+name: deadeye-help
+description: >
+  Quick-reference card for deadeye: coder-mode levels, every command,
+  config knobs, kill switches, and how to update. One-shot display, not
+  a persistent mode. Use when the user says "deadeye help", "what
+  deadeye commands", "how do I use deadeye", or invokes /deadeye-help.
+license: MIT
+---
+
+# Deadeye Help
+
+Present this reference card, formatted cleanly:
+
+## Coder mode
+
+| Level | What it does |
+|---|---|
+| `spotter` | Builds what's asked, names the leaner alternative in one line |
+| `marksman` | The lean-first ladder enforced. Default. |
+| `sniper` | Maximum minimalism — one-liners, challenges the requirement itself |
+
+- Switch: `/deadeye-coder spotter|marksman|sniper|off`
+- Report current: `/deadeye-coder`
+- Persist a default for new sessions: `/deadeye-coder default <level>`
+  (writes deadeye's own `~/.deadeye/config.json`, never Claude's settings)
+- Turn off mid-session: say exactly `normal mode` or `stop coder`
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `/deadeye-status` | Modes, coder level, kill switches, catalog, daemon health |
+| `/deadeye-route [task]` | Dry-run the routing decision with full reasoning |
+| `/deadeye-audit` | Token-savings report from the decision log |
+| `/deadeye-gain` | Compact measured-impact scoreboard |
+| `/deadeye-coder [level]` | Switch/report the coder persona level |
+| `/deadeye-review` | Over-engineering review of the current diff |
+| `/deadeye-sweep` | Whole-repo over-engineering audit |
+| `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
+| `/deadeye-help` | This card |
+
+## Kill switches (env)
+
+- `DEADEYE=off` — everything
+- `DEADEYE_PREPROCESS=off` — context hygiene (output trimming + read/repeat advisories)
+- `DEADEYE_GATE=off` — plan gate
+- `DEADEYE_CODER=off` — coder persona
+
+## Config
+
+`~/.deadeye/config.json` (seeded with defaults on first run; project
+overrides in `.deadeye.json`). Coder knobs: `coder.default_level`,
+`coder.subagent_matcher`, `coder.injection_budget_tokens`.
+
+## Update
+
+`/plugin marketplace update deadeye` then `/reload-plugins` — or enable
+auto-update under `/plugin` → Marketplaces.
+
+One-shot: do NOT change any mode or write anything.
