@@ -144,28 +144,70 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 
 | Command | What it does |
 |---|---|
-| `/deadeye-status` | Shows current modes, kill switches, model list, and whether the background daemon is running |
+| `/deadeye-status` | Shows current modes, coder level, kill switches, model list, and whether the background daemon is running |
 | `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without actually doing anything |
 | `/deadeye-audit` | Prints a savings report straight from the decision log |
+| `/deadeye-gain` | Compact measured-impact scoreboard from the same log |
+| `/deadeye-coder [level]` | Switch or report the coder persona level |
+| `/deadeye-review` | Over-engineering review of the current diff |
+| `/deadeye-sweep` | Whole-repo over-engineering audit |
+| `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
+| `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye uninstall --purge` | Removes the binary, its background process, and all local state |
 
-## The five things it controls
+## Coder mode
+
+deadeye also ships a coding persona: a lazy-senior-dev discipline that
+pushes every change toward the leanest solution that actually works —
+question whether the code needs to exist at all, reach for the standard
+library before custom code, native platform features before dependencies,
+one line before fifty. It's injected at the start of every session
+(surviving compaction) and travels into subagents too.
+
+Three intensity levels:
+
+| Level | What it does |
+|---|---|
+| `spotter` | Builds what's asked, but names the leaner alternative in one line — you pick |
+| `marksman` | The lean-first ladder enforced. Shortest working diff. **Default.** |
+| `sniper` | Maximum minimalism — ships the one-liner and challenges the rest of the requirement in the same breath |
+
+- Switch any time: `/deadeye-coder spotter|marksman|sniper|off`
+- Persist a default for new sessions: `/deadeye-coder default <level>`
+  (writes deadeye's own `~/.deadeye/config.json` — never Claude's settings)
+- Turn off mid-session by saying exactly `normal mode` or `stop coder`
+- Kill switch: `DEADEYE_CODER=off`
+
+When the persona deliberately cuts a corner with a known ceiling, it
+leaves a `deadeye:` comment naming the ceiling and the upgrade trigger —
+`/deadeye-debt` collects those into a ledger so shortcuts get tracked
+instead of forgotten. An optional statusline badge shows the live level;
+deadeye will offer (once) to set it up, and never edits your settings
+itself.
+
+> **Migrating from ponytail?** Coder mode is an adapted port of
+> [ponytail](https://github.com/dietrichgebert/ponytail) (MIT). If you
+> have the standalone ponytail plugin installed, uninstall it — running
+> both means every session pays for two overlapping personas.
+
+## The six things it controls
 
 | What | Modes | What it does |
 |---|---|---|
 | Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Also flags wasteful reads: re-reading a file that hasn't changed, whole-reads of huge files, and running the identical command twice in a row |
+| Coder persona | `off` / `spotter` / `marksman` / `sniper` | The lean-first coding discipline above, injected per session and into subagents |
 | Effort level | `off` / `advise` | Suggests using lower effort for mechanical steps; has no effect if `CLAUDE_EFFORT` is already pinned for the session |
 | Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one yourself |
 | Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit |
 | Workflow suggestion | `off` / `on` | Flags tasks that look like they'd benefit from running many things in parallel — only ever suggests it, never starts one on its own |
 
-Each of these five works independently — you can turn any one off without
+Each of these works independently — you can turn any one off without
 affecting the others. Settings live in `~/.deadeye/config.json`, with an
 optional project-level `.deadeye.json` that overrides it for one repo.
-Three env vars act as kill switches: `DEADEYE=off` turns everything off;
-`DEADEYE_PREPROCESS=off` and `DEADEYE_GATE=off` turn off just the context
-hygiene (output trimming plus the read/repeat advisories) or just the
-plan gate, respectively.
+Four env vars act as kill switches: `DEADEYE=off` turns everything off;
+`DEADEYE_PREPROCESS=off`, `DEADEYE_GATE=off`, and `DEADEYE_CODER=off`
+turn off just the context hygiene, just the plan gate, or just the coder
+persona, respectively.
 
 ## Development
 
@@ -211,6 +253,15 @@ and doesn't ask again either way.
 
 **Why "deadeye"?**
 Because efficiency isn't spending less — it's not missing.
+
+## Acknowledgements
+
+Coder mode, the review/sweep/debt/gain/help skills, and the statusline
+badge are adapted from [ponytail](https://github.com/dietrichgebert/ponytail)
+v4.8.4 by Dietrich Gebert (MIT) — the engineering ladder and safety
+carve-outs are ported; the persona voice, the spotter/marksman/sniper
+levels, and the Go implementation are deadeye's own. Full notice in
+[THIRD-PARTY.md](THIRD-PARTY.md).
 
 ## License
 

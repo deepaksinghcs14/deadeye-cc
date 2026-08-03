@@ -334,6 +334,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
     </span>
     <div class="nav-links">
       <a href="#how">How it decides</a>
+      <a href="#coder">Coder mode</a>
       <a href="#measured">Measured</a>
       <a href="#install">Install</a>
       <a href="https://github.com/deepaksinghcs14/deadeye-cc">GitHub</a>
@@ -518,7 +519,7 @@ FAIL</div>
 
 <section class="reveal">
   <p class="eyebrow">Range card</p>
-  <h2>Five things it manages</h2>
+  <h2>Six things it manages</h2>
   <p class="lede">Each one works on its own, has its own on/off setting, and
     can be switched off without touching the others.</p>
 
@@ -528,12 +529,64 @@ FAIL</div>
       <thead><tr><th>What</th><th>What it does</th><th>Default</th></tr></thead>
       <tbody>
         <tr><td class="axis">Context</td><td class="desc">Trims verbose command output before it enters context — test suites across nine language ecosystems, builds, linters, package installs, pod logs, log tails. Also flags wasteful reads: re-reading unchanged files, whole-reads of huge files, identical commands run twice in a row. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
+        <tr><td class="axis">Coder</td><td class="desc">A lean-first coding persona injected every session (it survives compaction) and into subagents: question whether the code needs to exist, stdlib before custom code, one line before fifty. Three levels — spotter, marksman, sniper.</td><td class="mode"><span class="pill">marksman</span></td></tr>
         <tr><td class="axis">Effort</td><td class="desc">Suggests lower effort for mechanical steps. Has no effect if <code>CLAUDE_EFFORT</code> is already pinned for the session — <code>/deadeye-status</code> tells you plainly if that's the case.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Model</td><td class="desc">Picks the model when a subagent starts. Prices come from a table built into the binary, refreshed each release — there's no live pricing API a background hook process could reach.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Plan gate</td><td class="desc">Asks once before a multi-file edit that skipped writing a plan first, then stays quiet for the rest of that task.</td><td class="mode"><span class="pill soft">soft</span></td></tr>
         <tr><td class="axis">Workflow</td><td class="desc">Suggests the <code>ultracode</code> keyword when a task looks like genuine parallel/fan-out work. Only ever suggests it — never starts one for you.</td><td class="mode"><span class="pill">on</span></td></tr>
       </tbody>
     </table>
+  </div>
+</section>
+
+<section id="coder" class="reveal">
+  <p class="eyebrow">Coder mode</p>
+  <h2>A marksman's coding discipline</h2>
+  <p class="lede">Beyond routing and trimming, deadeye can inject a coding
+    persona: a lazy-senior-dev discipline that pushes every change toward
+    the leanest solution that actually works. Injected at every session
+    start — it survives compaction — and travels into subagents too.
+    Adapted from ponytail (MIT), rebuilt deadeye-native in Go.</p>
+
+  <div class="two">
+    <div>
+      <div class="card">
+        <div class="card-top"><span>Level / discipline</span><span>/deadeye-coder</span></div>
+        <table>
+          <tbody>
+            <tr><td class="axis">Spotter</td><td class="desc">Calls the shot, doesn't take it: builds what's asked, names the leaner alternative in one line. You pick.</td><td class="mode"><span class="pill soft">light</span></td></tr>
+            <tr><td class="axis">Marksman</td><td class="desc">The lean-first ladder enforced: YAGNI, stdlib before custom code, native before dependencies, shortest working diff.</td><td class="mode"><span class="pill">default</span></td></tr>
+            <tr><td class="axis">Sniper</td><td class="desc">One shot only. Ships the one-liner and challenges the rest of the requirement in the same breath.</td><td class="mode"><span class="pill soft">max</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:14px">Deliberate shortcuts get a
+        <code>deadeye:</code> comment naming the ceiling and upgrade trigger —
+        <code>/deadeye-debt</code> collects them into a ledger. Safety is
+        never cut: input validation, error handling that prevents data
+        loss, security, and accessibility stay, at every level.</p>
+    </div>
+    <div>
+      <div class="term"><span class="c">/deadeye-coder sniper</span>
+
+<span class="g">DEADEYE CODER CHANGED — level: sniper</span>
+
+<span class="m">every session start:</span>
+DEADEYE CODER ACTIVE — level: sniper
+
+<span class="m">the ladder, abridged:</span>
+1. Does this need to exist at all?
+2. Already in this codebase?
+3. Stdlib does it?
+4. Native platform feature covers it?
+5. Already-installed dependency solves it?
+6. Can it be one line?
+7. Only then: the minimum code that works.</div>
+      <p class="note" style="margin-top:14px">Off any time: say
+        <code>normal mode</code>, or <code>DEADEYE_CODER=off</code>. An
+        optional statusline badge shows the live level — deadeye offers
+        the setup once and never edits your settings itself.</p>
+    </div>
   </div>
 </section>
 
@@ -616,7 +669,8 @@ Cross-check these figures against /usage's plugin attribution.</div>
       <h3 style="margin-top:34px">Turn it off</h3>
       <div class="term"><span class="m">DEADEYE=off</span>              everything
 <span class="m">DEADEYE_PREPROCESS=off</span>   context hygiene
-<span class="m">DEADEYE_GATE=off</span>         plan gate</div>
+<span class="m">DEADEYE_GATE=off</span>         plan gate
+<span class="m">DEADEYE_CODER=off</span>        coder persona</div>
     </div>
 
     <div class="faq">
@@ -640,6 +694,15 @@ Cross-check these figures against /usage's plugin attribution.</div>
         deadeye actually changes the model for subagents, where most of the
         token spend happens, and only advises (never enforces) on the main
         session.</p></details>
+      <details><summary>Is coder mode just ponytail?</summary>
+        <p>It's an adapted port of
+        <a href="https://github.com/dietrichgebert/ponytail">ponytail</a>
+        (MIT, credited in THIRD-PARTY.md): the engineering ladder and
+        safety carve-outs are ported, while the persona voice, the
+        spotter/marksman/sniper levels, and the Go-native implementation
+        are deadeye's own. If you run standalone ponytail, uninstall it
+        before enabling coder mode — two personas means paying for the
+        ruleset twice every session.</p></details>
       <details><summary>Why "deadeye"?</summary>
         <p>Because efficiency isn't spending less — it's not missing.</p></details>
     </div>
