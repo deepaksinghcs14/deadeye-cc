@@ -27,6 +27,8 @@ func main() {
 		runRoute(strings.Join(os.Args[2:], " "))
 	case "audit":
 		runAudit()
+	case "gain":
+		runGain()
 	case "capture":
 		runCapture(argOr(2, ""))
 	case "uninstall":
