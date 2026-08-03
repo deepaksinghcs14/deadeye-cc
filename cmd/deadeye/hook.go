@@ -59,14 +59,27 @@ func runHookTo(w io.Writer, r io.Reader, event string) {
 
 // requestDaemon dials the daemon with a hard 200ms deadline (INV-8's 50ms
 // p95 budget with headroom for the occasional cold daemon start). Any
-// failure to connect spawns the daemon detached for next time and returns
-// {} immediately for this call -- a hook must never block a tool call on
-// daemon startup.
+// failure to connect spawns the daemon detached and, for the hot-path
+// events, returns {} immediately -- a hook must never block a tool call
+// on daemon startup.
+//
+// SessionStart is the one exception: it fires once per session, its hook
+// timeout is 5s, and it carries the coder-persona injection -- failing
+// open there means the WHOLE session runs without the persona (caught
+// live: the first real session after a daemon exit answered "Unknown" to
+// its own coder level; the very next session answered correctly). So for
+// SessionStart only, wait briefly for the daemon just spawned and retry.
 func requestDaemon(event string, raw []byte) []byte {
 	conn, err := net.DialTimeout("unix", meta.SocketPath(), 50*time.Millisecond)
 	if err != nil {
-		spawnDaemon()
-		return []byte("{}")
+		spawnDaemonFn()
+		if event != "SessionStart" {
+			return []byte("{}")
+		}
+		conn = awaitDaemon(2 * time.Second)
+		if conn == nil {
+			return []byte("{}")
+		}
 	}
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(200 * time.Millisecond))
@@ -89,6 +102,11 @@ func requestDaemon(event string, raw []byte) []byte {
 	return resp
 }
 
+// spawnDaemonFn is a seam so tests can stub the spawn -- calling the real
+// one from a test binary would detach a copy of the TEST binary with a
+// "daemon" arg it doesn't understand.
+var spawnDaemonFn = spawnDaemon
+
 func spawnDaemon() {
 	exe, err := os.Executable()
 	if err != nil {
@@ -97,4 +115,17 @@ func spawnDaemon() {
 	cmd := exec.Command(exe, "daemon")
 	detach(cmd)
 	_ = cmd.Start()
+}
+
+// awaitDaemon polls for the daemon socket until it answers or the budget
+// runs out. SessionStart-only -- see requestDaemon.
+func awaitDaemon(budget time.Duration) net.Conn {
+	deadline := time.Now().Add(budget)
+	for time.Now().Before(deadline) {
+		time.Sleep(100 * time.Millisecond)
+		if conn, err := net.DialTimeout("unix", meta.SocketPath(), 50*time.Millisecond); err == nil {
+			return conn
+		}
+	}
+	return nil
 }

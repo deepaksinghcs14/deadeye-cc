@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.5.1
+
+- Fix: the first session after a daemon exit (boot, 30-minute idle
+  timeout, `deadeye uninstall`) silently ran without the coder persona --
+  SessionStart hit the dead socket, failed open, and the injection was
+  lost for that whole session. Caught live: a real fresh session
+  answered "Unknown" to its own coder level; the next one answered
+  correctly. SessionStart now waits briefly (up to 2s, well inside its
+  5s hook timeout) for the daemon it just spawned and retries once.
+  Hot-path events (PreToolUse etc.) still fail open immediately --
+  a regression test pins both sides of that boundary.
+
 ## 0.5.0
 
 Coder mode: a lean-first coding persona, built Go-native into the
