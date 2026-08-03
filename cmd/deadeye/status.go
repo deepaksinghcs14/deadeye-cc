@@ -25,8 +25,7 @@ func runStatus() {
 	fmt.Printf("  effort:        %s\n", cfg.Mode.Effort)
 	fmt.Printf("  preprocess:    %s\n", cfg.Mode.Preprocess)
 	fmt.Printf("  plan_gate:     %s\n", cfg.Mode.PlanGate)
-	fmt.Printf("  workflow_hint: %s\n", cfg.Mode.WorkflowHint)
-	fmt.Printf("  posture:       %s\n\n", cfg.Posture)
+	fmt.Printf("  workflow_hint: %s\n\n", cfg.Mode.WorkflowHint)
 
 	fmt.Println("Kill switches:")
 	off := config.OffSwitches()

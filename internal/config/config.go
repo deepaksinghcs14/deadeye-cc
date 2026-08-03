@@ -28,21 +28,26 @@ type Preprocess struct {
 	DisabledRules []string `json:"disabled_rules"`
 }
 
-// PlanGate is Phase 4's trigger tuning.
+// PlanGate is Phase 4's trigger tuning. (A radius_trigger knob used to sit
+// alongside MinFiles -- deleted: nothing ever read it, so it was a
+// documented setting that silently did nothing. The blast-radius signal it
+// promised needs the optional greybeard provider this plugin deliberately
+// doesn't depend on; re-add the knob when that signal actually exists.)
 type PlanGate struct {
-	MinFiles      int  `json:"min_files"`
-	RadiusTrigger bool `json:"radius_trigger"`
+	MinFiles int `json:"min_files"`
 }
 
 // Config mirrors schema/config.schema.json. `tiers.override` is
 // deliberately not modeled here: internal/catalog.Load() already reads
 // ~/.deadeye/catalog.json directly as a wholesale override, so a second
 // pointer to the same file in Config would just be a second source of
-// truth for one fact.
+// truth for one fact. (A `posture` preset field used to live here too --
+// deleted: no code path ever read it, so setting posture: "frugal"
+// changed nothing but the status printout. A preset that only exists to
+// be echoed back is worse than no preset.)
 type Config struct {
 	Mode                  Modes      `json:"mode"`
 	DownshiftThreshold    float64    `json:"downshift_threshold"`
-	Posture               string     `json:"posture"`
 	InjectionBudgetTokens int        `json:"injection_budget_tokens"`
 	Preprocess            Preprocess `json:"preprocess"`
 	PlanGate              PlanGate   `json:"plan_gate"`
@@ -73,9 +78,8 @@ func Default() Config {
 			WorkflowHint: "on",
 		},
 		DownshiftThreshold:    0.8,
-		Posture:               "balanced",
 		InjectionBudgetTokens: 400,
-		PlanGate:              PlanGate{MinFiles: 2, RadiusTrigger: true},
+		PlanGate:              PlanGate{MinFiles: 2},
 	}
 }
 

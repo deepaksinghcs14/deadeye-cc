@@ -74,7 +74,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, state *daemonSta
 
 	if state.markInjectedIfFirst(in.SessionID) {
 		memory := sessionmem.LoadRecent(in.Cwd)
-		text := inject.Build(state.cat, memory)
+		text := inject.Build(state.cat, memory, cfg.Mode.Effort != "off")
 		tokens := inject.EstimateTokens(text)
 		reason := "session guidance injection"
 		if tokens > cfg.InjectionBudgetTokens {
@@ -221,7 +221,13 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	}
 
 	out := hookio.ForEvent("PreToolUse")
+	// mode.effort=off suppresses the effort half of the recommendation --
+	// previously the knob was printed by /deadeye-status but nothing ever
+	// read it, so turning it off silently did nothing.
 	reason := fmt.Sprintf("deadeye recommends model=%s effort=%s -- %s", decision.Model, decision.Effort, decision.Reason)
+	if cfg.Mode.Effort == "off" {
+		reason = fmt.Sprintf("deadeye recommends model=%s -- %s", decision.Model, decision.Reason)
+	}
 
 	if cfg.Mode.Routing == "enforce" && ai.Model == "" {
 		if family, ok := state.cat.FamilyFor(decision.Model); ok {

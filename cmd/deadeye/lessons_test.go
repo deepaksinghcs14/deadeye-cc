@@ -107,6 +107,35 @@ func TestDecideAgentRoutingSkipsLastRoutingForExplicitModel(t *testing.T) {
 	}
 }
 
+// TestDecideAgentRoutingOmitsEffortWhenModeOff is the regression test for
+// the mode.effort knob's other half: with effort "off", the Agent
+// recommendation must not carry an effort suggestion. Previously the knob
+// was printed by /deadeye-status but nothing read it.
+func TestDecideAgentRoutingOmitsEffortWhenModeOff(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	state := newDaemonState(testCatalogForLessons(), nil)
+	toolInput, err := json.Marshal(map[string]any{"description": "d", "prompt": "p"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := hookio.Input{SessionID: "s1", ToolName: "Agent", Cwd: t.TempDir(), ToolInput: toolInput}
+
+	cfg := config.Default()
+	cfg.Mode.Effort = "off"
+	out := decideAgentRouting(in, cfg, state)
+	if out.HookSpecificOutput == nil {
+		t.Fatal("expected an advisory output")
+	}
+	if strings.Contains(out.HookSpecificOutput.AdditionalContext, "effort=") {
+		t.Errorf("recommendation still mentions effort with mode.effort=off: %q", out.HookSpecificOutput.AdditionalContext)
+	}
+
+	out = decideAgentRouting(hookio.Input{SessionID: "s2", ToolName: "Agent", Cwd: t.TempDir(), ToolInput: toolInput}, config.Default(), state)
+	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "effort=") {
+		t.Error("recommendation should mention effort with the default mode.effort=advise")
+	}
+}
+
 func TestTaskShapeKeyBucketsFileCount(t *testing.T) {
 	cases := []struct {
 		n    int

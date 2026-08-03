@@ -50,7 +50,7 @@ func TestLooksImplementationShapedIgnoresSubstrings(t *testing.T) {
 // friction." Vague prompts should trigger regardless of the working tree;
 // purely exploratory prompts (no implementation verb) never should.
 func TestPlanGateThresholdDiscipline(t *testing.T) {
-	cfg := config.PlanGate{MinFiles: 2, RadiusTrigger: true}
+	cfg := config.PlanGate{MinFiles: 2}
 
 	cases := []struct {
 		name     string
@@ -105,7 +105,7 @@ func TestPlanGateFiresOnMultiFileWorkingTree(t *testing.T) {
 	}
 	run("add", ".")
 
-	cfg := config.PlanGate{MinFiles: 2, RadiusTrigger: true}
+	cfg := config.PlanGate{MinFiles: 2}
 	in := hookio.Input{Prompt: "Update these files to add a new field", Cwd: dir}
 	_, _, fire := planGateSoftTrigger(in, cfg)
 	if !fire {

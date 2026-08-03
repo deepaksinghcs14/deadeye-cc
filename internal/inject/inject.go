@@ -21,14 +21,19 @@ func EstimateTokens(s string) int { return (len(s) + 3) / 4 }
 
 // Build composes the injection text. sessionMemory, if non-empty, is
 // Phase 1.5's prior-session summary head, appended within the same budget.
-func Build(cat catalog.Catalog, sessionMemory string) string {
+// includeEffort gates the effort-guidance line on cfg.Mode.Effort --
+// previously that knob existed but nothing read it, so mode.effort: "off"
+// silently did nothing.
+func Build(cat catalog.Catalog, sessionMemory string, includeEffort bool) string {
 	var b strings.Builder
 	b.WriteString("deadeye guidance for this session:\n")
 	b.WriteString("- Model tiers (cheapest first) -- when calling the Agent tool, set model to the cheapest tier that fits: mechanical work -> tier 0, standard implementation -> tier 1, deep reasoning -> top tier.\n")
 	for _, m := range cat.Models {
 		fmt.Fprintf(&b, "  tier %d: %s\n", m.Tier, m.ID)
 	}
-	b.WriteString("- Request lower effort for mechanical steps; reserve high/xhigh for judgment calls.\n")
+	if includeEffort {
+		b.WriteString("- Request lower effort for mechanical steps; reserve high/xhigh for judgment calls.\n")
+	}
 	b.WriteString("- Workflow scripts: route indexing/classification phases to the cheapest tier, reserve the strongest model for final verification.\n")
 	b.WriteString("- Before editing files for a multi-file or high-radius task, present a short plan and wait for a go-ahead.\n")
 	b.WriteString("- Don't re-read a file already read this session; grep before a full-file read; cap verbose command output.\n")

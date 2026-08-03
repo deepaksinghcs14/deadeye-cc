@@ -18,9 +18,9 @@
         },
         "effort": {
           "type": "string",
-          "enum": ["off", "advise", "enforce"],
+          "enum": ["off", "advise"],
           "default": "advise",
-          "description": "Effort-level guidance (Phase 2)."
+          "description": "Effort-level guidance (Phase 2). Advisory only -- the Agent tool has no effort parameter to enforce, so there is no enforce mode."
         },
         "preprocess": {
           "type": "string",
@@ -49,12 +49,6 @@
       "default": 0.8,
       "description": "Minimum kernel confidence required to lower model tier or effort (INV-1). Upshifting is always free."
     },
-    "posture": {
-      "type": "string",
-      "enum": ["frugal", "balanced", "quality"],
-      "default": "balanced",
-      "description": "Preset that adjusts downshift_threshold and default effort bias. Only sets config values -- no separate code path."
-    },
     "injection_budget_tokens": {
       "type": "integer",
       "minimum": 0,
@@ -80,11 +74,8 @@
         "min_files": {
           "type": "integer",
           "minimum": 1,
-          "default": 2
-        },
-        "radius_trigger": {
-          "type": "boolean",
-          "default": true
+          "default": 2,
+          "description": "Working-tree modified/staged file count at which the gate's multi-file trigger fires."
         }
       }
     },

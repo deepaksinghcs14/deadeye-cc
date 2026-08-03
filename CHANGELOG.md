@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Fix: three documented config knobs did nothing. `posture` and
+  `plan_gate.radius_trigger` are deleted outright -- no code path ever
+  read either, so setting them changed nothing but the status printout.
+  `mode.effort: "off"` is now actually wired: it suppresses the effort
+  half of the Agent-routing recommendation and the effort-guidance line
+  in the session injection, instead of being silently ignored. The
+  schema's `mode.effort` enum also drops `"enforce"`, which was never
+  possible -- the Agent tool has no effort parameter to enforce.
+
 ## 0.3.1
 
 - Fix: the daemon's lockfile was treated as stale after 60 seconds
