@@ -200,6 +200,9 @@ func LoadFor(cwd string, off []string) Config {
 // its own state dir.
 func WriteCoderDefault(level string) error {
 	path := meta.ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
 	raw := map[string]any{}
 	if b, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(b, &raw) // malformed existing file: start fresh below

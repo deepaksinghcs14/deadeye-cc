@@ -36,6 +36,7 @@ type sessionState struct {
 	readFiles           map[string]int64  // Read'd file path -> mtime (unix nanos) at read time, for duplicate-read advice
 	lastBashCommand     string            // previous Bash command, cleared by any Edit/Write -- consecutive-repeat detection
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
+	coderLevel          string            // coder-mode session level; "" = unset (config default applies), "off" = explicitly off
 }
 
 // daemonState is the daemon's whole world: catalog loaded once at startup,
@@ -271,6 +272,22 @@ func (d *daemonState) consumePendingRewrite(sessionID, rewrittenCmd string) stri
 	rule := s.pendingRewrites[rewrittenCmd]
 	delete(s.pendingRewrites, rewrittenCmd)
 	return rule
+}
+
+// setCoderLevel records the session's coder-mode level ("" = unset, "off"
+// = explicitly off -- the distinction matters: unset falls back to the
+// config default at the next SessionStart, explicit off stays off).
+func (d *daemonState) setCoderLevel(sessionID, level string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).coderLevel = level
+}
+
+// coderLevel returns the session's coder-mode level ("" if unset).
+func (d *daemonState) coderLevelFor(sessionID string) string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.getOrCreate(sessionID).coderLevel
 }
 
 // endSession evicts sessionID's in-memory state at SessionEnd. Call this

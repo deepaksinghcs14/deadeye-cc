@@ -201,8 +201,18 @@ func TestAdvisorySurfacesRespectPreprocessOff(t *testing.T) {
 	if out := decideReadAdvice(in, cfg, state); out.HookSpecificOutput != nil {
 		t.Errorf("read advice fired with mode.preprocess=off: %+v", out.HookSpecificOutput)
 	}
-	if out := decideSubagentStart(hookio.Input{SessionID: "s1", AgentID: "a1"}, cfg, state); out.HookSpecificOutput != nil {
+	// The brevity note obeys mode.preprocess; the coder persona has its
+	// OWN switch (coder.default_level / DEADEYE_CODER) and legitimately
+	// still fires here -- assert the specific absence, not total silence.
+	out := decideSubagentStart(hookio.Input{SessionID: "s1", AgentID: "a1"}, cfg, state)
+	if out.HookSpecificOutput != nil && strings.Contains(out.HookSpecificOutput.AdditionalContext, "terse, structured results") {
 		t.Errorf("subagent brevity note fired with mode.preprocess=off: %+v", out.HookSpecificOutput)
+	}
+
+	// With coder ALSO off, the surface must be fully silent.
+	cfg.Coder.Disabled = true
+	if out := decideSubagentStart(hookio.Input{SessionID: "s1", AgentID: "a1"}, cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("SubagentStart emitted with preprocess off AND coder disabled: %+v", out.HookSpecificOutput)
 	}
 }
 

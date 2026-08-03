@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
@@ -27,9 +28,22 @@ func runStatus() {
 	fmt.Printf("  plan_gate:     %s\n", cfg.Mode.PlanGate)
 	fmt.Printf("  workflow_hint: %s\n\n", cfg.Mode.WorkflowHint)
 
+	fmt.Println("Coder mode:")
+	fmt.Printf("  default level: %s\n", cfg.Coder.DefaultLevel)
+	liveLevel := "inactive"
+	if b, err := os.ReadFile(meta.CoderModePath()); err == nil {
+		liveLevel = strings.TrimSpace(string(b))
+	}
+	fmt.Printf("  live level:    %s\n", liveLevel)
+	matcher := cfg.Coder.SubagentMatcher
+	if matcher == "" {
+		matcher = "(all subagents)"
+	}
+	fmt.Printf("  subagents:     %s\n\n", matcher)
+
 	fmt.Println("Kill switches:")
 	off := config.OffSwitches()
-	for _, ev := range []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE"} {
+	for _, ev := range []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE", "DEADEYE_CODER"} {
 		state := "on"
 		for _, o := range off {
 			if o == ev {

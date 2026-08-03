@@ -43,6 +43,8 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	cfg := config.LoadFor(in.Cwd, req.Off)
 
 	switch req.Event {
+	case "SessionStart":
+		out = decideCoderSessionStart(in, cfg, req.PluginRoot, state)
 	case "UserPromptSubmit":
 		out = decideUserPromptSubmit(in, cfg, state)
 	case "PreToolUse":
@@ -77,6 +79,15 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 // session so it stays byte-stable (INV-4).
 func decideUserPromptSubmit(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	var parts []string
+
+	// Coder-mode tracker first: a /deadeye-coder command's confirmation
+	// leads the combined context. Synthetic prompts can't be commands, but
+	// the house guard applies everywhere prompts are parsed.
+	if !isSyntheticPrompt(in.Prompt) {
+		if confirm := coderTracker(in, cfg, state); confirm != "" {
+			parts = append(parts, confirm)
+		}
+	}
 
 	if state.markInjectedIfFirst(in.SessionID) {
 		memory := sessionmem.LoadRecent(in.Cwd)
@@ -398,11 +409,21 @@ func decidePostToolUse(in hookio.Input, state *daemonState) hookio.Output {
 // to correlate whether it lands. Gated under mode.preprocess -- context
 // hygiene, and every surface must have an off switch.
 func decideSubagentStart(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
-	if cfg.Mode.Preprocess != "on" {
+	var parts []string
+	if cfg.Mode.Preprocess == "on" {
+		parts = append(parts, "deadeye: return terse, structured results -- your full output lands in the parent agent's context, so every byte of prose padding is paid for twice.")
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "inject-subagent"})
+	}
+	// Coder persona travels into subagents too -- SessionStart context is
+	// parent-thread only and never reaches them (verified in Phase 0:
+	// SubagentStart additionalContext does).
+	if text := coderSubagentText(in, cfg, state); text != "" {
+		parts = append(parts, text)
+	}
+	if len(parts) == 0 {
 		return hookio.Empty()
 	}
 	out := hookio.ForEvent("SubagentStart")
-	out.HookSpecificOutput.AdditionalContext = "deadeye: return terse, structured results -- your full output lands in the parent agent's context, so every byte of prose padding is paid for twice."
-	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "inject-subagent"})
+	out.HookSpecificOutput.AdditionalContext = strings.Join(parts, "\n\n")
 	return out
 }
