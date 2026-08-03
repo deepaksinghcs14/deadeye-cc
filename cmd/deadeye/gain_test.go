@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -58,6 +59,11 @@ func TestGainEmptyLog(t *testing.T) {
 	}
 }
 
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// captureStdout returns f's stdout with ANSI stripped -- colorOn honors
+// FORCE_COLOR (which Claude Code's own Bash sessions set), so tests must
+// assert content, not styling.
 func captureStdout(t *testing.T, f func()) string {
 	t.Helper()
 	old := os.Stdout
@@ -71,5 +77,5 @@ func captureStdout(t *testing.T, f func()) string {
 	os.Stdout = old
 	var buf bytes.Buffer
 	buf.ReadFrom(r)
-	return buf.String()
+	return ansiRe.ReplaceAllString(buf.String(), "")
 }

@@ -2,12 +2,17 @@ package main
 
 import "os"
 
-// Minimal ANSI styling for CLI output, active only when stdout is a
-// terminal and NO_COLOR is unset -- piped output (tests, scripts, the
-// hook path) stays plain bytes. Palette matches the statusline badge.
+// Minimal ANSI styling for CLI output: on when stdout is a terminal OR
+// the caller forces it via the standard FORCE_COLOR convention -- Claude
+// Code sets FORCE_COLOR=3 in its Bash sessions and renders ANSI in the
+// output pane, so /deadeye-* command output colors there too. NO_COLOR
+// always wins; plain pipes (tests, scripts, the hook path) stay plain.
 var colorOn = func() bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
+	}
+	if f := os.Getenv("FORCE_COLOR"); f != "" && f != "0" {
+		return true
 	}
 	fi, err := os.Stdout.Stat()
 	return err == nil && fi.Mode()&os.ModeCharDevice != 0

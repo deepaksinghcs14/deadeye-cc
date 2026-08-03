@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.5.3
+
+- CLI colors now honor the standard `FORCE_COLOR` convention, not just a
+  TTY check -- Claude Code sets `FORCE_COLOR=3` in its Bash sessions and
+  renders ANSI in the output pane, so `/deadeye-status`, `/deadeye-gain`,
+  and friends are colored inside Claude Code too, not only in a raw
+  terminal. `NO_COLOR` still wins; plain pipes stay plain.
+
 ## 0.5.2
 
 - CLI output (`status`, `gain`, `audit`, `route`) is now colored when
