@@ -146,7 +146,6 @@ func decidePlanGateSoft(in hookio.Input, cfg config.Config, state *daemonState) 
 // distinguish "approved" from "declined" to log the outcome precisely.
 func decidePlanGateHard(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	if cfg.Mode.PlanGate != "hard" {
-		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "noop"})
 		return hookio.Empty()
 	}
 	pending := state.pendingPlan(in.SessionID)

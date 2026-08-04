@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
@@ -73,11 +74,7 @@ func renderGain(logPath string) {
 	}
 	if measuredRuns > 0 {
 		fmt.Printf("    %s        %d real runs, %s bytes of actual filtered output\n", cGood("measured"), measuredRuns, cGood(fmtBytes(measuredBytes)))
-		rules := make([]string, 0, len(perRuleMeasured))
-		for rule := range perRuleMeasured {
-			rules = append(rules, rule)
-		}
-		sort.Strings(rules)
+		rules := slices.Sorted(maps.Keys(perRuleMeasured))
 		for _, rule := range rules {
 			e := perRuleMeasured[rule]
 			fmt.Printf("      %-14s %dx  %s bytes real output\n", rule, e[0], fmtBytes(e[1]))

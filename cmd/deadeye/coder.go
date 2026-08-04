@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/coder"
@@ -91,7 +92,6 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 	level := effectiveCoderLevel(in.SessionID, cfg, state)
 	if !coder.Active(level) {
 		writeCoderModeFile(in.SessionID, coder.LevelOff)
-		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionStart", Action: "noop"})
 		return hookio.Empty()
 	}
 
@@ -213,21 +213,46 @@ func coderTracker(in hookio.Input, cfg config.Config, state *daemonState) string
 	return ""
 }
 
-// coderSubagentText returns the persona for a spawning subagent, or "".
-// The optional matcher scopes injection by agent type; a regex that fails
-// to compile fails OPEN (injects) -- a broken config must never silently
-// strip the persona (ported behavior).
+// matcherCache holds the last compiled subagent matcher -- one pattern in
+// practice (it comes from config), so a single entry beats a map.
+var matcherCache struct {
+	mu      sync.Mutex
+	pattern string
+	re      *regexp.Regexp
+}
+
+func compileMatcher(pattern string) (*regexp.Regexp, error) {
+	matcherCache.mu.Lock()
+	defer matcherCache.mu.Unlock()
+	if matcherCache.pattern == pattern && matcherCache.re != nil {
+		return matcherCache.re, nil
+	}
+	re, err := regexp.Compile("(?i)" + pattern)
+	if err != nil {
+		return nil, err
+	}
+	matcherCache.pattern, matcherCache.re = pattern, re
+	return re, nil
+}
+
+// coderSubagentText returns the persona card for a spawning subagent, or
+// "". Subagents get coder.SubagentCard, not the full ruleset -- ~90%
+// smaller per spawn with the behavior-bearing rules intact. The optional
+// matcher scopes injection by agent type; a regex that fails to compile
+// fails OPEN (injects) -- a broken config must never silently strip the
+// persona (ported behavior).
 func coderSubagentText(in hookio.Input, cfg config.Config, state *daemonState) string {
 	level := effectiveCoderLevel(in.SessionID, cfg, state)
 	if !coder.Active(level) {
 		return ""
 	}
 	if m := cfg.Coder.SubagentMatcher; m != "" && in.AgentType != "" {
-		re, err := regexp.Compile("(?i)" + m)
+		re, err := compileMatcher(m)
 		if err == nil && !re.MatchString(in.AgentType) {
 			return ""
 		}
 	}
-	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "coder-subagent", Reason: level})
-	return coder.Instructions(level)
+	card := coder.SubagentCard(level)
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "coder-subagent", Reason: level, BytesAfter: len(card)})
+	return card
 }

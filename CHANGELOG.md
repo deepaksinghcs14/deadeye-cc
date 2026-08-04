@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 0.7.0
+
+Batch 1 of the deep-sweep follow-up: correctness + the biggest token wins.
+
+- **Subagents now get a condensed persona card (~0.7 KB) instead of the
+  full ~5.3 KB ruleset** -- the ladder, the `deadeye:` marker convention,
+  the output shape, and the never-cut list travel; the worked examples
+  and long-session prose don't. The cut is logged per spawn
+  (`coder-subagent` bytes_after), so `/deadeye-gain` shows it.
+- **The Agent-routing path's git calls are now bounded by the same 2s
+  timeout as every other git call site** -- a stalled network mount or a
+  held `.git/index.lock` fails open into "unknown" evidence instead of
+  hanging the hook.
+- **Noop records are no longer written to the decision log.** They were
+  ~95% of all rows and carried no reporting value; logged totals in
+  `/deadeye-audit` and `deadeye status` will drop accordingly, and the
+  session-memory "meaningful activity" check stops being inflated by them.
+- Dead code removed (unused effort helpers, an unused exported wrapper,
+  hand-rolled map-key sorts replaced with stdlib `slices.Sorted`); the
+  subagent matcher regex is compiled once, not per spawn.
+
 ## 0.6.1
 
 - Configs seeded before coder mode existed (pre-0.5.0) now gain the

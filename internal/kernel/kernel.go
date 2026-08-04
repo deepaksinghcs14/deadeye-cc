@@ -18,8 +18,6 @@ type Decision struct {
 	Confidence float64
 }
 
-var effortOrder = []string{"low", "medium", "high", "xhigh"}
-
 // veryHighComplexity triggers an xhigh upshift independent of the
 // downshift path below -- upshifting is always free (INV-1), no
 // confidence threshold required.
@@ -146,13 +144,4 @@ func modelAtTier(cat catalog.Catalog, tier int) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-func effortIndex(e string) int {
-	for i, v := range effortOrder {
-		if v == e {
-			return i
-		}
-	}
-	return len(effortOrder) - 1
 }

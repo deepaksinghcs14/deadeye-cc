@@ -312,3 +312,36 @@ func TestNativeRestoreSkipsSessionMemory(t *testing.T) {
 		t.Error("startup session should still inject the session-memory summary")
 	}
 }
+
+// TestNoopsAreNotLogged: quiet requests must not write decision-log rows --
+// noops were 95% of the log and carried no reporting value.
+func TestNoopsAreNotLogged(t *testing.T) {
+	state := coderTestState(t)
+	logPath := filepath.Join(t.TempDir(), "d.jsonl")
+	state.logs = logstore.Open(logPath)
+
+	cfg := config.Default()
+	cfg.Coder.DefaultLevel = "off"
+	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
+	decideStop(hookio.Input{SessionID: "s1"}, state)
+	decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "Glob"}, cfg, state)
+	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, state)
+	if _, err := os.Stat(logPath); err == nil {
+		b, _ := os.ReadFile(logPath)
+		if len(b) > 0 {
+			t.Errorf("noop-only traffic wrote log rows:\n%s", b)
+		}
+	}
+}
+
+// TestSubagentGetsCardNotFullRuleset guards the ~90% per-spawn cut.
+func TestSubagentGetsCardNotFullRuleset(t *testing.T) {
+	state := coderTestState(t)
+	text := coderSubagentText(hookio.Input{SessionID: "s1", AgentType: "general-purpose"}, config.Default(), state)
+	if text == "" || len(text) > 900 {
+		t.Fatalf("expected the condensed card, got %d bytes", len(text))
+	}
+	if strings.Contains(text, "## Intensity") {
+		t.Error("subagent received full-ruleset sections")
+	}
+}

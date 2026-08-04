@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
@@ -42,13 +43,13 @@ func runAudit() {
 	fmt.Printf("%s decisions logged %s\n\n", cValue(fmt.Sprintf("%d", len(records))), cDim("("+meta.LogPath()+")"))
 
 	fmt.Println(cHead("By surface"))
-	for _, s := range sortedKeys(bySurface) {
+	for _, s := range slices.Sorted(maps.Keys(bySurface)) {
 		fmt.Printf("  %-24s %d\n", s, bySurface[s])
 	}
 	fmt.Println()
 
 	fmt.Println(cHead("By action"))
-	for _, a := range sortedKeys(byAction) {
+	for _, a := range slices.Sorted(maps.Keys(byAction)) {
 		fmt.Printf("  %-24s %d\n", a, byAction[a])
 	}
 	fmt.Println()
@@ -56,7 +57,7 @@ func runAudit() {
 	if len(byRule) > 0 {
 		fmt.Println(cHead("Preprocessing rewrites") + cWarn(" (estimated bytes -- per-rule constants, not a measurement of this run)"))
 		totalBefore, totalAfter := 0, 0
-		for _, rule := range sortedRuleKeys(byRule) {
+		for _, rule := range slices.Sorted(maps.Keys(byRule)) {
 			e := byRule[rule]
 			fmt.Printf("  %-16s %3dx   ~%d -> ~%d bytes\n", rule, e.n, e.before, e.after)
 			totalBefore += e.before
@@ -83,11 +84,7 @@ func runAudit() {
 		}
 		if len(byShape) > 0 {
 			fmt.Println(cHead("Escalations") + cDim(" (caller requested a higher tier than the last recommendation for this shape)"))
-			shapes := make([]string, 0, len(byShape))
-			for s := range byShape {
-				shapes = append(shapes, s)
-			}
-			sort.Strings(shapes)
+			shapes := slices.Sorted(maps.Keys(byShape))
 			for _, s := range shapes {
 				e := byShape[s]
 				fmt.Printf("  %-40s %dx (weight %.1f) -- adjusted downshift threshold is now higher for this shape\n", s, e.n, e.weight)
@@ -97,22 +94,4 @@ func runAudit() {
 	}
 
 	fmt.Println(cDim("Cross-check these figures against /usage's plugin attribution."))
-}
-
-func sortedKeys(m map[string]int) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func sortedRuleKeys(m map[string]struct{ n, before, after int }) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }

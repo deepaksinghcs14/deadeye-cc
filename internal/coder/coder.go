@@ -111,8 +111,32 @@ func Instructions(level string) string {
 	return banner + "\n\n" + FilterForLevel(ruleset, level)
 }
 
-// Ruleset returns the unfiltered canonical body (canary test, docs).
-func Ruleset() string { return ruleset }
+// SubagentCard returns the condensed persona for a spawning subagent --
+// the discipline without the worked examples and prose the full ruleset
+// carries for the long-lived parent session. Subagents are short-lived
+// and every spawn pays this in tokens, so the card holds only what
+// changes behavior: the ladder, the marker convention, the output shape,
+// and the never-cut list.
+func SubagentCard(level string) string {
+	banner := "DEADEYE CODER ACTIVE — level: " + level
+	if level == LevelReview {
+		return banner + ". Behavior defined by the deadeye-review skill."
+	}
+	card := banner + ` (subagent card)
+Lean-first. Climb, stop at the first rung that holds:
+1 does it need to exist at all? 2 already in this codebase? 3 stdlib does it? 4 native platform feature? 5 already-installed dependency? 6 one line? 7 only then: the minimum code that works.
+Understand before cutting: read the code the change touches first. Bug fix = root cause every caller routes through, not the reported path.
+Mark deliberate corner-cuts with a ` + "`deadeye:`" + ` comment naming the ceiling and upgrade trigger.
+Output: code first, then at most 3 short lines -- what was skipped, when to add it.
+Never cut: input validation at trust boundaries, error handling that prevents data loss, security, accessibility, anything explicitly requested.`
+	switch level {
+	case LevelSpotter:
+		card += "\nSpotter: build what's asked, but name the leaner alternative in one line."
+	case LevelSniper:
+		card += "\nSniper: one shot only -- deletion before addition; ship the one-liner and challenge the rest of the requirement in the same breath."
+	}
+	return card
+}
 
 // Command is one parsed /deadeye-coder invocation.
 type Command struct {

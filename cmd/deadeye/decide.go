@@ -58,11 +58,6 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 		out = decideStop(in, state)
 	case "SessionEnd":
 		out = decideSessionEnd(in, state)
-	default:
-		state.log(logstore.Record{
-			TS: nowRFC3339(), SessionID: in.SessionID, Surface: req.Event,
-			Action: "noop",
-		})
 	}
 	return out
 }
@@ -121,7 +116,6 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion st
 	}
 
 	if len(parts) == 0 {
-		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit", Action: "noop"})
 		return hookio.Empty()
 	}
 
@@ -139,7 +133,6 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion st
 func decideStop(in hookio.Input, state *daemonState) hookio.Output {
 	bytesSaved, rewrites, changed := state.newSavingsToShow(in.SessionID)
 	if !changed {
-		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "Stop", Action: "noop"})
 		return hookio.Empty()
 	}
 
@@ -159,21 +152,19 @@ func plural(n int) string {
 	return "s"
 }
 
-// decideSessionEnd writes Phase 1.5's session-memory summary before the
-// count of this session's own decisions is polluted by logging the
-// SessionEnd event itself.
+// decideSessionEnd writes Phase 1.5's session-memory summary, then evicts
+// the session's in-memory state.
 func decideSessionEnd(in hookio.Input, state *daemonState) hookio.Output {
 	count := state.decisionCount(in.SessionID)
 	_ = sessionmem.Write(in.Cwd, in.SessionID, count)
 	os.Remove(meta.CoderModePathFor(in.SessionID)) // this session's statusline badge file
-	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionEnd", Action: "noop"})
 	// Session state is daemon-lifetime advisory dedup only, never
 	// persisted -- but nothing ever removed an entry, so across a
 	// long-lived daemon (idle timeout resets on every connection, so in
 	// practice a daily user's daemon runs for as long as the machine is
 	// up) every session id the machine has ever seen accumulated here
-	// forever. Evict last, after the log/write above, so they still see
-	// this session's real decisionCount.
+	// forever. Evict last, after the write above, so it still sees this
+	// session's real decisionCount.
 	state.endSession(in.SessionID)
 	return hookio.Empty()
 }
@@ -199,7 +190,6 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 		state.clearLastBash(in.SessionID)
 		return decidePlanGateHard(in, cfg, state)
 	default:
-		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "noop"})
 		return hookio.Empty()
 	}
 }
@@ -232,7 +222,13 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	_ = json.Unmarshal(in.ToolInput, &ai)
 
 	scope := newScope(ai.Description+" "+ai.Prompt, in.Cwd)
-	evidence := signals.AssessAll(context.Background(), scope, signals.Builtins())
+	// Bounded like every other git call site (route.go's gitTimeout): the
+	// churn provider shells to git, and a stalled network mount or held
+	// .git/index.lock must fail open into "unknown" evidence, not hang the
+	// hook (INV-5).
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+	evidence := signals.AssessAll(ctx, scope, signals.Builtins())
 	shape := taskShapeKey(scope.Files, scope.Prompt, evidence)
 	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, state.outcomesSnapshot(), shape, time.Now())
 	decision := kernel.Decide(evidence, state.cat, threshold)
@@ -370,7 +366,6 @@ func decideReadAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 	}
 
 	if len(advice) == 0 {
-		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Read", Action: "noop"})
 		return hookio.Empty()
 	}
 	out := hookio.ForEvent("PreToolUse")
@@ -404,7 +399,6 @@ func decidePostToolUse(in hookio.Input, state *daemonState) hookio.Output {
 		})
 		return hookio.Empty()
 	}
-	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PostToolUse", Action: "noop"})
 	return hookio.Empty()
 }
 

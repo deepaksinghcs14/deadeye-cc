@@ -25,7 +25,7 @@ func TestRulesetMatchesSkill(t *testing.T) {
 		t.Fatal("SKILL.md must have frontmatter delimited by ---")
 	}
 	body := parts[1]
-	if body != Ruleset() {
+	if body != ruleset {
 		t.Error("skills/deadeye-coder/SKILL.md body has drifted from internal/coder/ruleset.md -- regenerate one from the other")
 	}
 }
@@ -179,5 +179,33 @@ func TestIsShellSafe(t *testing.T) {
 		if IsShellSafe(bad) {
 			t.Errorf("unsafe path accepted: %q", bad)
 		}
+	}
+}
+
+// TestSubagentCard: the condensed card must stay small (that's its whole
+// point) while keeping every behavior-bearing rule; review stays one line.
+func TestSubagentCard(t *testing.T) {
+	for _, level := range []string{LevelSpotter, LevelMarksman, LevelSniper} {
+		card := SubagentCard(level)
+		if len(card) > 900 {
+			t.Errorf("%s card is %d bytes -- the card exists to be small", level, len(card))
+		}
+		for _, want := range []string{
+			"DEADEYE CODER ACTIVE — level: " + level,
+			"minimum code that works",
+			"deadeye:",
+			"Never cut",
+			"root cause",
+		} {
+			if !strings.Contains(card, want) {
+				t.Errorf("%s card missing %q", level, want)
+			}
+		}
+	}
+	if full, card := len(Instructions(LevelMarksman)), len(SubagentCard(LevelMarksman)); card*4 > full {
+		t.Errorf("card (%d) should be well under a quarter of the full ruleset (%d)", card, full)
+	}
+	if card := SubagentCard(LevelReview); !strings.Contains(card, "deadeye-review skill") {
+		t.Errorf("review card should defer to the skill: %q", card)
 	}
 }

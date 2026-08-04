@@ -15,6 +15,17 @@ func testCatalog() catalog.Catalog {
 	}}
 }
 
+var effortOrder = []string{"low", "medium", "high", "xhigh"}
+
+func effortIndex(e string) int {
+	for i, v := range effortOrder {
+		if v == e {
+			return i
+		}
+	}
+	return len(effortOrder) - 1
+}
+
 func decisionRank(d Decision) int {
 	// A single ordinal for comparing decisions cheapest-to-most-expensive:
 	// tier dominates, effort breaks ties within a tier.
