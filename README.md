@@ -13,6 +13,7 @@
 
 <p align="center">
   <a href="https://claude.com/claude-code"><img src="https://img.shields.io/badge/built_for-Claude_Code-D97757?style=flat-square&logo=claude&logoColor=white" alt="Built for Claude Code"></a>
+  <a href="https://developers.openai.com/codex/cli"><img src="https://img.shields.io/badge/works_with-Codex_CLI-111111?style=flat-square&logo=openai&logoColor=white" alt="Works with Codex CLI (experimental)"></a>
 </p>
 
 <p align="center">

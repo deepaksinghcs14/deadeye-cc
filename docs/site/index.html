@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>deadeye — he doesn't waste shots</title>
-<meta name="description" content="Claude Code plugin that fits the model, effort, and context to the task. Fewer tokens, same quality.">
+<meta name="description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code — and Codex CLI (experimental).">
 <meta property="og:title" content="deadeye — he doesn't waste shots">
-<meta property="og:description" content="Claude Code plugin that fits the model, effort, and context to the task. Fewer tokens, same quality.">
+<meta property="og:description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code — and Codex CLI (experimental).">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://deepaksinghcs14.github.io/deadeye-cc/">
 <meta property="og:image" content="https://deepaksinghcs14.github.io/deadeye-cc/og.png">
@@ -14,7 +14,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="deadeye — he doesn't waste shots">
-<meta name="twitter:description" content="Claude Code plugin that fits the model, effort, and context to the task. Fewer tokens, same quality.">
+<meta name="twitter:description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code — and Codex CLI (experimental).">
 <meta name="twitter:image" content="https://deepaksinghcs14.github.io/deadeye-cc/og.png">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -347,15 +347,17 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
       <div class="hero-copy">
         <h1>deadeye<span class="dot">.</span></h1>
         <p class="tagline">He doesn't waste shots.</p>
-        <p class="sub">A Claude Code plugin that picks the right model, effort
-          level, and amount of context for the task in front of it — before
-          the tokens are spent, not after.</p>
+        <p class="sub">A plugin for your coding agent that picks the right
+          model, effort level, and amount of context for the task in front
+          of it — before the tokens are spent, not after. Built for
+          Claude&nbsp;Code; runs on OpenAI's Codex&nbsp;CLI too
+          (experimental).</p>
 
         <div class="install">
           <div class="l"><span class="p">$</span> /plugin marketplace add deepaksinghcs14/deadeye-cc</div>
           <div class="l"><span class="p">$</span> /plugin install deadeye@deadeye</div>
         </div>
-        <div class="note">Hooks register themselves. Binary bootstraps on first use, sha256-verified.</div>
+        <div class="note">Hooks register themselves. Binary bootstraps on first use, sha256-verified.<br>On Codex CLI: install the binary, then <code>deadeye init codex</code>.</div>
       </div>
 
       <div class="hero-art" aria-hidden="true">
