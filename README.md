@@ -78,6 +78,11 @@ PreToolUse/Bash    rewrite        reason=build-filter
 Stop               savings-shown  bytes_after=25800
 ```
 
+(One thing has changed since this log was captured: as of v0.7.0 quiet
+events aren't logged at all — on one real machine `noop` rows were 812 of
+856 total, ~95% noise — so your log will show only the rows where deadeye
+actually did something.)
+
 deadeye recommended a cheaper model before the subagent even started, both
 the test and build commands had their noisy output trimmed, and the turn
 ended with `deadeye: ~25,800 bytes kept out of context this session (2
@@ -186,10 +191,12 @@ context, filtered to the active level — so a `marksman` session never
 pays tokens for the `spotter` and `sniper` rows. Long sessions hold: when
 Claude Code compacts the conversation, the SessionStart hook fires again
 and the persona is re-injected at whatever level you'd switched to.
-Subagents inherit it too — when the main session spawns one, the same
-filtered ruleset travels into it, so delegated work follows the same
-discipline (scope this with `coder.subagent_matcher` in config if you
-only want it in some agent types).
+Subagents inherit it too — but not the whole thing: they get a condensed
+card carrying just the behavior-bearing rules. Measured from the decision
+log: **5,269 bytes per spawn before, 764 after — an 85.5% cut**, paid on
+every single subagent your sessions ever launch. (Scope subagent
+injection with `coder.subagent_matcher` in config if you only want it in
+some agent types.)
 
 Which level governs a session is resolved in strict order: the
 `DEADEYE_CODER=off` kill switch wins, then an explicit `/deadeye-coder`

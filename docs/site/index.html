@@ -596,7 +596,7 @@ DEADEYE CODER ACTIVE — level: sniper
           <tbody>
             <tr><td class="axis">Inject</td><td class="desc">The ruleset ships embedded in the binary. At every session start the daemon prints it into the model's context, filtered to the active level — a marksman session never pays tokens for the other levels' rows.</td><td class="mode"><span class="pill soft">start</span></td></tr>
             <tr><td class="axis">Survive</td><td class="desc">When Claude Code compacts a long conversation, the hook fires again and re-injects at whatever level you'd switched to. No drift back to over-building.</td><td class="mode"><span class="pill soft">compact</span></td></tr>
-            <tr><td class="axis">Travel</td><td class="desc">Subagents inherit the same filtered ruleset when they spawn, so delegated work follows the same discipline. Scope it with <code>coder.subagent_matcher</code>.</td><td class="mode"><span class="pill soft">subagent</span></td></tr>
+            <tr><td class="axis">Travel</td><td class="desc">Subagents inherit a condensed card — just the behavior-bearing rules. Measured: 5,269 bytes per spawn before, 764 after, an 85.5% cut on every spawn. Scope it with <code>coder.subagent_matcher</code>.</td><td class="mode"><span class="pill">−85.5%</span></td></tr>
             <tr><td class="axis">Resolve</td><td class="desc">Kill switch beats your session switch, beats <code>coder.default_level</code> in config, beats the built-in default. Switches last until the session ends.</td><td class="mode"><span class="pill soft">precedence</span></td></tr>
           </tbody>
         </table>
@@ -668,7 +668,12 @@ Cross-check these figures against /usage's plugin attribution.</div>
     numbers above are the real measured ones; this log is here to show
     model-picking, output-trimming, and the end-of-turn summary all firing
     together on one real task. Yours will show whatever your own log
-    contains.</p>
+    contains — and since v0.7.0, quiet <code>noop</code> events (95% of
+    all rows on one real machine: 812 of 856) aren't logged at all, so
+    your log holds only the rows where deadeye actually did something.
+    Newest measured win, same log: the coder persona a subagent inherits
+    went from 5,269 bytes per spawn to 764 — an 85.5% cut, logged as
+    <code>coder-subagent bytes_after</code> on every spawn.</p>
 </section>
 
 <section class="reveal">
