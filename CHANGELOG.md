@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 0.9.0
+
+Batch 3: wider observation, new advisories.
+
+- **PostToolUse now observes Read/Grep/Glob/WebFetch/WebSearch response
+  sizes** (only responses over 8 KB -- outliers are the evidence, small
+  responses would just be log noise). Observation-only, never touches
+  context; this is the measured base future rules get justified from.
+- **New Grep advisory**: content-mode Grep with no `head_limit` gets one
+  per-session nudge toward `head_limit` or `files_with_matches`.
+- **Bare-git advisories widened**: `git diff HEAD`/`--cached`/`--staged`
+  and `git log -p`/`--stat`/`--oneline` (no `-n`) now get the same
+  diff-cap/history-cap nudges as the exactly-bare forms.
+- **Seven new unbounded-output advisories**: `terraform plan`,
+  `kubectl get -o yaml|json`, `npm ls`, bare `find`, `tree` without
+  `-L`, `du` without a depth cap, `pip list`/`brew list`. All advisory
+  -- truncating these silently could hide the exact line needed.
+
 ## 0.8.0
 
 Batch 2: the coder persona learns comment discipline.

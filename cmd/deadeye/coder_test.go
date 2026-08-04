@@ -345,3 +345,49 @@ func TestSubagentGetsCardNotFullRuleset(t *testing.T) {
 		t.Error("subagent received full-ruleset sections")
 	}
 }
+
+// TestGrepAdviceFiresOnceForUnboundedContentMode covers batch 3's Grep
+// advisory: content mode with no head_limit gets one nudge per session;
+// bounded shapes stay silent.
+func TestGrepAdviceFiresOnceForUnboundedContentMode(t *testing.T) {
+	state := coderTestState(t)
+	cfg := config.Default()
+	unbounded := hookio.Input{SessionID: "s1", ToolName: "Grep", ToolInput: []byte(`{"pattern":"x","output_mode":"content"}`)}
+	out := decidePreToolUse(unbounded, cfg, state)
+	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "head_limit") {
+		t.Fatal("expected the grep-limit advisory on unbounded content mode")
+	}
+	if second := decidePreToolUse(unbounded, cfg, state); second.HookSpecificOutput != nil {
+		t.Error("grep advisory must fire once per session, not nag")
+	}
+	bounded := hookio.Input{SessionID: "s2", ToolName: "Grep", ToolInput: []byte(`{"pattern":"x","output_mode":"content","head_limit":50}`)}
+	if out := decidePreToolUse(bounded, cfg, state); out.HookSpecificOutput != nil {
+		t.Error("bounded grep must stay silent")
+	}
+	files := hookio.Input{SessionID: "s3", ToolName: "Grep", ToolInput: []byte(`{"pattern":"x","output_mode":"files_with_matches"}`)}
+	if out := decidePreToolUse(files, cfg, state); out.HookSpecificOutput != nil {
+		t.Error("files_with_matches is bounded -- no advisory")
+	}
+}
+
+// TestPostToolUseObservesOnlyLargeResponses: Read/Grep/etc responses build
+// the evidence base, but only past the threshold -- small ones would just
+// re-create the noop bloat 0.7.0 removed.
+func TestPostToolUseObservesOnlyLargeResponses(t *testing.T) {
+	state := coderTestState(t)
+	logPath := filepath.Join(t.TempDir(), "d.jsonl")
+	state.logs = logstore.Open(logPath)
+
+	small := hookio.Input{SessionID: "s1", ToolName: "Read", ToolResponse: []byte(strings.Repeat("a", 100))}
+	decidePostToolUse(small, state)
+	big := hookio.Input{SessionID: "s1", ToolName: "Grep", ToolResponse: []byte(strings.Repeat("a", observeThresholdBytes+1))}
+	decidePostToolUse(big, state)
+
+	b, _ := os.ReadFile(logPath)
+	if got := strings.Count(string(b), `"observed"`); got != 1 {
+		t.Errorf("want exactly 1 observed row (the large Grep), got %d:\n%s", got, b)
+	}
+	if !strings.Contains(string(b), `"Grep"`) && !strings.Contains(string(b), "Grep") {
+		t.Errorf("observed row should name the tool:\n%s", b)
+	}
+}

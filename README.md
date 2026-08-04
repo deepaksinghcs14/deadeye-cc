@@ -253,7 +253,7 @@ settings itself.
 
 | What | Modes | What it does |
 |---|---|---|
-| Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Also flags wasteful reads: re-reading a file that hasn't changed, whole-reads of huge files, and running the identical command twice in a row |
+| Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Flags unbounded dumps before they run: unscoped `git diff`/`git log`, `terraform plan`, `kubectl get -o yaml`, `npm ls`, bare `find`/`tree`/`du`, full package lists, and content-mode Grep with no limit. Also flags wasteful reads: re-reading a file that hasn't changed, whole-reads of huge files, and running the identical command twice in a row |
 | Coder persona | `off` / `spotter` / `marksman` / `sniper` | The lean-first coding discipline above, injected per session and into subagents |
 | Effort level | `off` / `advise` | Suggests using lower effort for mechanical steps; has no effect if `CLAUDE_EFFORT` is already pinned for the session |
 | Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one yourself |

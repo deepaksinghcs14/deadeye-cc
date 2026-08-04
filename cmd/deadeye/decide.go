@@ -184,6 +184,8 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 		return decideAgentRouting(in, cfg, state)
 	case "Read":
 		return decideReadAdvice(in, cfg, state)
+	case "Grep":
+		return decideGrepAdvice(in, cfg, state)
 	case "Edit", "Write":
 		// An edit invalidates the consecutive-repeat heuristic: re-running
 		// the same command AFTER a change is legitimate verification.
@@ -379,6 +381,32 @@ func decideReadAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 // estimates made before the command ran), and the response sizes of MCP
 // tools (evidence for which ones deserve a rule of their own -- their
 // inputs can't be rewritten safely, so observation comes first).
+type grepInput struct {
+	OutputMode string `json:"output_mode"`
+	HeadLimit  int    `json:"head_limit"`
+}
+
+// decideGrepAdvice flags the one Grep shape with unbounded output --
+// content mode with no head_limit dumps every match across the search
+// scope. Advisory only, once per session (a reminder, not a nag);
+// files_with_matches/count modes are already bounded.
+func decideGrepAdvice(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.Preprocess != "on" {
+		return hookio.Empty()
+	}
+	var gi grepInput
+	if err := json.Unmarshal(in.ToolInput, &gi); err != nil || gi.OutputMode != "content" || gi.HeadLimit > 0 {
+		return hookio.Empty()
+	}
+	if !state.markSuggestedIfFirst(in.SessionID, "grep-limit") {
+		return hookio.Empty()
+	}
+	out := hookio.ForEvent("PreToolUse")
+	out.HookSpecificOutput.AdditionalContext = "deadeye: content-mode Grep with no head_limit can dump every match in scope -- consider head_limit, or files_with_matches first."
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Grep", Action: "advise", Reason: "grep-limit"})
+	return out
+}
+
 func decidePostToolUse(in hookio.Input, state *daemonState) hookio.Output {
 	switch {
 	case in.ToolName == "Bash":
@@ -398,9 +426,26 @@ func decidePostToolUse(in hookio.Input, state *daemonState) hookio.Output {
 			Action: "observed", Reason: in.ToolName, BytesAfter: len(in.ToolResponse),
 		})
 		return hookio.Empty()
+	case in.ToolName == "Read" || in.ToolName == "Grep" || in.ToolName == "Glob" ||
+		in.ToolName == "WebFetch" || in.ToolName == "WebSearch":
+		// Observation only, never context: this is the evidence base future
+		// rules get justified from ("measured, not estimated"). The
+		// threshold keeps small responses out of the log -- without it this
+		// would re-create the noop bloat removed in 0.7.0.
+		if len(in.ToolResponse) > observeThresholdBytes {
+			state.log(logstore.Record{
+				TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PostToolUse",
+				Action: "observed", Reason: in.ToolName, BytesAfter: len(in.ToolResponse),
+			})
+		}
+		return hookio.Empty()
 	}
 	return hookio.Empty()
 }
+
+// observeThresholdBytes gates size observation of Read/Grep/Glob/WebFetch/
+// WebSearch responses: only outliers are evidence worth keeping.
+const observeThresholdBytes = 8 << 10
 
 // decideSubagentStart injects one line asking the subagent for terse,
 // structured results -- subagent output lands in the parent's context

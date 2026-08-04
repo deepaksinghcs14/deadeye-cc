@@ -39,8 +39,18 @@ var (
 	kubectlLogsRe   = regexp.MustCompile(`^kubectl logs(\s|$)`)
 	catLogRe        = regexp.MustCompile(`^cat\s+([\w./@+-]+\.(?:log|out))\s*$`)
 	catLargeRe      = regexp.MustCompile(`^cat\s+([\w./@+-]+\.(?:json|txt|csv|xml|ya?ml))\s*$`)
-	bareGitDiffRe   = regexp.MustCompile(`^git diff\s*$`)
-	bareGitHistRe   = regexp.MustCompile(`^git (log|show)\s*$`)
+	// Widened past the exactly-bare forms: `git diff HEAD` or `--cached`
+	// and `git log -p`/`--stat`/`--oneline` are just as unbounded as their
+	// bare parents. Anything with a pathspec or -n/--max-count stays quiet.
+	bareGitDiffRe = regexp.MustCompile(`^git diff( --cached| --staged)?( HEAD[~^0-9]*)?\s*$`)
+	bareGitHistRe = regexp.MustCompile(`^git (log|show)(( -p| --stat| --oneline))*\s*$`)
+	tfPlanRe      = regexp.MustCompile(`^terraform plan(\s|$)`)
+	kubectlYamlRe = regexp.MustCompile(`^kubectl get\b.* -o ?(yaml|json)\b`)
+	npmLsRe       = regexp.MustCompile(`^npm ls\s*$`)
+	bareFindRe    = regexp.MustCompile(`^find\s+\S+\s*$`) // a path and nothing else: no -name/-type/-maxdepth
+	treeRe        = regexp.MustCompile(`^tree\b`)
+	duRe          = regexp.MustCompile(`^du\b`)
+	pkgListRe     = regexp.MustCompile(`^(pip3? list|brew list)\s*$`)
 
 	// shellStructure flags a command as having shell control-flow structure
 	// (a comment, a command separator/chain, redirection, a line
@@ -256,6 +266,68 @@ var Rules = []Rule{
 				return cmd, false
 			}
 			return cmd, true
+		},
+	},
+	// The advisories below share diff-cap's reasoning: each command's
+	// output is unbounded (often 10-100KB+), but truncating it silently
+	// could hide the exact line the caller needs -- so suggest the
+	// bounded form, never rewrite.
+	{
+		Name:     "tf-plan-cap",
+		Note:     "terraform plan dumps the full plan -- consider -target to scope it, or -out=plan.bin then inspect with terraform show",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			return cmd, tfPlanRe.MatchString(strings.TrimSpace(cmd))
+		},
+	},
+	{
+		Name:     "kubectl-yaml-cap",
+		Note:     "kubectl get -o yaml/json is unbounded -- consider -o name, or -o jsonpath for just the field you need",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			return cmd, kubectlYamlRe.MatchString(strings.TrimSpace(cmd))
+		},
+	},
+	{
+		Name:     "npm-ls-cap",
+		Note:     "npm ls prints the whole dependency tree -- consider --depth=0",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			return cmd, npmLsRe.MatchString(strings.TrimSpace(cmd))
+		},
+	},
+	{
+		Name:     "find-cap",
+		Note:     "unscoped find -- consider -maxdepth or -name to bound it",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			return cmd, bareFindRe.MatchString(strings.TrimSpace(cmd))
+		},
+	},
+	{
+		Name:     "tree-cap",
+		Note:     "tree without -L dumps the whole hierarchy -- consider tree -L 2",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			c := strings.TrimSpace(cmd)
+			return cmd, treeRe.MatchString(c) && !strings.Contains(c, "-L")
+		},
+	},
+	{
+		Name:     "du-cap",
+		Note:     "du without a depth cap lists every subdirectory -- consider du -d1 or du -sh",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			c := strings.TrimSpace(cmd)
+			return cmd, duRe.MatchString(c) && !strings.Contains(c, "-s") && !strings.Contains(c, "-d") && !strings.Contains(c, "--max-depth")
+		},
+	},
+	{
+		Name:     "pkg-list-cap",
+		Note:     "full package list -- pipe through grep for the package you care about",
+		Advisory: true,
+		TryRewrite: func(cwd, cmd string) (string, bool) {
+			return cmd, pkgListRe.MatchString(strings.TrimSpace(cmd))
 		},
 	},
 }
