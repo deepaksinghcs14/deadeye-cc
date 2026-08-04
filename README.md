@@ -178,12 +178,63 @@ Three intensity levels:
 - Turn off mid-session by saying exactly `normal mode` or `stop coder`
 - Kill switch: `DEADEYE_CODER=off`
 
-When the persona deliberately cuts a corner with a known ceiling, it
+### How it works
+
+One canonical ruleset ships embedded in the deadeye binary. At every
+session start the background daemon prints it straight into the model's
+context, filtered to the active level — so a `marksman` session never
+pays tokens for the `spotter` and `sniper` rows. Long sessions hold: when
+Claude Code compacts the conversation, the SessionStart hook fires again
+and the persona is re-injected at whatever level you'd switched to.
+Subagents inherit it too — when the main session spawns one, the same
+filtered ruleset travels into it, so delegated work follows the same
+discipline (scope this with `coder.subagent_matcher` in config if you
+only want it in some agent types).
+
+Which level governs a session is resolved in strict order: the
+`DEADEYE_CODER=off` kill switch wins, then an explicit `/deadeye-coder`
+switch you made this session, then `coder.default_level` from config,
+then the built-in default (`marksman`). Level switches are handled by the
+daemon, take effect on your next message, and last until the session ends.
+
+### What it changes in a real task
+
+The persona is a decision ladder the model climbs before writing anything,
+stopping at the first rung that holds:
+
+1. Does this need to exist at all? Speculative need → skip it, say so in one line.
+2. Already in this codebase? Reuse the helper that's three files over.
+3. Standard library does it? Use it.
+4. Native platform feature covers it? A DB constraint over app code, CSS over JS.
+5. An already-installed dependency solves it? Never add a new one for what a few lines can do.
+6. Can it be one line? One line.
+7. Only then: the minimum code that works.
+
+Concretely, the same request comes back differently per level. Ask for
+"a cache for these API responses" and:
+
+- **spotter** builds the cache, then adds: "FYI: `functools.lru_cache`
+  covers this in one line if you'd rather not own a cache class."
+- **marksman** puts `@lru_cache(maxsize=1000)` on the fetch function and
+  notes what was skipped and when to add it.
+- **sniper** declines to cache until a profiler says so — and tells you
+  what one line to add when it does.
+
+Answers follow a fixed shape — code first, then at most three short
+lines: what was skipped, and when to add it. Bug fixes go to the root
+cause (one guard in the shared function every caller routes through, not
+a patch on the one path the ticket named). And the discipline never cuts
+safety: input validation, error handling that prevents data loss,
+security, and accessibility survive every level.
+
+When the persona does deliberately cut a corner with a known ceiling, it
 leaves a `deadeye:` comment naming the ceiling and the upgrade trigger —
 `/deadeye-debt` collects those into a ledger so shortcuts get tracked
-instead of forgotten. An optional statusline badge shows the live level;
-deadeye will offer (once) to set it up, and never edits your settings
-itself.
+instead of forgotten, `/deadeye-review` checks the current diff for
+over-engineering, and `/deadeye-sweep` audits the whole repo for what's
+still cuttable. An optional statusline badge shows each session's live
+level; deadeye will offer (once) to set it up, and never edits your
+settings itself.
 
 > **Already running another lean-coding persona plugin?** Uninstall it
 > before enabling coder mode — two overlapping personas means paying for

@@ -583,8 +583,43 @@ DEADEYE CODER ACTIVE — level: sniper
 7. Only then: the minimum code that works.</div>
       <p class="note" style="margin-top:14px">Off any time: say
         <code>normal mode</code>, or <code>DEADEYE_CODER=off</code>. An
-        optional statusline badge shows the live level — deadeye offers
-        the setup once and never edits your settings itself.</p>
+        optional statusline badge shows each session's live level — deadeye
+        offers the setup once and never edits your settings itself.</p>
+    </div>
+  </div>
+
+  <div class="two" style="margin-top:28px">
+    <div>
+      <div class="card">
+        <div class="card-top"><span>How it works</span><span>one ruleset, filtered</span></div>
+        <table>
+          <tbody>
+            <tr><td class="axis">Inject</td><td class="desc">The ruleset ships embedded in the binary. At every session start the daemon prints it into the model's context, filtered to the active level — a marksman session never pays tokens for the other levels' rows.</td><td class="mode"><span class="pill soft">start</span></td></tr>
+            <tr><td class="axis">Survive</td><td class="desc">When Claude Code compacts a long conversation, the hook fires again and re-injects at whatever level you'd switched to. No drift back to over-building.</td><td class="mode"><span class="pill soft">compact</span></td></tr>
+            <tr><td class="axis">Travel</td><td class="desc">Subagents inherit the same filtered ruleset when they spawn, so delegated work follows the same discipline. Scope it with <code>coder.subagent_matcher</code>.</td><td class="mode"><span class="pill soft">subagent</span></td></tr>
+            <tr><td class="axis">Resolve</td><td class="desc">Kill switch beats your session switch, beats <code>coder.default_level</code> in config, beats the built-in default. Switches last until the session ends.</td><td class="mode"><span class="pill soft">precedence</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="term"><span class="m">the same request, per level -- "add a cache for these API responses":</span>
+
+<span class="c">spotter</span>   Done, cache added. FYI: lru_cache covers
+          this in one line if you'd rather not own
+          a cache class.
+
+<span class="c">marksman</span>  @lru_cache(maxsize=1000) on the fetch
+          function. Skipped custom cache class, add
+          when lru_cache measurably falls short.
+
+<span class="c">sniper</span>    No cache until a profiler says so. When it
+          does: @lru_cache. A hand-rolled TTL cache
+          is a bug farm with a hit rate.</div>
+      <p class="note" style="margin-top:14px">Every answer keeps one shape:
+        code first, then at most three short lines — what was skipped, and
+        when to add it. Bug fixes go to the root cause every caller routes
+        through, not the one path the ticket named.</p>
     </div>
   </div>
 </section>
