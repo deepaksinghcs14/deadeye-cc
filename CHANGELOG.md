@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.13.0
+
+- **`deadeye update`** -- the one-command updater for hosts without the
+  plugin bootstrap (Codex-only installs): hash-compares the local
+  binary against the latest release's checksums.txt (no update needed
+  -> no download), sha256-verifies what it fetches, swaps it in with an
+  atomic rename, and reports the version the new binary actually
+  prints. Warns when a PATH binary shadows the managed copy. The daemon
+  version handshake makes the swap take effect on the next hook call.
+
 ## 0.12.0
 
 **Experimental Codex CLI support.** Codex's hooks system (v0.114+,

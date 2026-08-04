@@ -156,8 +156,10 @@ the coder persona (injected at session start, re-injected after
 compaction, level switching by typing `/deadeye-coder …` as a prompt),
 the plan gate (Codex edits arrive as `apply_patch`), `/deadeye-mute`,
 and the full decision log. Not on Codex: model routing (no subagent
-surface to route), the statusline badge, and self-updates (re-install
-the binary to update). Remove cleanly with `deadeye uninstall codex`.
+surface to route) and the statusline badge. Update any time with one
+command — `deadeye update` fetches the latest release, sha256-verifies
+it, and swaps it in atomically (the daemon hands over on the next hook
+call). Remove cleanly with `deadeye uninstall codex`.
 
 ### From source
 
@@ -191,6 +193,7 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye lessons [reset]` | Inspect (or clear) the recorded routing outcomes that bias future decisions |
+| `deadeye update` | Update the managed binary to the latest release (sha256-verified, atomic) — the one-command updater for Codex-only installs |
 | `deadeye uninstall --purge` | Removes the binary, its background process, and all local state |
 
 ## Coder mode

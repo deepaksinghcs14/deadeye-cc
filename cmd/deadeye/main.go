@@ -35,6 +35,8 @@ func main() {
 		runCapture(argOr(2, ""))
 	case "init":
 		runInit(os.Args[2:])
+	case "update":
+		runUpdate()
 	case "uninstall":
 		runUninstall(os.Args[2:])
 	case "version":
