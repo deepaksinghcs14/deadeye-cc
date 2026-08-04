@@ -29,6 +29,8 @@ func main() {
 		runAudit()
 	case "gain":
 		runGain()
+	case "lessons":
+		runLessons(os.Args[2:])
 	case "capture":
 		runCapture(argOr(2, ""))
 	case "uninstall":

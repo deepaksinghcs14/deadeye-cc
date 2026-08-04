@@ -52,8 +52,10 @@ const (
 // present -- Claude Code rejects the entire response otherwise. Only
 // PreToolUse, UserPromptSubmit, PostToolUse, PostToolBatch, and
 // Stop/SubagentStop accept hookSpecificOutput at all; SessionStart does
-// NOT (use Output.SystemMessage for that event instead -- see ForEvent
-// and docs/verified.md V6 for how this was confirmed live).
+// NOT (use Output.Raw for that event -- raw stdout is the one mechanism
+// proven to reach model context there; docs/verified.md §11, superseding
+// §5.1's SystemMessage suggestion, which the schema accepts but the
+// model never sees).
 //
 // UpdatedInput does NOT have merge semantics -- corrected live in Phase 3
 // (docs/verified.md), overturning an earlier docs-derived assumption that
@@ -102,7 +104,7 @@ func Empty() Output { return Output{} }
 // HookEventName filled in for the given event, so that required field can
 // never be forgotten by a caller building a PreToolUse/UserPromptSubmit/
 // PostToolUse/PostToolBatch/Stop/SubagentStop response. Do not use this
-// for SessionStart -- see Output.SystemMessage instead.
+// for SessionStart -- use Output.Raw there (docs/verified.md §11).
 func ForEvent(event string) Output {
 	return Output{HookSpecificOutput: &HookSpecificOutput{HookEventName: event}}
 }

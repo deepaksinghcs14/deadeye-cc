@@ -154,10 +154,12 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 | `/deadeye-audit` | Prints a savings report straight from the decision log |
 | `/deadeye-gain` | Compact measured-impact scoreboard from the same log |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
+| `/deadeye-mute [off]` | Mute advisories, plan-gate nags, and workflow hints for this session (rewrites keep working) |
 | `/deadeye-review` | Over-engineering review of the current diff |
 | `/deadeye-sweep` | Whole-repo over-engineering audit |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
+| `deadeye lessons [reset]` | Inspect (or clear) the recorded routing outcomes that bias future decisions |
 | `deadeye uninstall --purge` | Removes the binary, its background process, and all local state |
 
 ## Coder mode
@@ -193,7 +195,7 @@ Claude Code compacts the conversation, the SessionStart hook fires again
 and the persona is re-injected at whatever level you'd switched to.
 Subagents inherit it too — but not the whole thing: they get a condensed
 card carrying just the behavior-bearing rules. Measured from the decision
-log: **5,269 bytes per spawn before, 764 after — an 85.5% cut**, paid on
+log: **6,029 bytes per spawn before, 887 after — an 85.3% cut**, paid on
 every single subagent your sessions ever launch. (Scope subagent
 injection with `coder.subagent_matcher` in config if you only want it in
 some agent types.)

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -139,4 +140,35 @@ func waitForSocket(t *testing.T, timeout time.Duration) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatal("daemon socket never came up")
+}
+
+// TestFreshEmptyLockIsNotStale: acquireLock creates the file then writes
+// the pid -- a second daemon arriving in that window must treat the fresh
+// empty lock as in-progress, not stale (the two-winners race).
+func TestFreshEmptyLockIsNotStale(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(meta.StateDir(), 0o700)
+	path := meta.LockPath()
+	os.WriteFile(path, nil, 0o600) // empty, mtime = now
+	if lockIsStale(path) {
+		t.Error("fresh empty lock treated as stale -- two-winners race is open")
+	}
+	old := time.Now().Add(-time.Minute)
+	os.Chtimes(path, old, old)
+	if !lockIsStale(path) {
+		t.Error("a minute-old empty lock is a corpse and must be stale")
+	}
+}
+
+// TestSocketPathFallsBackUnderLongHome: sockaddr_un caps around 104
+// bytes; a long $HOME must resolve to the deterministic TempDir fallback
+// instead of a path net.Listen will reject.
+func TestSocketPathFallsBackUnderLongHome(t *testing.T) {
+	long := filepath.Join(t.TempDir(), strings.Repeat("verylongdirectoryname", 6))
+	os.MkdirAll(long, 0o700)
+	t.Setenv("HOME", long)
+	p := meta.SocketPath()
+	if len(p) > 104 {
+		t.Errorf("socket path %d bytes (%s) -- bind would fail with invalid argument", len(p), p)
+	}
 }

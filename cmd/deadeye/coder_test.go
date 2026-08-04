@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -379,9 +380,9 @@ func TestPostToolUseObservesOnlyLargeResponses(t *testing.T) {
 	state.logs = logstore.Open(logPath)
 
 	small := hookio.Input{SessionID: "s1", ToolName: "Read", ToolResponse: []byte(strings.Repeat("a", 100))}
-	decidePostToolUse(small, state)
+	decidePostToolUse(small, config.Default(), state)
 	big := hookio.Input{SessionID: "s1", ToolName: "Grep", ToolResponse: []byte(strings.Repeat("a", observeThresholdBytes+1))}
-	decidePostToolUse(big, state)
+	decidePostToolUse(big, config.Default(), state)
 
 	b, _ := os.ReadFile(logPath)
 	if got := strings.Count(string(b), `"observed"`); got != 1 {
@@ -389,5 +390,102 @@ func TestPostToolUseObservesOnlyLargeResponses(t *testing.T) {
 	}
 	if !strings.Contains(string(b), `"Grep"`) && !strings.Contains(string(b), "Grep") {
 		t.Errorf("observed row should name the tool:\n%s", b)
+	}
+}
+
+// TestMuteSilencesAdvisoriesNotRewrites: /deadeye-mute stands down every
+// nag surface for the session while silent rewrites keep working.
+func TestMuteSilencesAdvisoriesNotRewrites(t *testing.T) {
+	state := coderTestState(t)
+	cfg := config.Default()
+
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-mute", Cwd: t.TempDir()}, cfg, "", state)
+	if !strings.Contains(out.HookSpecificOutput.AdditionalContext, "DEADEYE MUTED") {
+		t.Fatal("mute confirmation missing")
+	}
+
+	// Grep advisory: silent while muted.
+	grep := hookio.Input{SessionID: "s1", ToolName: "Grep", ToolInput: []byte(`{"pattern":"x","output_mode":"content"}`)}
+	if out := decidePreToolUse(grep, cfg, state); out.HookSpecificOutput != nil {
+		t.Error("grep advisory fired while muted")
+	}
+	// Bash advisory rule (bare git diff): silent while muted.
+	diff := hookio.Input{SessionID: "s1", ToolName: "Bash", ToolInput: []byte(`{"command":"git diff"}`)}
+	if out := decidePreToolUse(diff, cfg, state); out.HookSpecificOutput != nil {
+		t.Error("bash advisory fired while muted")
+	}
+	// Rewrites still fire: they save tokens silently, muting must not stop them.
+	test := hookio.Input{SessionID: "s1", ToolName: "Bash", ToolInput: []byte(`{"command":"go test ./..."}`)}
+	if out := decidePreToolUse(test, cfg, state); out.HookSpecificOutput == nil || out.HookSpecificOutput.UpdatedInput == nil {
+		t.Error("rewrite must keep working while muted")
+	}
+
+	// Unmute restores.
+	out = decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-mute off", Cwd: t.TempDir()}, cfg, "", state)
+	if !strings.Contains(out.HookSpecificOutput.AdditionalContext, "DEADEYE UNMUTED") {
+		t.Fatal("unmute confirmation missing")
+	}
+	if out := decidePreToolUse(grep, cfg, state); out.HookSpecificOutput == nil {
+		t.Error("grep advisory should fire again after unmute")
+	}
+}
+
+// TestAdvisoryDisableSymmetry: the non-Bash advisories honor
+// preprocess.disabled_rules like every Bash rule does.
+func TestAdvisoryDisableSymmetry(t *testing.T) {
+	state := coderTestState(t)
+	cfg := config.Default()
+	cfg.Preprocess.DisabledRules = []string{"grep-limit", "repeat-command"}
+
+	grep := hookio.Input{SessionID: "s1", ToolName: "Grep", ToolInput: []byte(`{"pattern":"x","output_mode":"content"}`)}
+	if out := decidePreToolUse(grep, cfg, state); out.HookSpecificOutput != nil {
+		t.Error("disabled grep-limit still fired")
+	}
+	echoTwice := hookio.Input{SessionID: "s1", ToolName: "Bash", ToolInput: []byte(`{"command":"echo hi"}`)}
+	decidePreToolUse(echoTwice, cfg, state)
+	if out := decidePreToolUse(echoTwice, cfg, state); out.HookSpecificOutput != nil {
+		t.Error("disabled repeat-command still fired")
+	}
+}
+
+// TestObservationGatedByPreprocessSwitch: DEADEYE_PREPROCESS=off must
+// silence the response-size observation too -- "independently switchable"
+// includes the logging.
+func TestObservationGatedByPreprocessSwitch(t *testing.T) {
+	state := coderTestState(t)
+	logPath := filepath.Join(t.TempDir(), "d.jsonl")
+	state.logs = logstore.Open(logPath)
+	cfg := config.Default()
+	cfg.Mode.Preprocess = "off"
+	big := hookio.Input{SessionID: "s1", ToolName: "Read", ToolResponse: []byte(strings.Repeat("a", observeThresholdBytes+1))}
+	decidePostToolUse(big, cfg, state)
+	if b, _ := os.ReadFile(logPath); len(b) > 0 {
+		t.Errorf("observation logged despite preprocess off:\n%s", b)
+	}
+}
+
+// TestStatuslineNudgeConcurrentClaim: N racing SessionStarts produce at
+// most one nudge -- the O_EXCL create is the atomic claim.
+func TestStatuslineNudgeConcurrentClaim(t *testing.T) {
+	state := coderTestState(t)
+	var wg sync.WaitGroup
+	nudges := make(chan string, 16)
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if n := statuslineNudge("/plugin/root", "", state, "s"); n != "" {
+				nudges <- n
+			}
+		}()
+	}
+	wg.Wait()
+	close(nudges)
+	count := 0
+	for range nudges {
+		count++
+	}
+	if count != 1 {
+		t.Errorf("nudge fired %d times under concurrency; contract is once ever", count)
 	}
 }

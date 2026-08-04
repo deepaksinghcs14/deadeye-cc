@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+## 0.10.0
+
+Everything from the second deep sweep: five reliability fixes, the truth
+drift, and three product gaps.
+
+Reliability:
+- Daemon lock acquisition no longer has a two-winners race: a fresh empty
+  lock is a daemon mid-acquisition, not a corpse.
+- The statusline nudge's once-ever contract now holds under concurrent
+  session starts (atomic O_EXCL claim instead of stat-then-write).
+- Daemon requests are capped at 8 MB (`io.LimitReader`) -- one oversized
+  payload can't balloon the shared daemon.
+- Long `$HOME` no longer silently defeats the daemon: past the ~104-byte
+  unix-socket path limit, the socket falls back to a deterministic
+  uid-keyed path under the temp dir.
+- `deadeye uninstall` refuses to remove state while the daemon is still
+  alive, instead of reporting success and orphaning it.
+
+Product:
+- **`/deadeye-mute [off]`** -- session-scoped mute for advisories,
+  plan-gate nags, and workflow hints. Silent rewrites keep working; a
+  `plan_gate: hard` setting keeps enforcing.
+- **`preprocess.disabled_rules` now also covers `grep-limit`,
+  `read-advice`, and `repeat-command`** -- disable one advisory without
+  killing all of preprocess.
+- **`deadeye lessons [reset]`** -- inspect or clear the recorded routing
+  outcomes that bias future decisions.
+- The statusline shows `[DEADEYE:OFF]` / `[DEADEYE:CODER OFF]` when a
+  kill switch is active -- silence is no longer ambiguous.
+- Response-size observation is now gated by `mode.preprocess`, closing a
+  gap in the "every axis independently switchable" guarantee.
+
+Truth:
+- `/deadeye-gain` no longer labels large Read/Grep/Glob/WebFetch
+  responses as "MCP observed" -- two separately labeled streams -- and
+  its Advisories caption now matches what's actually counted.
+- README/site subagent-card numbers re-measured after 0.8.0's ruleset
+  growth: 6,029 -> 887 bytes per spawn (85.3%).
+- Stale comments pointing at the superseded SessionStart SystemMessage
+  mechanism now point at raw stdout (verified.md §11); §5.1 carries a
+  supersession banner; the schema names every disableable rule.
+
 ## 0.9.1
 
 - **Fix: 0.9.0's Grep advisory and Read/Grep/Glob/WebFetch/WebSearch

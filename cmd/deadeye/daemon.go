@@ -105,7 +105,10 @@ func handleConn(conn net.Conn, state *daemonState) {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
 
-	raw, err := io.ReadAll(conn)
+	// Bounded read: the daemon is one shared process serving every session,
+	// so one oversized payload must not balloon its memory. Past the cap the
+	// JSON is truncated, Unmarshal fails, and the request fails open to {}.
+	raw, err := io.ReadAll(io.LimitReader(conn, maxRequestBytes))
 	if err != nil {
 		conn.Write([]byte("{}"))
 		return
@@ -171,10 +174,23 @@ func lockIsStale(path string) bool {
 	}
 	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
 	if err != nil {
-		return true // an unparseable lock was never written by a real daemon
+		// Unparseable usually means never-written-by-a-real-daemon -- but
+		// acquireLock creates the file and writes the pid in two steps, so
+		// a FRESH empty lock is a daemon mid-acquisition, not a corpse.
+		// Deleting it here is the two-winners race: both daemons proceed,
+		// one binds the socket, and the loser has already destroyed the
+		// winner's lock entry.
+		if fi, statErr := os.Stat(path); statErr == nil && time.Since(fi.ModTime()) < 10*time.Second {
+			return false
+		}
+		return true
 	}
 	return !processAlive(pid) && !probeAlive(meta.SocketPath())
 }
+
+// maxRequestBytes caps a single hook request. Generous: the largest real
+// payloads are MCP tool_responses, observed well under 1MB.
+const maxRequestBytes = 8 << 20
 
 func probeAlive(sockPath string) bool {
 	conn, err := net.DialTimeout("unix", sockPath, 50*time.Millisecond)

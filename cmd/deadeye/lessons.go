@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
 
@@ -92,4 +94,34 @@ func familyToAnyModelID(state *daemonState, family string) string {
 		}
 	}
 	return ""
+}
+
+// runLessons backs `deadeye lessons [reset]`: the raw view (and the only
+// reset) for the outcomes store that biases routing thresholds. One bad
+// early escalation otherwise biases a task shape for up to the 30-day
+// recency window with no way to inspect or clear it.
+func runLessons(args []string) {
+	if len(args) > 0 && args[0] == "reset" {
+		outcomes, _ := lessons.Scan(meta.OutcomesPath())
+		if err := os.Remove(meta.OutcomesPath()); err != nil && !os.IsNotExist(err) {
+			fmt.Fprintln(os.Stderr, "deadeye lessons reset:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("cleared %d recorded outcomes.\n", len(outcomes))
+		fmt.Println(cDim("A running daemon keeps its in-memory copy until it restarts;"))
+		fmt.Println(cDim("it exits after 30 idle minutes, or stop it with: deadeye uninstall (any hook respawns it)."))
+		return
+	}
+
+	outcomes, err := lessons.Scan(meta.OutcomesPath())
+	if err != nil || len(outcomes) == 0 {
+		fmt.Println("No recorded outcomes. Routing thresholds are unbiased.")
+		return
+	}
+	fmt.Println(cHead("Recorded outcomes") + cDim("  (each biases the downshift threshold for its task shape; 30-day recency window)"))
+	for _, o := range outcomes {
+		fmt.Printf("  %s  %-12s %-40s %s/%s  weight %.1f\n", cDim(o.TS), o.Kind, o.TaskShape, o.Model, o.Effort, o.Weight)
+	}
+	fmt.Println()
+	fmt.Println(cDim("Clear everything: ") + cValue("deadeye lessons reset"))
 }

@@ -38,6 +38,7 @@ type sessionState struct {
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
 	coderLevel          string            // coder-mode session level; "" = unset (config default applies), "off" = explicitly off
 	nativeRestore       bool              // SessionStart arrived with source resume/compact -- Claude Code restored context itself
+	muted               bool              // /deadeye-mute: advisory surfaces stand down for this session (rewrites and the hard gate stay)
 }
 
 // daemonState is the daemon's whole world: catalog loaded once at startup,
@@ -306,6 +307,18 @@ func (d *daemonState) nativeRestoreFor(sessionID string) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.getOrCreate(sessionID).nativeRestore
+}
+
+func (d *daemonState) setMuted(sessionID string, muted bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).muted = muted
+}
+
+func (d *daemonState) isMuted(sessionID string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.getOrCreate(sessionID).muted
 }
 
 // endSession evicts sessionID's in-memory state at SessionEnd. Call this

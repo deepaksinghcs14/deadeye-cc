@@ -40,6 +40,8 @@ func renderGain(logPath string) {
 		advisories    int
 		mcpObserved   int
 		mcpBytes      int
+		bigObserved   int
+		bigBytes      int
 		coderInjects  int
 	)
 	perRuleMeasured := map[string][2]int{} // rule -> {runs, bytes}
@@ -59,8 +61,16 @@ func renderGain(logPath string) {
 		case "advise":
 			advisories++
 		case "observed":
-			mcpObserved++
-			mcpBytes += r.BytesAfter
+			// Two distinct evidence streams share the action: MCP tool
+			// responses, and large built-in-tool responses (Read/Grep/
+			// Glob/WebFetch/WebSearch over the observation threshold).
+			if strings.HasPrefix(r.Reason, "mcp__") {
+				mcpObserved++
+				mcpBytes += r.BytesAfter
+			} else {
+				bigObserved++
+				bigBytes += r.BytesAfter
+			}
 		case "coder-inject":
 			coderInjects++
 		}
@@ -80,9 +90,12 @@ func renderGain(logPath string) {
 			fmt.Printf("      %-14s %dx  %s bytes real output\n", rule, e[0], fmtBytes(e[1]))
 		}
 	}
-	fmt.Printf("  %s        %s nudges %s\n", cHead("Advisories"), cValue(fmt.Sprintf("%d", advisories)), cDim("(repeat reads, large files, plan-first, routing)"))
+	fmt.Printf("  %s        %s nudges %s\n", cHead("Advisories"), cValue(fmt.Sprintf("%d", advisories)), cDim("(repeat reads/commands, large files, unbounded dumps, routing)"))
 	if mcpObserved > 0 {
 		fmt.Printf("  %s      %d responses, %s bytes %s\n", cHead("MCP observed"), mcpObserved, fmtBytes(mcpBytes), cDim("(evidence base, no rules yet)"))
+	}
+	if bigObserved > 0 {
+		fmt.Printf("  %s   %d large tool responses, %s bytes %s\n", cHead("Also observed"), bigObserved, fmtBytes(bigBytes), cDim("(Read/Grep/Glob/WebFetch over threshold -- evidence base)"))
 	}
 	if coderInjects > 0 {
 		fmt.Printf("  %s        %s session injections\n", cHead("Coder mode"), cValue(fmt.Sprintf("%d", coderInjects)))

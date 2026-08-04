@@ -148,7 +148,16 @@ func statuslineNudge(pluginRoot, configDir string, state *daemonState, sessionID
 		}
 	}
 
-	_ = os.WriteFile(meta.StatuslineNudgedPath(), []byte("1\n"), 0o600)
+	// O_EXCL create is the atomic once-ever claim: two sessions starting
+	// concurrently both pass the Stat above, but only one wins this create
+	// -- a plain stat-then-write let both nudge.
+	_ = os.MkdirAll(meta.StateDir(), 0o700)
+	f, err := os.OpenFile(meta.StatuslineNudgedPath(), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return "" // another session claimed the nudge first
+	}
+	_, _ = f.WriteString("1\n")
+	f.Close()
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: sessionID, Surface: "SessionStart", Action: "statusline-nudge"})
 
 	script := filepath.Join(pluginRoot, "hooks", "deadeye-statusline.sh")

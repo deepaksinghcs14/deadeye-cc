@@ -5,6 +5,7 @@
 package meta
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -22,7 +23,7 @@ const Name = "deadeye"
 // compiled-in dev string instead of the real tag on both, caught only by
 // checking the actual downloaded release binary's output, not by reading
 // this file.
-var Version = "0.9.1-dev"
+var Version = "0.10.0-dev"
 
 // StateDir returns ~/.deadeye, creating no directories itself.
 func StateDir() string {
@@ -35,7 +36,19 @@ func StateDir() string {
 	return filepath.Join(home, ".deadeye")
 }
 
-func SocketPath() string    { return filepath.Join(StateDir(), "deadeye.sock") }
+// SocketPath is normally $HOME/.deadeye/deadeye.sock. Unix sockaddr paths
+// cap around 104 bytes (macOS; 108 Linux) and net.Listen fails with
+// "invalid argument" past it -- a long corporate $HOME would otherwise
+// silently defeat the daemon and re-spawn a doomed process on every hook
+// call. The fallback is deterministic (uid-keyed under TempDir), so every
+// client and daemon on the machine resolves the same path.
+func SocketPath() string {
+	p := filepath.Join(StateDir(), "deadeye.sock")
+	if len(p) <= 100 {
+		return p
+	}
+	return filepath.Join(os.TempDir(), fmt.Sprintf("deadeye-%d.sock", os.Getuid()))
+}
 func CoderModePath() string { return filepath.Join(StateDir(), "coder-mode") }
 
 // CoderModePathFor is the per-session statusline mirror -- the statusline

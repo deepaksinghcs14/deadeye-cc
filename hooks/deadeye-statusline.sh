@@ -7,6 +7,16 @@
 # empty statusline segment, not an error.
 set -u
 
+# A kill switch makes deadeye silent by design -- but silence is
+# indistinguishable from "forgot I turned it off". Surface it. Env check
+# only: no sockets, no files, nothing slow on the statusline render path.
+if [ "${DEADEYE:-}" = "off" ]; then
+  printf '\033[38;5;245m[DEADEYE:OFF]\033[0m'; exit 0
+fi
+if [ "${DEADEYE_CODER:-}" = "off" ]; then
+  printf '\033[38;5;245m[DEADEYE:CODER OFF]\033[0m'; exit 0
+fi
+
 MODE_FILE="$HOME/.deadeye/coder-mode"
 sid="$(cat 2>/dev/null | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
 if [ -n "$sid" ]; then

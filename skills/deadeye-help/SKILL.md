@@ -31,10 +31,14 @@ Present this reference card, formatted cleanly:
 | `/deadeye-audit` | Token-savings report from the decision log |
 | `/deadeye-gain` | Compact measured-impact scoreboard |
 | `/deadeye-coder [level]` | Switch/report the coder persona level |
+| `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
 | `/deadeye-review` | Over-engineering review of the current diff |
 | `/deadeye-sweep` | Whole-repo over-engineering audit |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
 | `/deadeye-help` | This card |
+
+CLI-only: `deadeye lessons [reset]` inspects/clears the recorded routing
+outcomes that bias future decisions.
 
 ## Kill switches (env)
 

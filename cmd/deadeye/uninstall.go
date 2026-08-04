@@ -21,7 +21,13 @@ func runUninstall(args []string) {
 		}
 	}
 
-	stopDaemon()
+	stopped, pid := stopDaemon()
+	if !stopped {
+		// Removing the socket (or the whole state dir) out from under a
+		// daemon that's still alive orphans it and lies about the result.
+		fmt.Fprintf(os.Stderr, "deadeye uninstall: daemon (pid %d) did not exit within 2s -- nothing removed; retry, or kill the process manually\n", pid)
+		os.Exit(1)
+	}
 
 	if purge {
 		if err := os.RemoveAll(meta.StateDir()); err != nil {
@@ -36,18 +42,18 @@ func runUninstall(args []string) {
 	fmt.Println("stopped daemon; state kept at", meta.StateDir(), "(use --purge to remove it)")
 }
 
-// stopDaemon reads the pid the daemon wrote to its lockfile and asks it to
-// exit. Best-effort: if the lockfile is stale or the signal isn't
-// supported (Windows), the caller still proceeds -- purge removes the
-// socket file regardless, and a dead daemon holding no lock is harmless.
-func stopDaemon() {
+// stopDaemon reads the pid the daemon wrote to its lockfile and asks it
+// to exit. Returns stopped=true only when the daemon is confirmed gone
+// (socket silent) -- the caller must not destroy state a live daemon
+// still owns.
+func stopDaemon() (stopped bool, pid int) {
 	b, err := os.ReadFile(meta.LockPath())
 	if err != nil {
-		return
+		return !probeAlive(meta.SocketPath()), 0
 	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	pid, err = strconv.Atoi(strings.TrimSpace(string(b)))
 	if err != nil {
-		return
+		return !probeAlive(meta.SocketPath()), 0
 	}
 	// On Unix, os.FindProcess(pid) never errors regardless of whether pid
 	// actually exists -- it's not a real existence check on this
@@ -56,11 +62,11 @@ func stopDaemon() {
 	// whose pid was later recycled by the OS for an unrelated process
 	// would get SIGINT'd by `deadeye uninstall`.
 	if !probeAlive(meta.SocketPath()) {
-		return
+		return true, pid
 	}
 	proc, err := os.FindProcess(pid)
 	if err != nil {
-		return
+		return false, pid
 	}
 	_ = proc.Signal(os.Interrupt)
 
@@ -71,8 +77,9 @@ func stopDaemon() {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		if !probeAlive(meta.SocketPath()) {
-			return
+			return true, pid
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
+	return false, pid
 }

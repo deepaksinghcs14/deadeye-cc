@@ -51,7 +51,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	case "PreToolUse":
 		out = decidePreToolUse(in, cfg, state)
 	case "PostToolUse":
-		out = decidePostToolUse(in, state)
+		out = decidePostToolUse(in, cfg, state)
 	case "SubagentStart":
 		out = decideSubagentStart(in, cfg, state)
 	case "Stop":
@@ -69,10 +69,11 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 // than separate hook responses (there's only one additionalContext slot
 // per response).
 //
-// SessionStart cannot put anything in the model's context in Claude Code
-// v2.1.220 (docs/verified.md §5.1); UserPromptSubmit's additionalContext
-// is the confirmed-working replacement, gated to fire exactly once per
-// session so it stays byte-stable (INV-4).
+// SessionStart CAN inject via raw stdout (docs/verified.md §11, which
+// superseded §5.1's "impossible" conclusion) -- the coder persona uses
+// exactly that. THIS injection stays on UserPromptSubmit anyway: it fires
+// exactly once per session for INV-4 byte-stability, which SessionStart's
+// startup/resume/clear/compact multiplicity can't offer.
 func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion string, state *daemonState) hookio.Output {
 	var parts []string
 
@@ -80,6 +81,9 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion st
 	// leads the combined context. Synthetic prompts can't be commands, but
 	// the house guard applies everywhere prompts are parsed.
 	if !isSyntheticPrompt(in.Prompt) {
+		if confirm := muteTracker(in, state); confirm != "" {
+			parts = append(parts, confirm)
+		}
 		if confirm := coderTracker(in, cfg, state); confirm != "" {
 			parts = append(parts, confirm)
 		}
@@ -107,12 +111,13 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion st
 		parts = append(parts, text)
 	}
 
-	if suggestion, fired := decidePlanGateSoft(in, cfg, state); fired {
-		parts = append(parts, suggestion)
-	}
-
-	if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired {
-		parts = append(parts, suggestion)
+	if !state.isMuted(in.SessionID) {
+		if suggestion, fired := decidePlanGateSoft(in, cfg, state); fired {
+			parts = append(parts, suggestion)
+		}
+		if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired {
+			parts = append(parts, suggestion)
+		}
 	}
 
 	if len(parts) == 0 {
@@ -293,7 +298,7 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 
 	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, cfg.DisabledRuleSet())
 	if !applied {
-		if repeat {
+		if repeat && !cfg.DisabledRuleSet()["repeat-command"] && !state.isMuted(in.SessionID) {
 			out := hookio.ForEvent("PreToolUse")
 			out.HookSpecificOutput.AdditionalContext = "deadeye: identical to the previous command, with no file changes in between -- the output is unlikely to differ."
 			state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "repeat-command"})
@@ -304,6 +309,9 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 
 	out := hookio.ForEvent("PreToolUse")
 	if rule.Advisory {
+		if state.isMuted(in.SessionID) {
+			return hookio.Empty()
+		}
 		out.HookSpecificOutput.AdditionalContext = "deadeye: " + rule.Note
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: rule.Name})
 		return out
@@ -344,7 +352,7 @@ const largeReadBytes = 200 * 1024
 // Gated under mode.preprocess: it's context hygiene, same family as the
 // Bash-output rules, and every surface must have an off switch.
 func decideReadAdvice(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
-	if cfg.Mode.Preprocess != "on" {
+	if cfg.Mode.Preprocess != "on" || cfg.DisabledRuleSet()["read-advice"] || state.isMuted(in.SessionID) {
 		return hookio.Empty()
 	}
 	var ri readInput
@@ -391,7 +399,7 @@ type grepInput struct {
 // scope. Advisory only, once per session (a reminder, not a nag);
 // files_with_matches/count modes are already bounded.
 func decideGrepAdvice(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
-	if cfg.Mode.Preprocess != "on" {
+	if cfg.Mode.Preprocess != "on" || cfg.DisabledRuleSet()["grep-limit"] || state.isMuted(in.SessionID) {
 		return hookio.Empty()
 	}
 	var gi grepInput
@@ -407,7 +415,13 @@ func decideGrepAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 	return out
 }
 
-func decidePostToolUse(in hookio.Input, state *daemonState) hookio.Output {
+func decidePostToolUse(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	// The whole surface is context hygiene, so the preprocess switch
+	// governs it -- "every axis independently switchable" includes the
+	// observation logging, not just the surfaces that touch context.
+	if cfg.Mode.Preprocess != "on" {
+		return hookio.Empty()
+	}
 	switch {
 	case in.ToolName == "Bash":
 		var bi bashInput

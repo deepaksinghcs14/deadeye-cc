@@ -127,7 +127,7 @@ func TestPostToolUseMeasuresRewrittenCommand(t *testing.T) {
 
 	response := json.RawMessage(`{"stdout":"--- FAIL: TestX\nFAIL\n","stderr":""}`)
 	postInput, _ := json.Marshal(map[string]any{"command": rewritten.Command})
-	decidePostToolUse(hookio.Input{SessionID: "s1", ToolName: "Bash", ToolInput: postInput, ToolResponse: response}, state)
+	decidePostToolUse(hookio.Input{SessionID: "s1", ToolName: "Bash", ToolInput: postInput, ToolResponse: response}, config.Default(), state)
 
 	records, err := logstore.Scan(logPath)
 	if err != nil {
@@ -151,7 +151,7 @@ func TestPostToolUseMeasuresRewrittenCommand(t *testing.T) {
 
 	// A second PostToolUse for the same command must NOT measure again --
 	// the pending rewrite is consumed once.
-	decidePostToolUse(hookio.Input{SessionID: "s1", ToolName: "Bash", ToolInput: postInput, ToolResponse: response}, state)
+	decidePostToolUse(hookio.Input{SessionID: "s1", ToolName: "Bash", ToolInput: postInput, ToolResponse: response}, config.Default(), state)
 	records, _ = logstore.Scan(logPath)
 	n := 0
 	for _, r := range records {
@@ -172,7 +172,7 @@ func TestPostToolUseObservesMCPTools(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, logstore.Open(logPath))
 
 	response := json.RawMessage(`{"big":"` + strings.Repeat("x", 500) + `"}`)
-	decidePostToolUse(hookio.Input{SessionID: "s1", ToolName: "mcp__github__search", ToolResponse: response}, state)
+	decidePostToolUse(hookio.Input{SessionID: "s1", ToolName: "mcp__github__search", ToolResponse: response}, config.Default(), state)
 
 	records, err := logstore.Scan(logPath)
 	if err != nil {

@@ -20,7 +20,7 @@ type Record struct {
 	TS             string `json:"ts"`
 	SessionID      string `json:"session_id,omitempty"`
 	Surface        string `json:"surface"` // e.g. "PreToolUse/Bash"
-	Action         string `json:"action"`  // e.g. "rewrite", "advise", "noop"
+	Action         string `json:"action"`  // e.g. "rewrite", "advise", "measured", "observed"
 	Reason         string `json:"reason,omitempty"`
 	BytesBeforeEst int    `json:"bytes_before_est,omitempty"`
 	BytesAfter     int    `json:"bytes_after,omitempty"`
