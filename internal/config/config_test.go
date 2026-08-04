@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
 
 // TestLoadForReadsProjectConfigFromGivenCwd is the regression test for the
