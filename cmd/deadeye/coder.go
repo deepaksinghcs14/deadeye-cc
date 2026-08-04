@@ -80,7 +80,7 @@ func sweepStaleModeFiles() {
 // decideCoderSessionStart delivers the persona at every session start --
 // including source: compact, so the ruleset survives compaction (raw
 // stdout delivery, docs/verified.md §11).
-func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, configDir string, state *daemonState) hookio.Output {
+func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, configDir, host string, state *daemonState) hookio.Output {
 	// A resume replays the full transcript and a compact carries Claude
 	// Code's own summary -- either way the re-orientation tax deadeye's
 	// session memory exists to cut is already paid, so the next-prompt
@@ -111,6 +111,16 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionStart",
 		Action: "coder-inject", Reason: reason, BytesAfter: len(text),
 	})
+	if host == "codex" {
+		// Codex reads hookSpecificOutput.additionalContext on this surface
+		// (verified.md §12) -- no raw-stdout workaround needed there.
+		out := hookio.ForEvent(in.HookEventName)
+		if out.HookSpecificOutput.HookEventName == "" {
+			out.HookSpecificOutput.HookEventName = "SessionStart"
+		}
+		out.HookSpecificOutput.AdditionalContext = text
+		return out
+	}
 	out := hookio.Empty()
 	out.Raw = []byte(text)
 	return out

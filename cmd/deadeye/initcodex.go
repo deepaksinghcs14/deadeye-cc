@@ -1,0 +1,279 @@
+package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
+)
+
+// codexHookScript is the adapter written to ~/.deadeye/hooks/. A canary
+// test keeps it byte-identical to hooks/deadeye-codex-hook.sh.
+const codexHookScript = `#!/usr/bin/env bash
+# deadeye hook adapter for Codex CLI. Installed by ` + "`deadeye init codex`" + `
+# to ~/.deadeye/hooks/ and referenced from ~/.codex/hooks.json. Same
+# contract as the Claude Code adapter minus the plugin bootstrap: Codex
+# installs have no marketplace, so the binary that ran ` + "`init codex`" + ` is
+# the binary; updates are manual.
+set -u
+EVENT="${1:-}"
+
+BIN="$(command -v deadeye 2>/dev/null || true)"
+if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then
+  BIN="$HOME/.deadeye/bin/deadeye"
+fi
+if [ ! -x "$BIN" ]; then
+  cat > /dev/null 2>&1 || true
+  printf '{}'
+  exit 0
+fi
+
+# Capture rather than exec: if the binary dies without output, Codex
+# still gets valid JSON (fail open, INV-5).
+out="$("$BIN" hook "$EVENT" --host codex 2>/dev/null)" || true
+[ -n "$out" ] || out="{}"
+printf '%s' "$out"
+`
+
+// codexEvents is what init codex registers. SessionEnd is included even
+// though verified.md §12 saw it never fire under `codex exec` -- harmless
+// if silent, useful if interactive sessions emit it. PreCompact,
+// PermissionRequest, SubagentStart/Stop: deliberately not registered.
+var codexEvents = []struct{ event, matcher string }{
+	{"SessionStart", ""},
+	{"UserPromptSubmit", ""},
+	{"PreToolUse", "^(Bash|apply_patch)$"},
+	{"PostToolUse", "^(Bash|apply_patch|mcp__.*)$"},
+	{"PostCompact", ""},
+	{"Stop", ""},
+	{"SessionEnd", ""},
+}
+
+func codexHooksPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".codex", "hooks.json"), nil
+}
+
+func codexScriptPath() string {
+	return filepath.Join(meta.StateDir(), "hooks", "deadeye-codex-hook.sh")
+}
+
+// runInit backs `deadeye init codex [--yes]`.
+func runInit(args []string) {
+	if len(args) == 0 || args[0] != "codex" {
+		fmt.Fprintln(os.Stderr, "usage: deadeye init codex [--yes]")
+		os.Exit(2)
+	}
+	assumeYes := false
+	for _, a := range args[1:] {
+		if a == "--yes" || a == "-y" {
+			assumeYes = true
+		}
+	}
+
+	hooksPath, err := codexHooksPath()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye init codex:", err)
+		os.Exit(1)
+	}
+	if _, err := os.Stat(filepath.Dir(hooksPath)); err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye init codex: ~/.codex not found -- is Codex CLI installed?")
+		os.Exit(1)
+	}
+
+	// Build the proposed hooks.json: existing content preserved, our
+	// entries appended per event (skipped where already present).
+	raw := map[string]any{}
+	if b, err := os.ReadFile(hooksPath); err == nil {
+		if json.Unmarshal(b, &raw) != nil {
+			fmt.Fprintln(os.Stderr, "deadeye init codex: existing", hooksPath, "is not valid JSON -- fix or remove it first; refusing to rewrite it")
+			os.Exit(1)
+		}
+	}
+	hooks, _ := raw["hooks"].(map[string]any)
+	if hooks == nil {
+		hooks = map[string]any{}
+	}
+	script := codexScriptPath()
+	added := []string{}
+	for _, e := range codexEvents {
+		entries, _ := hooks[e.event].([]any)
+		if hasDeadeyeEntry(entries, script) {
+			continue
+		}
+		entry := map[string]any{
+			"hooks": []any{map[string]any{"type": "command", "command": script + " " + e.event}},
+		}
+		if e.matcher != "" {
+			entry["matcher"] = e.matcher
+		}
+		hooks[e.event] = append(entries, any(entry))
+		added = append(added, e.event)
+	}
+	raw["hooks"] = hooks
+
+	if len(added) == 0 {
+		fmt.Println("deadeye is already registered in", hooksPath, "-- nothing to do.")
+		return
+	}
+
+	proposed, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye init codex:", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(cHead("deadeye init codex") + cDim("  (experimental -- Codex hooks are an experimental Codex feature)"))
+	fmt.Println()
+	fmt.Println("Will write the hook adapter to " + cValue(script))
+	fmt.Println("Will update " + cValue(hooksPath) + " to:")
+	fmt.Println()
+	fmt.Println(string(proposed))
+	fmt.Println()
+	if flag := codexFeatureFlagHint(); flag != "" {
+		fmt.Println(cWarn(flag))
+		fmt.Println()
+	}
+
+	if !assumeYes {
+		fmt.Print("Apply? [y/N] ")
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		if l := strings.ToLower(strings.TrimSpace(line)); l != "y" && l != "yes" {
+			fmt.Println("Nothing written.")
+			return
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Dir(script), 0o700); err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye init codex:", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(script, []byte(codexHookScript), 0o755); err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye init codex:", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(hooksPath, append(proposed, '\n'), 0o600); err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye init codex:", err)
+		os.Exit(1)
+	}
+	fmt.Println(cGood("Registered") + " deadeye for events: " + strings.Join(added, ", "))
+	fmt.Println(cDim("Codex will ask you to trust these hooks on first run -- that prompt is Codex's, not deadeye's."))
+	fmt.Println(cDim("Remove any time with: deadeye uninstall codex"))
+}
+
+// hasDeadeyeEntry reports whether one of entries already invokes our
+// script (matched by path prefix, so event-name args don't matter).
+func hasDeadeyeEntry(entries []any, script string) bool {
+	for _, e := range entries {
+		em, _ := e.(map[string]any)
+		inner, _ := em["hooks"].([]any)
+		for _, h := range inner {
+			hm, _ := h.(map[string]any)
+			if cmd, _ := hm["command"].(string); strings.HasPrefix(cmd, script) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// codexFeatureFlagHint returns a reminder when ~/.codex/config.toml does
+// not visibly enable the hooks feature. Advisory only -- deadeye never
+// edits Codex's config.toml (TOML surgery on someone else's config is a
+// good way to break their tool; the one-line instruction is safer).
+func codexFeatureFlagHint() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	b, err := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
+	if err == nil && strings.Contains(string(b), "hooks = true") {
+		return ""
+	}
+	return "Codex hooks are gated behind a feature flag. Add to ~/.codex/config.toml:\n  [features]\n  hooks = true"
+}
+
+// runUninstallCodex backs `deadeye uninstall codex`: removes exactly the
+// entries init codex added (matched by our script path), preserving
+// everything else in the file.
+func runUninstallCodex() {
+	hooksPath, err := codexHooksPath()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye uninstall codex:", err)
+		os.Exit(1)
+	}
+	b, err := os.ReadFile(hooksPath)
+	if err != nil {
+		fmt.Println("No", hooksPath, "-- nothing registered.")
+		return
+	}
+	raw := map[string]any{}
+	if json.Unmarshal(b, &raw) != nil {
+		fmt.Fprintln(os.Stderr, "deadeye uninstall codex:", hooksPath, "is not valid JSON -- refusing to touch it")
+		os.Exit(1)
+	}
+	hooks, _ := raw["hooks"].(map[string]any)
+	script := codexScriptPath()
+	removed := 0
+	for event, v := range hooks {
+		entries, _ := v.([]any)
+		kept := entries[:0]
+		for _, e := range entries {
+			em, _ := e.(map[string]any)
+			inner, _ := em["hooks"].([]any)
+			ours := false
+			for _, h := range inner {
+				hm, _ := h.(map[string]any)
+				if cmd, _ := hm["command"].(string); strings.HasPrefix(cmd, script) {
+					ours = true
+				}
+			}
+			if ours {
+				removed++
+			} else {
+				kept = append(kept, e)
+			}
+		}
+		if len(kept) == 0 {
+			delete(hooks, event)
+		} else {
+			hooks[event] = kept
+		}
+	}
+	if removed == 0 {
+		fmt.Println("No deadeye entries in", hooksPath, "-- nothing to do.")
+		return
+	}
+	out, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye uninstall codex:", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(hooksPath, append(out, '\n'), 0o600); err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye uninstall codex:", err)
+		os.Exit(1)
+	}
+	os.Remove(codexScriptPath())
+	fmt.Printf("Removed %d deadeye hook entr%s from %s; adapter script deleted.\n", removed, map[bool]string{true: "y", false: "ies"}[removed == 1], hooksPath)
+}
+
+// codexRegistered reports whether any of our entries exist in codex's
+// hooks.json -- status display only.
+func codexRegistered() bool {
+	hooksPath, err := codexHooksPath()
+	if err != nil {
+		return false
+	}
+	b, err := os.ReadFile(hooksPath)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(b), "deadeye-codex-hook.sh")
+}
