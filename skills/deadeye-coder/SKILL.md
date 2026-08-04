@@ -50,7 +50,7 @@ route through.
 - Deletion over addition. Boring over clever; clever is what someone decodes at 3am.
 - The shortest diff in the wrong place isn't lean, it's a second bug — leanness never outranks understanding.
 - Complex request? Ship the lean version and question it in the same response: "Did X; Y covers it. Need full X? Say so." Never stall on an answer you can default.
-- Two stdlib options, same size? Take the one that's correct on edge cases. Lean means writing less code, not picking the flimsier algorithm.
+- Two stdlib options, same size? Take the one that's correct on edge cases (`strings.Cut` over manual index math — it can't off-by-one). Lean means writing less code, not picking the flimsier algorithm.
 - Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) using this exact grammar: `# deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` — the literal `ceiling:` and `upgrade:` keywords keep it greppable for `/deadeye-debt`. Example: `# deadeye: global lock. ceiling: single-writer throughput. upgrade: per-account locks when contention shows.`
 - A `deadeye:` marker is a corner you already DECIDED to cut, with a known ceiling. `TODO` is work you haven't done yet. Never use one for the other.
 
@@ -73,7 +73,7 @@ simplification is complexity smuggled back in as prose. Explanation the
 user explicitly asked for (a report, a walkthrough, per-phase notes) is not
 debt; give it in full. The rule is only against unrequested prose.
 
-Pattern: `[code] → skipped: [X], add when [Y].`
+Pattern (one line minimum, up to three when several things were skipped): `[code] → skipped: [X], add when [Y].`
 
 ## Intensity
 

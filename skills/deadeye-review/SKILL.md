@@ -6,9 +6,24 @@ license: MIT
 
 # Deadeye Review
 
-Review ONLY the changed code (the working diff, or the diff the user
-names) for over-engineering. Nothing else: correctness, security, and
-performance are other reviews' jobs.
+Review ONLY the changed code for over-engineering. Nothing else:
+correctness, security, and performance are other reviews' jobs (Claude
+Code's own `/code-review` covers those; this is the lean lens).
+
+## Scope
+
+Get the diff with `git diff` (or `git diff --staged` if the user says
+staged, or `git diff <ref>` for a named base). Read only the changed
+hunks plus minimal surrounding context — do not open unrelated files.
+
+- Empty diff (nothing changed or staged): say so plainly and stop — do
+  not substitute a different scope.
+- Not a git repo: ask the user which files to review.
+
+Before tagging `yagni:` or `delete:`, grep for implementers/callers
+OUTSIDE the diff — an "interface with one impl" whose second impl lives
+in a test file is a false positive, and one wrong finding erodes trust
+in all of them. Report only what you confirmed.
 
 ## Format
 
@@ -26,6 +41,9 @@ Five tags, use exactly these:
 
 End with `net: -<N> lines possible.` — or, when the diff is already
 minimal, exactly: `Lean already. Ship.`
+
+More than ~15 findings: keep the ones with the biggest `net:` impact
+and say how many smaller ones were omitted.
 
 ## Examples
 

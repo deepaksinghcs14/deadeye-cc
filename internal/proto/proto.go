@@ -35,4 +35,12 @@ type Request struct {
 	// verified present in real hook environments). "" when the layout is
 	// unrecognized; consumers must fail open on "".
 	ClientVersion string `json:"client_version,omitempty"`
+
+	// PluginVersion is the deadeye version of the CLIENT binary. The
+	// daemon compares it to its own: a mismatch means the binary on disk
+	// was updated after this daemon started, so the daemon exits (after
+	// answering) and the next hook call respawns the new one. Without
+	// this, a stale daemon serves outdated policy for as long as steady
+	// traffic keeps resetting its idle timer -- for an active user, days.
+	PluginVersion string `json:"plugin_version,omitempty"`
 }

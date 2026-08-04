@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+## 0.11.0
+
+Third deep sweep: competitive hardening against Claude Code's built-ins,
+plus the daemon lifecycle fixes.
+
+- **Version handshake: the daemon now retires itself when a newer binary
+  answers a hook.** Before this, an updated plugin's new features were
+  silently inert until the old daemon idled out (30 min, reset on every
+  connection -- for an active user, days). The current request is
+  answered first; the next hook call respawns the new binary.
+- **Panics leave a trace**: `~/.deadeye/panics.log` plus a `panic` row
+  in the decision log (visible in `/deadeye-audit`). Fail-open stays;
+  "deadeye stopped advising" is now diagnosable.
+- **`outcomes.jsonl` rotates at 10MB** like the decision log -- it was
+  the one file with no ceiling.
+- **`/deadeye-review` and `/deadeye-sweep` overhauled** to out-execute
+  naive review prompts: pinned cheap scoping (`git ls-files` +
+  grep-first for sweep; exact diff commands for review), a
+  verify-before-report step (grep implementers/callers before asserting
+  yagni/delete), finding caps with ranked truncation, explicit
+  empty-diff/non-git behavior, and cuts that emit the pinned `deadeye:`
+  marker grammar into the debt ledger.
+- README/site: new "How this fits with Claude Code's built-ins" section
+  (review layering, plan-gate triggering, content-based vs size-based
+  trimming, routing, persona). Windows story corrected: hooks and
+  daemon work (PowerShell scripts ship); self-bootstrap and the
+  statusline badge remain unix-only.
+- Smaller: debt-ledger grep covers block/HTML comment styles; gain
+  skill matches the shared retry voice; `DisabledRuleSet` computed once
+  per Bash request; captures/ documented as never-pruned.
+
 ## 0.10.0
 
 Everything from the second deep sweep: five reliability fixes, the truth

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
@@ -71,6 +72,13 @@ func runDaemon() {
 		}
 	}()
 
+	// Closed (once) when a request arrives from a client binary with a
+	// different deadeye version -- the binary on disk was updated, so this
+	// daemon retires and the next hook call respawns the new one.
+	staleCh := make(chan struct{})
+	var staleOnce sync.Once
+	markStale := func() { staleOnce.Do(func() { close(staleCh) }) }
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 
@@ -90,7 +98,9 @@ func runDaemon() {
 				}
 			}
 			idle.Reset(idleTimeout)
-			go handleConn(conn, state)
+			go handleConn(conn, state, markStale)
+		case <-staleCh:
+			return
 		case <-idle.C:
 			return
 		case <-sigCh:
@@ -101,7 +111,7 @@ func runDaemon() {
 
 // handleConn reads one request to EOF (the client half-closes after
 // writing), decides, and writes the raw hookio.Output JSON back.
-func handleConn(conn net.Conn, state *daemonState) {
+func handleConn(conn net.Conn, state *daemonState, markStale func()) {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
 
@@ -118,6 +128,12 @@ func handleConn(conn net.Conn, state *daemonState) {
 	if err := json.Unmarshal(raw, &req); err != nil {
 		conn.Write([]byte("{}"))
 		return
+	}
+
+	// Answer first, retire after: the current request must never pay for
+	// the version-skew fix.
+	if req.PluginVersion != "" && req.PluginVersion != meta.Version {
+		defer markStale()
 	}
 
 	out := decide(req, state)

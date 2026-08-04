@@ -37,7 +37,16 @@ func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
 // project's sessions too.
 func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	out = hookio.Empty()
-	defer func() { recover() }()
+	defer func() {
+		if rec := recover(); rec != nil {
+			// Fail open (INV-5) but leave a trace -- a silent swallow makes
+			// "deadeye stopped advising" undiagnosable. Both trails are
+			// best-effort: the decision log surfaces it in /deadeye-audit,
+			// panics.log survives even if logging itself was the panic.
+			logPanic("daemon/"+req.Event, rec)
+			state.log(logstore.Record{TS: nowRFC3339(), Surface: req.Event, Action: "panic", Reason: truncatedMarker(fmt.Sprint(rec))})
+		}
+	}()
 
 	var in hookio.Input
 	_ = json.Unmarshal(req.Payload, &in)
@@ -296,9 +305,10 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 	// retry-loop pathology -- nothing changed, so the output won't either.
 	repeat := state.noteBashCommand(in.SessionID, bi.Command)
 
-	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, cfg.DisabledRuleSet())
+	disabled := cfg.DisabledRuleSet()
+	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, disabled)
 	if !applied {
-		if repeat && !cfg.DisabledRuleSet()["repeat-command"] && !state.isMuted(in.SessionID) {
+		if repeat && !disabled["repeat-command"] && !state.isMuted(in.SessionID) {
 			out := hookio.ForEvent("PreToolUse")
 			out.HookSpecificOutput.AdditionalContext = "deadeye: identical to the previous command, with no file changes in between -- the output is unlikely to differ."
 			state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "repeat-command"})

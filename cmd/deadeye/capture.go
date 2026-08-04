@@ -25,6 +25,9 @@ func saveCapture(event string, raw []byte) {
 
 // runCapture is a manual testing aid: `deadeye capture <event> < payload.json`
 // saves stdin exactly like DEADEYE_CAPTURE=1 would, and echoes {}.
+// Captures are never pruned -- leaving DEADEYE_CAPTURE=1 exported
+// accumulates one file per hook event forever; it is a debugging tool,
+// not a daily driver.
 func runCapture(event string) {
 	raw, _ := io.ReadAll(os.Stdin)
 	saveCapture(event, raw)

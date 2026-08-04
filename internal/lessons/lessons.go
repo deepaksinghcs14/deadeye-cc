@@ -49,7 +49,7 @@ const smoothing = 3.0
 // confidence any builtin provider ever emits is 0.8 (testpresence) and the
 // maximum is 0.85, so one escalation alone raises the bar to
 // 0.8 + 0.2*(1/(1+3)) = 0.85 -- an unreachable threshold, in every
-// project (outcomes.jsonl is global, never rotated), forever. 30 days
+// project (outcomes.jsonl is global, rotated past 10MB like decisions.jsonl), forever. 30 days
 // reuses gitchurn's existing "recent activity" window rather than
 // inventing a new coefficient.
 const recencyWindow = 30 * 24 * time.Hour
@@ -103,6 +103,12 @@ func (s *Store) Append(o Outcome) error {
 	defer s.mu.Unlock()
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return err
+	}
+	// Same 10MB rotate-to-.1 backstop as logstore: outcomes are rare
+	// (escalations only) but this was the one file with zero ceiling, and
+	// the daemon mirrors it whole in memory at startup.
+	if fi, err := os.Stat(s.path); err == nil && fi.Size() > 10<<20 {
+		_ = os.Rename(s.path, s.path+".1")
 	}
 	b, err := json.Marshal(o)
 	if err != nil {

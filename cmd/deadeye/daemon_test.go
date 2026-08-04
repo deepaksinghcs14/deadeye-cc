@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
 )
 
 // TestDaemonRoundTripP95 is INV-8's benchmark: PreToolUse sits in the
@@ -171,4 +174,51 @@ func TestSocketPathFallsBackUnderLongHome(t *testing.T) {
 	if len(p) > 104 {
 		t.Errorf("socket path %d bytes (%s) -- bind would fail with invalid argument", len(p), p)
 	}
+}
+
+// TestDaemonRetiresOnVersionSkew: a request from a client binary with a
+// different deadeye version answers normally, then the daemon exits so
+// the next hook call respawns the updated binary. Without this, a stale
+// daemon serves outdated policy for as long as traffic keeps resetting
+// its idle timer.
+func TestDaemonRetiresOnVersionSkew(t *testing.T) {
+	home, err := os.MkdirTemp("/tmp", "de")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(home) })
+	t.Setenv("HOME", home)
+
+	go runDaemon()
+	waitForSocket(t, 2*time.Second)
+
+	// Same-version requests must NOT retire the daemon.
+	requestDaemon("Stop", []byte(`{"hook_event_name":"Stop","session_id":"s1"}`))
+	time.Sleep(200 * time.Millisecond)
+	if !probeAlive(meta.SocketPath()) {
+		t.Fatal("daemon exited on a same-version request")
+	}
+
+	// A mismatched version answers the request, then retires.
+	conn, err := net.DialTimeout("unix", meta.SocketPath(), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, _ := json.Marshal(proto.Request{Event: "Stop", Payload: []byte(`{"session_id":"s2"}`), PluginVersion: "9.9.9"})
+	conn.Write(req)
+	conn.(*net.UnixConn).CloseWrite()
+	resp, _ := io.ReadAll(conn)
+	conn.Close()
+	if string(resp) != "{}" {
+		t.Fatalf("skewed request should still be answered, got %q", resp)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if !probeAlive(meta.SocketPath()) {
+			return // daemon retired as designed
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatal("daemon still alive 2s after a version-skewed request")
 }

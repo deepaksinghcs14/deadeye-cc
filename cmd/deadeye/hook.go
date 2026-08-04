@@ -33,6 +33,9 @@ func runHook(event string) {
 func runHookTo(w io.Writer, r io.Reader, event string) {
 	defer func() {
 		if rec := recover(); rec != nil {
+			// Fail open (INV-5), but leave a trace -- a swallowed panic
+			// with no trail makes "deadeye stopped advising" undiagnosable.
+			logPanic("client/"+event, rec)
 			fmt.Fprint(w, "{}")
 		}
 	}()
@@ -90,6 +93,7 @@ func requestDaemon(event string, raw []byte) []byte {
 		PluginRoot:    os.Getenv("CLAUDE_PLUGIN_ROOT"),
 		ConfigDir:     os.Getenv("CLAUDE_CONFIG_DIR"),
 		ClientVersion: clientVersion(),
+		PluginVersion: meta.Version,
 	}
 	b, err := json.Marshal(req)
 	if err != nil {
@@ -154,4 +158,15 @@ func clientVersion() string {
 		return ""
 	}
 	return base
+}
+
+// logPanic leaves a one-line trace in ~/.deadeye/panics.log. Best-effort
+// by design: the panic path must never itself become a failure mode.
+func logPanic(where string, rec any) {
+	f, err := os.OpenFile(filepath.Join(meta.StateDir(), "panics.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(f, "%s %s: %v\n", time.Now().UTC().Format(time.RFC3339), where, rec)
+	f.Close()
 }

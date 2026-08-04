@@ -22,7 +22,7 @@ This skill collects them into a ledger. Older freeform markers (no
 Run:
 
 ```
-grep -rnE '(#|//) ?deadeye:' . \
+grep -rnE '(#|//|/\*|<!--) ?deadeye:' . \
   --exclude-dir=node_modules --exclude-dir=.git \
   --exclude-dir=dist --exclude-dir=build --exclude-dir=vendor
 ```
@@ -37,6 +37,9 @@ A marker whose comment names no upgrade condition gets tagged
 `no-trigger` — those are the ones most likely to rot.
 
 For ownership questions, suggest `git blame -L<line>,<line> <file>`.
+
+More than ~30 markers: group rows by directory and report per-group
+counts plus the worst offenders, still ending with the exact total.
 
 End with: `<N> markers, <M> with no trigger.` — or, if the grep finds
 nothing: `No deadeye: debt. Clean ledger.`

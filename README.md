@@ -124,9 +124,11 @@ a black box. Full config schema:
 
 That's everything on macOS/Linux — hooks, slash commands, and the binary
 bootstraps itself on first use (downloaded once from Releases,
-sha256-verified). Windows needs the binary from
-[Releases](https://github.com/deepaksinghcs14/deadeye-cc/releases) first —
-self-bootstrap there isn't built yet.
+sha256-verified). On Windows the hooks and daemon work too (PowerShell
+hook scripts ship in the plugin) — but grab the binary from
+[Releases](https://github.com/deepaksinghcs14/deadeye-cc/releases)
+yourself first (self-bootstrap isn't built there), and the optional
+statusline badge is bash-only for now.
 
 ### From source
 
@@ -257,6 +259,21 @@ settings itself.
 > **Already running another lean-coding persona plugin?** Uninstall it
 > before enabling coder mode — two overlapping personas means paying for
 > both rulesets every session.
+
+## How this fits with Claude Code's built-ins
+
+Claude Code ships its own `/code-review` (with a paid multi-agent
+"ultra" tier), `/simplify`, `/security-review`, plan mode, and size-based
+output truncation. deadeye doesn't compete with those — it covers what
+they don't:
+
+| Claude Code built-in | What deadeye adds |
+|---|---|
+| `/code-review` / `/simplify` — correctness & cleanup reviews, on demand | `/deadeye-review` is the *lean lens only*: verified findings, `net: -N lines` accounting, and cuts that flow into the `deadeye:` debt ledger. Run it as the instant local pass; escalate to `/code-review ultra` for depth before a merge |
+| Plan mode — exists, but nothing triggers it | deadeye's plan gate notices a risky multi-file edit coming and nudges *into* plan mode |
+| Bash output truncation — size-based, at 30,000 chars | deadeye rewrites commands *before they run* so only failure context enters at all — content-based, and it stacks under the native cap |
+| Subagent models — inherit the parent's model | deadeye recommends the cheapest tier the evidence supports, explains why, and learns from your escalations |
+| Coding persona — none | Coder mode: the lean-first discipline, injected every session, surviving compaction, traveling into subagents |
 
 ## The six things it controls
 
