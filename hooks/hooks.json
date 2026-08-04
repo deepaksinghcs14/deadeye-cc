@@ -28,7 +28,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|Agent|Read",
+        "matcher": "Bash|Edit|Write|Agent|Read|Grep",
         "hooks": [
           {
             "type": "command",
@@ -42,7 +42,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash|Edit|Write|Agent|mcp__.*",
+        "matcher": "Bash|Edit|Write|Agent|Read|Grep|Glob|WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
             "type": "command",

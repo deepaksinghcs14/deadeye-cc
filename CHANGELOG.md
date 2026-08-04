@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.9.1
+
+- **Fix: 0.9.0's Grep advisory and Read/Grep/Glob/WebFetch/WebSearch
+  observation never fired** -- the hook matchers in hooks.json were
+  never widened to send those tools' events to the daemon, so both
+  features were dead on arrival (unit-tested, but the hook wiring wasn't
+  live-verified). PreToolUse now matches Grep; PostToolUse matches the
+  five observed tools. Found by a reliability sweep, verified live this
+  time.
+
 ## 0.9.0
 
 Batch 3: wider observation, new advisories.
