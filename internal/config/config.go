@@ -142,6 +142,38 @@ func WriteDefaultIfMissing() {
 	f.Write(append(b, '\n'))
 }
 
+// EnsureCoderBlock adds the coder section, with its defaults spelled out,
+// to a config.json seeded before coder mode existed (pre-0.5.0) -- the
+// setting always applied via Default(), but the knob wasn't visible in
+// the file users open to tweak. Read-modify-write on the raw JSON so
+// unknown fields and the $schema pointer survive; a file that already has
+// any coder key is left untouched (it's the user's, whatever it says).
+func EnsureCoderBlock() {
+	path := meta.ConfigPath()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return // no file: WriteDefaultIfMissing owns seeding
+	}
+	raw := map[string]any{}
+	if json.Unmarshal(b, &raw) != nil {
+		return // malformed: not ours to rewrite
+	}
+	if _, has := raw["coder"]; has {
+		return
+	}
+	seed := Default().Coder
+	raw["coder"] = map[string]any{
+		"default_level":           seed.DefaultLevel,
+		"subagent_matcher":        seed.SubagentMatcher,
+		"injection_budget_tokens": seed.InjectionBudgetTokens,
+	}
+	out, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(path, append(out, '\n'), 0o600)
+}
+
 // Load returns Default() overlaid by ~/.deadeye/config.json, overlaid by
 // ./.deadeye.json relative to this PROCESS's own cwd. Correct for the CLI
 // commands (status/route) -- each is a fresh, short-lived process already

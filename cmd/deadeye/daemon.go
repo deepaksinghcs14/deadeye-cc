@@ -33,6 +33,7 @@ func runDaemon() {
 	// it on the first hook call) -- seed a config.json with every default
 	// spelled out so users tweak a file instead of authoring one.
 	config.WriteDefaultIfMissing()
+	config.EnsureCoderBlock()
 
 	lock, err := acquireLock(meta.LockPath())
 	if err != nil {

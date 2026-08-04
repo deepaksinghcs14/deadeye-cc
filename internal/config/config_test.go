@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -170,5 +171,49 @@ func TestWriteCoderDefaultPreservesUnknownFields(t *testing.T) {
 	}
 	if coderRaw["subagent_matcher"] != "Explore" {
 		t.Error("sibling coder field lost")
+	}
+}
+
+// TestEnsureCoderBlock: a pre-0.5.0 config gains the coder section with
+// defaults spelled out; user content and $schema survive; a file that
+// already has a coder key -- or is malformed -- is never touched.
+func TestEnsureCoderBlock(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	path := meta.ConfigPath()
+	os.MkdirAll(filepath.Dir(path), 0o700)
+
+	pre050 := `{"$schema":"s","mode":{"routing":"enforce"},"custom_key":42}` + "\n"
+	os.WriteFile(path, []byte(pre050), 0o600)
+	EnsureCoderBlock()
+	b, _ := os.ReadFile(path)
+	var raw map[string]any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		t.Fatal(err)
+	}
+	coder, _ := raw["coder"].(map[string]any)
+	if coder == nil || coder["default_level"] != "marksman" {
+		t.Errorf("coder block not added with defaults: %v", raw["coder"])
+	}
+	if raw["$schema"] != "s" || raw["custom_key"] != float64(42) {
+		t.Error("existing fields must survive the migration")
+	}
+	if mode, _ := raw["mode"].(map[string]any); mode["routing"] != "enforce" {
+		t.Error("user's mode settings must survive")
+	}
+
+	// A user's explicit coder choice is never overwritten.
+	os.WriteFile(path, []byte(`{"coder":{"default_level":"off"}}`), 0o600)
+	EnsureCoderBlock()
+	b, _ = os.ReadFile(path)
+	if !strings.Contains(string(b), `"off"`) {
+		t.Error("existing coder block must be left untouched")
+	}
+
+	// Malformed file: not ours to rewrite.
+	os.WriteFile(path, []byte(`{broken`), 0o600)
+	EnsureCoderBlock()
+	b, _ = os.ReadFile(path)
+	if string(b) != `{broken` {
+		t.Error("malformed config must be left as-is")
 	}
 }

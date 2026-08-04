@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.6.1
+
+- Configs seeded before coder mode existed (pre-0.5.0) now gain the
+  `coder` block with its defaults spelled out on the next daemon start,
+  so the off switch (`"default_level": "off"`) is visible in the file
+  users open to tweak. The setting always applied; only its visibility
+  was missing. A config that already has any `coder` key -- or is
+  malformed -- is left untouched.
+
 ## 0.6.0
 
 All four `deadeye:` debt markers paid down:
