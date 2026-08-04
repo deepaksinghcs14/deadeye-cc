@@ -12,6 +12,10 @@
 </p>
 
 <p align="center">
+  <a href="https://claude.com/claude-code"><img src="https://img.shields.io/badge/built_for-Claude_Code-D97757?style=flat-square&logo=claude&logoColor=white" alt="Built for Claude Code"></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/github/v/release/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111&label=release" alt="Release">
   <img src="https://img.shields.io/github/license/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111" alt="MIT license">
   <img src="https://img.shields.io/badge/storage-1%20jsonl%20file-111111?style=flat-square" alt="One JSONL file">
