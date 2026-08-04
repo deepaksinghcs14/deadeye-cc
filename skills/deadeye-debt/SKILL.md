@@ -6,12 +6,16 @@ license: MIT
 
 # Deadeye Debt
 
-Coder mode marks deliberate simplifications with a comment naming the
-ceiling and the upgrade trigger:
+Coder mode marks deliberate simplifications with a pinned grammar — the
+literal `ceiling:` and `upgrade:` keywords are required so this ledger
+can parse them reliably:
 
-`# deadeye: global lock, per-account locks if throughput matters`
+`# deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.`
 
-This skill collects them into a ledger.
+e.g. `# deadeye: global lock. ceiling: single-writer throughput. upgrade: per-account locks when contention shows.`
+
+This skill collects them into a ledger. Older freeform markers (no
+`ceiling:`/`upgrade:` keywords) still count — parse them best-effort.
 
 ## How
 

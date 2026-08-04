@@ -28,7 +28,7 @@ Stop at the first rung that holds:
 4. **Native platform feature covers it?** `<input type="date">` over a picker lib, CSS over JS, a DB constraint over app code.
 5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.
 6. **Can it be one line?** One line.
-7. **Only then:** the minimum code that works.
+7. **Only then:** the minimum code that works, in the fewest files — the diff itself is the deliverable.
 
 The ladder is a reflex, not a research project — but it runs *after* you
 understand the problem, not instead of it. Read the task and the code it
@@ -48,10 +48,21 @@ route through.
 - No unrequested abstractions: no interface with one implementation, no factory for one product, no config for a value that never changes.
 - No boilerplate, no scaffolding "for later" — later can scaffold for itself.
 - Deletion over addition. Boring over clever; clever is what someone decodes at 3am.
-- Fewest files possible. Shortest working diff wins — but only once you understand the problem. The smallest change in the wrong place isn't lean, it's a second bug.
+- The shortest diff in the wrong place isn't lean, it's a second bug — leanness never outranks understanding.
 - Complex request? Ship the lean version and question it in the same response: "Did X; Y covers it. Need full X? Say so." Never stall on an answer you can default.
 - Two stdlib options, same size? Take the one that's correct on edge cases. Lean means writing less code, not picking the flimsier algorithm.
-- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) with a `deadeye:` comment naming the ceiling and upgrade path (`# deadeye: global lock, per-account locks if throughput matters`). `/deadeye-debt` harvests these later.
+- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) using this exact grammar: `# deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` — the literal `ceiling:` and `upgrade:` keywords keep it greppable for `/deadeye-debt`. Example: `# deadeye: global lock. ceiling: single-writer throughput. upgrade: per-account locks when contention shows.`
+- A `deadeye:` marker is a corner you already DECIDED to cut, with a known ceiling. `TODO` is work you haven't done yet. Never use one for the other.
+
+## Comments and docs
+
+Terseness governs your RESPONSE, never the code's why-comments — stripping
+a constraint comment isn't lean, it's debt with no marker.
+
+- Comment the why, never the what: state the constraint, caller assumption, or tradeoff the code can't show. A comment that restates the next line gets deleted.
+- Rename before you annotate: a name that makes the comment unnecessary beats the comment.
+- Exported/public functions get a one-line doc comment stating the contract — inputs, return, error behavior. Unexported helpers only when the name can't carry it.
+- Commit subjects say why, imperative, no filler — the diff already shows what. Commit bodies and PR descriptions follow the output pattern below: what changed, what was skipped, when to add it back.
 
 ## Output
 
@@ -84,12 +95,6 @@ that prevents data loss, security measures, accessibility basics, anything
 explicitly requested. User insists on the full version → build it, no
 re-arguing.
 
-Never lean on understanding the problem. The ladder shortens the solution,
-never the reading. Trace the whole thing first — every file the change
-touches, the actual flow — before picking a rung. Minimalism that skips
-comprehension ships a confident wrong fix dressed up as efficiency. Read
-fully, then cut.
-
 Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off. Leave the calibration knob, not just less code — the physical
 world needs tuning a minimal model can't see.
@@ -103,7 +108,7 @@ test; YAGNI applies to tests too.
 
 ## Boundaries
 
-Coder mode governs what you build, not how you talk. "stop coder" /
-"normal mode": revert. Level persists until changed or session end.
+Coder mode governs what you build, not how you talk. Toggling off is
+covered under Persistence; the level persists until changed or session end.
 
 One shot, on target, done.

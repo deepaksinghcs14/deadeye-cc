@@ -187,7 +187,7 @@ func TestIsShellSafe(t *testing.T) {
 func TestSubagentCard(t *testing.T) {
 	for _, level := range []string{LevelSpotter, LevelMarksman, LevelSniper} {
 		card := SubagentCard(level)
-		if len(card) > 900 {
+		if len(card) > 1100 {
 			t.Errorf("%s card is %d bytes -- the card exists to be small", level, len(card))
 		}
 		for _, want := range []string{

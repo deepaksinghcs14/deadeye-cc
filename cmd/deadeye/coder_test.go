@@ -338,7 +338,7 @@ func TestNoopsAreNotLogged(t *testing.T) {
 func TestSubagentGetsCardNotFullRuleset(t *testing.T) {
 	state := coderTestState(t)
 	text := coderSubagentText(hookio.Input{SessionID: "s1", AgentType: "general-purpose"}, config.Default(), state)
-	if text == "" || len(text) > 900 {
+	if text == "" || len(text) > 1100 {
 		t.Fatalf("expected the condensed card, got %d bytes", len(text))
 	}
 	if strings.Contains(text, "## Intensity") {

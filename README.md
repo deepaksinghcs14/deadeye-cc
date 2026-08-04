@@ -227,6 +227,15 @@ a patch on the one path the ticket named). And the discipline never cuts
 safety: input validation, error handling that prevents data loss,
 security, and accessibility survive every level.
 
+Comments get their own discipline: terseness governs the *response*,
+never the code's why-comments — the persona comments the constraint or
+tradeoff the code can't show, renames before it annotates, deletes
+comments that restate the next line, and gives every exported function a
+one-line contract doc. Deliberate corner-cuts use a pinned, greppable
+grammar — `deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` —
+so `/deadeye-debt` parses the ledger reliably, and `TODO` stays reserved
+for work not done yet.
+
 When the persona does deliberately cut a corner with a known ceiling, it
 leaves a `deadeye:` comment naming the ceiling and the upgrade trigger —
 `/deadeye-debt` collects those into a ledger so shortcuts get tracked

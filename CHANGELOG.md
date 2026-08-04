@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 0.8.0
+
+Batch 2: the coder persona learns comment discipline.
+
+- **New "Comments and docs" section in the ruleset.** The terseness ethos
+  now explicitly governs the response, never the code's why-comments --
+  the persona comments the constraint/tradeoff the code can't show,
+  renames before annotating, deletes comments that restate the next
+  line, and gives exported functions a one-line contract doc.
+- **The `deadeye:` marker grammar is pinned**: `deadeye: <shortcut>.
+  ceiling: <limit>. upgrade: <trigger>.` -- literal keywords, greppable,
+  so `/deadeye-debt` parses the ledger reliably (freeform legacy markers
+  still count, best-effort). `TODO` vs `deadeye:` is now spelled out.
+- Commit/PR discipline: subjects say why (the diff shows what); bodies
+  follow the skipped-X-add-when-Y shape.
+- Three passages the ruleset said twice (read-before-cut, the off
+  switch, shortest-diff) are now said once; net injection is ~6.0 KB
+  (was ~5.3 KB), guarded by a new size-budget test.
+- The subagent card carries the pinned grammar and a one-line comment
+  rule too.
+
 ## 0.7.0
 
 Batch 1 of the deep-sweep follow-up: correctness + the biggest token wins.
