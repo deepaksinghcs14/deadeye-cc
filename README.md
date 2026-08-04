@@ -134,31 +134,6 @@ hook scripts ship in the plugin) — but grab the binary from
 yourself first (self-bootstrap isn't built there), and the optional
 statusline badge is bash-only for now.
 
-### Codex CLI (experimental)
-
-deadeye also runs under OpenAI's Codex CLI, whose experimental hooks
-system speaks (nearly) the same contract. Install the binary (from
-source or Releases), then:
-
-```bash
-deadeye init codex
-```
-
-That shows you the exact `~/.codex/hooks.json` changes and writes them
-only after you confirm — deadeye never edits another tool's config
-silently. Codex will ask you to trust the hooks on first run (its
-prompt, not ours), and hooks need `[features] hooks = true` in
-`~/.codex/config.toml`.
-
-What works on Codex — verified live, not assumed: output trimming and
-all advisories (rewrites confirmed working through real Codex runs),
-the coder persona (injected at session start, re-injected after
-compaction, level switching by typing `/deadeye-coder …` as a prompt),
-the plan gate (Codex edits arrive as `apply_patch`), `/deadeye-mute`,
-and the full decision log. Not on Codex: model routing (no subagent
-surface to route), the statusline badge, and self-updates (re-install
-the binary to update). Remove cleanly with `deadeye uninstall codex`.
-
 ### From source
 
 ```bash

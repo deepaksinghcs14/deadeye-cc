@@ -12,13 +12,13 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|route|audit|gain|lessons|init|capture|uninstall|version> [args]")
+		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|route|audit|capture|uninstall|version> [args]")
 		os.Exit(2)
 	}
 
 	switch os.Args[1] {
 	case "hook":
-		runHook(argOr(2, ""), os.Args[3:])
+		runHook(argOr(2, ""))
 	case "daemon":
 		runDaemon()
 	case "status":
@@ -33,8 +33,6 @@ func main() {
 		runLessons(os.Args[2:])
 	case "capture":
 		runCapture(argOr(2, ""))
-	case "init":
-		runInit(os.Args[2:])
 	case "uninstall":
 		runUninstall(os.Args[2:])
 	case "version":

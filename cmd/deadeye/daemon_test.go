@@ -49,7 +49,7 @@ func TestDaemonRoundTripP95(t *testing.T) {
 		// repeat-command advisory instead of "{}".
 		payload := []byte(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo hi ` + strconv.Itoa(i) + `"}}`)
 		start := time.Now()
-		out := requestDaemon("PreToolUse", payload, "")
+		out := requestDaemon("PreToolUse", payload)
 		durations[i] = time.Since(start)
 		if string(out) != "{}" {
 			t.Fatalf("round trip %d: got %q, want \"{}\"", i, out)
@@ -193,7 +193,7 @@ func TestDaemonRetiresOnVersionSkew(t *testing.T) {
 	waitForSocket(t, 2*time.Second)
 
 	// Same-version requests must NOT retire the daemon.
-	requestDaemon("Stop", []byte(`{"hook_event_name":"Stop","session_id":"s1"}`), "")
+	requestDaemon("Stop", []byte(`{"hook_event_name":"Stop","session_id":"s1"}`))
 	time.Sleep(200 * time.Millisecond)
 	if !probeAlive(meta.SocketPath()) {
 		t.Fatal("daemon exited on a same-version request")

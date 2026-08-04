@@ -2,31 +2,9 @@
 
 ## Unreleased
 
-## 0.12.0
-
-**Experimental Codex CLI support.** Codex's hooks system (v0.114+,
-experimental) speaks nearly the same contract as Claude Code's, and a
-live verification spike (docs/verified.md §12) confirmed the two
-load-bearing behaviors on real Codex runs: SessionStart
-`additionalContext` reaches the model, and PreToolUse `updatedInput`
-really rewrites the executed command.
-
-- `deadeye init codex` registers the hooks: shows the exact
-  `~/.codex/hooks.json` changes, writes only after an explicit yes,
-  preserves any existing entries. `deadeye uninstall codex` removes
-  exactly ours. Codex's own hook-trust prompt and the
-  `[features] hooks = true` flag are surfaced, never bypassed.
-- Works on Codex: Bash output trimming + all advisories, the coder
-  persona (compaction survival via PostCompact; level switching by
-  typing the /deadeye-coder command as prompt text), the plan gate
-  (`apply_patch` joins the Edit/Write path), /deadeye-mute, decision
-  log + gain/audit.
-- Not on Codex (deliberate): model routing (no subagent surface),
-  ultracode workflow hints, the statusline badge, self-bootstrap.
-  Codex sessions get a host-tailored guidance injection without the
-  Claude-only tier table.
-- `deadeye status` gains a Hosts block showing Claude and Codex
-  registration state.
+- v0.12.0 (experimental Codex support) was published and then reverted
+  the same hour at the maintainer's request -- the work is preserved in
+  git history for a future re-land. 0.11.0 remains current.
 
 ## 0.11.0
 

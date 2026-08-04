@@ -14,12 +14,12 @@ import (
 func TestFailOpenOnPanic(t *testing.T) {
 	orig := dialDaemon
 	defer func() { dialDaemon = orig }()
-	dialDaemon = func(event string, raw []byte, host string) []byte {
+	dialDaemon = func(event string, raw []byte) []byte {
 		panic("simulated failure downstream of the daemon dial")
 	}
 
 	var out bytes.Buffer
-	runHookTo(&out, strings.NewReader(`{"hook_event_name":"PreToolUse"}`), "PreToolUse", "")
+	runHookTo(&out, strings.NewReader(`{"hook_event_name":"PreToolUse"}`), "PreToolUse")
 
 	if out.String() != "{}" {
 		t.Fatalf("output = %q, want \"{}\"", out.String())
@@ -34,13 +34,13 @@ func TestKillSwitchSkipsDaemon(t *testing.T) {
 	called := false
 	orig := dialDaemon
 	defer func() { dialDaemon = orig }()
-	dialDaemon = func(event string, raw []byte, host string) []byte {
+	dialDaemon = func(event string, raw []byte) []byte {
 		called = true
 		return []byte(`{"hookSpecificOutput":{"additionalContext":"should not appear"}}`)
 	}
 
 	var out bytes.Buffer
-	runHookTo(&out, strings.NewReader(`{}`), "PreToolUse", "")
+	runHookTo(&out, strings.NewReader(`{}`), "PreToolUse")
 
 	if out.String() != "{}" {
 		t.Fatalf("output = %q, want \"{}\"", out.String())
@@ -56,10 +56,10 @@ func TestKillSwitchSkipsDaemon(t *testing.T) {
 func TestEmptyDaemonResponseFallsBackToBraces(t *testing.T) {
 	orig := dialDaemon
 	defer func() { dialDaemon = orig }()
-	dialDaemon = func(event string, raw []byte, host string) []byte { return nil }
+	dialDaemon = func(event string, raw []byte) []byte { return nil }
 
 	var out bytes.Buffer
-	runHookTo(&out, strings.NewReader(`{}`), "PreToolUse", "")
+	runHookTo(&out, strings.NewReader(`{}`), "PreToolUse")
 
 	if out.String() != "{}" {
 		t.Fatalf("output = %q, want \"{}\"", out.String())
@@ -94,7 +94,7 @@ func TestColdStartSessionStartWaitsForDaemon(t *testing.T) {
 		}()
 	}
 
-	out := requestDaemon("SessionStart", []byte(`{"session_id":"cold1","hook_event_name":"SessionStart"}`), "")
+	out := requestDaemon("SessionStart", []byte(`{"session_id":"cold1","hook_event_name":"SessionStart"}`))
 	if !spawned {
 		t.Fatal("dial against a dead socket did not spawn the daemon")
 	}
@@ -122,7 +122,7 @@ func TestColdStartHotPathStaysFailOpen(t *testing.T) {
 	spawnDaemonFn = func() {} // no daemon will ever come up
 
 	start := time.Now()
-	out := requestDaemon("PreToolUse", []byte(`{}`), "")
+	out := requestDaemon("PreToolUse", []byte(`{}`))
 	elapsed := time.Since(start)
 	if string(out) != "{}" {
 		t.Errorf("hot path on dead socket = %q, want {}", out)

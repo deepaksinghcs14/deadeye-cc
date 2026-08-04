@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,10 +11,8 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/inject"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
 )
 
 func coderTestState(t *testing.T) *daemonState {
@@ -26,7 +23,7 @@ func coderTestState(t *testing.T) *daemonState {
 
 func TestCoderSessionStartInjectsDefaultLevel(t *testing.T) {
 	state := coderTestState(t)
-	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, config.Default(), "", "", "", state)
+	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, config.Default(), "", "", state)
 	if out.Raw == nil {
 		t.Fatal("expected a raw SessionStart injection at the default level")
 	}
@@ -48,7 +45,7 @@ func TestCoderSessionStartOffIsSilent(t *testing.T) {
 	state := coderTestState(t)
 	cfg := config.Default()
 	cfg.Coder.DefaultLevel = "off"
-	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", "", state)
+	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	if out.Raw != nil || out.HookSpecificOutput != nil {
 		t.Errorf("expected silence with default off, got %+v", out)
 	}
@@ -59,7 +56,7 @@ func TestCoderSessionStartKillSwitchBeatsSessionLevel(t *testing.T) {
 	state.setCoderLevel("s1", "sniper") // an already-active session choice
 	cfg := config.Default()
 	cfg.Coder.Disabled = true // DEADEYE_CODER=off arrived on this request
-	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", "", state)
+	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	if out.Raw != nil {
 		t.Error("kill switch must silence an already-active session level")
 	}
@@ -72,10 +69,10 @@ func TestCoderSessionStartKillSwitchBeatsSessionLevel(t *testing.T) {
 func TestCoderSessionStartReinjectsSwitchedLevel(t *testing.T) {
 	state := coderTestState(t)
 	cfg := config.Default()
-	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	coderTracker(hookio.Input{SessionID: "s1", Prompt: "/deadeye-coder sniper"}, cfg, state)
 
-	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", "", state)
+	out := decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	if out.Raw == nil || !strings.Contains(string(out.Raw), "level: sniper") {
 		t.Errorf("compaction re-inject used the wrong level: %.80s", out.Raw)
 	}
@@ -137,7 +134,7 @@ func TestCoderTrackerDefaultPersists(t *testing.T) {
 // additionalContext slot, ahead of the once-per-session advisory.
 func TestCoderTrackerConfirmationLeadsCombinedContext(t *testing.T) {
 	state := coderTestState(t)
-	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-coder sniper", Cwd: t.TempDir()}, config.Default(), "", "", state)
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-coder sniper", Cwd: t.TempDir()}, config.Default(), "", state)
 	if out.HookSpecificOutput == nil {
 		t.Fatal("expected combined context")
 	}
@@ -153,7 +150,7 @@ func TestCoderTrackerConfirmationLeadsCombinedContext(t *testing.T) {
 func TestCoderTrackerIgnoresSyntheticPrompts(t *testing.T) {
 	state := coderTestState(t)
 	synthetic := "<task-notification>/deadeye-coder sniper</task-notification>"
-	out := decideUserPromptSubmit(hookio.Input{SessionID: "s9", Prompt: synthetic, Cwd: t.TempDir()}, config.Default(), "", "", state)
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s9", Prompt: synthetic, Cwd: t.TempDir()}, config.Default(), "", state)
 	if out.HookSpecificOutput != nil && strings.Contains(out.HookSpecificOutput.AdditionalContext, "CODER CHANGED") {
 		t.Error("tracker fired on a synthetic prompt")
 	}
@@ -221,7 +218,7 @@ func TestCoderActionsAreLogged(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, logstore.Open(logPath))
 	cfg := config.Default()
 
-	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	coderTracker(hookio.Input{SessionID: "s1", Prompt: "/deadeye-coder sniper"}, cfg, state)
 	coderTracker(hookio.Input{SessionID: "s1", Prompt: "normal mode"}, cfg, state)
 	coderSubagentText(hookio.Input{SessionID: "s2"}, cfg, state)
@@ -253,13 +250,13 @@ func readFileTrim(path string) (string, error) {
 
 func TestCoderModeFilePerSession(t *testing.T) {
 	state := coderTestState(t)
-	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, config.Default(), "", "", "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, config.Default(), "", "", state)
 	if b, err := readFileTrim(meta.CoderModePathFor("s1")); err != nil || b != "marksman" {
 		t.Errorf("per-session mode file = %q, %v; want marksman", b, err)
 	}
 	// Two concurrent sessions each keep their own badge.
 	state.setCoderLevel("s2", "sniper")
-	decideCoderSessionStart(hookio.Input{SessionID: "s2"}, config.Default(), "", "", "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s2"}, config.Default(), "", "", state)
 	if b, _ := readFileTrim(meta.CoderModePathFor("s1")); b != "marksman" {
 		t.Errorf("s1 badge clobbered by s2: %q", b)
 	}
@@ -303,15 +300,15 @@ func TestNativeRestoreSkipsSessionMemory(t *testing.T) {
 	oldTime := time.Now().Add(-time.Hour)
 	os.Chtimes(old, oldTime, oldTime) // beat the freshness guard
 
-	decideCoderSessionStart(hookio.Input{SessionID: "s1", Source: "resume"}, config.Default(), "", "", "", state)
-	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "hello", Cwd: cwd}, config.Default(), "", "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s1", Source: "resume"}, config.Default(), "", "", state)
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "hello", Cwd: cwd}, config.Default(), "", state)
 	if strings.Contains(out.HookSpecificOutput.AdditionalContext, "Session summary") {
 		t.Error("resumed session must not re-inject the session-memory summary")
 	}
 
 	// Control: a startup session in the same cwd does get it.
-	decideCoderSessionStart(hookio.Input{SessionID: "s2", Source: "startup"}, config.Default(), "", "", "", state)
-	out2 := decideUserPromptSubmit(hookio.Input{SessionID: "s2", Prompt: "hello", Cwd: cwd}, config.Default(), "", "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s2", Source: "startup"}, config.Default(), "", "", state)
+	out2 := decideUserPromptSubmit(hookio.Input{SessionID: "s2", Prompt: "hello", Cwd: cwd}, config.Default(), "", state)
 	if !strings.Contains(out2.HookSpecificOutput.AdditionalContext, "Session summary") {
 		t.Error("startup session should still inject the session-memory summary")
 	}
@@ -326,7 +323,7 @@ func TestNoopsAreNotLogged(t *testing.T) {
 
 	cfg := config.Default()
 	cfg.Coder.DefaultLevel = "off"
-	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", "", state)
+	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", state)
 	decideStop(hookio.Input{SessionID: "s1"}, state)
 	decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "Glob"}, cfg, state)
 	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, state)
@@ -402,7 +399,7 @@ func TestMuteSilencesAdvisoriesNotRewrites(t *testing.T) {
 	state := coderTestState(t)
 	cfg := config.Default()
 
-	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-mute", Cwd: t.TempDir()}, cfg, "", "", state)
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-mute", Cwd: t.TempDir()}, cfg, "", state)
 	if !strings.Contains(out.HookSpecificOutput.AdditionalContext, "DEADEYE MUTED") {
 		t.Fatal("mute confirmation missing")
 	}
@@ -424,7 +421,7 @@ func TestMuteSilencesAdvisoriesNotRewrites(t *testing.T) {
 	}
 
 	// Unmute restores.
-	out = decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-mute off", Cwd: t.TempDir()}, cfg, "", "", state)
+	out = decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: "/deadeye-mute off", Cwd: t.TempDir()}, cfg, "", state)
 	if !strings.Contains(out.HookSpecificOutput.AdditionalContext, "DEADEYE UNMUTED") {
 		t.Fatal("unmute confirmation missing")
 	}
@@ -490,65 +487,5 @@ func TestStatuslineNudgeConcurrentClaim(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("nudge fired %d times under concurrency; contract is once ever", count)
-	}
-}
-
-// TestCodexHookScriptCanary keeps the embedded adapter and the repo copy
-// byte-identical (same discipline as the ruleset/SKILL.md twin).
-func TestCodexHookScriptCanary(t *testing.T) {
-	b, err := os.ReadFile("../../hooks/deadeye-codex-hook.sh")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(b) != codexHookScript {
-		t.Error("hooks/deadeye-codex-hook.sh drifted from the embedded codexHookScript const")
-	}
-}
-
-// TestCodexHostBehavior: the four host-conditional paths, driven by the
-// real captured payloads from testdata/payloads/codex.
-func TestCodexHostBehavior(t *testing.T) {
-	state := coderTestState(t)
-	cfg := config.Default()
-
-	// SessionStart: persona arrives as additionalContext JSON, not Raw.
-	payload, err := os.ReadFile("../../testdata/payloads/codex/sessionstart.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var in hookio.Input
-	json.Unmarshal(payload, &in)
-	out := decideCoderSessionStart(in, cfg, "", "", "codex", state)
-	if out.Raw != nil {
-		t.Error("codex SessionStart must not use raw stdout")
-	}
-	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "DEADEYE CODER ACTIVE") {
-		t.Fatal("codex SessionStart should carry the persona in additionalContext")
-	}
-
-	// PostCompact: same handler, marks native restore.
-	out2 := decide(proto.Request{Event: "PostCompact", Host: "codex", Payload: []byte(`{"session_id":"pc1"}`)}, state)
-	if out2.HookSpecificOutput == nil || !strings.Contains(out2.HookSpecificOutput.AdditionalContext, "DEADEYE CODER ACTIVE") {
-		t.Error("PostCompact should re-inject the persona for codex")
-	}
-	if !state.nativeRestoreFor("pc1") {
-		t.Error("PostCompact must mark native restore")
-	}
-
-	// apply_patch triggers the Edit/Write path (clears repeat marker).
-	state.noteBashCommand("s1", "go test ./...")
-	decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "apply_patch", ToolInput: []byte(`{"command":"*** Begin Patch"}`)}, cfg, state)
-	if repeat := func() bool { r := state.noteBashCommand("s1", "go test ./..."); return r }(); repeat {
-		t.Error("apply_patch should clear the repeat-command marker like Edit/Write")
-	}
-
-	// Codex injection: no Agent-tool tier table, no ultracode hint.
-	text := inject.Build(state.cat, "", true, "codex")
-	if strings.Contains(text, "Agent tool") || strings.Contains(text, "tier 0") {
-		t.Errorf("codex injection leaked Claude-only guidance: %q", text)
-	}
-	up := decideUserPromptSubmit(hookio.Input{SessionID: "s2", Prompt: "audit the codebase for dead code", Cwd: t.TempDir()}, cfg, "", "codex", state)
-	if up.HookSpecificOutput != nil && strings.Contains(up.HookSpecificOutput.AdditionalContext, "ultracode") {
-		t.Error("workflow hint must not fire on codex")
 	}
 }

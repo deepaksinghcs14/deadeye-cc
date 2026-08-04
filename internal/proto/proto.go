@@ -36,11 +36,6 @@ type Request struct {
 	// unrecognized; consumers must fail open on "".
 	ClientVersion string `json:"client_version,omitempty"`
 
-	// Host names the tool serving this hook: "" / "claude" (default) or
-	// "codex". Set deterministically by the hook registration (the codex
-	// hook script passes --host codex), never sniffed from env.
-	Host string `json:"host,omitempty"`
-
 	// PluginVersion is the deadeye version of the CLIENT binary. The
 	// daemon compares it to its own: a mismatch means the binary on disk
 	// was updated after this daemon started, so the daemon exits (after
