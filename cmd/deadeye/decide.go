@@ -54,9 +54,14 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 
 	switch req.Event {
 	case "SessionStart":
-		out = decideCoderSessionStart(in, cfg, req.PluginRoot, req.ConfigDir, state)
+		out = decideCoderSessionStart(in, cfg, req.PluginRoot, req.ConfigDir, req.Host, state)
+	case "PostCompact":
+		// Codex has no SessionStart source=compact -- PostCompact is its
+		// compaction-survival surface. Same handler, same semantics.
+		in.Source = "compact"
+		out = decideCoderSessionStart(in, cfg, req.PluginRoot, req.ConfigDir, req.Host, state)
 	case "UserPromptSubmit":
-		out = decideUserPromptSubmit(in, cfg, req.ClientVersion, state)
+		out = decideUserPromptSubmit(in, cfg, req.ClientVersion, req.Host, state)
 	case "PreToolUse":
 		out = decidePreToolUse(in, cfg, state)
 	case "PostToolUse":
@@ -83,7 +88,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 // exactly that. THIS injection stays on UserPromptSubmit anyway: it fires
 // exactly once per session for INV-4 byte-stability, which SessionStart's
 // startup/resume/clear/compact multiplicity can't offer.
-func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion string, state *daemonState) hookio.Output {
+func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, host string, state *daemonState) hookio.Output {
 	var parts []string
 
 	// Coder-mode tracker first: a /deadeye-coder command's confirmation
@@ -107,7 +112,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion st
 		if !state.nativeRestoreFor(in.SessionID) {
 			memory = sessionmem.LoadRecent(in.Cwd)
 		}
-		text := inject.Build(state.cat, memory, cfg.Mode.Effort != "off")
+		text := inject.Build(state.cat, memory, cfg.Mode.Effort != "off", host)
 		tokens := inject.EstimateTokens(text)
 		reason := "session guidance injection"
 		if tokens > cfg.InjectionBudgetTokens {
@@ -124,7 +129,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion st
 		if suggestion, fired := decidePlanGateSoft(in, cfg, state); fired {
 			parts = append(parts, suggestion)
 		}
-		if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired {
+		if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired && host != "codex" {
 			parts = append(parts, suggestion)
 		}
 	}
@@ -200,7 +205,7 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 		return decideReadAdvice(in, cfg, state)
 	case "Grep":
 		return decideGrepAdvice(in, cfg, state)
-	case "Edit", "Write":
+	case "Edit", "Write", "apply_patch":
 		// An edit invalidates the consecutive-repeat heuristic: re-running
 		// the same command AFTER a change is legitimate verification.
 		state.clearLastBash(in.SessionID)

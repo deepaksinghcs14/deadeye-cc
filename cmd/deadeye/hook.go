@@ -21,8 +21,14 @@ var dialDaemon = requestDaemon
 
 // runHook is the PreToolUse/SessionStart/etc entry point invoked by
 // hooks/deadeye-hook.sh once per tool call.
-func runHook(event string) {
-	runHookTo(os.Stdout, os.Stdin, event)
+func runHook(event string, args []string) {
+	host := ""
+	for i, a := range args {
+		if a == "--host" && i+1 < len(args) {
+			host = args[i+1]
+		}
+	}
+	runHookTo(os.Stdout, os.Stdin, event, host)
 }
 
 // runHookTo is runHook with injected I/O, so tests can drive it without
@@ -30,7 +36,7 @@ func runHook(event string) {
 // that any panic anywhere in this call graph still prints the canonical
 // "{}" -- INV-5 (fail open) is structural here, not incidental, because
 // this sits in the critical path of every matched tool call (INV-8).
-func runHookTo(w io.Writer, r io.Reader, event string) {
+func runHookTo(w io.Writer, r io.Reader, event, host string) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			// Fail open (INV-5), but leave a trace -- a swallowed panic
@@ -54,7 +60,7 @@ func runHookTo(w io.Writer, r io.Reader, event string) {
 		}
 	}
 
-	out := dialDaemon(event, raw)
+	out := dialDaemon(event, raw, host)
 	if len(out) == 0 {
 		out = []byte("{}")
 	}
@@ -73,7 +79,7 @@ func runHookTo(w io.Writer, r io.Reader, event string) {
 // live: the first real session after a daemon exit answered "Unknown" to
 // its own coder level; the very next session answered correctly). So for
 // SessionStart only, wait briefly for the daemon just spawned and retry.
-func requestDaemon(event string, raw []byte) []byte {
+func requestDaemon(event string, raw []byte, host string) []byte {
 	conn, err := net.DialTimeout("unix", meta.SocketPath(), 50*time.Millisecond)
 	if err != nil {
 		spawnDaemonFn()
@@ -89,7 +95,7 @@ func requestDaemon(event string, raw []byte) []byte {
 	_ = conn.SetDeadline(time.Now().Add(200 * time.Millisecond))
 
 	req := proto.Request{
-		Event: event, Payload: raw, Off: config.OffSwitches(),
+		Event: event, Payload: raw, Off: config.OffSwitches(), Host: host,
 		PluginRoot:    os.Getenv("CLAUDE_PLUGIN_ROOT"),
 		ConfigDir:     os.Getenv("CLAUDE_CONFIG_DIR"),
 		ClientVersion: clientVersion(),

@@ -16,6 +16,10 @@ import (
 func runUninstall(args []string) {
 	purge := false
 	for _, a := range args {
+		if a == "codex" {
+			runUninstallCodex()
+			return
+		}
 		if a == "--purge" {
 			purge = true
 		}
