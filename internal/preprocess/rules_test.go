@@ -56,8 +56,10 @@ func TestApplyGolden(t *testing.T) {
 		{"find with name is scoped", "find . -name '*.go'", "", false, false},
 		{"tree unbounded", "tree", "tree-cap", true, true},
 		{"tree with L is bounded", "tree -L 2", "", false, false},
+		{"tree unbounded, path merely contains -L", "tree ./src-Legacy", "tree-cap", true, true},
 		{"du unbounded", "du ~/projects", "du-cap", true, true},
 		{"du -sh is bounded", "du -sh .", "", false, false},
+		{"du unbounded, path merely contains -d and -s", "du ./old-drafts", "du-cap", true, true},
 		{"pip list", "pip list", "pkg-list-cap", true, true},
 		{"brew list", "brew list", "pkg-list-cap", true, true},
 		{"unrelated command", "echo hello", "", false, false},
@@ -224,6 +226,20 @@ func TestFilterSurvivesRealToolOutput(t *testing.T) {
 			exitCode:    1,
 			mustContain: []string{"FAILED", "AssertionError"},
 		},
+		{
+			name:        "npm 11 install with deprecation warnings: the original ALL-CAPS-only pattern matched none of npm 7+'s lowercase markers",
+			fixture:     "npm_install_warn.txt",
+			filter:      installFilter,
+			exitCode:    0,
+			mustContain: []string{"uuid@3.4.0", "deprecated"},
+		},
+		{
+			name:        "npm 11 install failure (404): npm 7+ renamed \"npm ERR!\" to lowercase \"npm error\"",
+			fixture:     "npm_install_fail.txt",
+			filter:      installFilter,
+			exitCode:    1,
+			mustContain: []string{"E404", "Not Found"},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -332,22 +348,25 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// TestInstallFilterKeepsErrors: npm's failure marker is "npm ERR!", pip's
-// is "ERROR:"; progress spam has neither and must collapse to the
-// fallback line.
+// TestInstallFilterKeepsErrors covers legacy npm (pre-7, "npm ERR!") back
+// compat and the progress-spam-collapses-to-fallback case with hand-written
+// fixtures; TestFilterSurvivesRealToolOutput's npm_install_* cases cover
+// current npm (7+, lowercase "npm error"/"npm warn") with real captures --
+// this rule's original pattern matched neither, and only a real capture
+// caught that (see that test's doc comment).
 func TestInstallFilterKeepsErrors(t *testing.T) {
 	if _, err := exec.LookPath("sh"); err != nil {
 		t.Skip("no sh on PATH")
 	}
 	npmFail := "npm ERR! code ERESOLVE\nnpm ERR! ERESOLVE unable to resolve dependency tree\n"
-	wrapped := captureThenFilter("printf '%s' "+shellQuote(npmFail)+"; exit 1", `grep -E "(ERR!|ERROR:|error:|WARN|warning)" -B 1 -A 3 | head -n 100`)
+	wrapped := captureThenFilter("printf '%s' "+shellQuote(npmFail)+"; exit 1", installFilter)
 	out, _ := exec.Command("sh", "-c", wrapped).Output()
 	if !strings.Contains(string(out), "ERESOLVE") {
 		t.Errorf("npm error detail lost: %s", out)
 	}
 
 	progressOnly := "added 1204 packages in 32s\n147 packages are looking for funding\n"
-	wrapped = captureThenFilter("printf '%s' "+shellQuote(progressOnly), `grep -E "(ERR!|ERROR:|error:|WARN|warning)" -B 1 -A 3 | head -n 100`)
+	wrapped = captureThenFilter("printf '%s' "+shellQuote(progressOnly), installFilter)
 	out, err := exec.Command("sh", "-c", wrapped).Output()
 	if err != nil {
 		t.Fatal(err)

@@ -112,10 +112,35 @@ func captureThenFilter(cmd, filter string) string {
 //     `AssertionError|[0-9]+ (failing|failed)|●|not ok|Traceback` covers
 //     mocha/jest/tap/pytest; verified against real captured output from
 //     each in internal/preprocess/testdata.
+//   - install-filter's original pattern was case-sensitive for `WARN` and
+//     `npm ERR!` -- npm 7+ (current: 11) renamed both markers to lowercase
+//     `npm warn` / `npm error`, so a real `npm install` under npm 11 (both
+//     a clean run with deprecation warnings and a hard failure, e.g. a
+//     404) matched NOTHING and printed only "no output survived
+//     filtering", silently eating the actual error. `-i` fixes it without
+//     narrowing pip's already-matching `ERROR:`/`WARNING:`.
 var (
-	testFilter  = `grep -E "(FAIL|FAILED|Failed|ERROR|Error:|error:|panic:|--- FAIL|AssertionError|[0-9]+ (failing|failed|failures?)|Failures?:|✕|●|not ok|Traceback)" -B 3 -A 5 | head -n 120`
-	buildFilter = `grep -E "(error|Error|ERROR|FAIL|cannot |undefined|[^ ]+:[0-9]+:[0-9]+|[^ ]+\([0-9]+,[0-9]+\))" -B 2 -A 3 | head -n 120`
+	testFilter    = `grep -E "(FAIL|FAILED|Failed|ERROR|Error:|error:|panic:|--- FAIL|AssertionError|[0-9]+ (failing|failed|failures?)|Failures?:|✕|●|not ok|Traceback)" -B 3 -A 5 | head -n 120`
+	buildFilter   = `grep -E "(error|Error|ERROR|FAIL|cannot |undefined|[^ ]+:[0-9]+:[0-9]+|[^ ]+\([0-9]+,[0-9]+\))" -B 2 -A 3 | head -n 120`
+	installFilter = `grep -Ei "(err!|error:?|warn(ing)?)" -B 1 -A 3 | head -n 100`
 )
+
+// hasOptionContaining reports whether any whitespace-separated token in cmd
+// both starts with "-" (an option, not a plain argument) and contains
+// substr. The tree-cap/du-cap "already bounded" checks below used to
+// substring-match the WHOLE command line, which fired on any plain path
+// argument that happened to contain the flag's letter -- "du ./old-drafts"
+// read "-drafts" as if -d had been passed, silently suppressing the
+// advisory on an actually-unbounded command. Scoping the search to
+// option-shaped tokens fixes that without parsing each tool's flag syntax.
+func hasOptionContaining(cmd, substr string) bool {
+	for _, f := range strings.Fields(cmd) {
+		if strings.HasPrefix(f, "-") && strings.Contains(f, substr) {
+			return true
+		}
+	}
+	return false
+}
 
 var Rules = []Rule{
 	{
@@ -200,8 +225,9 @@ var Rules = []Rule{
 	},
 	{
 		// Package installs spam progress lines that carry nothing an agent
-		// can act on; only errors and deprecation warnings matter. npm's
-		// failure marker is "npm ERR!", pip's is "ERROR:".
+		// can act on; only errors and deprecation warnings matter. npm 7+'s
+		// markers are lowercase ("npm error", "npm warn"); pip's are
+		// "ERROR:"/"WARNING:" -- -i covers both without two patterns.
 		Name:           "install-filter",
 		Note:           "keeps only errors/warnings from package-install output",
 		EstBeforeBytes: 20000,
@@ -210,7 +236,7 @@ var Rules = []Rule{
 			if !installFilterRe.MatchString(cmd) {
 				return cmd, false
 			}
-			return captureThenFilter(cmd, `grep -E "(ERR!|ERROR:|error:|WARN|warning)" -B 1 -A 3 | head -n 100`), true
+			return captureThenFilter(cmd, installFilter), true
 		},
 	},
 	{
@@ -310,7 +336,7 @@ var Rules = []Rule{
 		Advisory: true,
 		TryRewrite: func(cwd, cmd string) (string, bool) {
 			c := strings.TrimSpace(cmd)
-			return cmd, treeRe.MatchString(c) && !strings.Contains(c, "-L")
+			return cmd, treeRe.MatchString(c) && !hasOptionContaining(c, "L")
 		},
 	},
 	{
@@ -319,7 +345,7 @@ var Rules = []Rule{
 		Advisory: true,
 		TryRewrite: func(cwd, cmd string) (string, bool) {
 			c := strings.TrimSpace(cmd)
-			return cmd, duRe.MatchString(c) && !strings.Contains(c, "-s") && !strings.Contains(c, "-d") && !strings.Contains(c, "--max-depth")
+			return cmd, duRe.MatchString(c) && !hasOptionContaining(c, "s") && !hasOptionContaining(c, "d")
 		},
 	},
 	{
