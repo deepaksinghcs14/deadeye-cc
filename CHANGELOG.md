@@ -329,8 +329,7 @@ All four `deadeye:` debt markers paid down:
 ## 0.5.0
 
 Coder mode: a lean-first coding persona, built Go-native into the
-daemon. (Portions adapted from an MIT-licensed work -- notice in
-THIRD-PARTY.md.)
+daemon.
 
 - **On by default at level `marksman`.** The persona ruleset is injected
   at every session start -- including after compaction -- and travels

@@ -453,4 +453,4 @@ Because efficiency isn't spending less — it's not missing.
 
 ## License
 
-[MIT](LICENSE) — third-party notices in [THIRD-PARTY.md](THIRD-PARTY.md).
+[MIT](LICENSE)

@@ -1,10 +1,6 @@
 // Package coder is deadeye's lazy-senior-dev persona: a canonical ruleset
 // injected at session start, filtered to one of three intensity levels
 // (spotter/marksman/sniper), with a prompt-parsed mode tracker.
-//
-// Portions adapted from an MIT-licensed work -- notice in
-// THIRD-PARTY.md. The persona voice, level vocabulary, and marker
-// convention are deadeye's own.
 package coder
 
 import (
