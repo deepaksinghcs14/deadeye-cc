@@ -544,7 +544,7 @@ FAIL</div>
       <thead><tr><th>What</th><th>What it does</th><th>Default</th></tr></thead>
       <tbody>
         <tr><td class="axis">Context</td><td class="desc">Trims verbose command output before it enters context — test suites across nine language ecosystems, builds, linters, package installs, pod logs, log tails. Also flags wasteful reads: re-reading unchanged files, whole-reads of huge files, identical commands run twice in a row. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
-        <tr><td class="axis">Coder</td><td class="desc">A lean-first coding persona injected every session (it survives compaction) and into subagents: question whether the code needs to exist, stdlib before custom code, one line before fifty. Three levels — spotter, marksman, sniper.</td><td class="mode"><span class="pill">marksman</span></td></tr>
+        <tr><td class="axis">Coder</td><td class="desc">A lean-first coding persona injected every session (it survives compaction) and into subagents: question whether the code needs to exist, stdlib before custom code, one line before fifty — plus a live security check on what's written and its dependencies. Three levels — spotter, marksman, sniper.</td><td class="mode"><span class="pill">marksman</span></td></tr>
         <tr><td class="axis">Effort</td><td class="desc">Suggests lower effort for mechanical steps. Has no effect if <code>CLAUDE_EFFORT</code> is already pinned for the session — <code>/deadeye-status</code> tells you plainly if that's the case.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Model</td><td class="desc">Picks the model when a subagent starts. Prices come from a table built into the binary, refreshed each release — there's no live pricing API a background hook process could reach.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Plan gate</td><td class="desc">Asks once before a multi-file edit that skipped writing a plan first, then stays quiet for the rest of that task.</td><td class="mode"><span class="pill soft">soft</span></td></tr>
@@ -576,9 +576,11 @@ FAIL</div>
       </div>
       <p class="note" style="margin-top:14px">Deliberate shortcuts get a
         <code>deadeye:</code> comment naming the ceiling and upgrade trigger —
-        <code>/deadeye-debt</code> collects them into a ledger. Safety is
-        never cut: input validation, error handling that prevents data
-        loss, security, and accessibility stay, at every level.</p>
+        <code>/deadeye-debt</code> collects them into a ledger. Safety isn't
+        just preserved, it's checked for: input validation, error handling
+        that prevents data loss, security, and accessibility stay at every
+        level, and a live pass flags injection, secrets, weak crypto, and
+        vulnerable dependencies as you write.</p>
     </div>
     <div>
       <div class="term"><span class="c">/deadeye-coder sniper</span>
@@ -611,8 +613,9 @@ DEADEYE CODER ACTIVE — level: sniper
           <tbody>
             <tr><td class="axis">Inject</td><td class="desc">The ruleset ships embedded in the binary. At every session start the daemon prints it into the model's context, filtered to the active level — a marksman session never pays tokens for the other levels' rows.</td><td class="mode"><span class="pill soft">start</span></td></tr>
             <tr><td class="axis">Survive</td><td class="desc">When Claude Code compacts a long conversation, the hook fires again and re-injects at whatever level you'd switched to. No drift back to over-building.</td><td class="mode"><span class="pill soft">compact</span></td></tr>
-            <tr><td class="axis">Travel</td><td class="desc">Subagents inherit a condensed card — just the behavior-bearing rules. Measured: 6,029 bytes per spawn before, 887 after, an 85.3% cut on every spawn. Scope it with <code>coder.subagent_matcher</code>.</td><td class="mode"><span class="pill">−85.3%</span></td></tr>
+            <tr><td class="axis">Travel</td><td class="desc">Subagents inherit a condensed card — just the behavior-bearing rules. Measured: 7,666 bytes per spawn before, 1,073 after, an 86.0% cut on every spawn. Scope it with <code>coder.subagent_matcher</code>.</td><td class="mode"><span class="pill">−86.0%</span></td></tr>
             <tr><td class="axis">Resolve</td><td class="desc">Kill switch beats your session switch, beats <code>coder.default_level</code> in config, beats the built-in default. Switches last until the session ends.</td><td class="mode"><span class="pill soft">precedence</span></td></tr>
+            <tr><td class="axis">Guard</td><td class="desc">Every Edit/Write is checked against the ADDED text only — injection shapes, secrets, weak crypto, TLS-off, across five languages — plus the dependency itself on a manifest edit. Deep pass on demand: <code>/deadeye-guard</code>.</td><td class="mode"><span class="pill soft">check-your-backstop</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -640,6 +643,43 @@ DEADEYE CODER ACTIVE — level: sniper
         <code>/deadeye-debt</code> parses reliably.</p>
     </div>
   </div>
+
+  <div class="two" style="margin-top:28px">
+    <div>
+      <div class="term"><span class="m">the same request, per level -- "look a user up by name":</span>
+
+<span class="c">spotter</span>   Done. FYI: name is interpolated into the
+          query -- bind it instead.
+
+<span class="c">marksman</span>  Parameterized query, name bound not
+          interpolated. Skipped a sanitizer layer;
+          the driver escapes.
+
+<span class="c">sniper</span>    Bound parameter, and it returns id+name
+          only -- fewer columns out, less to leak.</div>
+      <p class="note" style="margin-top:14px">The safe form is usually the
+        SHORT form — a parameterized query beats hand-rolled escaping,
+        <code>exec.Command(bin, args...)</code> beats building a shell
+        string. Lean and safe are the same move.</p>
+    </div>
+    <div>
+      <p class="note" style="margin-top:0">Editing a manifest checks the
+        dependency too: a bundled table flags packages the platform has
+        since absorbed (<code>request</code> → <code>fetch</code>,
+        <code>moment</code> → <code>Temporal</code>/<code>date-fns</code>),
+        and an optional OSV.dev lookup catches known vulnerabilities — name
+        and version only, nothing else about the code, and never on the
+        hook's response path: a cache miss refreshes in the background and
+        informs the <em>next</em> edit, never blocks this one. Turn just
+        that lookup off with <code>coder.security_osv: false</code>; the
+        bundled table keeps working fully offline. <code>/deadeye-guard</code>
+        is the on-demand deep pass — diff-scoped, verifies a missing
+        sanitizer or authz check against the surrounding code before
+        reporting it, and runs <code>govulncheck</code>/<code>npm
+        audit</code>/<code>pip-audit</code>/<code>cargo audit</code> when
+        installed.</p>
+    </div>
+  </div>
 </section>
 
 <section class="reveal">
@@ -653,6 +693,7 @@ DEADEYE CODER ACTIVE — level: sniper
     <table>
       <tbody>
         <tr><td class="axis">/code-review, /simplify</td><td class="desc">deadeye-review is the lean lens only: verified findings, net-lines accounting, cuts that flow into the debt ledger. Instant local pass; escalate to ultra for pre-merge depth.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
+        <tr><td class="axis">/security-review</td><td class="desc">deadeye-guard is the diff-scoped lean pass: live regex/manifest advisories while you type, verify-before-report deep check with native-auditor coverage on demand. Instant local pass; escalate to /security-review for the full audit.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
         <tr><td class="axis">Plan mode</td><td class="desc">Native plan mode exists but nothing triggers it — deadeye's gate notices a risky multi-file edit coming and nudges into it.</td><td class="mode"><span class="pill soft">triggers</span></td></tr>
         <tr><td class="axis">Output truncation</td><td class="desc">Native truncation is size-based at 30K chars. deadeye rewrites commands before they run so only failure context enters at all — and stacks under the native cap.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
         <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
@@ -708,7 +749,7 @@ Cross-check these figures against /usage's plugin attribution.</div>
     all rows on one real machine: 812 of 856) aren't logged at all, so
     your log holds only the rows where deadeye actually did something.
     Newest measured win, same log: the coder persona a subagent inherits
-    went from 6,029 bytes per spawn to 887 — an 85.3% cut, logged as
+    went from 7,666 bytes per spawn to 1,073 — an 86.0% cut, logged as
     <code>coder-subagent bytes_after</code> on every spawn.</p>
 </section>
 

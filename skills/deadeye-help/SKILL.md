@@ -33,6 +33,7 @@ Present this reference card, formatted cleanly:
 | `/deadeye-coder [level]` | Switch/report the coder persona level |
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
 | `/deadeye-review` | Over-engineering review of the current diff |
+| `/deadeye-guard` | Security review of the current diff -- injection, secrets, authz, crypto, deps |
 | `/deadeye-sweep` | Whole-repo over-engineering audit |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
 | `/deadeye-help` | This card |
@@ -51,7 +52,9 @@ outcomes that bias future decisions.
 
 `~/.deadeye/config.json` (seeded with defaults on first run; project
 overrides in `.deadeye.json`). Coder knobs: `coder.default_level`,
-`coder.subagent_matcher`, `coder.injection_budget_tokens`.
+`coder.subagent_matcher`, `coder.injection_budget_tokens`,
+`coder.security` (`off`/`advise`, the live Edit/Write advisory),
+`coder.security_osv` (`false` keeps the dependency check fully offline).
 
 ## Update
 

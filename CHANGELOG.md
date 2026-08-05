@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+## 0.14.0
+
+**Security joins coder mode -- part of coding, not a post-check.** The
+persona's "never cut security" carve-out was purely negative: it told the
+model not to remove safety it happened to find, never to look for
+exposures in what it was about to write. Rung 5 of the ladder
+(reach for an installed dependency) also had no idea whether that
+dependency was vulnerable or abandoned. Both close now.
+
+- **`## Check your backstop`** -- a new ruleset section scaled across
+  spotter/marksman/sniper: name the trust boundary before crossing it,
+  take the safe form (usually the shorter one), never hand-roll crypto or
+  a sanitizer, and use the existing `deadeye: ... ceiling: ... upgrade:`
+  marker for a knowingly-shipped exposure. Injection budgets raised
+  deliberately alongside it: 6.5KB -> 8KB per level,
+  `coder.injection_budget_tokens` 1600 -> 2000.
+- **Live Edit/Write advisory** -- a deterministic pass (`internal/secscan`)
+  over the ADDED text only, never the target file: SQL/shell/eval
+  injection shapes, hardcoded secrets, weak crypto, and disabled TLS
+  verification, across Go, JavaScript/TypeScript, Python, Java, and Rust.
+  Advisory only, deduped once per session per finding, capped at 2 per
+  edit, gated on coder mode being active. New `coder.security` config
+  key (`off`/`advise`, default `advise`).
+- **Dependency check** -- editing a manifest (`go.mod`, `package.json`,
+  `requirements.txt`/`pyproject.toml`, `Cargo.toml`, `pom.xml`/
+  `build.gradle`) checks the dependency itself: a bundled table flags
+  packages the platform has since absorbed (`request` -> `fetch`,
+  `moment` -> `Temporal`/`date-fns`), and an optional OSV.dev lookup
+  catches known vulnerabilities. The network call never sits in the hook
+  path -- a background daemon goroutine refreshes
+  `~/.deadeye/osv-cache.json` (package name + version only, nothing else
+  about the codebase) so a cache miss informs the *next* edit, never
+  blocks the current one. New `coder.security_osv` config key (default
+  `true`; `false` keeps the check fully offline, the bundled table still
+  works).
+- **`/deadeye-guard`** -- the on-demand deep pass: diff-scoped, verifies
+  a missing sanitizer/authz check against the surrounding code before
+  reporting it (same discipline as `/deadeye-review`), and runs
+  `govulncheck`/`npm audit`/`pip-audit`/`cargo audit` when installed.
+  `/deadeye-review`'s scope note now points security findings here
+  instead of at Claude Code's `/security-review`.
+- Subagent card's measured cut, re-measured after both ruleset changes:
+  7,666 bytes per spawn -> 1,073 -- an 86.0% cut (was 85.3%).
+
 ## 0.13.0
 
 - **`deadeye update`** -- the one-command updater for hosts without the

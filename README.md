@@ -195,6 +195,7 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories, plan-gate nags, and workflow hints for this session (rewrites keep working) |
 | `/deadeye-review` | Over-engineering review of the current diff |
+| `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, vulnerable deps |
 | `/deadeye-sweep` | Whole-repo over-engineering audit |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
@@ -235,7 +236,7 @@ Claude Code compacts the conversation, the SessionStart hook fires again
 and the persona is re-injected at whatever level you'd switched to.
 Subagents inherit it too — but not the whole thing: they get a condensed
 card carrying just the behavior-bearing rules. Measured from the decision
-log: **6,029 bytes per spawn before, 887 after — an 85.3% cut**, paid on
+log: **7,666 bytes per spawn before, 1,073 after — an 86.0% cut**, paid on
 every single subagent your sessions ever launch. (Scope subagent
 injection with `coder.subagent_matcher` in config if you only want it in
 some agent types.)
@@ -276,6 +277,48 @@ a patch on the one path the ticket named). And the discipline never cuts
 safety: input validation, error handling that prevents data loss,
 security, and accessibility survive every level.
 
+### Check your backstop
+
+The same discipline extends to security, scaled by level rather than
+sitting beside it: the moment untrusted input reaches a query, a shell, a
+template, a path, or `eval` — or the code touches a credential or an
+authz decision — coder mode names the boundary and takes the safe form,
+because the safe form is usually the shorter one. A parameterized query
+is shorter than the escaping you'd hand-roll; `exec.Command(bin,
+args...)` is shorter than building a shell string.
+
+- **spotter** builds it, then flags the exposure: "FYI: `name` is
+  interpolated into the query — bind it instead."
+- **marksman** writes the safe form by default and names the vuln class
+  in one line: "Parameterized query, `name` bound not interpolated."
+- **sniper** deletes the exposure outright: "returns id+name only —
+  fewer columns out, less to leak."
+
+That's the persona's judgment. Backing it is a deterministic check on
+every `Edit`/`Write`: SQL/shell/eval injection shapes, hardcoded secrets,
+weak crypto, and disabled TLS verification, covering Go,
+JavaScript/TypeScript, Python, Java, and Rust — checked against only the
+text being added, never the whole file or the whole repo. Editing a
+manifest (`go.mod`, `package.json`, `requirements.txt`/`pyproject.toml`,
+`Cargo.toml`, `pom.xml`/`build.gradle`) also checks the dependency
+itself: a bundled table flags packages the platform has since absorbed
+(`request` → `fetch`, `moment` → `Temporal`/`date-fns`), and an optional
+OSV.dev lookup catches known vulnerabilities. `/deadeye-guard` is the
+on-demand deep pass — diff-scoped, reads around the hunk to verify before
+reporting, and runs `govulncheck`/`npm audit`/`pip-audit`/`cargo audit`
+when installed.
+
+Both the live check and the dependency lookup ride the coder axis:
+`coder.security: "off"` (or the `DEADEYE_CODER=off` kill switch) turns
+off the advisory along with the rest of the persona.
+
+> **The dependency check can reach the network.** When a manifest edit
+> touches a package the local cache doesn't know about yet, deadeye may
+> query OSV.dev in the background — never blocking the edit — with just
+> the package name and version. Nothing else about your code ever leaves
+> your machine. Turn it off with `coder.security_osv: false` in
+> `~/.deadeye/config.json`; the bundled table keeps working fully offline.
+
 Comments get their own discipline: terseness governs the *response*,
 never the code's why-comments — the persona comments the constraint or
 tradeoff the code can't show, renames before it annotates, deletes
@@ -308,6 +351,7 @@ they don't:
 | Claude Code built-in | What deadeye adds |
 |---|---|
 | `/code-review` / `/simplify` — correctness & cleanup reviews, on demand | `/deadeye-review` is the *lean lens only*: verified findings, `net: -N lines` accounting, and cuts that flow into the `deadeye:` debt ledger. Run it as the instant local pass; escalate to `/code-review ultra` for depth before a merge |
+| `/security-review` — full security audit, on demand | `/deadeye-guard` is the diff-scoped lean pass: live regex/manifest advisories while you type, a verify-before-report deep check with native-auditor coverage on demand. Run it for the fast local pass; escalate to `/security-review` for the full audit before a merge |
 | Plan mode — exists, but nothing triggers it | deadeye's plan gate notices a risky multi-file edit coming and nudges *into* plan mode |
 | Bash output truncation — size-based, at 30,000 chars | deadeye rewrites commands *before they run* so only failure context enters at all — content-based, and it stacks under the native cap |
 | Subagent models — inherit the parent's model | deadeye recommends the cheapest tier the evidence supports, explains why, and learns from your escalations |
@@ -318,7 +362,7 @@ they don't:
 | What | Modes | What it does |
 |---|---|---|
 | Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Flags unbounded dumps before they run: unscoped `git diff`/`git log`, `terraform plan`, `kubectl get -o yaml`, `npm ls`, bare `find`/`tree`/`du`, full package lists, and content-mode Grep with no limit. Also flags wasteful reads: re-reading a file that hasn't changed, whole-reads of huge files, and running the identical command twice in a row |
-| Coder persona | `off` / `spotter` / `marksman` / `sniper` | The lean-first coding discipline above, injected per session and into subagents |
+| Coder persona | `off` / `spotter` / `marksman` / `sniper` | The lean-first coding discipline above — including a live security check on what's written and its dependencies — injected per session and into subagents |
 | Effort level | `off` / `advise` | Suggests using lower effort for mechanical steps; has no effect if `CLAUDE_EFFORT` is already pinned for the session |
 | Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one yourself |
 | Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit |

@@ -67,7 +67,7 @@
           "type": "array",
           "items": { "type": "string" },
           "default": [],
-          "description": "Rule/advisory names to disable individually: test-filter, build-filter, log-tail, diff-cap, lint-filter, install-filter, logs-tail, cat-large, history-cap, tf-plan-cap, kubectl-yaml-cap, npm-ls-cap, find-cap, tree-cap, du-cap, pkg-list-cap -- plus the non-Bash advisories grep-limit, read-advice, and repeat-command."
+          "description": "Rule/advisory names to disable individually: test-filter, build-filter, log-tail, diff-cap, lint-filter, install-filter, logs-tail, cat-large, history-cap, tf-plan-cap, kubectl-yaml-cap, npm-ls-cap, find-cap, tree-cap, du-cap, pkg-list-cap -- plus the non-Bash advisories grep-limit, read-advice, and repeat-command -- plus the coder-mode security rules secret-literal, weak-crypto, tls-off, sql-concat, shell-interp, eval-dynamic, html-inject, java-deser, and dep-check (or a specific dep:<ecosystem>:<name>)."
         }
       }
     },
@@ -101,8 +101,19 @@
         "injection_budget_tokens": {
           "type": "integer",
           "minimum": 0,
-          "default": 1600,
+          "default": 2000,
           "description": "Logged ceiling for the coder ruleset injection -- separate from the 400-token advisory budget, since the persona is an explicit opt-in and byte-stable per level."
+        },
+        "security": {
+          "type": "string",
+          "enum": ["off", "advise"],
+          "default": "advise",
+          "description": "Live security advisory on Edit/Write: SQL/shell/eval injection shapes, TLS-off, hardcoded secrets, weak crypto, and vulnerable/superseded dependencies in a manifest. Rides the coder axis -- off when coder mode itself is off or disabled via DEADEYE_CODER=off."
+        },
+        "security_osv": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the dependency check may consult OSV.dev (package name + version only, never file paths or code) via a background cache refresh. false keeps the check fully offline -- the bundled superseded-package table still works."
         }
       }
     },

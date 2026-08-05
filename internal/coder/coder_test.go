@@ -43,6 +43,8 @@ func TestRulesetCarriesInvariants(t *testing.T) {
 		"root cause",
 		"deadeye:",
 		"Already in this codebase?",
+		"Check your backstop",
+		"Untrusted until proven otherwise",
 	} {
 		if !strings.Contains(ruleset, inv) {
 			t.Errorf("ruleset lost invariant phrase %q", inv)
@@ -184,10 +186,13 @@ func TestIsShellSafe(t *testing.T) {
 
 // TestSubagentCard: the condensed card must stay small (that's its whole
 // point) while keeping every behavior-bearing rule; review stays one line.
+// 1300 = the size after the "Check your backstop" line landed (deliberately
+// raised from 1100 in the same commit, not a silent bump), with modest
+// headroom -- the largest level (sniper) measured 1203.
 func TestSubagentCard(t *testing.T) {
 	for _, level := range []string{LevelSpotter, LevelMarksman, LevelSniper} {
 		card := SubagentCard(level)
-		if len(card) > 1100 {
+		if len(card) > 1300 {
 			t.Errorf("%s card is %d bytes -- the card exists to be small", level, len(card))
 		}
 		for _, want := range []string{

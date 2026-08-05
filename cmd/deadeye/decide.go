@@ -209,7 +209,21 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 		// An edit invalidates the consecutive-repeat heuristic: re-running
 		// the same command AFTER a change is legitimate verification.
 		state.clearLastBash(in.SessionID)
-		return decidePlanGateHard(in, cfg, state)
+		// Both can fire on the same edit: the gate asks permission
+		// (PermissionDecision), the vuln advisory adds context
+		// (AdditionalContext) -- different fields of the same
+		// hookSpecificOutput, so both survive in one response rather than
+		// one silently dropping the other. Always run the gate first: it
+		// has its own state to clear (clearPendingPlan) regardless of
+		// whether this edit trips a vuln rule.
+		out := decidePlanGateHard(in, cfg, state)
+		if vuln := decideVulnAdvice(in, cfg, state); vuln.HookSpecificOutput != nil {
+			if out.HookSpecificOutput == nil {
+				return vuln
+			}
+			out.HookSpecificOutput.AdditionalContext = vuln.HookSpecificOutput.AdditionalContext
+		}
+		return out
 	default:
 		return hookio.Empty()
 	}

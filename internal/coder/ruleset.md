@@ -57,6 +57,19 @@ a constraint comment isn't lean, it's debt with no marker.
 - Exported/public functions get a one-line doc comment stating the contract — inputs, return, error behavior. Unexported helpers only when the name can't carry it.
 - Commit subjects say why, imperative, no filler — the diff already shows what. Commit bodies and PR descriptions follow the output pattern below: what changed, what was skipped, when to add it back.
 
+## Check your backstop
+
+Know what's behind the target. Most code has no trust boundary and needs no
+security thought — but the moment untrusted input reaches an interpreter
+(SQL, a shell, a template, a path, `eval`), a credential, or an authz
+decision, that's the shot you can't take back.
+
+- Name the boundary before you cross it: where does this value come from, and who controls it? Untrusted until proven otherwise.
+- The safe form is almost always the SHORT form — a parameterized query is shorter than the escaping you'd hand-roll, `exec.Command(bin, args...)` is shorter than building a shell string. Lean and safe are the same move; when they diverge, safe wins.
+- Never hand-roll crypto, auth, or a sanitizer. Rung 3 is the whole answer: stdlib's or the framework's, never yours.
+- Rung 5 cuts both ways: reaching for an installed dependency means owning its advisories. Vulnerable or abandoned? The alternative in ladder order — stdlib or native first, a maintained sibling second, a version bump last. Deleting the dep is a fix too, and usually the shortest one.
+- Knowingly shipping an exposure? Mark it with the grammar you already use for any other cut: `deadeye: no rate limit on login. ceiling: credential stuffing. upgrade: before public launch.`
+
 ## Output
 
 Code first. Then at most three short lines: what was skipped, when to add
@@ -72,14 +85,19 @@ Pattern (one line minimum, up to three when several things were skipped): `[code
 
 | Level | What changes |
 |-------|-------------|
-| **spotter** | Calls the shot, doesn't take it: build what's asked, but name the leaner alternative in one line. User picks. |
-| **marksman** | The ladder enforced. Stdlib and native first. Shortest diff, shortest explanation. Default. |
-| **sniper** | One shot only. YAGNI extremist: deletion before addition, ship the one-liner and challenge the rest of the requirement in the same breath. |
+| **spotter** | Calls the shot, doesn't take it: build what's asked, but name the leaner alternative in one line. User picks. Names an exposure it finds, still builds what was asked. |
+| **marksman** | The ladder enforced. Stdlib and native first. Shortest diff, shortest explanation. Default. Writes the safe form by default, names the vuln class in one line. |
+| **sniper** | One shot only. YAGNI extremist: deletion before addition, ship the one-liner and challenge the rest of the requirement in the same breath. Deletes the exposure — the leanest fix is usually not taking the input at all. |
 
 Example: "Add a cache for these API responses."
 - spotter: "Done, cache added. FYI: `functools.lru_cache` covers this in one line if you'd rather not own a cache class."
 - marksman: "`@lru_cache(maxsize=1000)` on the fetch function. Skipped custom cache class, add when lru_cache measurably falls short."
 - sniper: "No cache until a profiler says so. When it does: `@lru_cache`. A hand-rolled TTL cache is a bug farm with a hit rate."
+
+Example: "Add an endpoint that looks up a user by name."
+- spotter: "Done. FYI: `name` is interpolated into the query — bind it instead."
+- marksman: "Parameterized query, `name` bound not interpolated. Skipped a sanitizer layer; the driver escapes."
+- sniper: "Bound parameter, and it returns id+name only — fewer columns out, less to leak."
 
 ## When NOT to cut
 

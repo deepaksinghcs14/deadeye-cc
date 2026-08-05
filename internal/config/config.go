@@ -46,16 +46,36 @@ type PlanGate struct {
 // ruleset is an explicit opt-in and byte-stable per level, so INV-4's
 // no-silent-creep intent holds via its own ceiling rather than by
 // squeezing under the advisory one.
+//
+// Security rides the coder axis rather than becoming a seventh: the
+// live Edit/Write advisory (cmd/deadeye/vuln.go) is off|advise, gated
+// alongside coder mode itself because it's part of coding, not a
+// separate feature. SecurityOSV additionally gates the OSV.dev dependency
+// lookup specifically -- it's a pointer so an explicit `false` in the
+// config file is distinguishable from the key being absent (nil means
+// "seed the default", per EnsureCoderBlock).
 type Coder struct {
 	DefaultLevel          string `json:"default_level"`
 	SubagentMatcher       string `json:"subagent_matcher"`
 	InjectionBudgetTokens int    `json:"injection_budget_tokens"`
+	Security              string `json:"security"`
+	SecurityOSV           *bool  `json:"security_osv"`
 
 	// Disabled is set by LoadFor when a kill switch (DEADEYE or
 	// DEADEYE_CODER) is engaged for the current request -- distinct from
 	// DefaultLevel because the switch must silence an already-active
 	// SESSION level too, not just stop new sessions from starting one.
 	Disabled bool `json:"-"`
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+// SecurityOSVEnabled reports whether the OSV.dev dependency lookup should
+// run -- true unless explicitly disabled. A nil pointer (key absent from a
+// pre-existing config that predates this field) defaults to enabled,
+// matching Default()'s own value, not to off.
+func (c Coder) SecurityOSVEnabled() bool {
+	return c.SecurityOSV == nil || *c.SecurityOSV
 }
 
 // Config mirrors schema/config.schema.json. `tiers.override` is
@@ -105,7 +125,9 @@ func Default() Config {
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",
-			InjectionBudgetTokens: 1600,
+			InjectionBudgetTokens: 2000, // raised alongside the "Check your backstop" section; see internal/coder/size_test.go
+			Security:              "advise",
+			SecurityOSV:           boolPtr(true),
 		},
 	}
 }
@@ -166,6 +188,8 @@ func EnsureCoderBlock() {
 		"default_level":           seed.DefaultLevel,
 		"subagent_matcher":        seed.SubagentMatcher,
 		"injection_budget_tokens": seed.InjectionBudgetTokens,
+		"security":                seed.Security,
+		"security_osv":            seed.SecurityOSVEnabled(),
 	}
 	out, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {

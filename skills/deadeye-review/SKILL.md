@@ -7,8 +7,10 @@ license: MIT
 # Deadeye Review
 
 Review ONLY the changed code for over-engineering. Nothing else:
-correctness, security, and performance are other reviews' jobs (Claude
-Code's own `/code-review` covers those; this is the lean lens).
+correctness and performance are other reviews' jobs (Claude Code's own
+`/code-review` covers those), and security has its own dedicated pass —
+`/deadeye-guard` — rather than being folded in here. This is the lean
+lens only.
 
 ## Scope
 
@@ -63,4 +65,5 @@ replacement.
 - Findings are a LIST. Do not apply them unless asked.
 - Never flag the one runnable check coder mode leaves behind for
   deletion — lean code without its check is unfinished.
-- Correctness, security, and performance are OUT of scope here.
+- Correctness and performance are OUT of scope here; security is
+  `/deadeye-guard`'s job, not this one.
