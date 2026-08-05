@@ -11,7 +11,17 @@ import (
 
 func initGitRepo(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	return initGitRepoNamed(t, t.TempDir())
+}
+
+// initGitRepoNamed inits a git repo at an exact path -- for tests where
+// ProjectKey's basename (derived from the repo root) has to be a specific
+// value, not whatever name t.TempDir() picks.
+func initGitRepoNamed(t *testing.T, dir string) string {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	run := func(args ...string) {
 		cmd := exec.Command("git", args...)
 		cmd.Dir = dir
@@ -110,6 +120,62 @@ func TestLoadRecentRespectsFreshnessGuard(t *testing.T) {
 	// File was just written -- still within the 30s freshness guard.
 	if got := LoadRecent(repo); got != "" {
 		t.Errorf("expected freshness guard to suppress a just-written summary, got %q", got)
+	}
+}
+
+// TestProjectKeyPrefixCollisionDoesNotCrossMatch is the regression test for
+// a bug where a project key that is itself a valid prefix of another
+// project's key (e.g. "app" vs "app_api", both legal since gitutil.sanitize
+// allows "_") would have its summaries pruned and overridden by the other
+// project's, because the old "_" filename separator couldn't distinguish
+// "app_<nano>.md" from "app_api_<nano>.md".
+func TestProjectKeyPrefixCollisionDoesNotCrossMatch(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	root := t.TempDir()
+	repoApp := initGitRepoNamed(t, filepath.Join(root, "app"))
+	repoAppAPI := initGitRepoNamed(t, filepath.Join(root, "app_api"))
+
+	if err := Write(repoApp, "sess1", 1); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Millisecond)
+	// Outnumber app's summary so a cross-matching prefix would prune it:
+	// pruneOldSummaries keeps only the newest keepSummaries files it thinks
+	// belong to "app".
+	for i := 0; i < keepSummaries+1; i++ {
+		if err := Write(repoAppAPI, "sess2", i+1); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	entries, err := os.ReadDir(Dir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	appPrefix, apiPrefix := summaryPrefix("app"), summaryPrefix("app_api")
+	found := false
+	for _, e := range entries {
+		if e.Name() == "" {
+			continue
+		}
+		isApp := strings.HasPrefix(e.Name(), appPrefix) && !strings.HasPrefix(e.Name(), apiPrefix)
+		if isApp {
+			found = true
+			p := filepath.Join(Dir(), e.Name())
+			old := time.Now().Add(-time.Minute)
+			if err := os.Chtimes(p, old, old); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("app's summary was pruned by app_api's writes (cross-match)")
+	}
+
+	got := LoadRecent(repoApp)
+	if !strings.Contains(got, "branch:") || strings.Contains(got, "app_api") {
+		t.Errorf("LoadRecent(app) returned the wrong project's summary: %q", got)
 	}
 }
 

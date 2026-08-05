@@ -70,7 +70,7 @@ func Write(cwd, sessionID string, decisionCount int) error {
 		fmt.Fprintf(&b, "deadeye logged %d decisions this session.\n", decisionCount)
 	}
 
-	path := filepath.Join(Dir(), fmt.Sprintf("%s_%d.md", gitutil.ProjectKey(cwd), time.Now().UnixNano()))
+	path := filepath.Join(Dir(), fmt.Sprintf("%s%d.md", summaryPrefix(gitutil.ProjectKey(cwd)), time.Now().UnixNano()))
 	if err := os.WriteFile(path, []byte(b.String()), 0o600); err != nil {
 		return err
 	}
@@ -88,6 +88,15 @@ func Write(cwd, sessionID string, decisionCount int) error {
 // eligible to load immediately after a session ends.
 const keepSummaries = 3
 
+// summaryPrefix is the filename prefix for projectKey's summaries. "@" (not
+// "_") separates the key from its timestamp: gitutil.sanitize allows "_" in
+// a project key, so two projects like "app" and "app_api" would otherwise
+// produce filenames where one key is a valid prefix of the other's --
+// "app_<nano>.md" vs "app_api_<nano>.md" -- and every prefix.HasPrefix match
+// below would cross-match them. sanitize strips "@" from any key, so it can
+// never appear except as this separator.
+func summaryPrefix(projectKey string) string { return projectKey + "@" }
+
 // pruneOldSummaries deletes all but the newest keepSummaries files for
 // projectKey. Best-effort: a failure here just means one extra file
 // survives to the next prune, not a correctness problem.
@@ -96,7 +105,7 @@ func pruneOldSummaries(projectKey string) {
 	if err != nil {
 		return
 	}
-	prefix := projectKey + "_"
+	prefix := summaryPrefix(projectKey)
 	var names []string
 	for _, e := range entries {
 		if !e.IsDir() && strings.HasPrefix(e.Name(), prefix) {
@@ -106,7 +115,7 @@ func pruneOldSummaries(projectKey string) {
 	if len(names) <= keepSummaries {
 		return
 	}
-	// Filenames are "<project>_<unixnano>.md" -- the nanosecond suffix
+	// Filenames are "<project>@<unixnano>.md" -- the nanosecond suffix
 	// sorts lexically the same as chronologically for any realistic time
 	// range, so a plain string sort avoids a stat() per file just to rank
 	// them by age.
@@ -124,7 +133,7 @@ func LoadRecent(cwd string) string {
 	if err != nil {
 		return ""
 	}
-	prefix := gitutil.ProjectKey(cwd) + "_"
+	prefix := summaryPrefix(gitutil.ProjectKey(cwd))
 	var newestPath string
 	var newestTime time.Time
 	for _, e := range entries {

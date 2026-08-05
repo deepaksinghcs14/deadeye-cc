@@ -298,7 +298,7 @@ func TestNativeRestoreSkipsSessionMemory(t *testing.T) {
 	// A summary that WOULD be injected on a cold start.
 	dir := filepath.Join(os.Getenv("HOME"), ".deadeye", "sessions")
 	os.MkdirAll(dir, 0o700)
-	old := filepath.Join(dir, filepath.Base(cwd)+"_1.md")
+	old := filepath.Join(dir, filepath.Base(cwd)+"@1.md") // sessionmem's "@" separator, not "_"
 	os.WriteFile(old, []byte("# Session summary: x\nbranch: main\n"), 0o600)
 	oldTime := time.Now().Add(-time.Hour)
 	os.Chtimes(old, oldTime, oldTime) // beat the freshness guard
