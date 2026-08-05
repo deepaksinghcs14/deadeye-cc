@@ -42,7 +42,7 @@ func runDaemon() {
 	}
 	defer func() {
 		lock.Close()
-		os.Remove(meta.LockPath())
+		releaseLock(meta.LockPath())
 	}()
 
 	sockPath := meta.SocketPath()
@@ -151,6 +151,23 @@ func handleConn(conn net.Conn, state *daemonState, markStale func()) {
 	conn.Write(b)
 }
 
+// acquireLock is deliberately NOT a full mutual-exclusion primitive: the
+// stale-takeover branch (remove, then recreate) is two steps, not one, so
+// two daemons recovering from the same crash within the same instant can
+// both pass lockIsStale and both end up holding a freshly-created lockfile
+// -- the second's create just overwrites the first's. That two-winners
+// outcome is caught downstream, not here: probeAlive+net.Listen on
+// sockPath is the actual mutual-exclusion point (only one process can bind
+// a given unix socket path), so at most one of the two ever ends up
+// reachable. deadeye: acquireLock's own takeover step can still briefly
+// have two believed owners. ceiling: the loser idles unreachable until its
+// own idle timeout (up to 30 minutes, longer if it keeps getting requests
+// meant for the winner, which it can't receive once the socket path points
+// elsewhere) -- releaseLock below keeps that loser from deleting the
+// winner's lockfile when it eventually exits. upgrade: swap the lockfile
+// for an OS advisory lock (flock/LockFileEx) if a real double-daemon
+// incident is ever observed, since only a kernel-mediated primitive closes
+// this without adding cross-process coordination of its own.
 func acquireLock(path string) (*os.File, error) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -162,6 +179,23 @@ func acquireLock(path string) (*os.File, error) {
 	}
 	_, _ = f.WriteString(strconv.Itoa(os.Getpid()))
 	return f, nil
+}
+
+// releaseLock removes path only if it still names THIS process -- plain
+// os.Remove would be unconditional, and acquireLock's own two-winners
+// window (see its doc comment) means path can belong to a different,
+// surviving daemon by the time this process exits. Deleting a live
+// survivor's lockfile is the lasting damage from that race (deadeye
+// uninstall then has no pid to signal); this closes that specific
+// consequence even though the brief ownership race itself remains.
+func releaseLock(path string) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	if strings.TrimSpace(string(b)) == strconv.Itoa(os.Getpid()) {
+		os.Remove(path)
+	}
 }
 
 // lockIsStale reports whether the lockfile at path belongs to a daemon

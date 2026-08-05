@@ -98,6 +98,35 @@ func TestLockIsStaleOnlyWhenDeadAndSilent(t *testing.T) {
 	}
 }
 
+// TestReleaseLockOnlyRemovesOwnLock is the regression test for
+// acquireLock's documented two-winners window: its stale-takeover branch
+// (remove, then recreate) is two non-atomic steps, so a losing daemon can
+// still believe it holds "the" lock after a different process's lockfile
+// has since replaced it. An unconditional os.Remove on exit would delete
+// that OTHER, live daemon's lockfile -- releaseLock must check the current
+// content is still this process's own pid first.
+func TestReleaseLockOnlyRemovesOwnLock(t *testing.T) {
+	lockPath := filepath.Join(t.TempDir(), "deadeye.lock")
+
+	// A survivor's lockfile naming a DIFFERENT pid -- must not be touched.
+	if err := os.WriteFile(lockPath, []byte(strconv.Itoa(os.Getpid()+1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	releaseLock(lockPath)
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Errorf("releaseLock removed a lockfile naming a different pid: %v", err)
+	}
+
+	// Our own lockfile -- must be removed.
+	if err := os.WriteFile(lockPath, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	releaseLock(lockPath)
+	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+		t.Errorf("releaseLock did not remove a lockfile naming our own pid (err=%v)", err)
+	}
+}
+
 // TestUninstallStopsRunningDaemon is the regression test for E1+E3
 // together: `deadeye uninstall --purge` previously could never actually
 // find the running daemon's pid, because the lockfile it needed to read
