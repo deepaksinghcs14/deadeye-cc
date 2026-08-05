@@ -84,8 +84,13 @@ func extractNPM(added string) []Dep {
 
 // goModDepRe requires a dotted module path (github.com/x/y, golang.org/x/y)
 // followed by a v-prefixed version -- excludes the `module` and `go`
-// directive lines, which don't have that shape.
-var goModDepRe = regexp.MustCompile(`^\s*([\w.\-]+(?:/[\w.\-]+)+)\s+v([0-9][\w.+-]*)`)
+// directive lines, which don't have that shape. The optional leading
+// "require " covers gofmt's single-dependency form (`require
+// github.com/pkg/errors v0.9.1`, no parens) -- without it this only
+// matched the indented lines inside a `require (...)` block, so a manifest
+// with exactly one dependency (what `go get` leaves on a fresh module)
+// bypassed dep scanning entirely.
+var goModDepRe = regexp.MustCompile(`^\s*(?:require\s+)?([\w.\-]+(?:/[\w.\-]+)+)\s+v([0-9][\w.+-]*)`)
 
 func extractGoMod(added string) []Dep {
 	var out []Dep

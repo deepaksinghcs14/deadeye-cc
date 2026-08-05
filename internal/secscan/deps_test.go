@@ -17,6 +17,8 @@ func TestExtractDeps(t *testing.T) {
 		{"npm", "package.json", `    "lodash": "^4.17.20",`, Dep{"npm", "lodash", "4.17.20"}},
 		{"npm-non-dep-key-skipped", "package.json", `    "name": "my-app",`, Dep{}},
 		{"go-mod", "go.mod", `	github.com/x/y v1.2.3`, Dep{"Go", "github.com/x/y", "1.2.3"}},
+		{"go-mod-single-line-require", "go.mod", `require github.com/pkg/errors v0.9.1`, Dep{"Go", "github.com/pkg/errors", "0.9.1"}},
+		{"go-mod-module-directive-excluded", "go.mod", `module github.com/x/y`, Dep{}},
 		{"requirements-txt", "requirements.txt", `requests==2.25.0`, Dep{"PyPI", "requests", "2.25.0"}},
 		{"pyproject", "pyproject.toml", `requests = "^2.25.0"`, Dep{"PyPI", "requests", "2.25.0"}},
 		{"cargo", "Cargo.toml", `serde = "1.0.100"`, Dep{"crates.io", "serde", "1.0.100"}},

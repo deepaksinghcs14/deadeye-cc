@@ -63,6 +63,8 @@ func TestScanDoesNotFire(t *testing.T) {
 		{"go-pattern-in-python-file", "app.py", `rows, err := db.Query("SELECT * FROM users WHERE name='" + name + "'")`},
 		{"python-pattern-in-go-file", "handlers.go", `cur.execute(f"SELECT * FROM users WHERE name={name}")`},
 		{"rust-shell-interp-in-js-file", "run.js", `Command::new("sh").arg("-c").arg(user_input).spawn()?;`},
+		{"js-regexp-exec-is-not-shell-exec", "app.js", "const m = someRegex.exec(line + \"\\n\");"},
+		{"tls-off-unrelated-verify-flag", "signup.py", `email_verify = False`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

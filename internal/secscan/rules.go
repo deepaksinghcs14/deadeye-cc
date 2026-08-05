@@ -118,7 +118,12 @@ func matchSecretLiteral(added string) bool {
 var hashCallRe = regexp.MustCompile(`(?i)(md5\.(?:new|sum)|hashlib\.md5|MessageDigest\.getInstance\(\s*"MD5"|createHash\(\s*['"]md5['"]|md5::compute|Md5::new|sha1\.(?:new|sum)|hashlib\.sha1|MessageDigest\.getInstance\(\s*"SHA-?1"|createHash\(\s*['"]sha1['"]|Sha1::new)`)
 var secretContextRe = regexp.MustCompile(`(?i)\b(password|passwd|token|secret|credential|api[_-]?key)\b`)
 
-var tlsOffRe = regexp.MustCompile(`(?i)(InsecureSkipVerify\s*:\s*true|verify\s*=\s*False|rejectUnauthorized\s*:\s*false|danger_accept_invalid_certs\(\s*true\s*\)|ALLOW_ALL_HOSTNAME_VERIFIER|setHostnameVerifier\(\s*NoopHostnameVerifier)`)
+// \b before "verify" matters: without it this matched ANY name merely
+// ending in "verify" (e.g. a Python "email_verify = False" flag that has
+// nothing to do with TLS) -- \b still matches the real pattern this is
+// after (requests' "session.verify = False"), since "." is a non-word
+// character and creates a boundary there same as whitespace or line start.
+var tlsOffRe = regexp.MustCompile(`(?i)(InsecureSkipVerify\s*:\s*true|\bverify\s*=\s*False|rejectUnauthorized\s*:\s*false|danger_accept_invalid_certs\(\s*true\s*\)|ALLOW_ALL_HOSTNAME_VERIFIER|setHostnameVerifier\(\s*NoopHostnameVerifier)`)
 
 // -- per-language idiom rules ---------------------------------------------
 
@@ -129,9 +134,17 @@ var (
 
 	jsSQLConcatRe   = regexp.MustCompile(`(?i)["'][^"']*` + sqlKeyword + `[^"']*["']\s*\+`)
 	jsSQLTemplateRe = regexp.MustCompile("(?i)`[^`]*(?:" + sqlKeyword + "[^`]*\\$\\{|\\$\\{[^`]*" + sqlKeyword + ")")
-	jsShellRe       = regexp.MustCompile(`(?:child_process\.)?exec(?:Sync)?\(\s*[^,)]*(?:\+|\$\{)`)
-	jsEvalRe        = regexp.MustCompile(`(?:\beval\(|new Function\()`)
-	jsHTMLInjectRe  = regexp.MustCompile(`(?:\.innerHTML\s*=[^=]|dangerouslySetInnerHTML|\bv-html\s*=)`)
+	// The bare-call branch requires a non-word, non-dot character (or
+	// string start) right before "exec": without it, this matched
+	// RegExp.prototype's OWN .exec() -- e.g. `someRegex.exec(line + "\n")`,
+	// completely unrelated to shelling out -- since ".exec(" is exactly
+	// what a dotted method call looks like too. child_process's exec is
+	// either called as `child_process.exec(...)` (kept as its own
+	// alternative) or destructured/imported bare as `exec(...)`/
+	// `execSync(...)` with no receiver at all.
+	jsShellRe      = regexp.MustCompile(`(?:child_process\.exec(?:Sync)?|(?:^|[^.\w])exec(?:Sync)?)\(\s*[^,)]*(?:\+|\$\{)`)
+	jsEvalRe       = regexp.MustCompile(`(?:\beval\(|new Function\()`)
+	jsHTMLInjectRe = regexp.MustCompile(`(?:\.innerHTML\s*=[^=]|dangerouslySetInnerHTML|\bv-html\s*=)`)
 
 	pySQLFStringRe  = regexp.MustCompile(`(?i)f["'][^"']*` + sqlKeyword + `[^"']*\{`)
 	pySQLFormatRe   = regexp.MustCompile(`(?i)["'][^"']*` + sqlKeyword + `[^"']*\{\}[^"']*["']\s*\.format\(`)
