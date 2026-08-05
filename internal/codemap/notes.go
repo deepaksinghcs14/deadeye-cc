@@ -54,7 +54,17 @@ func AppendNote(cwd, kind, body string) error {
 // sections. Daemon-only and mutex-protected -- this is the ONLY truncating
 // writer of notes.md; AppendNote never truncates. Text before the first
 // heading (a malformed append) is folded into the count as one leading
-// section rather than lost.
+// section rather than lost. The atomic rename this writes through (see
+// atomicWriteFile) means a concurrent reader never sees a torn file, and a
+// concurrent AppendNote from the separate `deadeye notes-append` CLI
+// process never sees a torn file either -- but codemapMu is in-process
+// only, so it can't order this read-modify-write against that other
+// process's append. deadeye: a PruneNotes that reads its snapshot just
+// before an overlapping cross-process append writes back a version missing
+// that one section. ceiling: loses at most one exploration note, on a
+// microseconds-wide window, self-heals on the next append. upgrade: a
+// cross-process lock (flock) if this ever needs to hold more than
+// best-effort notes.
 func PruneNotes(cwd string) error {
 	codemapMu.Lock()
 	defer codemapMu.Unlock()
@@ -69,7 +79,7 @@ func PruneNotes(cwd string) error {
 		return nil
 	}
 	kept := sections[len(sections)-keepNotes:]
-	return os.WriteFile(path, []byte(strings.Join(kept, "")), 0o600)
+	return atomicWriteFile(path, []byte(strings.Join(kept, "")), 0o600)
 }
 
 // splitSections splits notes content into "## "-headed chunks, each

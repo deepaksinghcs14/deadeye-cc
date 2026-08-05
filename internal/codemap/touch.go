@@ -123,7 +123,7 @@ func MergeTouched(cwd string, sessionTouched []string, nowUnix int64) error {
 	if err := os.MkdirAll(Dir(), 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(TouchPath(cwd), b, 0o600)
+	return atomicWriteFile(TouchPath(cwd), b, 0o600)
 }
 
 // renderTouch returns the ranked "core files" list for injection, or "".

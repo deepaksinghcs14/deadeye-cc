@@ -9,6 +9,7 @@ package codemap
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -44,6 +45,41 @@ const (
 // O_APPEND write is process-safe on its own, and it must stay callable
 // from the short-lived `deadeye notes-append` CLI process.
 var codemapMu sync.Mutex
+
+// atomicWriteFile writes data to path via a same-directory temp file plus
+// rename. codemapMu only orders the writers against EACH OTHER -- Load,
+// LoadNotes, and renderTouch read without taking it (a session's
+// UserPromptSubmit can't block on a SessionEnd write from a different
+// session in the same project). os.WriteFile truncates in place, so a
+// reader racing a writer could see a half-written or empty file; a rename
+// is atomic, so the reader always sees either the complete old content or
+// the complete new content.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	_, werr := tmp.Write(data)
+	cerr := tmp.Close()
+	if werr != nil {
+		os.Remove(tmpPath)
+		return werr
+	}
+	if cerr != nil {
+		os.Remove(tmpPath)
+		return cerr
+	}
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
+}
 
 // Dir returns ~/.deadeye/map, creating nothing.
 func Dir() string { return filepath.Join(meta.StateDir(), "map") }
@@ -274,6 +310,22 @@ func headFingerprint(path string) string {
 	return ""
 }
 
+// splitNUL is bufio.ScanLines' NUL-delimited twin, for `git ls-files -z`
+// output: no CR trimming (NUL delimiting doesn't quote/escape, so there is
+// none to trim), otherwise the same "don't require a final delimiter" shape.
+func splitNUL(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	if i := bytes.IndexByte(data, 0); i >= 0 {
+		return i + 1, data[:i], nil
+	}
+	if atEOF {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
+}
+
 // lsFilesTimeout bounds the one git call here that scales with repo size.
 // More generous than gitutil.Timeout because a huge monorepo is exactly
 // where ls-files is slowest AND the map most valuable -- but still
@@ -281,15 +333,18 @@ func headFingerprint(path string) string {
 // never a hung daemon goroutine.
 const lsFilesTimeout = 5 * time.Second
 
-// lsFiles streams `git ls-files` at repoRoot, returning the path list, the
-// raw-bytes fingerprint, and the count -- streamed through a scanner so a
-// half-million-file monorepo never buffers tens of MB into the long-lived
+// lsFiles streams `git ls-files -z` at repoRoot, returning the path list,
+// the raw-bytes fingerprint, and the count -- streamed through a scanner so
+// a half-million-file monorepo never buffers tens of MB into the long-lived
 // daemon (the accumulated []string of paths is bounded interest; the raw
-// concatenated output is not retained).
+// concatenated output is not retained). -z (NUL-terminated) is required, not
+// cosmetic: without it, git C-quotes any path with a non-ASCII or unusual
+// byte (core.quotepath defaults on) as e.g. `"docs/\303\244.txt"`, and that
+// literal quote character then corrupts Group's "/"-split bucketing.
 func lsFiles(repoRoot string) (paths []string, fingerprint string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), lsFilesTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", "ls-files")
+	cmd := exec.CommandContext(ctx, "git", "ls-files", "-z")
 	cmd.Dir = repoRoot
 	out, err := cmd.StdoutPipe()
 	if err != nil {
@@ -301,6 +356,7 @@ func lsFiles(repoRoot string) (paths []string, fingerprint string, err error) {
 	h := sha256.New()
 	sc := bufio.NewScanner(out)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	sc.Split(splitNUL)
 	for sc.Scan() {
 		line := sc.Text()
 		h.Write([]byte(line))
@@ -350,7 +406,7 @@ func Regenerate(cwd string) error {
 		return err
 	}
 	body := Render(gitutil.ProjectKey(cwd), fp, len(paths), entries, time.Now())
-	return os.WriteFile(mapPath, []byte(body), 0o600)
+	return atomicWriteFile(mapPath, []byte(body), 0o600)
 }
 
 // Load returns the injectable skeleton body for cwd (header's fingerprint

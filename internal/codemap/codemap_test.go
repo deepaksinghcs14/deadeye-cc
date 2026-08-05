@@ -187,6 +187,34 @@ func TestRegenerateIsIdempotent(t *testing.T) {
 	}
 }
 
+// TestLsFilesHandlesQuotableFilenames is the regression test for a bug
+// where plain `git ls-files` (no -z) let core.quotepath's default C-quoting
+// of non-ASCII paths (e.g. `"docs/\303\244.txt"`) leak a literal `"`
+// character into the parsed path, corrupting Group's "/"-split bucketing
+// into a phantom quoted directory. -z disables quoting entirely.
+func TestLsFilesHandlesQuotableFilenames(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	repo := initGitRepo(t, "docs/ä.txt", "docs/plain.txt")
+
+	paths, _, err := lsFiles(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range paths {
+		if strings.Contains(p, `"`) {
+			t.Errorf("path %q retained a quote character -- -z quoting fix regressed", p)
+		}
+	}
+
+	entries := Group(paths)
+	if e := entryFor(entries, "docs/"); e == nil || e.Files != 2 {
+		t.Errorf("expected docs/ with 2 files, got %+v", entries)
+	}
+	if e := entryFor(entries, `"docs/`); e != nil {
+		t.Errorf("phantom quoted directory row present: %+v", e)
+	}
+}
+
 // TestRegenerateFromSubdirectoryMapsWholeRepo is the regression test for
 // the cwd-scoping bug: ls-files with no pathspec is scoped to cwd, so
 // without resolving the repo root first, a session started in pkg/ would
