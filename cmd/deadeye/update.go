@@ -28,6 +28,18 @@ func updateAssetName() string {
 	return name
 }
 
+// binName is the locally-installed binary's filename -- deadeye-hook.ps1
+// only ever probes "deadeye.exe" on Windows, so installing extensionless
+// there leaves the hook still running whatever was there before while this
+// command reports success and, on every later run, "already up to date"
+// (comparing against a file it never actually updates).
+func binName() string {
+	if runtime.GOOS == "windows" {
+		return meta.Name + ".exe"
+	}
+	return meta.Name
+}
+
 // wantedChecksum extracts the sha256 for asset from a checksums.txt body.
 func wantedChecksum(checksums, asset string) string {
 	for _, line := range strings.Split(checksums, "\n") {
@@ -79,7 +91,7 @@ func runUpdate() {
 		os.Exit(1)
 	}
 
-	dest := filepath.Join(meta.StateDir(), "bin", "deadeye")
+	dest := filepath.Join(meta.StateDir(), "bin", binName())
 	if sha256File(dest) == want {
 		fmt.Println("Already up to date (" + cValue(meta.Version) + " at " + dest + ").")
 		warnPathShadow(dest)
@@ -97,7 +109,7 @@ func runUpdate() {
 		os.Exit(1)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dest), 0o700); err != nil {
 		fmt.Fprintln(os.Stderr, "deadeye update:", err)
 		os.Exit(1)
 	}

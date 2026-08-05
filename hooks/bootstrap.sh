@@ -18,6 +18,12 @@ LOCK_DIR="$DEST_DIR/.bootstrap.lock"
 INSTALL_TMP=""
 
 mkdir -p "$DEST_DIR" 2>/dev/null || exit 0
+# `mkdir -p -m` only guarantees the mode on the deepest directory (BSD and
+# GNU mkdir both leave intermediate dirs at the process umask), and this is
+# the path that FIRST creates ~/.deadeye on a fresh machine -- chmod both
+# explicitly so the state dir matches the 0700 every Go writer in this repo
+# assumes, regardless of the caller's umask.
+chmod 700 "$HOME/.deadeye" "$DEST_DIR" 2>/dev/null
 
 # One install/update at a time. deadeye-hook.sh only fires this on
 # SessionStart, but two Claude Code windows can start within the same

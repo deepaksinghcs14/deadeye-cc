@@ -18,7 +18,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "hook":
-		runHook(argOr(2, ""), os.Args[3:])
+		runHook(argOr(2, ""), argsFrom(3))
 	case "daemon":
 		runDaemon()
 	case "status":
@@ -54,4 +54,14 @@ func argOr(i int, def string) string {
 		return os.Args[i]
 	}
 	return def
+}
+
+// argsFrom returns os.Args[i:], or nil if the command line is shorter than
+// i -- a bare "deadeye hook" (no event, no args) must fail open like every
+// other malformed hook invocation, not panic with a slice-bounds crash.
+func argsFrom(i int) []string {
+	if i > len(os.Args) {
+		return nil
+	}
+	return os.Args[i:]
 }
