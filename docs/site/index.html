@@ -343,6 +343,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
     <div class="nav-links">
       <a href="#how">How it decides</a>
       <a href="#coder">Coder mode</a>
+      <a href="#codemap">Codebase map</a>
       <a href="#measured">Measured</a>
       <a href="#install">Install</a>
       <a href="https://github.com/deepaksinghcs14/deadeye-cc">GitHub</a>
@@ -534,7 +535,7 @@ FAIL</div>
 
 <section class="reveal">
   <p class="eyebrow">Range card</p>
-  <h2>Six things it manages</h2>
+  <h2>Seven things it manages</h2>
   <p class="lede">Each one works on its own, has its own on/off setting, and
     can be switched off without touching the others.</p>
 
@@ -545,6 +546,7 @@ FAIL</div>
       <tbody>
         <tr><td class="axis">Context</td><td class="desc">Trims verbose command output before it enters context — test suites across nine language ecosystems, builds, linters, package installs, pod logs, log tails. Also flags wasteful reads: re-reading unchanged files, whole-reads of huge files, identical commands run twice in a row. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
         <tr><td class="axis">Coder</td><td class="desc">A lean-first coding persona injected every session (it survives compaction) and into subagents: question whether the code needs to exist, stdlib before custom code, one line before fifty — plus a live security check on what's written and its dependencies. Three levels — spotter, marksman, sniper.</td><td class="mode"><span class="pill">marksman</span></td></tr>
+        <tr><td class="axis">Codebase map</td><td class="desc">A persistent per-project map — directory/package skeleton, most-touched files accumulated across every session, recent exploration notes — injected once per session so a fresh session doesn't re-explore the repo from scratch.</td><td class="mode"><span class="pill">on</span></td></tr>
         <tr><td class="axis">Effort</td><td class="desc">Suggests lower effort for mechanical steps. Has no effect if <code>CLAUDE_EFFORT</code> is already pinned for the session — <code>/deadeye-status</code> tells you plainly if that's the case.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Model</td><td class="desc">Picks the model when a subagent starts. Prices come from a table built into the binary, refreshed each release — there's no live pricing API a background hook process could reach.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Plan gate</td><td class="desc">Asks once before a multi-file edit that skipped writing a plan first, then stays quiet for the rest of that task.</td><td class="mode"><span class="pill soft">soft</span></td></tr>
@@ -678,6 +680,54 @@ DEADEYE CODER ACTIVE — level: sniper
         reporting it, and runs <code>govulncheck</code>/<code>npm
         audit</code>/<code>pip-audit</code>/<code>cargo audit</code> when
         installed.</p>
+    </div>
+  </div>
+</section>
+
+<section id="codemap" class="reveal">
+  <p class="eyebrow">Codebase map</p>
+  <h2>A fresh session shouldn't start from zero</h2>
+  <p class="lede">A fresh session normally burns 15–40 tool calls
+    rediscovering the project — directory layout, what each package does,
+    which files matter. deadeye persists that per project under
+    <code>~/.deadeye/map/</code> and injects it once, at the first prompt.</p>
+
+  <div class="two">
+    <div>
+      <div class="card">
+        <div class="card-top"><span>What persists</span><span>~/.deadeye/map/</span></div>
+        <table>
+          <tbody>
+            <tr><td class="axis">Skeleton</td><td class="desc">Directory rows with file counts and, for Go repos, each package's one-line doc-comment purpose. Built from <code>git ls-files</code>, regenerated only when the tracked-file list changes.</td><td class="mode"><span class="pill soft">map.md</span></td></tr>
+            <tr><td class="axis">Touch counter</td><td class="desc">A <code>path → sessions</code> counter merged at every session end, ranked by relevance rather than recency — a file touched in 14 of 20 sessions stays on top.</td><td class="mode"><span class="pill soft">touched.json</span></td></tr>
+            <tr><td class="axis">Exploration notes</td><td class="desc">The <code>explore</code> skill caches its summary via <code>deadeye notes-append</code> so the next session inherits findings instead of re-deriving them. Newest 5 kept.</td><td class="mode"><span class="pill soft">notes.md</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:14px">First-ever session in a
+        project gets nothing — the map is written at session end, so value
+        starts at session #2. Resumed or compacted sessions are skipped;
+        their context already carries the exploration.</p>
+    </div>
+    <div>
+      <div class="term"><span class="m">injected once, at session start:</span>
+
+<span class="c"># Codebase map: deadeye-cc</span>
+scope: 145 git-tracked files
+
+cmd/deadeye/            37 files  .go
+internal/codemap/        6 files  .go   the structural
+                                         half of the map
+internal/coder/          4 files  .go   the lean-first
+                                         persona
+
+<span class="m">Frequently touched files:</span>
+  README.md                     4 sessions
+  internal/codemap/codemap.go   3 sessions</div>
+      <p class="note" style="margin-top:14px">Lives under
+        <code>mode.codemap</code> (<code>off</code>/<code>on</code>,
+        default <code>on</code>) — the same <code>DEADEYE=off</code> kill
+        switch turns it off along with everything else.</p>
     </div>
   </div>
 </section>
