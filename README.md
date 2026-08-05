@@ -23,6 +23,10 @@
   <img src="https://img.shields.io/badge/measured%20reduction-79.6%25%20to%2099.5%25-111111?style=flat-square" alt="79.6% to 99.5% measured reduction">
 </p>
 
+<p align="center">
+  <a href="https://deepaksinghcs14.github.io/deadeye-cc/"><img src="assets/stats.png" alt="deadeye stats overview" width="820"></a>
+</p>
+
 He doesn't check twice or spray and pray — he doesn't need to. deadeye is
 a Claude Code plugin that watches what your agent is about to do — spawn a
 subagent, dump a noisy test log, make a big multi-file edit — and picks
