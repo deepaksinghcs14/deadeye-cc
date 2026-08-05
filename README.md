@@ -23,13 +23,6 @@
   <img src="https://img.shields.io/badge/measured%20reduction-79.6%25%20to%2099.5%25-111111?style=flat-square" alt="79.6% to 99.5% measured reduction">
 </p>
 
-<p align="center">
-  <a href="https://deepaksinghcs14.github.io/deadeye-cc/"><img src="assets/stats.png" alt="deadeye stats overview" width="820"></a>
-</p>
-
-<p align="center">
-  <sub><b>Coder mode, measured:</b> 6,029-byte lean-first persona per session, surviving compaction &middot; subagent card 887 bytes vs the full ruleset &mdash; an <b>85.3% cut per spawn</b>, logged per spawn &middot; live counts on your machine: <code>/deadeye-gain</code></sub>
-</p>
 
 He doesn't check twice or spray and pray — he doesn't need to. deadeye is
 a Claude Code plugin that watches what your agent is about to do — spawn a
@@ -40,6 +33,10 @@ tokens than a task actually needs. deadeye catches that before the tokens
 are gone. **[Site →](https://deepaksinghcs14.github.io/deadeye-cc/)**
 
 ## Before / after
+
+<p align="center">
+  <a href="https://deepaksinghcs14.github.io/deadeye-cc/"><img src="assets/stats.png" alt="deadeye stats overview" width="680"></a>
+</p>
 
 You ask your agent to run the test suite before merging, and one test is
 actually broken.
