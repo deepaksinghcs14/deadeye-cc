@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+## 0.15.1
+
+**A deep bug sweep, not a feature.** Every internal package and cmd/deadeye
+reviewed independently, three times over, for reachable-input correctness
+bugs -- 13 confirmed and fixed, all with regression tests, several verified
+against real tool output (npm 11) or a live revert-and-reconfirm.
+
+- **sessionmem**: a project key that's a valid prefix of another's (`app`
+  vs `app_api`, both legal since `_` is allowed) could have its session
+  summaries pruned and overridden by the other project's writes. Filename
+  separator changed from `_` to `@`, which the key sanitizer always strips.
+- **cmd/deadeye**: bare `deadeye hook` (no event) panicked instead of
+  failing open. `deadeye update` silently no-op'd on Windows (wrong local
+  filename) and used `0o755` instead of the `0o700` every other writer
+  uses for `~/.deadeye`; `bootstrap.sh`'s fresh-install directory had the
+  same gap.
+- **codemap**: `git ls-files` (no `-z`) let git's default filename quoting
+  corrupt any non-ASCII tracked path into a phantom directory row; fixed
+  with `-z` and NUL-delimited parsing. Regenerate/MergeTouched/PruneNotes
+  now write through a shared atomic temp-file-plus-rename, closing a
+  torn-read window against concurrent same-project sessions.
+- **daemon**: a narrow crash-recovery race could let a losing daemon
+  delete a live daemon's lockfile, breaking `deadeye uninstall`'s ability
+  to signal it. `releaseLock` now only removes a lockfile that still names
+  its own pid.
+- **preprocess**: `install-filter`'s error/warning grep was case-sensitive
+  for `WARN`/`npm ERR!` -- npm 7+ (current: 11) renamed both to lowercase,
+  so a real npm 11 install (warnings or a hard failure) matched nothing
+  and silently ate the output. `du-cap`/`tree-cap`'s "already bounded"
+  checks matched the whole command line, so a path like `./old-drafts` or
+  `./src-Legacy` was misread as an already-passed `-d`/`-s`/`-L` flag.
+- **secscan**: the JS shell-injection rule fired on `RegExp.prototype`'s
+  own `.exec()`; the TLS-off rule fired on any variable merely ending in
+  "verify" (e.g. an unrelated `email_verify` flag); the go.mod dependency
+  extractor never matched gofmt's single-line `require x v1.2.3` form (no
+  parens), so a module with exactly one dependency skipped scanning
+  entirely.
+
+Two additional narrow, self-healing races (a cross-process notes-append
+race, the daemon lock's own brief two-winners window) are documented in
+place with the project's own `deadeye: ... ceiling: ... upgrade:` marker
+rather than papered over.
+
 ## 0.15.0
 
 **Codebase map -- the re-orientation tax, actually killed.** PLAN.md §5.7
