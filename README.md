@@ -27,6 +27,10 @@
   <a href="https://deepaksinghcs14.github.io/deadeye-cc/"><img src="assets/stats.png" alt="deadeye stats overview" width="820"></a>
 </p>
 
+<p align="center">
+  <sub><b>Coder mode, measured:</b> 6,029-byte lean-first persona per session, surviving compaction &middot; subagent card 887 bytes vs the full ruleset &mdash; an <b>85.3% cut per spawn</b>, logged per spawn &middot; live counts on your machine: <code>/deadeye-gain</code></sub>
+</p>
+
 He doesn't check twice or spray and pray — he doesn't need to. deadeye is
 a Claude Code plugin that watches what your agent is about to do — spawn a
 subagent, dump a noisy test log, make a big multi-file edit — and picks
