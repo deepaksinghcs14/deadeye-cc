@@ -43,6 +43,12 @@
           "enum": ["off", "on"],
           "default": "on",
           "description": "One-line workflow-authoring suggestion (Phase 5)."
+        },
+        "codemap": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "on",
+          "description": "Cross-session codebase map: a directory/package skeleton rebuilt when the tracked-file list changes, plus accumulated touch-frequency and exploration notes, injected once per session. off disables both the SessionEnd writes and the injection."
         }
       }
     },

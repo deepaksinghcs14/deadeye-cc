@@ -4,21 +4,18 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
 
-// gitTimeout bounds every git subprocess this plugin shells out to. A
-// hung git (a stalled network mount, a held .git/index.lock) must not wedge
-// a daemon goroutine or a CLI command forever -- fail-open per INV-5 means
-// timing out and returning no evidence, not hanging.
-const gitTimeout = 2 * time.Second
+// gitTimeout aliases gitutil.Timeout for the non-git call sites that
+// bound signals.AssessAll contexts -- one number, defined once.
+const gitTimeout = gitutil.Timeout
 
 // newScope builds a signals.Scope for prompt at cwd, shared by every call
 // site that used to build one ad hoc. Repo is resolved to the git
@@ -30,7 +27,7 @@ const gitTimeout = 2 * time.Second
 // laundering that into "0 commits, confidence 0.82", the calmest possible
 // reading, with high confidence, for a file that might have 40 commits.
 func newScope(prompt, cwd string) signals.Scope {
-	repo := gitOut(cwd, "rev-parse", "--show-toplevel")
+	repo := gitutil.Output(cwd, "rev-parse", "--show-toplevel")
 	if repo == "" {
 		repo = cwd
 	}
@@ -83,8 +80,8 @@ func runRoute(taskDescription string) {
 }
 
 func scopedFiles(cwd string) []string {
-	out := gitOut(cwd, "diff", "--name-only", "HEAD")
-	staged := gitOut(cwd, "diff", "--cached", "--name-only")
+	out := gitutil.Output(cwd, "diff", "--name-only", "HEAD")
+	staged := gitutil.Output(cwd, "diff", "--cached", "--name-only")
 	set := map[string]bool{}
 	for _, f := range strings.Split(out, "\n") {
 		if f != "" {
@@ -101,19 +98,4 @@ func scopedFiles(cwd string) []string {
 		files = append(files, f)
 	}
 	return files
-}
-
-// gitOut runs git bounded by gitTimeout -- a stalled network mount or a
-// held .git/index.lock must not hang the caller forever (INV-5: fail open
-// means timing out and returning "", not hanging).
-func gitOut(dir string, args ...string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
 }

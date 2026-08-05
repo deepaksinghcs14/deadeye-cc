@@ -14,13 +14,16 @@ import (
 
 // Modes holds the per-axis enforcement posture. Values are "off", "advise",
 // or "enforce" for routing/effort; preprocess/plan_gate/workflow_hint keep
-// their own small vocabularies per PLAN.md §7's example config.
+// their own small vocabularies per PLAN.md §7's example config. Codemap
+// (off|on) governs the cross-session codebase map -- both its SessionEnd
+// writes and its once-per-session injection.
 type Modes struct {
 	Routing      string `json:"routing"`
 	Effort       string `json:"effort"`
 	Preprocess   string `json:"preprocess"`
 	PlanGate     string `json:"plan_gate"`
 	WorkflowHint string `json:"workflow_hint"`
+	Codemap      string `json:"codemap"`
 }
 
 // Preprocess is per-rule config for internal/preprocess.
@@ -118,6 +121,7 @@ func Default() Config {
 			Preprocess:   "on",
 			PlanGate:     "soft",
 			WorkflowHint: "on",
+			Codemap:      "on",
 		},
 		DownshiftThreshold:    0.8,
 		InjectionBudgetTokens: 400,
@@ -235,6 +239,7 @@ func LoadFor(cwd string, off []string) Config {
 		cfg.Mode.Preprocess = "off"
 		cfg.Mode.PlanGate = "off"
 		cfg.Mode.WorkflowHint = "off"
+		cfg.Mode.Codemap = "off"
 		cfg.Coder.Disabled = true
 	}
 	if isOff(off, "DEADEYE_PREPROCESS") {

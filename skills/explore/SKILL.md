@@ -33,3 +33,18 @@ Return a structured summary to the caller: what you found, which
 files/symbols matter, and your recommendation -- not the raw contents you
 read along the way. The raw reads stay in this forked context; only the
 summary crosses back.
+
+**Before returning, cache the summary** so the next session doesn't
+re-derive it (best-effort -- if this fails in any way, skip it silently
+and return your summary as normal; it is a cache, never a deliverable):
+
+```bash
+deadeye notes-append explore <<'EOF'
+<the question you were asked>
+- <a file or symbol that matters, and why>
+- recommendation: <one line>
+EOF
+```
+
+Ten lines maximum. If `deadeye` isn't on PATH, retry once with
+`~/.deadeye/bin/deadeye`; if that also fails, move on.

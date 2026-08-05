@@ -200,6 +200,7 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye lessons [reset]` | Inspect (or clear) the recorded routing outcomes that bias future decisions |
+| `deadeye notes-append <kind>` | Append a note (body on stdin) to the project's codebase-map notes — used by the `explore` skill to cache findings across sessions |
 | `deadeye update` | Update the managed binary to the latest release (sha256-verified, atomic) — the one-command updater for Codex-only installs |
 | `deadeye uninstall --purge` | Removes the binary, its background process, and all local state |
 
@@ -341,6 +342,34 @@ settings itself.
 > before enabling coder mode — two overlapping personas means paying for
 > both rulesets every session.
 
+## Codebase map
+
+A fresh session normally burns 15–40 tool calls rediscovering the project
+— directory layout, what each package does, which files matter. deadeye's
+session memory already carried *what recently changed* (branch, commits,
+dirty files); the codebase map adds *what the project is*, persisted
+per-project under `~/.deadeye/map/` and injected once at each session's
+first prompt:
+
+- **A structural skeleton** — directory rows with file counts and, for Go
+  repos, each package's one-line doc-comment purpose. Built from
+  `git ls-files`, regenerated at session end only when the tracked-file
+  list actually changed. A stable repo pays nothing to keep it current.
+- **Most-touched files, accumulated forever** — a `path → sessions` counter
+  merged at every session end, ranked by relevance rather than recency: a
+  file touched in 14 of 20 sessions stays at the top; a one-off from weeks
+  ago sinks on its own instead of scrolling off a fixed-length log.
+- **Recent exploration notes** — when the `explore` skill finishes a real
+  dig, it caches its summary via `deadeye notes-append` (best-effort,
+  bounded to the 5 newest entries) so the next session inherits the
+  findings instead of re-deriving them.
+
+The first-ever session in a project gets nothing (the map is written at
+session end — value starts at session #2), resumed/compacted sessions are
+skipped (their context already carries the exploration), and everything
+lives under the `mode.codemap` switch (`off`/`on`, default `on`; also off
+under `DEADEYE=off`). `off` stops both the writes and the injection.
+
 ## How this fits with Claude Code's built-ins
 
 Claude Code ships its own `/code-review` (with a paid multi-agent
@@ -357,12 +386,13 @@ they don't:
 | Subagent models — inherit the parent's model | deadeye recommends the cheapest tier the evidence supports, explains why, and learns from your escalations |
 | Coding persona — none | Coder mode: the lean-first discipline, injected every session, surviving compaction, traveling into subagents |
 
-## The six things it controls
+## The seven things it controls
 
 | What | Modes | What it does |
 |---|---|---|
 | Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Flags unbounded dumps before they run: unscoped `git diff`/`git log`, `terraform plan`, `kubectl get -o yaml`, `npm ls`, bare `find`/`tree`/`du`, full package lists, and content-mode Grep with no limit. Also flags wasteful reads: re-reading a file that hasn't changed, whole-reads of huge files, and running the identical command twice in a row |
 | Coder persona | `off` / `spotter` / `marksman` / `sniper` | The lean-first coding discipline above — including a live security check on what's written and its dependencies — injected per session and into subagents |
+| Codebase map | `off` / `on` | A persistent per-project map — directory/package skeleton, most-touched files accumulated across every session, recent exploration notes — injected once per session so a fresh session doesn't re-explore the repo from scratch |
 | Effort level | `off` / `advise` | Suggests using lower effort for mechanical steps; has no effect if `CLAUDE_EFFORT` is already pinned for the session |
 | Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one yourself |
 | Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit |

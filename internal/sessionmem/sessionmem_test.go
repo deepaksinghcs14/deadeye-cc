@@ -119,10 +119,3 @@ func TestLoadRecentEmptyWhenNone(t *testing.T) {
 		t.Errorf("expected empty result with no summaries at all, got %q", got)
 	}
 }
-
-func TestProjectKeySanitizes(t *testing.T) {
-	got := ProjectKey("/tmp/does-not-exist/my project!@#")
-	if strings.ContainsAny(got, " !@#") {
-		t.Errorf("ProjectKey did not sanitize: %q", got)
-	}
-}

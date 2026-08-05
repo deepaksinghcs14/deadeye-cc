@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## 0.15.0
+
+**Codebase map -- the re-orientation tax, actually killed.** PLAN.md §5.7
+named the goal ("a fresh session burns 15-40 tool calls rediscovering the
+project") but the shipped session memory only carried git activity --
+branch, commits, dirty files -- never what the codebase IS. Meanwhile the
+two signals that did capture real structure were thrown away every
+session: the explore skill's findings died with its fork, and the
+which-files-did-this-session-read map died at SessionEnd. All three now
+persist, per project, under `~/.deadeye/map/`:
+
+- **Structural skeleton** (`<project>.map.md`) -- directory rows with file
+  counts and Go package doc-comment purposes, built from a streamed
+  `git ls-files` at the repo root (resolved first: ls-files is cwd-scoped,
+  and a session started in a subdirectory would otherwise silently map
+  only that subtree). Regenerated at SessionEnd only when the tracked-file
+  fingerprint moved.
+- **Touch-frequency counter** (`<project>.touched.json`) -- a
+  `path -> sessions` count merged at every SessionEnd, capped at the top
+  12 by relevance, not recency: accumulated knowledge of which files
+  actually matter, not a rolling window that forgets. Read-tracking now
+  runs whenever preprocess OR codemap is on, so turning off output
+  trimming no longer silently starves the map.
+- **Exploration notes** (`<project>.notes.md`) -- the explore skill caches
+  its summary via a new `deadeye notes-append` subcommand (real Go does
+  the path math; the write is a single O_APPEND, safe beside the daemon's
+  own pruning). Newest 5 entries kept.
+
+Injected once per session at the first prompt, after the guidance block;
+suppressed on resume/compact (that context already carries its own
+exploration). New `mode.codemap` switch (`off`/`on`, default `on`) gates
+writes and injection both. Every truncating write in the new package is
+mutex-protected -- the daemon serves concurrent sessions, and two
+same-project SessionEnds must not tear a counter file.
+
+Also: the byte-identical `gitOutput`/`gitOut` helpers (sessionmem,
+route.go) consolidated into `internal/gitutil` along with `ProjectKey` --
+a third caller made the copy a liability.
+
 ## 0.14.0
 
 **Security joins coder mode -- part of coding, not a post-check.** The

@@ -2,7 +2,8 @@
 // session summary (branch, recent commits, modified files, decisions
 // logged) written at SessionEnd and injected at the start of the next
 // session, to cut the re-orientation tax a fresh session pays rediscovering
-// the project.
+// the project. Its structural sibling is internal/codemap: this captures
+// what recently CHANGED, codemap captures what the project IS.
 //
 // Native-restore guard (PLAN.md §5.7/§10.10): SessionStart's source field
 // distinguishes resume/compact -- sessions whose context Claude Code
@@ -13,23 +14,16 @@
 package sessionmem
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
-
-// gitTimeout bounds every git subprocess here -- a stalled network mount or
-// a held .git/index.lock must not hang SessionEnd forever (INV-5: fail
-// open means timing out and treating it like "not a git repo", not hanging
-// the daemon goroutine handling it).
-const gitTimeout = 2 * time.Second
 
 func Dir() string { return filepath.Join(meta.StateDir(), "sessions") }
 
@@ -38,55 +32,16 @@ const (
 	headLines      = 25
 )
 
-// ProjectKey derives a filesystem-safe project identifier from cwd: the
-// git repo root's basename if available, else cwd's own basename.
-func ProjectKey(cwd string) string {
-	base := cwd
-	if root := gitOutput(cwd, "rev-parse", "--show-toplevel"); root != "" {
-		base = root
-	}
-	name := filepath.Base(base)
-	if name == "" || name == "." || name == string(filepath.Separator) {
-		name = "project"
-	}
-	return sanitize(name)
-}
-
-func sanitize(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
-			b.WriteRune(r)
-		default:
-			b.WriteRune('-')
-		}
-	}
-	return b.String()
-}
-
-func gitOutput(cwd string, args ...string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = cwd
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
 // Write creates a per-session summary file at SessionEnd. Skipped
 // entirely when the session had no git activity and no logged decisions
 // -- "skip when the session had no meaningful activity" per PLAN.md §5.7.
 func Write(cwd, sessionID string, decisionCount int) error {
-	branch := gitOutput(cwd, "rev-parse", "--abbrev-ref", "HEAD")
+	branch := gitutil.Output(cwd, "rev-parse", "--abbrev-ref", "HEAD")
 	if branch == "" {
 		return nil // not a git repo
 	}
-	commits := gitOutput(cwd, "log", "-5", "--oneline")
-	status := gitOutput(cwd, "status", "--porcelain")
+	commits := gitutil.Output(cwd, "log", "-5", "--oneline")
+	status := gitutil.Output(cwd, "status", "--porcelain")
 	if commits == "" && status == "" && decisionCount == 0 {
 		return nil
 	}
@@ -96,7 +51,7 @@ func Write(cwd, sessionID string, decisionCount int) error {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Session summary: %s\n\nbranch: %s\n\n", ProjectKey(cwd), branch)
+	fmt.Fprintf(&b, "# Session summary: %s\n\nbranch: %s\n\n", gitutil.ProjectKey(cwd), branch)
 	if commits != "" {
 		b.WriteString("Recent commits:\n")
 		for _, line := range strings.Split(commits, "\n") {
@@ -115,11 +70,11 @@ func Write(cwd, sessionID string, decisionCount int) error {
 		fmt.Fprintf(&b, "deadeye logged %d decisions this session.\n", decisionCount)
 	}
 
-	path := filepath.Join(Dir(), fmt.Sprintf("%s_%d.md", ProjectKey(cwd), time.Now().UnixNano()))
+	path := filepath.Join(Dir(), fmt.Sprintf("%s_%d.md", gitutil.ProjectKey(cwd), time.Now().UnixNano()))
 	if err := os.WriteFile(path, []byte(b.String()), 0o600); err != nil {
 		return err
 	}
-	pruneOldSummaries(ProjectKey(cwd))
+	pruneOldSummaries(gitutil.ProjectKey(cwd))
 	return nil
 }
 
@@ -169,7 +124,7 @@ func LoadRecent(cwd string) string {
 	if err != nil {
 		return ""
 	}
-	prefix := ProjectKey(cwd) + "_"
+	prefix := gitutil.ProjectKey(cwd) + "_"
 	var newestPath string
 	var newestTime time.Time
 	for _, e := range entries {

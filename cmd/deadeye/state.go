@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
@@ -232,6 +233,23 @@ func (d *daemonState) markFileRead(sessionID, path string, mtime int64) (unchang
 	prev, seen := s.readFiles[path]
 	s.readFiles[path] = mtime
 	return seen && prev == mtime
+}
+
+// readFilesSnapshot returns the paths this session Read, sorted (map
+// iteration order is randomized, and this feeds codemap's persisted
+// touch-frequency file). endSession destroys the map, so SessionEnd is the
+// last moment "which files this project's work actually touches" exists
+// anywhere -- call this before eviction.
+func (d *daemonState) readFilesSnapshot(sessionID string) []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	paths := make([]string, 0, len(s.readFiles))
+	for p := range s.readFiles {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	return paths
 }
 
 // noteBashCommand records cmd as the session's most recent Bash command

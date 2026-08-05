@@ -267,7 +267,7 @@ func TestCoderModeFilePerSession(t *testing.T) {
 		t.Errorf("s2 badge = %q; want sniper", b)
 	}
 	// SessionEnd removes only that session's file.
-	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, state)
+	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, config.Default(), state)
 	if _, err := os.Stat(meta.CoderModePathFor("s1")); err == nil {
 		t.Error("s1 per-session mode file should be gone after SessionEnd")
 	}
@@ -329,7 +329,7 @@ func TestNoopsAreNotLogged(t *testing.T) {
 	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", "", state)
 	decideStop(hookio.Input{SessionID: "s1"}, state)
 	decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "Glob"}, cfg, state)
-	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, state)
+	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, config.Default(), state)
 	if _, err := os.Stat(logPath); err == nil {
 		b, _ := os.ReadFile(logPath)
 		if len(b) > 0 {

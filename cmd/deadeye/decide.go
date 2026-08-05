@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/deepaksinghcs14/deadeye-cc/internal/codemap"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/inject"
@@ -71,7 +72,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	case "Stop":
 		out = decideStop(in, state)
 	case "SessionEnd":
-		out = decideSessionEnd(in, state)
+		out = decideSessionEnd(in, cfg, state)
 	}
 	return out
 }
@@ -106,11 +107,17 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 	if state.markInjectedIfFirst(in.SessionID) {
 		// Native-restore guard (PLAN.md §5.7/§10.10): a resumed or
 		// compacted session already carries its own context, so the memory
-		// paragraph would be a redundant repeat of what Claude Code itself
-		// just restored. The rest of the injection still applies.
+		// paragraph -- and the codebase map, whose content the replayed
+		// transcript's own exploration already covers -- would be a
+		// redundant repeat of what Claude Code itself just restored. The
+		// rest of the injection still applies.
 		memory := ""
+		mapText := ""
 		if !state.nativeRestoreFor(in.SessionID) {
 			memory = sessionmem.LoadRecent(in.Cwd)
+			if cfg.Mode.Codemap == "on" && in.Cwd != "" {
+				mapText = codemap.Text(in.Cwd)
+			}
 		}
 		text := inject.Build(state.cat, memory, cfg.Mode.Effort != "off", host)
 		tokens := inject.EstimateTokens(text)
@@ -123,6 +130,16 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 			Action: "inject", Reason: reason, BytesAfter: len(text),
 		})
 		parts = append(parts, text)
+		if mapText != "" {
+			// Composed here, never inside inject.Build: codemap is
+			// independently switched (mode.codemap) and separately logged,
+			// so /deadeye-audit can attribute its real byte cost.
+			state.log(logstore.Record{
+				TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit",
+				Action: "inject-codemap", Reason: "codebase map", BytesAfter: len(mapText),
+			})
+			parts = append(parts, mapText)
+		}
 	}
 
 	if !state.isMuted(in.SessionID) {
@@ -173,17 +190,26 @@ func plural(n int) string {
 
 // decideSessionEnd writes Phase 1.5's session-memory summary, then evicts
 // the session's in-memory state.
-func decideSessionEnd(in hookio.Input, state *daemonState) hookio.Output {
+func decideSessionEnd(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	count := state.decisionCount(in.SessionID)
 	_ = sessionmem.Write(in.Cwd, in.SessionID, count)
+	// Codemap's writes are gated on mode.codemap too, not just its
+	// injection -- "off" must mean nothing is written, or the switch is a
+	// documented setting that silently half-works (the exact antipattern
+	// this codebase deleted posture and radius_trigger for).
+	if cfg.Mode.Codemap == "on" && in.Cwd != "" {
+		_ = codemap.MergeTouched(in.Cwd, state.readFilesSnapshot(in.SessionID), time.Now().Unix())
+		_ = codemap.PruneNotes(in.Cwd)
+		_ = codemap.Regenerate(in.Cwd)
+	}
 	os.Remove(meta.CoderModePathFor(in.SessionID)) // this session's statusline badge file
 	// Session state is daemon-lifetime advisory dedup only, never
 	// persisted -- but nothing ever removed an entry, so across a
 	// long-lived daemon (idle timeout resets on every connection, so in
 	// practice a daily user's daemon runs for as long as the machine is
 	// up) every session id the machine has ever seen accumulated here
-	// forever. Evict last, after the write above, so it still sees this
-	// session's real decisionCount.
+	// forever. Evict last, after the writes above -- codemap's snapshot
+	// and sessionmem's decisionCount both need the session's state alive.
 	state.endSession(in.SessionID)
 	return hookio.Empty()
 }
@@ -378,10 +404,13 @@ const largeReadBytes = 200 * 1024
 // sessions: re-reading a file that hasn't changed since it was last read,
 // and full-reading a large file that a Grep or offset/limit read would
 // have answered. Advisory only -- a Read is never blocked or rewritten.
-// Gated under mode.preprocess: it's context hygiene, same family as the
-// Bash-output rules, and every surface must have an off switch.
+// The visible advisory is gated under mode.preprocess (context hygiene,
+// same family as the Bash-output rules); the silent markFileRead TRACKING
+// also feeds codemap's touch-frequency counter, so it runs whenever EITHER
+// surface wants it -- turning off command-output hygiene must not silently
+// starve a codebase map someone left on, and vice versa.
 func decideReadAdvice(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
-	if cfg.Mode.Preprocess != "on" || cfg.DisabledRuleSet()["read-advice"] || state.isMuted(in.SessionID) {
+	if cfg.Mode.Preprocess != "on" && cfg.Mode.Codemap != "on" {
 		return hookio.Empty()
 	}
 	var ri readInput
@@ -393,9 +422,16 @@ func decideReadAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 	if err != nil {
 		return hookio.Empty() // can't assess -- stay quiet, the Read itself will surface the error
 	}
+	unchangedRepeat := state.markFileRead(in.SessionID, ri.FilePath, fi.ModTime().UnixNano())
+
+	// The VISIBLE advisory keeps its original gate exactly -- only the
+	// tracking above became independent of mode.preprocess.
+	if cfg.Mode.Preprocess != "on" || cfg.DisabledRuleSet()["read-advice"] || state.isMuted(in.SessionID) {
+		return hookio.Empty()
+	}
 
 	var advice []string
-	if state.markFileRead(in.SessionID, ri.FilePath, fi.ModTime().UnixNano()) {
+	if unchangedRepeat {
 		advice = append(advice, "deadeye: "+filepath.Base(ri.FilePath)+" was already read this session and hasn't changed since.")
 	}
 	// A partial read (offset/limit) of a big file is exactly the right

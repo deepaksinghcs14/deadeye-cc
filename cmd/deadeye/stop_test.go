@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 )
@@ -68,7 +69,7 @@ func TestSessionEndEvictsSessionState(t *testing.T) {
 		t.Fatalf("expected 1 session tracked before SessionEnd, got %d", len(state.sessions))
 	}
 
-	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, state)
+	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, config.Default(), state)
 
 	if len(state.sessions) != 0 {
 		t.Errorf("expected session state evicted after SessionEnd, got %d entries remaining", len(state.sessions))

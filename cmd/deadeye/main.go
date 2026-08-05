@@ -37,6 +37,8 @@ func main() {
 		runInit(os.Args[2:])
 	case "update":
 		runUpdate()
+	case "notes-append":
+		runNotesAppend(argOr(2, ""))
 	case "uninstall":
 		runUninstall(os.Args[2:])
 	case "version":
