@@ -183,6 +183,65 @@ func TestPostToolUseObservesMCPTools(t *testing.T) {
 	}
 }
 
+func webFetchIn(sessionID, url string) hookio.Input {
+	b, _ := json.Marshal(map[string]any{"url": url, "prompt": "summarize"})
+	return hookio.Input{SessionID: sessionID, ToolName: "WebFetch", ToolInput: b}
+}
+
+// TestWebFetchAdviceFlagsRepeat: re-fetching a URL already fetched this
+// session buys nothing while the first response is still in context.
+// Fragment and trailing-slash variants name the same resource; a different
+// query string is a genuinely different fetch.
+func TestWebFetchAdviceFlagsRepeat(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+
+	if out := decidePreToolUse(webFetchIn("s1", "https://docs.example.com/api"), cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("first fetch advised: %+v", out.HookSpecificOutput)
+	}
+	// Trailing slash + fragment variant of the SAME resource: repeat.
+	out := decidePreToolUse(webFetchIn("s1", "https://docs.example.com/api/#section-2"), cfg, state)
+	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "already fetched") {
+		t.Fatalf("repeat fetch not flagged: %+v", out.HookSpecificOutput)
+	}
+	// Third fetch of the same URL: not re-nagged.
+	if out := decidePreToolUse(webFetchIn("s1", "https://docs.example.com/api"), cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("third fetch re-nagged: %+v", out.HookSpecificOutput)
+	}
+	// Different query string: a different fetch, silent.
+	if out := decidePreToolUse(webFetchIn("s1", "https://docs.example.com/api?page=2"), cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("different query string advised: %+v", out.HookSpecificOutput)
+	}
+	// A DIFFERENT repeated URL still gets its own advisory.
+	decidePreToolUse(webFetchIn("s1", "https://other.example.com"), cfg, state)
+	if out := decidePreToolUse(webFetchIn("s1", "https://other.example.com"), cfg, state); out.HookSpecificOutput == nil {
+		t.Error("a second repeated URL was not advised")
+	}
+}
+
+func TestWebFetchAdviceStaysQuiet(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+
+	// Malformed tool_input fails open.
+	in := hookio.Input{SessionID: "s1", ToolName: "WebFetch", ToolInput: json.RawMessage(`{broken`)}
+	if out := decidePreToolUse(in, config.Default(), state); out.HookSpecificOutput != nil {
+		t.Errorf("malformed input advised: %+v", out.HookSpecificOutput)
+	}
+	// Muted session: tracked but silent.
+	state.setMuted("s2", true)
+	decidePreToolUse(webFetchIn("s2", "https://a.example.com"), config.Default(), state)
+	if out := decidePreToolUse(webFetchIn("s2", "https://a.example.com"), config.Default(), state); out.HookSpecificOutput != nil {
+		t.Errorf("muted session advised: %+v", out.HookSpecificOutput)
+	}
+	// Rule disabled: silent.
+	cfg := config.Default()
+	cfg.Preprocess.DisabledRules = []string{"repeat-webfetch"}
+	decidePreToolUse(webFetchIn("s3", "https://b.example.com"), cfg, state)
+	if out := decidePreToolUse(webFetchIn("s3", "https://b.example.com"), cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("disabled rule advised: %+v", out.HookSpecificOutput)
+	}
+}
+
 // TestMCPOversizeAdvises: a single MCP response past mcpOversizeBytes gets
 // a post-hoc advisory targeting the NEXT call, once per tool per session --
 // smaller responses and repeat offenders stay observation-only.

@@ -231,6 +231,8 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 		return decideReadAdvice(in, cfg, state)
 	case "Grep":
 		return decideGrepAdvice(in, cfg, state)
+	case "WebFetch":
+		return decideWebFetchAdvice(in, cfg, state)
 	case "Edit", "Write", "apply_patch":
 		// An edit invalidates the consecutive-repeat heuristic: re-running
 		// the same command AFTER a change is legitimate verification.
@@ -477,6 +479,47 @@ func decideGrepAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 	out := hookio.ForEvent("PreToolUse")
 	out.HookSpecificOutput.AdditionalContext = "deadeye: content-mode Grep with no head_limit can dump every match in scope -- consider head_limit, or files_with_matches first."
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Grep", Action: "advise", Reason: "grep-limit"})
+	return out
+}
+
+type webFetchInput struct {
+	URL string `json:"url"`
+}
+
+// normalizeFetchURL folds the URL variants that name the SAME resource:
+// a #fragment (client-side only, identical response) and one trailing
+// slash. Nothing else -- a different query string (?page=2) is a genuinely
+// different fetch, so exact match otherwise.
+func normalizeFetchURL(url string) string {
+	if i := strings.IndexByte(url, '#'); i >= 0 {
+		url = url[:i]
+	}
+	return strings.TrimSuffix(url, "/")
+}
+
+// decideWebFetchAdvice flags a re-fetch of a URL already fetched this
+// session -- the first response is still in context, so the repeat buys
+// nothing unless the page itself changed. Advised once per URL (a third
+// fetch isn't re-nagged; a different repeated URL still is).
+func decideWebFetchAdvice(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.Preprocess != "on" {
+		return hookio.Empty()
+	}
+	var wi webFetchInput
+	if err := json.Unmarshal(in.ToolInput, &wi); err != nil || wi.URL == "" {
+		return hookio.Empty() // malformed input fails open
+	}
+	url := normalizeFetchURL(wi.URL)
+	repeat := state.noteWebFetch(in.SessionID, url) // track even when the advisory below is off
+	if !repeat || cfg.DisabledRuleSet()["repeat-webfetch"] || state.isMuted(in.SessionID) {
+		return hookio.Empty()
+	}
+	if !state.markSuggestedIfFirst(in.SessionID, "webfetch:"+url) {
+		return hookio.Empty()
+	}
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/WebFetch", Action: "advise", Reason: "repeat-webfetch"})
+	out := hookio.ForEvent("PreToolUse")
+	out.HookSpecificOutput.AdditionalContext = "deadeye: this URL was already fetched this session -- the first response is still in context; re-fetch only if you expect the page to have changed."
 	return out
 }
 

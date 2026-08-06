@@ -37,6 +37,7 @@ type sessionState struct {
 	readFiles           map[string]int64  // Read'd file path -> mtime (unix nanos) at read time, for duplicate-read advice
 	lastBashCommand     string            // previous Bash command, cleared by any Edit/Write -- consecutive-repeat detection
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
+	fetchedURLs         map[string]bool   // normalized WebFetch URLs seen this session -- repeat-fetch advice
 	coderLevel          string            // coder-mode session level; "" = unset (config default applies), "off" = explicitly off
 	nativeRestore       bool              // SessionStart arrived with source resume/compact -- Claude Code restored context itself
 	muted               bool              // /deadeye-mute: advisory surfaces stand down for this session (rewrites and the hard gate stay)
@@ -81,6 +82,7 @@ func (d *daemonState) getOrCreate(sessionID string) *sessionState {
 			suggested:       map[string]bool{},
 			readFiles:       map[string]int64{},
 			pendingRewrites: map[string]string{},
+			fetchedURLs:     map[string]bool{},
 		}
 		d.sessions[sessionID] = s
 	}
@@ -250,6 +252,19 @@ func (d *daemonState) readFilesSnapshot(sessionID string) []string {
 	}
 	sort.Strings(paths)
 	return paths
+}
+
+// noteWebFetch records url (already normalized by the caller) as fetched
+// this session and reports whether it was fetched before -- the first
+// response is still in context, so a repeat buys nothing unless the page
+// itself changed.
+func (d *daemonState) noteWebFetch(sessionID, url string) (repeat bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	seen := s.fetchedURLs[url]
+	s.fetchedURLs[url] = true
+	return seen
 }
 
 // noteBashCommand records cmd as the session's most recent Bash command
