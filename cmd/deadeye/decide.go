@@ -750,10 +750,13 @@ func decideMCPOversize(in hookio.Input, cfg config.Config, state *daemonState) h
 // to correlate whether it lands. Gated under mode.preprocess -- context
 // hygiene, and every surface must have an off switch.
 func decideSubagentStart(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	const brevityNote = "deadeye: return terse, structured results -- your full output lands in the parent agent's context, so every byte of prose padding is paid for twice."
 	var parts []string
 	if cfg.Mode.Preprocess == "on" {
-		parts = append(parts, "deadeye: return terse, structured results -- your full output lands in the parent agent's context, so every byte of prose padding is paid for twice.")
-		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "inject-subagent"})
+		parts = append(parts, brevityNote)
+		// BytesAfter recorded so /deadeye-context can attribute this
+		// injection's real cost like every other inject-* row.
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "inject-subagent", BytesAfter: len(brevityNote)})
 	}
 	// Coder persona travels into subagents too -- SessionStart context is
 	// parent-thread only and never reaches them (verified in Phase 0:
