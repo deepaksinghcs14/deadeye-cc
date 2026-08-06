@@ -12,7 +12,7 @@ import (
 
 func TestStopStaysQuietWithNoSavingsYet(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, nil)
-	out := decideStop(hookio.Input{SessionID: "s1"}, state)
+	out := decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state)
 	if out.HookSpecificOutput != nil {
 		t.Errorf("Stop fired with nothing saved yet: %+v", out)
 	}
@@ -22,7 +22,7 @@ func TestStopShowsSummaryAfterARewrite(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, nil)
 	state.log(logstore.Record{SessionID: "s1", Surface: "PreToolUse/Bash", Action: "rewrite", BytesBeforeEst: 30000, BytesAfter: 9600})
 
-	out := decideStop(hookio.Input{SessionID: "s1"}, state)
+	out := decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state)
 	if out.HookSpecificOutput == nil {
 		t.Fatal("expected a Stop summary after a real rewrite")
 	}
@@ -39,19 +39,19 @@ func TestStopDoesNotRepeatAStaleTotal(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, nil)
 	state.log(logstore.Record{SessionID: "s1", Surface: "PreToolUse/Bash", Action: "rewrite", BytesBeforeEst: 30000, BytesAfter: 9600})
 
-	first := decideStop(hookio.Input{SessionID: "s1"}, state)
+	first := decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state)
 	if first.HookSpecificOutput == nil {
 		t.Fatal("expected the first Stop after a rewrite to show a summary")
 	}
 
-	second := decideStop(hookio.Input{SessionID: "s1"}, state)
+	second := decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state)
 	if second.HookSpecificOutput != nil {
 		t.Errorf("second Stop with no new savings repeated the summary: %+v", second)
 	}
 
 	// A further rewrite should surface again with the new cumulative total.
 	state.log(logstore.Record{SessionID: "s1", Surface: "PreToolUse/Bash", Action: "rewrite", BytesBeforeEst: 15000, BytesAfter: 9600})
-	third := decideStop(hookio.Input{SessionID: "s1"}, state)
+	third := decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state)
 	if third.HookSpecificOutput == nil {
 		t.Fatal("expected a new Stop summary after a second rewrite")
 	}

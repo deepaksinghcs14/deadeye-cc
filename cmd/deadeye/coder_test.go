@@ -327,7 +327,7 @@ func TestNoopsAreNotLogged(t *testing.T) {
 	cfg := config.Default()
 	cfg.Coder.DefaultLevel = "off"
 	decideCoderSessionStart(hookio.Input{SessionID: "s1"}, cfg, "", "", "", state)
-	decideStop(hookio.Input{SessionID: "s1"}, state)
+	decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state)
 	decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "Glob"}, cfg, state)
 	decideSessionEnd(hookio.Input{SessionID: "s1", Cwd: t.TempDir()}, config.Default(), state)
 	if _, err := os.Stat(logPath); err == nil {

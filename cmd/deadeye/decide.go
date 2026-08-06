@@ -70,7 +70,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	case "SubagentStart":
 		out = decideSubagentStart(in, cfg, state)
 	case "Stop":
-		out = decideStop(in, state)
+		out = decideStop(in, cfg, state)
 	case "SessionEnd":
 		out = decideSessionEnd(in, cfg, state)
 	}
@@ -166,7 +166,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 // than a banner. Stop fires once per turn, not once per session, so this
 // naturally updates as the session progresses without repeating a stale
 // total when nothing new happened.
-func decideStop(in hookio.Input, state *daemonState) hookio.Output {
+func decideStop(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	bytesSaved, rewrites, changed := state.newSavingsToShow(in.SessionID)
 	if !changed {
 		return hookio.Empty()
