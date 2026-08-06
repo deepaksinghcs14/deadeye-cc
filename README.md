@@ -451,6 +451,13 @@ and doesn't ask again either way.
 **Why "deadeye"?**
 Because efficiency isn't spending less — it's not missing.
 
+## Contributing
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
+ground rules (the short version: fail open, go big when unsure, bring a
+regression test you've watched fail). Security reports go through
+[SECURITY.md](SECURITY.md) — never a public issue.
+
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — third-party notices in [THIRD-PARTY.md](THIRD-PARTY.md).

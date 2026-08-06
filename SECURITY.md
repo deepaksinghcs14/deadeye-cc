@@ -1,0 +1,47 @@
+# Security Policy
+
+deadeye runs as a hook inside your coding agent, reads tool-call
+payloads, and executes a long-lived daemon on your machine. Security
+reports get taken seriously and handled quickly.
+
+## Reporting a vulnerability
+
+**Do not open a public issue for a vulnerability.** Use GitHub's private
+vulnerability reporting on this repository ("Security" tab → "Report a
+vulnerability"). You'll get an acknowledgment within a few days.
+
+Reports especially in scope:
+
+- Anything that lets a crafted hook payload, tool output, or repo
+  content (filenames, file contents, git metadata) escape its role as
+  data -- command injection through the daemon or hook scripts, path
+  traversal into or out of `~/.deadeye/`, or content that ends up
+  executed rather than analyzed.
+- The self-bootstrap and `deadeye update` paths: anything that defeats
+  the sha256 verification or swaps in an unverified binary.
+- The daemon's unix socket: cross-user access, or one session reading
+  another session's data.
+- A preprocessing rewrite that changes what a command DOES rather than
+  how much output it produces.
+
+Out of scope: vulnerabilities in Claude Code or Codex themselves, and
+findings that require the attacker to already control the user's account
+on the same machine.
+
+## Supported versions
+
+Only the latest release is supported. deadeye self-updates cheaply
+(`deadeye update`, or the plugin's own bootstrap), so fixes ship as a
+new release rather than backports.
+
+## What deadeye itself touches, for reviewers
+
+- **Network**: release downloads from GitHub (sha256-verified) and an
+  optional OSV.dev lookup (package name + version only, disableable
+  with `coder.security_osv: false`). Nothing else ever leaves the
+  machine; there is no telemetry.
+- **Filesystem**: all state lives under `~/.deadeye/` (0700). deadeye
+  never edits Claude Code's own `settings.json`.
+- **Subprocesses**: bounded `git` calls via `internal/gitutil` (2s
+  timeout, no shell), and the audited native scanners `/deadeye-guard`
+  runs only when you invoke it.
