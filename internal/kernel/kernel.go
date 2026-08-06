@@ -5,6 +5,8 @@
 package kernel
 
 import (
+	"math"
+
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
@@ -78,6 +80,17 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 
 	maxComplexity, minConfidence := 0.0, 1.0
 	for _, e := range evidence {
+		// A NaN Complexity or Confidence must not silently read as "best
+		// case" evidence: `>`/`<` against NaN are always false, so without
+		// this guard a NaN Complexity would never raise maxComplexity above
+		// its 0.0 seed (reads as "definitely simple"), and a NaN Confidence
+		// would never lower minConfidence below its 1.0 seed (reads as
+		// "fully trustworthy") -- both are the UNSAFE direction for a
+		// kernel whose whole design (INV-1) is "when it doesn't know, it
+		// goes big". Untrustworthy evidence forces the ceiling outright.
+		if math.IsNaN(e.Complexity) || math.IsNaN(e.Confidence) {
+			return ceilingDecision(cat, "default ceiling: NaN evidence value, cannot be trusted", 0, "high")
+		}
 		if e.Complexity > maxComplexity {
 			maxComplexity = e.Complexity
 		}
@@ -93,7 +106,10 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 		// (INV-1): no confidence threshold gates this branch.
 		return ceilingDecision(cat, "evidence indicates very high complexity -- upshifted, no confidence threshold required", minConfidence, "xhigh")
 	}
-	if minConfidence < downshiftThreshold {
+	// A NaN downshiftThreshold must block downshift, not disable the gate:
+	// `minConfidence < NaN` is always false, so without this guard a NaN
+	// threshold would let ANY confidence value (however low) sail through.
+	if math.IsNaN(downshiftThreshold) || minConfidence < downshiftThreshold {
 		return ceiling
 	}
 
@@ -101,7 +117,14 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 		if maxComplexity < b.maxComplexity {
 			model, ok := modelAtTier(cat, b.tier)
 			if !ok {
-				return ceiling
+				// A catalog override missing the tier this band expects
+				// (catalog.Load accepts one with no validation against
+				// bands' tiers) hits this path with real, evaluated
+				// evidence -- same misreport this function's final
+				// fallthrough below was fixed to stop making: report the
+				// real minConfidence and an accurate reason, not the
+				// generic zero-evidence `ceiling`.
+				return ceilingDecision(cat, "no model at the tier this band requires -- catalog gap", minConfidence, "high")
 			}
 			return Decision{
 				Model:      model,
@@ -111,7 +134,15 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 			}
 		}
 	}
-	return ceiling
+	// maxComplexity falls in the gap above the last band's threshold but
+	// below veryHighComplexity -- too high to downshift, not high enough to
+	// upshift. Report the REAL evidence-derived confidence and an accurate
+	// reason via ceilingDecision, rather than returning the generic
+	// zero-evidence `ceiling` built above: reusing it here misreported
+	// Confidence:0 and "no evidence" even when real, sufficiently-confident
+	// evidence existed and was evaluated (caught live: /deadeye-route
+	// prints both fields straight from this Decision).
+	return ceilingDecision(cat, "evidence complexity too high to downshift", minConfidence, "high")
 }
 
 func ceilingDecision(cat catalog.Catalog, reason string, confidence float64, effort string) Decision {

@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"math"
 	"testing"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
@@ -82,7 +83,11 @@ func TestLowConfidenceBlocksDownshift(t *testing.T) {
 
 // TestOneDisagreeingSignalBlocksDownshift: even with other confident,
 // low-complexity evidence present, one signal reporting high complexity
-// must prevent downshift (max-complexity aggregation).
+// must prevent downshift (max-complexity aggregation). Checks tier/effort
+// only, not full struct equality with the zero-evidence ceiling: complexity
+// 0.8 falls in the gap above the last band and below veryHighComplexity, so
+// the real, evaluated confidence (0.95) is what should be reported here --
+// see TestComplexityGapReportsRealConfidence for that behavior directly.
 func TestOneDisagreeingSignalBlocksDownshift(t *testing.T) {
 	cat := testCatalog()
 	d := Decide([]signals.Evidence{
@@ -90,8 +95,59 @@ func TestOneDisagreeingSignalBlocksDownshift(t *testing.T) {
 		{Complexity: 0.8, Confidence: 0.95},
 	}, cat, 0.8)
 	ceiling := Decide(nil, cat, 0.8)
-	if d != ceiling {
-		t.Errorf("disagreeing evidence set downshifted: got %+v, want ceiling %+v", d, ceiling)
+	if d.Model != ceiling.Model || d.Effort != ceiling.Effort {
+		t.Errorf("disagreeing evidence set downshifted: got %+v, want tier/effort of ceiling %+v", d, ceiling)
+	}
+}
+
+// TestComplexityGapReportsRealConfidence is the regression test for a bug
+// where complexity in the gap above the last band's threshold (0.75) and
+// below veryHighComplexity (0.9) fell through to the generic zero-evidence
+// ceiling, misreporting Confidence:0 and "no evidence" even though real,
+// sufficiently-confident evidence was supplied and evaluated -- user-visible
+// via /deadeye-route, which prints both fields straight from the Decision.
+func TestComplexityGapReportsRealConfidence(t *testing.T) {
+	cat := testCatalog()
+	d := Decide([]signals.Evidence{{Complexity: 0.8, Confidence: 0.95}}, cat, 0.5)
+	if d.Model != "top" || d.Effort != "high" {
+		t.Errorf("complexity-gap evidence = %+v, want top tier / high effort", d)
+	}
+	if d.Confidence != 0.95 {
+		t.Errorf("Confidence = %v, want the real evaluated confidence 0.95, not the generic ceiling's 0", d.Confidence)
+	}
+}
+
+// TestNaNEvidenceForcesCeiling is the regression test for a bug where NaN
+// Complexity or Confidence silently read as best-case evidence: `>`/`<`
+// comparisons against NaN are always false, so a NaN Complexity never rose
+// above the 0.0 seed (read as "definitely simple") and a NaN Confidence
+// never lowered the 1.0 seed (read as "fully trustworthy") -- both are the
+// unsafe direction for INV-1 ("when it doesn't know, it goes big").
+func TestNaNEvidenceForcesCeiling(t *testing.T) {
+	cat := testCatalog()
+	ceiling := Decide(nil, cat, 0.8)
+	cases := []signals.Evidence{
+		{Complexity: math.NaN(), Confidence: 0.99},
+		{Complexity: 0.1, Confidence: math.NaN()},
+	}
+	for _, ev := range cases {
+		d := Decide([]signals.Evidence{ev}, cat, 0.8)
+		if d.Model != ceiling.Model || d.Effort != ceiling.Effort {
+			t.Errorf("NaN evidence %+v downshifted: got %+v, want ceiling tier/effort %+v", ev, d, ceiling)
+		}
+	}
+}
+
+// TestNaNDownshiftThresholdBlocksDownshift is the regression test for a bug
+// where a NaN downshiftThreshold disabled the confidence gate entirely:
+// `minConfidence < NaN` is always false, so evidence with arbitrarily low
+// confidence sailed through undetected instead of being blocked.
+func TestNaNDownshiftThresholdBlocksDownshift(t *testing.T) {
+	cat := testCatalog()
+	ceiling := Decide(nil, cat, 0.8)
+	d := Decide([]signals.Evidence{{Complexity: 0.1, Confidence: 0.01}}, cat, math.NaN())
+	if d.Model != ceiling.Model || d.Effort != ceiling.Effort {
+		t.Errorf("NaN downshiftThreshold let low-confidence evidence through: got %+v, want ceiling tier/effort %+v", d, ceiling)
 	}
 }
 
@@ -134,6 +190,25 @@ func TestCeilingFallsBackWhenNoModelAtOrUnderCeilingTier(t *testing.T) {
 	d := Decide(nil, cat, 0.8)
 	if d.Model != "only-option" {
 		t.Errorf("ceiling model = %q, want %q (fallback to the catalog's own highest tier)", d.Model, "only-option")
+	}
+}
+
+// TestBandModelGapReportsRealConfidence is the regression test for a bug
+// where a catalog missing the model tier a downshift band requires (a
+// plausible ~/.deadeye/catalog.json override, which catalog.Load accepts
+// with no validation against the bands table) fell through to the generic
+// zero-evidence `ceiling`, misreporting Confidence:0 and "no evidence" even
+// though real, sufficiently-confident evidence was supplied and evaluated
+// -- the same bug TestComplexityGapReportsRealConfidence covers for the
+// loop's fallthrough case, one branch below this one.
+func TestBandModelGapReportsRealConfidence(t *testing.T) {
+	cat := catalog.Catalog{Models: []catalog.Model{{ID: "top", Tier: 2}}} // no tier 0 or 1
+	d := Decide([]signals.Evidence{{Complexity: 0.1, Confidence: 0.95}}, cat, 0.5)
+	if d.Model != "top" {
+		t.Errorf("model = %q, want fallback to the catalog's own available model %q", d.Model, "top")
+	}
+	if d.Confidence != 0.95 {
+		t.Errorf("Confidence = %v, want the real evaluated confidence 0.95, not the generic ceiling's 0", d.Confidence)
 	}
 }
 
