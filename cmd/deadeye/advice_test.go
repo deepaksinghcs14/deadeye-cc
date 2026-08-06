@@ -264,6 +264,38 @@ func TestBashRetryStaysQuiet(t *testing.T) {
 	}
 }
 
+// TestLargePasteAdvises: a pasted-log-sized prompt gets one nudge per
+// session; synthetic prompts (task notifications carry big XML) and
+// ordinary-sized prompts never fire it.
+func TestLargePasteAdvises(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+	big := strings.Repeat("log line with some content\n", largePasteBytes/20)
+
+	out := decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: big}, cfg, "", "", state)
+	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "drop it in a file") {
+		t.Fatalf("large paste not advised: %+v", out.HookSpecificOutput)
+	}
+	// Second large paste: once per session.
+	out = decideUserPromptSubmit(hookio.Input{SessionID: "s1", Prompt: big}, cfg, "", "", state)
+	if out.HookSpecificOutput != nil && strings.Contains(out.HookSpecificOutput.AdditionalContext, "drop it in a file") {
+		t.Error("second large paste re-nagged")
+	}
+
+	// Synthetic prompt of any size: silent.
+	synthetic := "<task-notification>" + big + "</task-notification>"
+	out = decideUserPromptSubmit(hookio.Input{SessionID: "s2", Prompt: synthetic}, cfg, "", "", state)
+	if out.HookSpecificOutput != nil && strings.Contains(out.HookSpecificOutput.AdditionalContext, "drop it in a file") {
+		t.Error("synthetic prompt fired the paste advisory")
+	}
+
+	// Ordinary prompt: silent.
+	out = decideUserPromptSubmit(hookio.Input{SessionID: "s3", Prompt: "fix the login bug"}, cfg, "", "", state)
+	if out.HookSpecificOutput != nil && strings.Contains(out.HookSpecificOutput.AdditionalContext, "drop it in a file") {
+		t.Error("small prompt fired the paste advisory")
+	}
+}
+
 func webFetchIn(sessionID, url string) hookio.Input {
 	b, _ := json.Marshal(map[string]any{"url": url, "prompt": "summarize"})
 	return hookio.Input{SessionID: sessionID, ToolName: "WebFetch", ToolInput: b}

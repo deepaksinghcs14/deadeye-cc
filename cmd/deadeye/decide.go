@@ -149,6 +149,9 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 		if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired && host != "codex" {
 			parts = append(parts, suggestion)
 		}
+		if suggestion, fired := decideLargePaste(in, cfg, state); fired {
+			parts = append(parts, suggestion)
+		}
 	}
 
 	if len(parts) == 0 {
@@ -158,6 +161,34 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 	out := hookio.ForEvent("UserPromptSubmit")
 	out.HookSpecificOutput.AdditionalContext = strings.Join(parts, "\n\n")
 	return out
+}
+
+// largePasteBytes is where a prompt stops being typed text and starts
+// being a paste: nobody types 20KB, and 20KB (~5k tokens) stays resident
+// in context for the whole session.
+const largePasteBytes = 20 << 10
+
+// decideLargePaste nudges once per session when a (real, non-synthetic)
+// prompt arrives large enough to be a pasted log/dump -- a file plus
+// targeted Grep/Read is cheaper than 20KB+ resident for the session.
+// Synthetic prompts (task notifications carry big XML payloads) never
+// fire this. The caller holds the mute gate.
+func decideLargePaste(in hookio.Input, cfg config.Config, state *daemonState) (string, bool) {
+	if cfg.Mode.Preprocess != "on" || cfg.DisabledRuleSet()["large-paste"] ||
+		len(in.Prompt) <= largePasteBytes || isSyntheticPrompt(in.Prompt) {
+		return "", false
+	}
+	if !state.markSuggestedIfFirst(in.SessionID, "large-paste") {
+		return "", false
+	}
+	state.log(logstore.Record{
+		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit",
+		Action: "advise", Reason: "large-paste", BytesAfter: len(in.Prompt),
+	})
+	return fmt.Sprintf(
+		"deadeye: this prompt is ~%d KB -- a paste this size stays in context for the whole session; drop it in a file instead and let me Grep/Read the parts that matter.",
+		len(in.Prompt)>>10,
+	), true
 }
 
 // decideStop shows a single terse line when new preprocessing savings have
