@@ -264,6 +264,75 @@ func TestBashRetryStaysQuiet(t *testing.T) {
 	}
 }
 
+func postToolIn(sessionID, tool string) hookio.Input {
+	return hookio.Input{SessionID: sessionID, ToolName: tool, ToolResponse: json.RawMessage(`{"ok":true}`)}
+}
+
+// TestDelegateExploreAdvises: a long unbroken run of exploration tool
+// completions means survey work an Explore subagent should absorb --
+// advise once per session at the next Read/Grep.
+func TestDelegateExploreAdvises(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+	path := filepath.Join(t.TempDir(), "f.go")
+	if err := os.WriteFile(path, []byte("package p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < exploreStreakThreshold; i++ {
+		decidePostToolUse(postToolIn("s1", "Glob"), cfg, state)
+	}
+	out := decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "Read", ToolInput: readToolInput(t, path, nil)}, cfg, state)
+	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "Explore subagent") {
+		t.Fatalf("long exploration streak not advised: %+v", out.HookSpecificOutput)
+	}
+	// Once per session.
+	out = decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "Grep", ToolInput: json.RawMessage(`{"pattern":"x"}`)}, cfg, state)
+	if out.HookSpecificOutput != nil && strings.Contains(out.HookSpecificOutput.AdditionalContext, "Explore subagent") {
+		t.Error("delegate-explore re-nagged in the same session")
+	}
+}
+
+// TestDelegateExploreResets: an edit, a command run, or a new user prompt
+// each legitimately restart orientation -- the streak must not survive
+// them.
+func TestDelegateExploreResets(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+
+	build := func(sid string, n int) {
+		for i := 0; i < n; i++ {
+			decidePostToolUse(postToolIn(sid, "Read"), cfg, state)
+		}
+	}
+
+	// A completed Bash run breaks the streak.
+	build("s1", exploreStreakThreshold-1)
+	decidePostToolUse(postToolIn("s1", "Bash"), cfg, state)
+	if got := state.exploreStreakFor("s1"); got != 0 {
+		t.Errorf("streak after a Bash completion = %d, want 0", got)
+	}
+
+	// A PreToolUse Edit breaks it (belt and braces for hosts without
+	// PostToolUse Edit events).
+	build("s2", exploreStreakThreshold-1)
+	decidePreToolUse(hookio.Input{SessionID: "s2", ToolName: "Edit", ToolInput: json.RawMessage(`{"file_path":"x.go"}`)}, cfg, state)
+	if got := state.exploreStreakFor("s2"); got != 0 {
+		t.Errorf("streak after an Edit = %d, want 0", got)
+	}
+
+	// A real user prompt breaks it; a synthetic one does not.
+	build("s3", exploreStreakThreshold-1)
+	decideUserPromptSubmit(hookio.Input{SessionID: "s3", Prompt: "<task-notification>done</task-notification>"}, cfg, "", "", state)
+	if got := state.exploreStreakFor("s3"); got != exploreStreakThreshold-1 {
+		t.Errorf("synthetic prompt reset the streak: %d", got)
+	}
+	decideUserPromptSubmit(hookio.Input{SessionID: "s3", Prompt: "now fix it"}, cfg, "", "", state)
+	if got := state.exploreStreakFor("s3"); got != 0 {
+		t.Errorf("streak after a real prompt = %d, want 0", got)
+	}
+}
+
 // TestLargePasteAdvises: a pasted-log-sized prompt gets one nudge per
 // session; synthetic prompts (task notifications carry big XML) and
 // ordinary-sized prompts never fire it.

@@ -40,6 +40,7 @@ type sessionState struct {
 	bashRetryCount      int               // consecutive same-retry-key runs, including the current one
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
 	fetchedURLs         map[string]bool   // normalized WebFetch URLs seen this session -- repeat-fetch advice
+	exploreStreak       int               // consecutive Read/Grep/Glob completions with no edit/run/prompt between -- delegate-explore advice
 	coderLevel          string            // coder-mode session level; "" = unset (config default applies), "off" = explicitly off
 	nativeRestore       bool              // SessionStart arrived with source resume/compact -- Claude Code restored context itself
 	muted               bool              // /deadeye-mute: advisory surfaces stand down for this session (rewrites and the hard gate stay)
@@ -254,6 +255,29 @@ func (d *daemonState) readFilesSnapshot(sessionID string) []string {
 	}
 	sort.Strings(paths)
 	return paths
+}
+
+// noteExploreTool counts one more consecutive exploration tool completion
+// (Read/Grep/Glob) for the delegate-explore advisory.
+func (d *daemonState) noteExploreTool(sessionID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).exploreStreak++
+}
+
+// resetExploreStreak zeroes the exploration streak -- any edit, command
+// run, or new user prompt legitimately restarts orientation.
+func (d *daemonState) resetExploreStreak(sessionID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).exploreStreak = 0
+}
+
+// exploreStreakFor reads the current exploration streak.
+func (d *daemonState) exploreStreakFor(sessionID string) int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.getOrCreate(sessionID).exploreStreak
 }
 
 // noteWebFetch records url (already normalized by the caller) as fetched

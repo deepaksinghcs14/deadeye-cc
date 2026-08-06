@@ -96,6 +96,10 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 	// leads the combined context. Synthetic prompts can't be commands, but
 	// the house guard applies everywhere prompts are parsed.
 	if !isSyntheticPrompt(in.Prompt) {
+		// A real user prompt legitimately restarts orientation -- without
+		// this, a few reads per turn across several turns would read as one
+		// long streak and false-fire delegate-explore.
+		state.resetExploreStreak(in.SessionID)
 		if confirm := muteTracker(in, state); confirm != "" {
 			parts = append(parts, confirm)
 		}
@@ -259,15 +263,18 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 	case "Agent":
 		return decideAgentRouting(in, cfg, state)
 	case "Read":
-		return decideReadAdvice(in, cfg, state)
+		return withDelegateExplore(in, cfg, state, decideReadAdvice(in, cfg, state))
 	case "Grep":
-		return decideGrepAdvice(in, cfg, state)
+		return withDelegateExplore(in, cfg, state, decideGrepAdvice(in, cfg, state))
 	case "WebFetch":
 		return decideWebFetchAdvice(in, cfg, state)
 	case "Edit", "Write", "apply_patch":
 		// An edit invalidates the consecutive-repeat heuristic: re-running
-		// the same command AFTER a change is legitimate verification.
+		// the same command AFTER a change is legitimate verification. It
+		// ends an orientation phase too -- belt and braces beside the
+		// PostToolUse reset, for hosts where PostToolUse Edit never arrives.
 		state.clearLastBash(in.SessionID)
+		state.resetExploreStreak(in.SessionID)
 		// Both can fire on the same edit: the gate asks permission
 		// (PermissionDecision), the vuln advisory adds context
 		// (AdditionalContext) -- different fields of the same
@@ -544,6 +551,38 @@ func decideGrepAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 	return out
 }
 
+// exploreStreakThreshold is where consecutive exploration turns from
+// targeted orientation (3-8 reads before an edit is normal) into survey
+// work an Explore subagent should absorb -- its reads land in a
+// disposable context, the parent pays only for the summary.
+const exploreStreakThreshold = 12
+
+// withDelegateExplore appends the delegate-explore advisory to a Read/Grep
+// PreToolUse response when the session's exploration streak (counted at
+// PostToolUse, reset by edits/runs/prompts) says this is survey work.
+// Space-joined onto whatever the per-tool advice already said, same shape
+// as decideReadAdvice's own two-advisory join.
+func withDelegateExplore(in hookio.Input, cfg config.Config, state *daemonState, out hookio.Output) hookio.Output {
+	if cfg.Mode.Preprocess != "on" || cfg.DisabledRuleSet()["delegate-explore"] || state.isMuted(in.SessionID) {
+		return out
+	}
+	if state.exploreStreakFor(in.SessionID) < exploreStreakThreshold {
+		return out
+	}
+	if !state.markSuggestedIfFirst(in.SessionID, "delegate-explore") {
+		return out
+	}
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "advise", Reason: "delegate-explore"})
+	const advice = "deadeye: 12+ exploration calls in a row with no edits -- these reads all stay in this context; an Explore subagent pays for orientation in its own disposable window and returns only a summary."
+	if out.HookSpecificOutput == nil {
+		out = hookio.ForEvent("PreToolUse")
+		out.HookSpecificOutput.AdditionalContext = advice
+		return out
+	}
+	out.HookSpecificOutput.AdditionalContext += " " + advice
+	return out
+}
+
 type webFetchInput struct {
 	URL string `json:"url"`
 }
@@ -591,6 +630,15 @@ func decidePostToolUse(in hookio.Input, cfg config.Config, state *daemonState) h
 	// observation logging, not just the surfaces that touch context.
 	if cfg.Mode.Preprocess != "on" {
 		return hookio.Empty()
+	}
+	// Exploration-streak accounting for delegate-explore: Read/Grep/Glob
+	// completions extend the streak, any other completed tool ends the
+	// orientation phase.
+	switch in.ToolName {
+	case "Read", "Grep", "Glob":
+		state.noteExploreTool(in.SessionID)
+	default:
+		state.resetExploreStreak(in.SessionID)
 	}
 	switch {
 	case in.ToolName == "Bash":
