@@ -113,7 +113,14 @@ func runDaemon() {
 // writing), decides, and writes the raw hookio.Output JSON back.
 func handleConn(conn net.Conn, state *daemonState, markStale func()) {
 	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
+	// Must stay at least as generous as the client's own requestTimeout
+	// ceiling (hook.go): that scales up to requestTimeoutCeiling for a
+	// large-but-legitimate payload, and a client correctly still waiting
+	// must never see this side close the connection first -- the 1s margin
+	// on top covers this handler's own read-to-write processing time for a
+	// near-ceiling payload, distinct from the transfer time the client's
+	// budget already accounts for.
+	_ = conn.SetDeadline(time.Now().Add(requestTimeoutCeiling + time.Second))
 
 	// Bounded read: the daemon is one shared process serving every session,
 	// so one oversized payload must not balloon its memory. Past the cap the
@@ -171,12 +178,21 @@ func handleConn(conn net.Conn, state *daemonState, markStale func()) {
 func acquireLock(path string) (*os.File, error) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
-		if lockIsStale(path) {
-			_ = os.Remove(path)
-			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if !lockIsStale(path) {
+			return nil, err
 		}
-		return nil, err
+		_ = os.Remove(path)
+		f, err = os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err != nil {
+			return nil, err
+		}
 	}
+	// Both branches above must reach this: the stale-takeover branch used
+	// to return straight from its own OpenFile, skipping this write --
+	// releaseLock's pid-match check (below) could then never fire for a
+	// lock acquired via takeover, since the file it reads back was empty,
+	// never this process's pid. That's exactly the crash-recovery path
+	// releaseLock exists to protect.
 	_, _ = f.WriteString(strconv.Itoa(os.Getpid()))
 	return f, nil
 }

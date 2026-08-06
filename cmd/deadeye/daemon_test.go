@@ -136,6 +136,46 @@ func TestReleaseLockOnlyRemovesOwnLock(t *testing.T) {
 // daemon keeps its lockfile for its whole life, so uninstall can actually
 // stop it and the purge doesn't race a still-running daemon recreating
 // the state dir it just removed.
+// TestAcquireLockWritesPidOnTakeover is the regression test for a bug
+// where the stale-lock-takeover branch of acquireLock returned straight
+// from its own os.OpenFile call, skipping the pid write that only ran on
+// the non-takeover path -- releaseLock's pid-match check (which only
+// removes a lockfile that still names this process's own pid) could then
+// never fire for a lock acquired via takeover, since the file it read back
+// was empty. That's exactly the crash-recovery path releaseLock exists to
+// protect, so the lockfile was permanently orphaned after any takeover.
+func TestAcquireLockWritesPidOnTakeover(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // isolate meta.SocketPath() from any real daemon on this machine
+	lockPath := filepath.Join(t.TempDir(), "deadeye.lock")
+
+	cmd := exec.Command("true")
+	if err := cmd.Run(); err != nil {
+		t.Skip("could not run a throwaway process for a known-dead pid")
+	}
+	if err := os.WriteFile(lockPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := acquireLock(lockPath)
+	if err != nil {
+		t.Fatalf("acquireLock did not take over a stale lock: %v", err)
+	}
+	f.Close()
+
+	b, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(b)) != strconv.Itoa(os.Getpid()) {
+		t.Fatalf("lockfile after takeover = %q, want this process's own pid %d", b, os.Getpid())
+	}
+
+	releaseLock(lockPath)
+	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+		t.Errorf("releaseLock did not remove a takeover-acquired lockfile naming our own pid (err=%v)", err)
+	}
+}
+
 func TestUninstallStopsRunningDaemon(t *testing.T) {
 	// Same short-/tmp-dir requirement as TestDaemonRoundTripP95 -- unix
 	// socket paths are capped at ~104 bytes on macOS/BSD.

@@ -8,6 +8,29 @@ import (
 	"time"
 )
 
+// TestRequestTimeoutScalesWithPayloadSize is the regression test for a bug
+// where the client's connection deadline was a fixed 200ms regardless of
+// payload size, so a large-but-legitimate request (well within the
+// daemon's own maxRequestBytes cap) reproducibly timed out and silently
+// fell back to "{}" even though the daemon was healthy and answered fine
+// given a moment longer.
+func TestRequestTimeoutScalesWithPayloadSize(t *testing.T) {
+	if d := requestTimeout(0); d != 200*time.Millisecond {
+		t.Errorf("requestTimeout(0) = %v, want exactly the 200ms floor", d)
+	}
+	small := requestTimeout(1024)
+	if small < 200*time.Millisecond || small > 210*time.Millisecond {
+		t.Errorf("requestTimeout(1KB) = %v, want close to the 200ms floor", small)
+	}
+	large := requestTimeout(6 << 20) // 6MB -- the size that reproduced the bug live
+	if large <= small {
+		t.Errorf("requestTimeout(6MB) = %v, want more than requestTimeout(1KB) = %v", large, small)
+	}
+	if d := requestTimeout(100 << 20); d != 5*time.Second {
+		t.Errorf("requestTimeout(100MB) = %v, want capped at the 5s ceiling", d)
+	}
+}
+
 // TestFailOpenOnPanic is INV-5's test: a panic anywhere downstream of
 // runHookTo (here, simulated in the daemon-dial seam) must still yield the
 // canonical "{}" -- a broken policy layer must never block the user's work.

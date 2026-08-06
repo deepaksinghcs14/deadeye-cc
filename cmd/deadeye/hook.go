@@ -67,8 +67,39 @@ func runHookTo(w io.Writer, r io.Reader, event, host string) {
 	w.Write(out)
 }
 
-// requestDaemon dials the daemon with a hard 200ms deadline (INV-8's 50ms
-// p95 budget with headroom for the occasional cold daemon start). Any
+// requestTimeout is the post-connect deadline for a request carrying
+// payloadBytes of raw stdin. The 200ms floor is INV-8's 50ms p95 budget
+// with headroom for the occasional cold daemon start -- fine for the
+// common small-payload hook call. A large-but-legitimate payload (a big
+// diff, a big MCP tool_response -- the daemon itself accepts up to
+// maxRequestBytes, 8MB) needs proportionally more time to write and be
+// answered, or it silently degrades to "{}" even though the daemon is
+// healthy: caught live, a 7MB UserPromptSubmit payload reproducibly hit
+// the old fixed 200ms deadline while the daemon itself answered normally
+// in ~0.2s once given the time. Scaled by size, capped well above any
+// observed real latency but still bounded -- a genuinely hung daemon
+// still fails open, just not instantly for a request that claimed to be
+// large.
+// requestTimeoutCeiling is also the basis for the daemon's OWN per-connection
+// deadline (see daemon.go's handleConn) -- one shared constant, not two
+// independent magic numbers that could drift apart: the daemon's deadline
+// must stay at least this generous, or it fires before a client that's
+// correctly willing to wait this long ever would, for the exact same large
+// payload, reintroducing the silent-{}-degradation bug one hop over.
+const requestTimeoutCeiling = 5 * time.Second
+
+func requestTimeout(payloadBytes int) time.Duration {
+	const floor = 200 * time.Millisecond
+	const perByte = time.Millisecond / 1024 // ~1s of headroom per MB
+	d := floor + time.Duration(payloadBytes)*perByte
+	if d > requestTimeoutCeiling {
+		return requestTimeoutCeiling
+	}
+	return d
+}
+
+// requestDaemon dials the daemon with a short fixed connect deadline (see
+// requestTimeout for the separate, size-scaled post-connect deadline). Any
 // failure to connect spawns the daemon detached and, for the hot-path
 // events, returns {} immediately -- a hook must never block a tool call
 // on daemon startup.
@@ -92,7 +123,7 @@ func requestDaemon(event string, raw []byte, host string) []byte {
 		}
 	}
 	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(200 * time.Millisecond))
+	_ = conn.SetDeadline(time.Now().Add(requestTimeout(len(raw))))
 
 	req := proto.Request{
 		Event: event, Payload: raw, Off: config.OffSwitches(), Host: host,
