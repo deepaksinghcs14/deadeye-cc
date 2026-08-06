@@ -60,6 +60,8 @@ func TestApplyGolden(t *testing.T) {
 		{"du unbounded", "du ~/projects", "du-cap", true, true},
 		{"du -sh is bounded", "du -sh .", "", false, false},
 		{"du unbounded, path merely contains -d and -s", "du ./old-drafts", "du-cap", true, true},
+		{"du --max-depth=1 is bounded (long option)", "du --max-depth=1 .", "", false, false},
+		{"du unbounded, long option name merely contains -d", "du --exclude=drafts ~/projects", "du-cap", true, true},
 		{"pip list", "pip list", "pkg-list-cap", true, true},
 		{"brew list", "brew list", "pkg-list-cap", true, true},
 		{"unrelated command", "echo hello", "", false, false},

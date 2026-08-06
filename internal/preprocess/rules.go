@@ -142,6 +142,47 @@ func hasOptionContaining(cmd, substr string) bool {
 	return false
 }
 
+// duBoundsOutput reports whether any whitespace-separated token in cmd is
+// an actual du flag that bounds its output: a short-option cluster
+// containing 's' or 'd' ("-s", "-sh", "-d1", ...), or the exact long
+// option (optionally with a "=value" suffix) -- checked by exact name for
+// "--", never by substring. hasOptionContaining's substring check is safe
+// for short options (a single-dash token's letters really are flag
+// characters) but not for long ones: an arbitrary --long-option name can
+// innocently CONTAIN "s" or "d" as ordinary English-word letters
+// (`--exclude=drafts` contains "d" from "exclude"/"drafts" without
+// bounding anything), reproducing the exact false-suppression class
+// hasOptionContaining was written to close, just shifted from a bare path
+// argument into a long option's name or attached value.
+func duBoundsOutput(cmd string) bool {
+	for _, f := range strings.Fields(cmd) {
+		if !strings.HasPrefix(f, "-") {
+			continue
+		}
+		if !strings.HasPrefix(f, "--") {
+			// deadeye: a single-dash misspelling of a long option (e.g.
+			// "-exclude=x" for "--exclude=x") still reads as a short
+			// cluster here, and an unrelated letter in it can still
+			// suppress the advisory. ceiling: narrow -- needs a real
+			// getopt-style parse of which single letters are actual du
+			// short options to close, which this deliberately
+			// lightweight, no-flag-syntax-parsing rule doesn't attempt.
+			// upgrade: if a real false-suppression from this shape shows
+			// up (as opposed to the already-fixed plain-argument and
+			// long-option-substring cases above).
+			if strings.Contains(f, "s") || strings.Contains(f, "d") {
+				return true
+			}
+			continue
+		}
+		name, _, _ := strings.Cut(f, "=")
+		if name == "--summarize" || name == "--max-depth" {
+			return true
+		}
+	}
+	return false
+}
+
 var Rules = []Rule{
 	{
 		Name:           "test-filter",
@@ -345,7 +386,7 @@ var Rules = []Rule{
 		Advisory: true,
 		TryRewrite: func(cwd, cmd string) (string, bool) {
 			c := strings.TrimSpace(cmd)
-			return cmd, duRe.MatchString(c) && !hasOptionContaining(c, "s") && !hasOptionContaining(c, "d")
+			return cmd, duRe.MatchString(c) && !duBoundsOutput(c)
 		},
 	},
 	{
