@@ -504,7 +504,7 @@ func decidePostToolUse(in hookio.Input, cfg config.Config, state *daemonState) h
 			TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PostToolUse",
 			Action: "observed", Reason: in.ToolName, BytesAfter: len(in.ToolResponse),
 		})
-		return hookio.Empty()
+		return decideMCPOversize(in, cfg, state)
 	case in.ToolName == "Read" || in.ToolName == "Grep" || in.ToolName == "Glob" ||
 		in.ToolName == "WebFetch" || in.ToolName == "WebSearch":
 		// Observation only, never context: this is the evidence base future
@@ -525,6 +525,38 @@ func decidePostToolUse(in hookio.Input, cfg config.Config, state *daemonState) h
 // observeThresholdBytes gates size observation of Read/Grep/Glob/WebFetch/
 // WebSearch responses: only outliers are evidence worth keeping.
 const observeThresholdBytes = 8 << 10
+
+// mcpOversizeBytes is where a single MCP response goes from "observed" to
+// "advised on": 4x the observe threshold, ~8k tokens landing in context
+// from one call -- outsized by this project's own evidence bar, and almost
+// always narrowable at the query (filters, pagination, fewer fields).
+const mcpOversizeBytes = 32 << 10
+
+// decideMCPOversize advises once per MCP tool per session when a single
+// response exceeds mcpOversizeBytes -- post-hoc by nature (the bytes are
+// already in context), so the advice targets the NEXT call. PostToolUse
+// additionalContext is schema-legal (hookio types doc) but this is its
+// first use here; if a host ignores it, the advise log row still records
+// the firing -- same posture as decideSubagentStart's unverified surface.
+func decideMCPOversize(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if len(in.ToolResponse) <= mcpOversizeBytes ||
+		cfg.DisabledRuleSet()["mcp-oversize"] || state.isMuted(in.SessionID) {
+		return hookio.Empty()
+	}
+	if !state.markSuggestedIfFirst(in.SessionID, "mcp-size:"+in.ToolName) {
+		return hookio.Empty()
+	}
+	state.log(logstore.Record{
+		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PostToolUse",
+		Action: "advise", Reason: "mcp-oversize", BytesAfter: len(in.ToolResponse),
+	})
+	out := hookio.ForEvent("PostToolUse")
+	out.HookSpecificOutput.AdditionalContext = fmt.Sprintf(
+		"deadeye: %s returned ~%d KB in one response -- narrow the next call (filters, pagination, fewer fields); all of this stays in context.",
+		in.ToolName, len(in.ToolResponse)>>10,
+	)
+	return out
+}
 
 // decideSubagentStart injects one line asking the subagent for terse,
 // structured results -- subagent output lands in the parent's context

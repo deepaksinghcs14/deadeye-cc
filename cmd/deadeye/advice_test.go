@@ -183,6 +183,73 @@ func TestPostToolUseObservesMCPTools(t *testing.T) {
 	}
 }
 
+// TestMCPOversizeAdvises: a single MCP response past mcpOversizeBytes gets
+// a post-hoc advisory targeting the NEXT call, once per tool per session --
+// smaller responses and repeat offenders stay observation-only.
+func TestMCPOversizeAdvises(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "decisions.jsonl")
+	state := newDaemonState(catalog.Catalog{}, logstore.Open(logPath))
+
+	big := json.RawMessage(`{"big":"` + strings.Repeat("x", mcpOversizeBytes+1024) + `"}`)
+	in := hookio.Input{SessionID: "s1", ToolName: "mcp__github__search", ToolResponse: big}
+
+	out := decidePostToolUse(in, config.Default(), state)
+	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "narrow the next call") {
+		t.Fatalf("oversized MCP response not advised: %+v", out.HookSpecificOutput)
+	}
+
+	// Second oversized response from the SAME tool: observed, not re-advised.
+	if out := decidePostToolUse(in, config.Default(), state); out.HookSpecificOutput != nil {
+		t.Errorf("same tool re-advised: %+v", out.HookSpecificOutput)
+	}
+
+	// A DIFFERENT oversized tool still gets its own advisory.
+	in2 := hookio.Input{SessionID: "s1", ToolName: "mcp__jira__query", ToolResponse: big}
+	if out := decidePostToolUse(in2, config.Default(), state); out.HookSpecificOutput == nil {
+		t.Error("a different oversized tool was not advised")
+	}
+
+	// The advise row carries the real measured size.
+	records, err := logstore.Scan(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	advised := 0
+	for _, r := range records {
+		if r.Action == "advise" && r.Reason == "mcp-oversize" {
+			advised++
+			if r.BytesAfter != len(big) {
+				t.Errorf("advise row BytesAfter = %d, want the real size %d", r.BytesAfter, len(big))
+			}
+		}
+	}
+	if advised != 2 {
+		t.Errorf("advise rows = %d, want 2 (one per tool)", advised)
+	}
+}
+
+func TestMCPOversizeStaysQuiet(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	big := json.RawMessage(`{"big":"` + strings.Repeat("x", mcpOversizeBytes+1024) + `"}`)
+	small := json.RawMessage(`{"small":"` + strings.Repeat("x", 500) + `"}`)
+
+	// Under threshold: silent.
+	if out := decidePostToolUse(hookio.Input{SessionID: "s1", ToolName: "mcp__a__b", ToolResponse: small}, config.Default(), state); out.HookSpecificOutput != nil {
+		t.Errorf("under-threshold response advised: %+v", out.HookSpecificOutput)
+	}
+	// Muted: silent.
+	state.setMuted("s1", true)
+	if out := decidePostToolUse(hookio.Input{SessionID: "s1", ToolName: "mcp__a__b", ToolResponse: big}, config.Default(), state); out.HookSpecificOutput != nil {
+		t.Errorf("muted session advised: %+v", out.HookSpecificOutput)
+	}
+	// Rule disabled: silent.
+	cfg := config.Default()
+	cfg.Preprocess.DisabledRules = []string{"mcp-oversize"}
+	if out := decidePostToolUse(hookio.Input{SessionID: "s2", ToolName: "mcp__a__b", ToolResponse: big}, cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("disabled rule advised: %+v", out.HookSpecificOutput)
+	}
+}
+
 // TestAdvisorySurfacesRespectPreprocessOff: every surface must have an
 // off switch -- the Read advisories and subagent brevity note sit under
 // mode.preprocess (same family as the Bash-output rules), so turning that
