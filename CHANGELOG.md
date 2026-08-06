@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+## 0.16.0
+
+**Six new context-hygiene surfaces, all advisory.** The untouched token
+drains, each with its own `preprocess.disabled_rules` switch and no new
+mode axis -- nothing here rewrites or blocks:
+
+- **`delegate-explore`** -- 12+ consecutive Read/Grep/Glob completions
+  with no edit, command, or new prompt in between is survey work; one
+  nudge toward an Explore subagent, whose reads land in a disposable
+  context while the parent pays only for the summary.
+- **`compact-timing`** -- deadeye counts every tool-response byte that
+  arrives; past ~300KB the next Stop (a natural task boundary) carries a
+  one-line suggestion to `/compact` by choice instead of letting
+  auto-compact land mid-task. Once per accumulation cycle; a compact or
+  clear restarts the count.
+- **`bash-retry`** -- repeat-command's flag-escalation sibling: the same
+  target re-run a third time with only option changes (`pytest x`,
+  `pytest x -x`, `pytest x -x -vv`) and no edits in between. Hard
+  precision bias: compound commands refused outright, `-run=TestFoo` vs
+  `-run=TestBar` never collide.
+- **`repeat-webfetch`** -- the same URL fetched twice in one session
+  while the first response is still in context (fragment and trailing-
+  slash variants fold; a different query string is a different fetch).
+- **`mcp-oversize`** -- a single MCP response past 32KB gets a post-hoc
+  nudge to narrow the next call; once per tool per session.
+- **`large-paste`** -- a 20KB+ prompt is a paste, and it stays resident
+  all session; one nudge toward file-plus-Grep. Synthetic prompts never
+  fire it.
+
+Plus **`/deadeye-context`**: a per-session ranked breakdown of context
+bytes by source -- deadeye's own injections (real bytes at injection
+time), observed arrivals (explicitly labeled a floor, since only >8KB
+built-ins and MCP responses are ever logged), and kept-out savings with
+the estimated/measured split intact. Also fixes `inject-subagent` log
+rows missing their byte size; pre-0.16 rows render "size not recorded"
+rather than counting as zero.
+
 ## 0.15.2
 
 **Second sweep -- including a self-review of the first.** Three

@@ -30,6 +30,7 @@ Present this reference card, formatted cleanly:
 | `/deadeye-route [task]` | Dry-run the routing decision with full reasoning |
 | `/deadeye-audit` | Token-savings report from the decision log |
 | `/deadeye-gain` | Compact measured-impact scoreboard |
+| `/deadeye-context [session-id]` | Per-session ranked breakdown of context bytes by source |
 | `/deadeye-coder [level]` | Switch/report the coder persona level |
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
 | `/deadeye-review` | Over-engineering review of the current diff |

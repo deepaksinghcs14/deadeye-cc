@@ -192,6 +192,7 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 | `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without actually doing anything |
 | `/deadeye-audit` | Prints a savings report straight from the decision log |
 | `/deadeye-gain` | Compact measured-impact scoreboard from the same log |
+| `/deadeye-context [session-id]` | Per-session ranked breakdown of context bytes by source — deadeye's own injections, observed arrivals, and kept-out savings |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories, plan-gate nags, and workflow hints for this session (rewrites keep working) |
 | `/deadeye-review` | Over-engineering review of the current diff |
@@ -390,7 +391,7 @@ they don't:
 
 | What | Modes | What it does |
 |---|---|---|
-| Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Flags unbounded dumps before they run: unscoped `git diff`/`git log`, `terraform plan`, `kubectl get -o yaml`, `npm ls`, bare `find`/`tree`/`du`, full package lists, and content-mode Grep with no limit. Also flags wasteful reads: re-reading a file that hasn't changed, whole-reads of huge files, and running the identical command twice in a row |
+| Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Flags unbounded dumps before they run: unscoped `git diff`/`git log`, `terraform plan`, `kubectl get -o yaml`, `npm ls`, bare `find`/`tree`/`du`, full package lists, and content-mode Grep with no limit. Also flags wasteful patterns: re-reading a file that hasn't changed, whole-reads of huge files, re-running the same command (identical, or the same target with only flag changes), re-fetching a URL already in context, an oversized MCP response worth narrowing, a paste-sized prompt better kept in a file, a long exploration streak better delegated to a subagent, and a good moment to `/compact` at a task boundary instead of letting auto-compact land mid-task |
 | Coder persona | `off` / `spotter` / `marksman` / `sniper` | The lean-first coding discipline above — including a live security check on what's written and its dependencies — injected per session and into subagents |
 | Codebase map | `off` / `on` | A persistent per-project map — directory/package skeleton, most-touched files accumulated across every session, recent exploration notes — injected once per session so a fresh session doesn't re-explore the repo from scratch |
 | Effort level | `off` / `advise` | Suggests using lower effort for mechanical steps; has no effect if `CLAUDE_EFFORT` is already pinned for the session |

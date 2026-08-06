@@ -30,7 +30,7 @@
           "type": "string",
           "enum": ["off", "on"],
           "default": "on",
-          "description": "Context hygiene: Bash-output rewrite rules and unbounded-dump advisories, the duplicate-Read / large-Read / repeat-command / content-mode-Grep-without-head_limit advisories, the subagent brevity note, and response-size observation logging."
+          "description": "Context hygiene: Bash-output rewrite rules and unbounded-dump advisories, the duplicate-Read / large-Read / repeat-command / content-mode-Grep-without-head_limit advisories, the repeat-WebFetch / oversized-MCP-response / flag-escalation-retry / large-paste / long-exploration-streak / compact-timing advisories, the subagent brevity note, and response-size observation logging."
         },
         "plan_gate": {
           "type": "string",
@@ -73,7 +73,7 @@
           "type": "array",
           "items": { "type": "string" },
           "default": [],
-          "description": "Rule/advisory names to disable individually: test-filter, build-filter, log-tail, diff-cap, lint-filter, install-filter, logs-tail, cat-large, history-cap, tf-plan-cap, kubectl-yaml-cap, npm-ls-cap, find-cap, tree-cap, du-cap, pkg-list-cap -- plus the non-Bash advisories grep-limit, read-advice, and repeat-command -- plus the coder-mode security rules secret-literal, weak-crypto, tls-off, sql-concat, shell-interp, eval-dynamic, html-inject, java-deser, and dep-check (or a specific dep:<ecosystem>:<name>)."
+          "description": "Rule/advisory names to disable individually: test-filter, build-filter, log-tail, diff-cap, lint-filter, install-filter, logs-tail, cat-large, history-cap, tf-plan-cap, kubectl-yaml-cap, npm-ls-cap, find-cap, tree-cap, du-cap, pkg-list-cap -- plus the non-Bash advisories grep-limit, read-advice, repeat-command, bash-retry, repeat-webfetch, mcp-oversize, large-paste, delegate-explore, and compact-timing -- plus the coder-mode security rules secret-literal, weak-crypto, tls-off, sql-concat, shell-interp, eval-dynamic, html-inject, java-deser, and dep-check (or a specific dep:<ecosystem>:<name>)."
         }
       }
     },
