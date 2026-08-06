@@ -326,6 +326,29 @@ func splitNUL(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	return 0, nil, nil
 }
 
+// sanitizeControlBytes replaces any control byte (<0x20) in a git-tracked
+// path with "?". `-z` above fixes the quote-character corruption but, as a
+// side effect, disables ALL of git's path quoting -- a tracked path with a
+// literal embedded control byte (a raw newline is legal in a filename on
+// macOS/Linux, and git tracks it fine) now flows through unescaped instead
+// of arriving pre-escaped as it did without -z. Render's one-row-per-line
+// output has no other defense against that: an unescaped newline in a
+// path splits a single table row across two lines in the rendered file.
+func sanitizeControlBytes(s string) string {
+	if !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 }) {
+		return s
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if r < 0x20 {
+			b.WriteByte('?')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 // lsFilesTimeout bounds the one git call here that scales with repo size.
 // More generous than gitutil.Timeout because a huge monorepo is exactly
 // where ls-files is slowest AND the map most valuable -- but still
@@ -358,7 +381,7 @@ func lsFiles(repoRoot string) (paths []string, fingerprint string, err error) {
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	sc.Split(splitNUL)
 	for sc.Scan() {
-		line := sc.Text()
+		line := sanitizeControlBytes(sc.Text())
 		h.Write([]byte(line))
 		h.Write([]byte{'\n'})
 		paths = append(paths, line)

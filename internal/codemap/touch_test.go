@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -30,6 +31,29 @@ func TestMergeTouchedAccumulatesAcrossSessions(t *testing.T) {
 	}
 	if tf.Counts["b.go"] != 1 || tf.Counts["c.go"] != 1 {
 		t.Errorf("session-unique files should sit at 1: %v", tf.Counts)
+	}
+}
+
+// TestMergeTouchedSanitizesControlBytes is the regression test for a gap
+// where sanitizeControlBytes was applied only to lsFiles' git-tracked
+// paths, not to touched-file paths -- both feed the same rendered Text()
+// block, so a raw control byte in a Read/Edit/Write path (a legal, if
+// unusual, macOS/Linux filename) reproduced the identical row-splitting
+// corruption through this second entry point.
+func TestMergeTouchedSanitizesControlBytes(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	repo := initGitRepo(t, "a.go")
+
+	weird := filepath.Join(repo, "weird\ndir", "file.go")
+	if err := MergeTouched(repo, []string{weird}, 1000); err != nil {
+		t.Fatal(err)
+	}
+
+	tf := LoadTouchFrequency(repo)
+	for p := range tf.Counts {
+		if strings.ContainsAny(p, "\n\r") {
+			t.Errorf("touched path %q retained a raw control byte -- sanitizeControlBytes regressed", p)
+		}
 	}
 }
 

@@ -215,6 +215,29 @@ func TestLsFilesHandlesQuotableFilenames(t *testing.T) {
 	}
 }
 
+// TestLsFilesHandlesControlByteFilenames is the regression test for a bug
+// introduced by the -z fix above: -z disables ALL of git's path quoting,
+// not just the quote-character issue, so a tracked path with a literal
+// embedded control byte (a raw newline is legal in a filename on
+// macOS/Linux, and git tracks it fine) now flows through unescaped instead
+// of arriving pre-escaped as it did without -z -- and Render's one-row-
+// per-line output has no other defense against a newline splitting a
+// single table row across two lines.
+func TestLsFilesHandlesControlByteFilenames(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	repo := initGitRepo(t, "weird\ndir/file.go", "docs/plain.txt")
+
+	paths, _, err := lsFiles(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range paths {
+		if strings.ContainsAny(p, "\n\r") {
+			t.Errorf("path %q retained a raw control byte -- sanitizeControlBytes regressed", p)
+		}
+	}
+}
+
 // TestRegenerateFromSubdirectoryMapsWholeRepo is the regression test for
 // the cwd-scoping bug: ls-files with no pathspec is scoped to cwd, so
 // without resolving the repo root first, a session started in pkg/ would

@@ -81,7 +81,13 @@ func MergeTouched(cwd string, sessionTouched []string, nowUnix int64) error {
 		if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
 			continue // outside the repo -- never persisted
 		}
-		rel = filepath.ToSlash(rel)
+		// A control byte (e.g. a raw newline, legal in a filename on
+		// macOS/Linux) would otherwise flow verbatim into renderTouch's
+		// one-line-per-path output below, splitting a row across two lines
+		// -- same corruption class sanitizeControlBytes closes for
+		// lsFiles' git-tracked paths, needed again here because touched
+		// paths come from real Read/Edit/Write calls, a separate source.
+		rel = sanitizeControlBytes(filepath.ToSlash(rel))
 		tf.Counts[rel]++
 		tf.LastSeen[rel] = nowUnix
 		merged = true
