@@ -41,6 +41,8 @@ type sessionState struct {
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
 	fetchedURLs         map[string]bool   // normalized WebFetch URLs seen this session -- repeat-fetch advice
 	exploreStreak       int               // consecutive Read/Grep/Glob completions with no edit/run/prompt between -- delegate-explore advice
+	arrivalBytes        int               // cumulative tool-response bytes that entered context this accumulation cycle -- compact-timing advice
+	compactAdvised      bool              // compact-timing already advised this accumulation cycle
 	coderLevel          string            // coder-mode session level; "" = unset (config default applies), "off" = explicitly off
 	nativeRestore       bool              // SessionStart arrived with source resume/compact -- Claude Code restored context itself
 	muted               bool              // /deadeye-mute: advisory surfaces stand down for this session (rewrites and the hard gate stay)
@@ -255,6 +257,40 @@ func (d *daemonState) readFilesSnapshot(sessionID string) []string {
 	}
 	sort.Strings(paths)
 	return paths
+}
+
+// noteArrivalBytes accumulates n tool-response bytes into the session's
+// context-arrival counter for compact-timing.
+func (d *daemonState) noteArrivalBytes(sessionID string, n int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.getOrCreate(sessionID).arrivalBytes += n
+}
+
+// shouldAdviseCompact reports (atomically, at most once per accumulation
+// cycle) that the session's context arrivals crossed threshold, returning
+// the accumulated byte count. A compact/clear resets the cycle via
+// resetArrivalTracking, so a long session can be advised again after
+// re-accumulating.
+func (d *daemonState) shouldAdviseCompact(sessionID string, threshold int) (int, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	if s.compactAdvised || s.arrivalBytes < threshold {
+		return 0, false
+	}
+	s.compactAdvised = true
+	return s.arrivalBytes, true
+}
+
+// resetArrivalTracking starts a fresh accumulation cycle -- called when
+// the context itself was just reset (SessionStart source compact/clear).
+func (d *daemonState) resetArrivalTracking(sessionID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	s.arrivalBytes = 0
+	s.compactAdvised = false
 }
 
 // noteExploreTool counts one more consecutive exploration tool completion

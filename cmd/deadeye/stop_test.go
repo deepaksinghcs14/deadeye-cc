@@ -57,6 +57,87 @@ func TestStopDoesNotRepeatAStaleTotal(t *testing.T) {
 	}
 }
 
+// TestCompactTimingAdvises: once ~compactAdviseBytes of tool responses
+// have arrived, the NEXT Stop (a natural task boundary) carries the
+// one-per-cycle /compact suggestion -- and a compact resets the cycle so
+// a long session can be advised again after re-accumulating.
+func TestCompactTimingAdvises(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+
+	// Below threshold: silent.
+	state.noteArrivalBytes("s1", compactAdviseBytes/2)
+	if out := decideStop(hookio.Input{SessionID: "s1"}, cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("below-threshold Stop advised: %+v", out.HookSpecificOutput)
+	}
+
+	// Crossing fires once at the next Stop.
+	state.noteArrivalBytes("s1", compactAdviseBytes/2+1024)
+	out := decideStop(hookio.Input{SessionID: "s1"}, cfg, state)
+	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "/compact now") {
+		t.Fatalf("threshold crossing not advised: %+v", out.HookSpecificOutput)
+	}
+
+	// Second Stop in the same cycle: silent.
+	state.noteArrivalBytes("s1", 4096)
+	if out := decideStop(hookio.Input{SessionID: "s1"}, cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("same cycle re-advised: %+v", out.HookSpecificOutput)
+	}
+
+	// A compact resets the cycle; re-accumulating re-advises.
+	state.resetArrivalTracking("s1")
+	state.noteArrivalBytes("s1", compactAdviseBytes+1)
+	if out := decideStop(hookio.Input{SessionID: "s1"}, cfg, state); out.HookSpecificOutput == nil {
+		t.Error("post-compact re-accumulation not advised")
+	}
+}
+
+// TestCompactTimingJoinsSavingsLine: both Stop lines share the single
+// additionalContext slot, savings first.
+func TestCompactTimingJoinsSavingsLine(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	state.log(logstore.Record{SessionID: "s1", Surface: "PreToolUse/Bash", Action: "rewrite", BytesBeforeEst: 30000, BytesAfter: 9600})
+	state.noteArrivalBytes("s1", compactAdviseBytes+1)
+
+	out := decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state)
+	if out.HookSpecificOutput == nil {
+		t.Fatal("expected a combined Stop context")
+	}
+	ctx := out.HookSpecificOutput.AdditionalContext
+	saved := strings.Index(ctx, "kept out of context")
+	compact := strings.Index(ctx, "/compact now")
+	if saved < 0 || compact < 0 || saved > compact {
+		t.Errorf("combined Stop context wrong (savings first, then compact): %q", ctx)
+	}
+}
+
+func TestCompactTimingStaysQuiet(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+
+	// Muted: silent.
+	state.setMuted("s1", true)
+	state.noteArrivalBytes("s1", compactAdviseBytes+1)
+	if out := decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state); out.HookSpecificOutput != nil {
+		t.Errorf("muted session advised: %+v", out.HookSpecificOutput)
+	}
+
+	// Rule disabled: silent.
+	cfg := config.Default()
+	cfg.Preprocess.DisabledRules = []string{"compact-timing"}
+	state.noteArrivalBytes("s2", compactAdviseBytes+1)
+	if out := decideStop(hookio.Input{SessionID: "s2"}, cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("disabled rule advised: %+v", out.HookSpecificOutput)
+	}
+
+	// Preprocess off: silent.
+	cfg = config.Default()
+	cfg.Mode.Preprocess = "off"
+	state.noteArrivalBytes("s3", compactAdviseBytes+1)
+	if out := decideStop(hookio.Input{SessionID: "s3"}, cfg, state); out.HookSpecificOutput != nil {
+		t.Errorf("preprocess-off advised: %+v", out.HookSpecificOutput)
+	}
+}
+
 // TestSessionEndEvictsSessionState is the regression test for E4: nothing
 // ever removed a session's in-memory state, so across a long-lived daemon
 // (idle timeout resets on every connection, so in practice a daily user's

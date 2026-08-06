@@ -195,24 +195,48 @@ func decideLargePaste(in hookio.Input, cfg config.Config, state *daemonState) (s
 	), true
 }
 
+// compactAdviseBytes is where accumulated tool-response arrivals make a
+// chosen /compact worth suggesting: ~75k tokens at ~4 bytes/token -- a
+// real fraction of the window, well before auto-compact forces the issue
+// mid-task.
+const compactAdviseBytes = 300 << 10
+
 // decideStop shows a single terse line when new preprocessing savings have
 // accrued since the last turn -- subtle by design: one line, only on
 // change, phrased like the rest of Claude Code's own hook feedback rather
 // than a banner. Stop fires once per turn, not once per session, so this
 // naturally updates as the session progresses without repeating a stale
-// total when nothing new happened.
+// total when nothing new happened. Stop is also a natural task boundary,
+// which makes it the right moment for the compact-timing advisory: a
+// compaction chosen here beats an automatic one landing mid-task.
 func decideStop(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
-	bytesSaved, rewrites, changed := state.newSavingsToShow(in.SessionID)
-	if !changed {
-		return hookio.Empty()
+	var parts []string
+
+	// The savings line keeps its original behavior: not mode- or
+	// mute-gated (it reports work already done, not a nag).
+	if bytesSaved, rewrites, changed := state.newSavingsToShow(in.SessionID); changed {
+		parts = append(parts, fmt.Sprintf(
+			"deadeye: ~%d bytes kept out of context this session (%d rewrite%s).",
+			bytesSaved, rewrites, plural(rewrites),
+		))
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "Stop", Action: "savings-shown", BytesAfter: bytesSaved})
 	}
 
+	if cfg.Mode.Preprocess == "on" && !cfg.DisabledRuleSet()["compact-timing"] && !state.isMuted(in.SessionID) {
+		if arrived, fire := state.shouldAdviseCompact(in.SessionID, compactAdviseBytes); fire {
+			parts = append(parts, fmt.Sprintf(
+				"deadeye: ~%d KB of tool output has entered context this session -- a /compact now, at a task boundary, beats an auto-compact landing mid-task.",
+				arrived>>10,
+			))
+			state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "Stop", Action: "advise", Reason: "compact-timing", BytesAfter: arrived})
+		}
+	}
+
+	if len(parts) == 0 {
+		return hookio.Empty()
+	}
 	out := hookio.ForEvent("Stop")
-	out.HookSpecificOutput.AdditionalContext = fmt.Sprintf(
-		"deadeye: ~%d bytes kept out of context this session (%d rewrite%s).",
-		bytesSaved, rewrites, plural(rewrites),
-	)
-	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "Stop", Action: "savings-shown", BytesAfter: bytesSaved})
+	out.HookSpecificOutput.AdditionalContext = strings.Join(parts, "\n\n")
 	return out
 }
 
@@ -640,6 +664,11 @@ func decidePostToolUse(in hookio.Input, cfg config.Config, state *daemonState) h
 	default:
 		state.resetExploreStreak(in.SessionID)
 	}
+	// Context-arrival accounting for compact-timing: EVERY tool response,
+	// explicitly -- only >8KB outliers are ever logged, so deriving this
+	// from log rows would undercount badly. Raw-JSON length slightly
+	// overstates the visible text, which is why the advisory says "~".
+	state.noteArrivalBytes(in.SessionID, len(in.ToolResponse))
 	switch {
 	case in.ToolName == "Bash":
 		var bi bashInput

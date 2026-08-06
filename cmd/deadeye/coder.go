@@ -88,6 +88,12 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 	if in.Source == "resume" || in.Source == "compact" {
 		state.markNativeRestore(in.SessionID)
 	}
+	// A compact or clear just reset the context itself -- the
+	// compact-timing arrival counter starts a fresh cycle so a long
+	// session can be advised again once it re-accumulates.
+	if in.Source == "compact" || in.Source == "clear" {
+		state.resetArrivalTracking(in.SessionID)
+	}
 
 	level := effectiveCoderLevel(in.SessionID, cfg, state)
 	if !coder.Active(level) {
