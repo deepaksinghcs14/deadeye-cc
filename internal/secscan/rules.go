@@ -138,11 +138,27 @@ var (
 	// string start) right before "exec": without it, this matched
 	// RegExp.prototype's OWN .exec() -- e.g. `someRegex.exec(line + "\n")`,
 	// completely unrelated to shelling out -- since ".exec(" is exactly
-	// what a dotted method call looks like too. child_process's exec is
-	// either called as `child_process.exec(...)` (kept as its own
-	// alternative) or destructured/imported bare as `exec(...)`/
-	// `execSync(...)` with no receiver at all.
-	jsShellRe      = regexp.MustCompile(`(?:child_process\.exec(?:Sync)?|(?:^|[^.\w])exec(?:Sync)?)\(\s*[^,)]*(?:\+|\$\{)`)
+	// what a dotted method call looks like too. A first fix narrowed the
+	// dotted-receiver branch to the literal "child_process." prefix only,
+	// which closed that false positive but opened a false NEGATIVE: real,
+	// idiomatic code just as often aliases the import (`const cp =
+	// require('child_process')`, `import * as childProcess from
+	// 'child_process'`) or destructures the module itself before calling
+	// (`require('child_process').exec(...)`), none of which start with the
+	// literal string "child_process." -- all silently stopped matching.
+	// The receiver-name list below covers the common aliases explicitly
+	// (a receiver this rule can't see the import for, like a custom name,
+	// is the same no-call-graph-context limit every rule in this package
+	// accepts); the require(...) alternative covers the no-variable form.
+	// child_process's exec is otherwise called bare (destructured with no
+	// receiver at all), covered by the last alternative. The receiver-name
+	// group needs the SAME (?:^|[^.\w]) left-boundary guard as the bare-exec
+	// alternative -- without it, "cp" (the shortest, riskiest alias) matched
+	// as a bare substring anywhere a receiver name merely ENDED in "cp":
+	// `scp.exec(cmd + arg)` (an scp helper) or `gcp.exec(cmd + arg)` (a
+	// Google-Cloud-Platform client) both false-fired, neither referencing
+	// child_process at all.
+	jsShellRe      = regexp.MustCompile(`(?:(?:^|[^.\w])(?:child_process|childProcess|cp)\.exec(?:Sync)?|require\(\s*['"]child_process['"]\s*\)\s*\.exec(?:Sync)?|(?:^|[^.\w])exec(?:Sync)?)\(\s*[^,)]*(?:\+|\$\{)`)
 	jsEvalRe       = regexp.MustCompile(`(?:\beval\(|new Function\()`)
 	jsHTMLInjectRe = regexp.MustCompile(`(?:\.innerHTML\s*=[^=]|dangerouslySetInnerHTML|\bv-html\s*=)`)
 

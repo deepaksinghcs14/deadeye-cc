@@ -30,6 +30,10 @@ func TestScanFires(t *testing.T) {
 		{"rust-shell-interp", "run.rs", "shell-interp", `Command::new("sh").arg("-c").arg(user_input).spawn()?;`},
 		{"js-sql-template", "db.js", "sql-concat", "const q = `SELECT * FROM users WHERE name=${name}`;"},
 		{"js-shell-interp", "run.js", "shell-interp", `exec("echo " + userInput);`},
+		{"js-shell-interp-child_process-prefix", "run.js", "shell-interp", `child_process.exec("echo " + userInput);`},
+		{"js-shell-interp-cp-alias", "run.js", "shell-interp", `cp.exec("echo " + userInput);`},
+		{"js-shell-interp-childProcess-alias", "run.js", "shell-interp", `childProcess.exec("echo " + userInput);`},
+		{"js-shell-interp-require-chained", "run.js", "shell-interp", `require("child_process").exec("echo " + userInput);`},
 		{"js-eval", "app.js", "eval-dynamic", `eval(userExpr);`},
 		{"js-html-inject", "app.tsx", "html-inject", `el.innerHTML = userBio;`},
 		{"tls-off-go", "client.go", "tls-off", `tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}`},
@@ -64,6 +68,8 @@ func TestScanDoesNotFire(t *testing.T) {
 		{"python-pattern-in-go-file", "handlers.go", `cur.execute(f"SELECT * FROM users WHERE name={name}")`},
 		{"rust-shell-interp-in-js-file", "run.js", `Command::new("sh").arg("-c").arg(user_input).spawn()?;`},
 		{"js-regexp-exec-is-not-shell-exec", "app.js", "const m = someRegex.exec(line + \"\\n\");"},
+		{"js-scp-helper-is-not-child_process", "deploy.js", `scp.exec(cmd + arg);`},
+		{"js-gcp-client-is-not-child_process", "deploy.js", `gcp.exec(cmd + arg);`},
 		{"tls-off-unrelated-verify-flag", "signup.py", `email_verify = False`},
 	}
 	for _, c := range cases {
