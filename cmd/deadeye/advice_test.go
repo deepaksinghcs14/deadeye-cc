@@ -183,6 +183,87 @@ func TestPostToolUseObservesMCPTools(t *testing.T) {
 	}
 }
 
+func bashIn(sessionID, cmd string) hookio.Input {
+	b, _ := json.Marshal(map[string]any{"command": cmd})
+	return hookio.Input{SessionID: sessionID, ToolName: "Bash", ToolInput: b}
+}
+
+// TestBashRetryAdvises: the flag-escalation retry loop -- the same target
+// re-run with only option changes and no edits in between -- fires on the
+// third same-key run, riding the rewrite response when a filter rule
+// matched (go test is exactly such a command).
+func TestBashRetryAdvises(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+
+	hasRetry := func(out hookio.Output) bool {
+		return out.HookSpecificOutput != nil &&
+			strings.Contains(out.HookSpecificOutput.AdditionalContext, "only flag changes")
+	}
+
+	if out := decideBashPreprocess(bashIn("s1", "go test ./internal/auth"), cfg, state); hasRetry(out) {
+		t.Error("first run advised")
+	}
+	if out := decideBashPreprocess(bashIn("s1", "go test -v ./internal/auth"), cfg, state); hasRetry(out) {
+		t.Error("second run advised")
+	}
+	out := decideBashPreprocess(bashIn("s1", "go test -race -v ./internal/auth"), cfg, state)
+	if !hasRetry(out) {
+		t.Fatalf("third same-key run not advised: %+v", out.HookSpecificOutput)
+	}
+	if out.HookSpecificOutput.UpdatedInput == nil {
+		t.Error("retry advisory must not displace the test-filter rewrite")
+	}
+	// Fourth run: once per key, not re-nagged.
+	if out := decideBashPreprocess(bashIn("s1", "go test -count=5 -race -v ./internal/auth"), cfg, state); hasRetry(out) {
+		t.Error("fourth run re-nagged")
+	}
+}
+
+// TestBashRetryStaysQuiet: the false-positive side -- legitimately
+// different runs, raw-identical repeats (repeat-command's line), and an
+// edit between runs must all stay silent.
+func TestBashRetryStaysQuiet(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	cfg := config.Default()
+
+	hasRetry := func(out hookio.Output) bool {
+		return out.HookSpecificOutput != nil &&
+			strings.Contains(out.HookSpecificOutput.AdditionalContext, "only flag changes")
+	}
+
+	// Different -run= values: different keys, three in a row stay quiet.
+	for _, cmd := range []string{"go run . -run=TestA", "go run . -run=TestB", "go run . -run=TestC"} {
+		if out := decideBashPreprocess(bashIn("s1", cmd), cfg, state); hasRetry(out) {
+			t.Errorf("different-target run advised: %s", cmd)
+		}
+	}
+
+	// Raw-identical third run: repeat-command owns it, never both.
+	for i := 0; i < 3; i++ {
+		out := decideBashPreprocess(bashIn("s2", "ls -la src"), cfg, state)
+		if hasRetry(out) {
+			t.Error("raw-identical repeat drew the bash-retry advisory")
+		}
+	}
+
+	// An Edit between runs resets the streak.
+	decideBashPreprocess(bashIn("s3", "pytest tests/a.py"), cfg, state)
+	decideBashPreprocess(bashIn("s3", "pytest tests/a.py -x"), cfg, state)
+	state.clearLastBash("s3") // what the Edit/Write arm does
+	if out := decideBashPreprocess(bashIn("s3", "pytest tests/a.py -vv"), cfg, state); hasRetry(out) {
+		t.Error("run after an edit counted toward the retry streak")
+	}
+
+	// Piped commands never participate.
+	for i := 0; i < 4; i++ {
+		out := decideBashPreprocess(bashIn("s4", "grep -r auth src | head -5"), cfg, state)
+		if hasRetry(out) {
+			t.Error("piped command drew the retry advisory")
+		}
+	}
+}
+
 func webFetchIn(sessionID, url string) hookio.Input {
 	b, _ := json.Marshal(map[string]any{"url": url, "prompt": "summarize"})
 	return hookio.Input{SessionID: sessionID, ToolName: "WebFetch", ToolInput: b}

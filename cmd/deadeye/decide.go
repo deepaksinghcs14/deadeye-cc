@@ -350,15 +350,38 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 	// Consecutive-repeat check: the same command run twice with no
 	// Edit/Write in between (Edit/Write clears the marker) is the
 	// retry-loop pathology -- nothing changed, so the output won't either.
-	repeat := state.noteBashCommand(in.SessionID, bi.Command)
+	// The retry key catches the same loop with shifting flags.
+	retryKey, _ := normalizeBashRetryKey(bi.Command)
+	repeat, retryCount := state.noteBashCommand(in.SessionID, bi.Command, retryKey)
 
 	disabled := cfg.DisabledRuleSet()
+
+	// bash-retry: the flag-escalation variant of repeat-command -- same
+	// target re-run with only option changes and no edits in between.
+	// Suppressed on a raw-identical repeat (that's repeat-command's line,
+	// never both in one turn), and advised once per key per session. This
+	// must attach on EVERY return path below including rewrites: the
+	// canonical loops (go test, pytest) are exactly the commands the
+	// rewrite rules match.
+	retryAdvice := ""
+	if retryCount >= bashRetryStreak && !repeat &&
+		!disabled["bash-retry"] && !state.isMuted(in.SessionID) &&
+		state.markSuggestedIfFirst(in.SessionID, "bash-retry:"+retryKey) {
+		retryAdvice = "deadeye: third run of the same target with only flag changes and no edits in between -- the output won't change until the code does; read the first failure instead."
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "bash-retry"})
+	}
+
 	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, disabled)
 	if !applied {
 		if repeat && !disabled["repeat-command"] && !state.isMuted(in.SessionID) {
 			out := hookio.ForEvent("PreToolUse")
 			out.HookSpecificOutput.AdditionalContext = "deadeye: identical to the previous command, with no file changes in between -- the output is unlikely to differ."
 			state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "repeat-command"})
+			return out
+		}
+		if retryAdvice != "" {
+			out := hookio.ForEvent("PreToolUse")
+			out.HookSpecificOutput.AdditionalContext = retryAdvice
 			return out
 		}
 		return hookio.Empty()
@@ -370,8 +393,16 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 			return hookio.Empty()
 		}
 		out.HookSpecificOutput.AdditionalContext = "deadeye: " + rule.Note
+		if retryAdvice != "" {
+			out.HookSpecificOutput.AdditionalContext += "\n" + retryAdvice
+		}
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: rule.Name})
 		return out
+	}
+	if retryAdvice != "" {
+		// Rides the rewrite response: AdditionalContext and UpdatedInput are
+		// different fields of the same hookSpecificOutput, so both survive.
+		out.HookSpecificOutput.AdditionalContext = retryAdvice
 	}
 
 	updated, err := hookio.MergeToolInput(in.ToolInput, map[string]any{"command": newCmd})

@@ -36,6 +36,8 @@ type sessionState struct {
 	lastShownBytesSaved int               // bytesSaved value at the last Stop summary shown -- avoids repeating a stale line
 	readFiles           map[string]int64  // Read'd file path -> mtime (unix nanos) at read time, for duplicate-read advice
 	lastBashCommand     string            // previous Bash command, cleared by any Edit/Write -- consecutive-repeat detection
+	lastBashRetryKey    string            // normalized retry key of the previous Bash command (see normalizeBashRetryKey)
+	bashRetryCount      int               // consecutive same-retry-key runs, including the current one
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
 	fetchedURLs         map[string]bool   // normalized WebFetch URLs seen this session -- repeat-fetch advice
 	coderLevel          string            // coder-mode session level; "" = unset (config default applies), "off" = explicitly off
@@ -268,25 +270,38 @@ func (d *daemonState) noteWebFetch(sessionID, url string) (repeat bool) {
 }
 
 // noteBashCommand records cmd as the session's most recent Bash command
-// and reports whether it's an immediate repeat -- the same command run
+// and reports whether it's an immediate raw repeat -- the same command run
 // again with no Edit/Write in between (clearLastBash handles the
-// in-between part), which is the retry-loop pathology worth flagging.
-func (d *daemonState) noteBashCommand(sessionID, cmd string) (consecutiveRepeat bool) {
+// in-between part). retryKey is cmd's normalized form ("" when out of
+// scope); retryCount counts consecutive same-key runs including this one,
+// feeding the flag-escalation variant of the same pathology (bash-retry).
+func (d *daemonState) noteBashCommand(sessionID, cmd, retryKey string) (consecutiveRepeat bool, retryCount int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	s := d.getOrCreate(sessionID)
 	repeat := s.lastBashCommand != "" && s.lastBashCommand == cmd
 	s.lastBashCommand = cmd
-	return repeat
+	if retryKey != "" && retryKey == s.lastBashRetryKey {
+		s.bashRetryCount++
+	} else if retryKey != "" {
+		s.bashRetryCount = 1
+	} else {
+		s.bashRetryCount = 0
+	}
+	s.lastBashRetryKey = retryKey
+	return repeat, s.bashRetryCount
 }
 
-// clearLastBash forgets the session's previous Bash command -- called on
-// Edit/Write, since a repeat AFTER a change is a legitimate re-run, not a
-// retry loop.
+// clearLastBash forgets the session's previous Bash command and retry
+// streak -- called on Edit/Write, since a repeat AFTER a change is a
+// legitimate re-run, not a retry loop.
 func (d *daemonState) clearLastBash(sessionID string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.getOrCreate(sessionID).lastBashCommand = ""
+	s := d.getOrCreate(sessionID)
+	s.lastBashCommand = ""
+	s.lastBashRetryKey = ""
+	s.bashRetryCount = 0
 }
 
 // notePendingRewrite records that rewrittenCmd (the command actually

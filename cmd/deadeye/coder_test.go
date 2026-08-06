@@ -536,9 +536,9 @@ func TestCodexHostBehavior(t *testing.T) {
 	}
 
 	// apply_patch triggers the Edit/Write path (clears repeat marker).
-	state.noteBashCommand("s1", "go test ./...")
+	state.noteBashCommand("s1", "go test ./...", "")
 	decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "apply_patch", ToolInput: []byte(`{"command":"*** Begin Patch"}`)}, cfg, state)
-	if repeat := func() bool { r := state.noteBashCommand("s1", "go test ./..."); return r }(); repeat {
+	if repeat, _ := state.noteBashCommand("s1", "go test ./...", ""); repeat {
 		t.Error("apply_patch should clear the repeat-command marker like Edit/Write")
 	}
 
