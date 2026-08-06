@@ -2,6 +2,49 @@
 
 ## Unreleased
 
+## 0.15.2
+
+**Second sweep -- including a self-review of the first.** Three
+fresh-angle passes over v0.15.1: an adversarial review of that release's
+own fixes, a harder look at the kernel/catalog scoring math, and -- new
+-- real runtime traffic thrown at a live daemon instead of code reading.
+13 more bugs, each fixed with a regression test verified by live
+revert-and-reconfirm.
+
+- **kernel**: NaN evidence silently read as best-case (`>`/`<` against
+  NaN are always false), downshifting garbage input to the cheapest
+  model at a reported confidence of 1.0 -- the exact opposite of INV-1;
+  a NaN downshift threshold disabled the confidence gate the same way.
+  Two fall-through paths misreported Confidence:0/"no evidence" on real
+  evidence, user-visible via `/deadeye-route`. All four now conservative
+  and accurate.
+- **hook/daemon**: a 7MB payload (under the daemon's own 8MB cap)
+  reproducibly hit the client's fixed 200ms deadline and silently
+  degraded to `{}` with a perfectly healthy daemon -- caught by actually
+  running one, not reading code. The deadline now scales with payload
+  size on BOTH sides of the socket, derived from one shared constant so
+  they can't drift apart. Also: the stale-lock takeover path never wrote
+  its pid, so v0.15.1's releaseLock protection could never fire on the
+  one path it was written for.
+- **codemap**: v0.15.1's `ls-files -z` fix disabled all of git's path
+  quoting, so a filename with a literal control byte (legal!) corrupted
+  the rendered map -- now sanitized, at both entry points (git-tracked
+  paths and session-touched paths; the second was found only by
+  reviewing the first fix).
+- **preprocess**: `du --exclude=drafts` suppressed the du-cap advisory
+  -- the "d" in an ordinary long-option name still read as a depth flag.
+  Long options now match by exact name; short clusters keep the letter
+  check.
+- **secscan**: v0.15.1's jsShellRe fix over-narrowed -- `cp.exec`,
+  `childProcess.exec`, and `require('child_process').exec(...)` all
+  silently stopped matching (lost true positives on a security rule).
+  Restored via an explicit alias list WITH a left-boundary guard, since
+  the naive widening false-fired on `scp.exec`/`gcp.exec`.
+
+The lesson worth keeping: every round of fixes got its own adversarial
+review, and every round found real bugs IN the previous round's fixes
+(13, then 8, then 5). Fixes are code too.
+
 ## 0.15.1
 
 **A deep bug sweep, not a feature.** Every internal package and cmd/deadeye
