@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.18.0
+
+**Cursor and Windsurf — the coder persona, on two more editors.** Both
+read an always-on rules file but have no hook contract, so they get the
+lean-first coding discipline as a static file (`deadeye init cursor` →
+`.cursor/rules/deadeye.md`, `deadeye init windsurf` →
+`.windsurf/rules/deadeye.md`), level-filtered to your `coder.default_level`.
+Persona only — the routing, security, preprocessing, and codemap engine
+still needs a host with a live hook contract (Claude Code, Codex, and —
+next — Gemini CLI). The file is marker-tagged: init never overwrites a
+rules file you authored, and `deadeye uninstall cursor|windsurf` removes
+only what deadeye wrote.
+
+Also: config.json now tolerates a leading UTF-8 BOM (some Windows editors
+add one), which previously made a BOM-saved config silently revert every
+setting to default.
+
 ## 0.17.1
 
 Bump the build toolchain to go1.26.6, clearing four Go standard-library

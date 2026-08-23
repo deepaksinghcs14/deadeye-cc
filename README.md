@@ -167,6 +167,23 @@ command — `deadeye update` fetches the latest release, sha256-verifies
 it, and swaps it in atomically (the daemon hands over on the next hook
 call). Remove cleanly with `deadeye uninstall codex`.
 
+### Cursor and Windsurf (persona only)
+
+Cursor and Windsurf read an always-on rules file but have no hook contract
+— no way to run deadeye's daemon on tool calls. So they get the **coder
+persona only** (the lean-first discipline), not the routing, security,
+preprocessing, or codemap engine. From your project directory:
+
+```bash
+deadeye init cursor      # writes .cursor/rules/deadeye.md
+deadeye init windsurf    # writes .windsurf/rules/deadeye.md
+```
+
+The file is level-filtered to your `coder.default_level` and tagged so
+`deadeye uninstall cursor|windsurf` removes only what deadeye wrote — it
+never touches a rules file you authored. For the full engine, use Claude
+Code or Codex.
+
 ### From source
 
 ```bash
