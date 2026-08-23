@@ -343,6 +343,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
     <div class="nav-links">
       <a href="#how">How it decides</a>
       <a href="#coder">Coder mode</a>
+      <a href="#security">Security</a>
       <a href="#codemap">Codebase map</a>
       <a href="#measured">Measured</a>
       <a href="#install">Install</a>
@@ -535,7 +536,7 @@ FAIL</div>
 
 <section class="reveal">
   <p class="eyebrow">Range card</p>
-  <h2>Seven things it manages</h2>
+  <h2>Eight things it manages</h2>
   <p class="lede">Each one works on its own, has its own on/off setting, and
     can be switched off without touching the others.</p>
 
@@ -544,8 +545,9 @@ FAIL</div>
     <table>
       <thead><tr><th>What</th><th>What it does</th><th>Default</th></tr></thead>
       <tbody>
-        <tr><td class="axis">Context</td><td class="desc">Trims verbose command output before it enters context — test suites across nine language ecosystems, builds, linters, package installs, pod logs, log tails. Also flags wasteful reads: re-reading unchanged files, whole-reads of huge files, identical commands run twice in a row. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
+        <tr><td class="axis">Context</td><td class="desc">Trims verbose command output before it enters context — test suites across nine language ecosystems, builds, linters, package installs, pod logs, log tails. Also flags wasteful patterns: re-reading unchanged files, whole-reads of huge files, a command re-run (identical, or the same target with only flag changes), a URL re-fetched, an oversized MCP response, a paste-sized prompt, a long exploration streak better handed to a subagent, and a good moment to <code>/compact</code> before auto-compact lands mid-task. The biggest, safest win.</td><td class="mode"><span class="pill">on</span></td></tr>
         <tr><td class="axis">Coder</td><td class="desc">A lean-first coding persona injected every session (it survives compaction) and into subagents: question whether the code needs to exist, stdlib before custom code, one line before fifty — plus a live security check on what's written and its dependencies. Three levels — spotter, marksman, sniper.</td><td class="mode"><span class="pill">marksman</span></td></tr>
+        <tr><td class="axis">Security</td><td class="desc">The exfiltration guard — a Read of a credential file, or a Bash command shipping one out, escalates to a permission prompt the model can't answer for itself. Adding a known-vulnerable dependency asks too; existing ones get flagged at session start. Independent of coder mode.</td><td class="mode"><span class="pill">ask</span></td></tr>
         <tr><td class="axis">Codebase map</td><td class="desc">A persistent per-project map — directory/package skeleton, most-touched files accumulated across every session, recent exploration notes — injected once per session so a fresh session doesn't re-explore the repo from scratch.</td><td class="mode"><span class="pill">on</span></td></tr>
         <tr><td class="axis">Effort</td><td class="desc">Suggests lower effort for mechanical steps. Has no effect if <code>CLAUDE_EFFORT</code> is already pinned for the session — <code>/deadeye-status</code> tells you plainly if that's the case.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Model</td><td class="desc">Picks the model when a subagent starts. Prices come from a table built into the binary, refreshed each release — there's no live pricing API a background hook process could reach.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
@@ -617,7 +619,7 @@ DEADEYE CODER ACTIVE — level: sniper
             <tr><td class="axis">Survive</td><td class="desc">When Claude Code compacts a long conversation, the hook fires again and re-injects at whatever level you'd switched to. No drift back to over-building.</td><td class="mode"><span class="pill soft">compact</span></td></tr>
             <tr><td class="axis">Travel</td><td class="desc">Subagents inherit a condensed card — just the behavior-bearing rules. Measured: 7,666 bytes per spawn before, 1,073 after, an 86.0% cut on every spawn. Scope it with <code>coder.subagent_matcher</code>.</td><td class="mode"><span class="pill">−86.0%</span></td></tr>
             <tr><td class="axis">Resolve</td><td class="desc">Kill switch beats your session switch, beats <code>coder.default_level</code> in config, beats the built-in default. Switches last until the session ends.</td><td class="mode"><span class="pill soft">precedence</span></td></tr>
-            <tr><td class="axis">Guard</td><td class="desc">Every Edit/Write is checked against the ADDED text only — injection shapes, secrets, weak crypto, TLS-off, across five languages — plus the dependency itself on a manifest edit. Deep pass on demand: <code>/deadeye-guard</code>.</td><td class="mode"><span class="pill soft">check-your-backstop</span></td></tr>
+            <tr><td class="axis">Guard</td><td class="desc">Every Edit/Write is checked against the ADDED text only — injection shapes, secrets, provider tokens, weak crypto, TLS-off, across five languages — plus the dependency itself on a manifest edit. Independent of the persona level now, so <code>stop coder</code> doesn't silence it. Deep pass on demand: <code>/deadeye-guard</code>.</td><td class="mode"><span class="pill soft">check-your-backstop</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -728,6 +730,61 @@ internal/coder/          4 files  .go   the lean-first
         <code>mode.codemap</code> (<code>off</code>/<code>on</code>,
         default <code>on</code>) — the same <code>DEADEYE=off</code> kill
         switch turns it off along with everything else.</p>
+    </div>
+  </div>
+</section>
+
+<section id="security" class="reveal">
+  <p class="eyebrow">Check your backstop</p>
+  <h2>A prompt injection can't answer a permission prompt</h2>
+  <p class="lede">The real attack on a coding agent isn't bad code you write
+    — it's malicious content in a repo or a web page telling the agent to
+    read your credentials and ship them out. deadeye already sits at the
+    exact choke points, so it watches them: the moment that matters
+    escalates to a prompt <em>you</em> answer, not one the model can talk
+    itself past.</p>
+
+  <div class="two">
+    <div>
+      <div class="term"><span class="c">Read</span> ~/.ssh/id_ed25519
+
+<span class="g">→ permission: ask</span>
+deadeye exfiltration guard: Read of a
+sensitive credential path (ssh-private-key).
+Approve only if you asked for this; a
+prompt-injected instruction cannot answer
+this prompt for you.
+
+<span class="m"># stays silent, because these are routine:</span>
+Read ~/.ssh/config
+Read .env.example
+<span class="c">ssh</span> -i ~/.ssh/id_rsa deploy@host</div>
+      <p class="note" style="margin-top:14px">Covers ssh private keys,
+        <code>~/.aws/credentials</code>, <code>.env</code>,
+        <code>~/.claude/.credentials.json</code>, <code>~/.netrc</code>,
+        kube/docker/gcloud/gh tokens, and your own
+        <code>security.sensitive_paths</code> — on Read <em>and</em> on a
+        Bash command shaped to ship one out (a credential piped to
+        curl/nc/scp, an <code>env</code> dump to the network). Default
+        <code>ask</code>; soften to <code>advise</code> or <code>off</code>.</p>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-top"><span>The rest of the security surface</span><span>0.17</span></div>
+        <table>
+          <tbody>
+            <tr><td class="axis">Its own axis</td><td class="desc">The exfil guard is <code>security.exfil</code>, not part of coder mode — turning the persona off never turns it off. Only <code>DEADEYE=off</code> or <code>security.exfil: "off"</code> does.</td><td class="mode"><span class="pill">ask</span></td></tr>
+            <tr><td class="axis">Not a mood</td><td class="desc">The live Edit/Write check (injection shapes, secrets, provider tokens, weak crypto, TLS-off, across five languages) no longer dies when you say <code>stop coder</code>. Security is part of coding, not the persona's voice.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
+            <tr><td class="axis">Vulnerable deps</td><td class="desc">Adding a package with a confirmed OSV advisory asks by name (<code>coder.security: "ask"</code>). And once per session deadeye flags what's <em>already</em> in your tree with a known advisory.</td><td class="mode"><span class="pill soft">ask</span></td></tr>
+            <tr><td class="axis">Provider tokens</td><td class="desc">A bare <code>ghp_…</code>, <code>xoxb-…</code>, <code>sk-ant-…</code>, Stripe live key, or signed JWT pasted as a literal is caught even with no <code>key =</code> around it — length-bound so prose never trips it.</td><td class="mode"><span class="pill soft">secret</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:14px">Honest ceiling: the exfil guard
+        matches regex-visible shapes, not shell obfuscation or a novel
+        egress binary. It shrinks the blast radius of the common automated
+        attack — it isn't a sandbox. <code>/deadeye-guard</code> is the
+        deep, diff-scoped pass with native auditors.</p>
     </div>
   </div>
 </section>
