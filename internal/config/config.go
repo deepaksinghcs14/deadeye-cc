@@ -5,6 +5,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -200,7 +201,7 @@ func WriteDefaultIfMissing() {
 // any coder key is left untouched (it's the user's, whatever it says).
 func EnsureCoderBlock() {
 	path := meta.ConfigPath()
-	b, err := os.ReadFile(path)
+	b, err := readConfigBytes(path)
 	if err != nil {
 		return // no file: WriteDefaultIfMissing owns seeding
 	}
@@ -232,7 +233,7 @@ func EnsureCoderBlock() {
 // left untouched.
 func EnsureSecurityBlock() {
 	path := meta.ConfigPath()
-	b, err := os.ReadFile(path)
+	b, err := readConfigBytes(path)
 	if err != nil {
 		return
 	}
@@ -319,7 +320,7 @@ func WriteCoderDefault(level string) error {
 		return err
 	}
 	raw := map[string]any{}
-	if b, err := os.ReadFile(path); err == nil {
+	if b, err := readConfigBytes(path); err == nil {
 		_ = json.Unmarshal(b, &raw) // malformed existing file: start fresh below
 	}
 	coderRaw, _ := raw["coder"].(map[string]any)
@@ -335,8 +336,26 @@ func WriteCoderDefault(level string) error {
 	return os.WriteFile(path, append(b, '\n'), 0o600)
 }
 
-func overlay(cfg *Config, path string) {
+// utf8BOM is the byte-order mark some Windows editors (Notepad, a few VS
+// Code setups) prepend when saving a file. encoding/json rejects a leading
+// BOM, so a config.json saved with one would otherwise fail EVERY parse --
+// silently reverting all settings to Default() on load, and worse, dropping
+// every other key when a read-modify-write (WriteCoderDefault,
+// EnsureCoderBlock) re-serializes from an empty map. Strip it on every read
+// of a hand-editable config file.
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+
+// readConfigBytes reads a config file and strips a leading UTF-8 BOM.
+func readConfigBytes(path string) ([]byte, error) {
 	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.TrimPrefix(b, utf8BOM), nil
+}
+
+func overlay(cfg *Config, path string) {
+	b, err := readConfigBytes(path)
 	if err != nil {
 		return
 	}

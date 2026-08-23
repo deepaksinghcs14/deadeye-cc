@@ -11,6 +11,39 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
 
+// TestConfigToleratesUTF8BOM: a config.json saved with a leading UTF-8 BOM
+// (some Windows editors add one) must still load, and a read-modify-write
+// must not drop the user's other keys. Without the BOM strip, json.Unmarshal
+// errors on the first byte -- every setting silently reverts to Default().
+func TestConfigToleratesUTF8BOM(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	path := meta.ConfigPath()
+	os.MkdirAll(filepath.Dir(path), 0o700)
+
+	bom := "\xef\xbb\xbf"
+	body := bom + `{"mode":{"routing":"enforce"},"coder":{"default_level":"sniper"}}` + "\n"
+	os.WriteFile(path, []byte(body), 0o600)
+
+	// Load: the BOM'd settings apply, not Default().
+	cfg := LoadFor("", nil)
+	if cfg.Mode.Routing != "enforce" || cfg.Coder.DefaultLevel != "sniper" {
+		t.Fatalf("BOM'd config was ignored: routing=%q level=%q", cfg.Mode.Routing, cfg.Coder.DefaultLevel)
+	}
+
+	// Read-modify-write must preserve the user's other keys (a broken read
+	// would re-serialize from an empty map and drop mode.routing).
+	if err := WriteCoderDefault("marksman"); err != nil {
+		t.Fatal(err)
+	}
+	after := LoadFor("", nil)
+	if after.Mode.Routing != "enforce" {
+		t.Errorf("read-modify-write on a BOM'd file dropped mode.routing: %q", after.Mode.Routing)
+	}
+	if after.Coder.DefaultLevel != "marksman" {
+		t.Errorf("WriteCoderDefault didn't persist: %q", after.Coder.DefaultLevel)
+	}
+}
+
 // TestLoadForReadsProjectConfigFromGivenCwd is the regression test for the
 // cross-project config bleed: the daemon serves every project, so config
 // must come from the SESSION's cwd (passed in), never the daemon process's
