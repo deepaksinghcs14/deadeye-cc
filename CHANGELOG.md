@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+## 0.17.0
+
+**A security release: guard the exfiltration path, and stop coupling
+security to a mood.** The emerging real attack on coding agents is
+prompt-injection-driven secret egress -- malicious content telling the
+agent to read a credential file and ship it out. deadeye sits at the exact
+choke points, so it now watches them.
+
+- **Exfiltration guard** (new top-level `security.exfil` axis,
+  `off`/`advise`/`ask`, default **ask**): a Read of a sensitive credential
+  path (ssh private keys, `~/.aws/credentials`, `.env`,
+  `~/.claude/.credentials.json`, `~/.netrc`, `~/.kube/config`, gcloud,
+  gh-hosts, and more -- plus your own `security.sensitive_paths` globs), or
+  a Bash command that ships one out (a credential path piped to
+  curl/nc/scp, an `env` dump piped to the network, a reader pulling a key
+  into context), escalates to a permission prompt the model **cannot
+  answer for itself** -- a prompt-injected instruction can't approve it.
+  High precision: `~/.ssh/config`, `.pub` keys, `.env.example`, and `ssh
+  -i key host` / `scp -i key` all stay silent. Independent of the coder
+  persona; disabled only by `security.exfil: "off"` or `DEADEYE=off`.
+- **Security decoupled from the coder persona level:** `stop coder` /
+  `/deadeye-coder off` no longer silences the live Edit/Write security
+  advisory -- disliking the persona's prose is not a reason to stop
+  checking what's written. Still covered by `coder.security: "off"` and
+  the env kill switches.
+- **`coder.security: "ask"`** (new third value, opt-in): adding a
+  dependency with a **confirmed** OSV advisory becomes a permission prompt
+  naming the package, instead of a nudge a compromised agent can ignore.
+- **Session-start dependency flag:** once per session, deadeye scans the
+  project's existing manifests and flags any current dependency with a
+  known advisory -- the vulnerable library already in your tree that no
+  edit touches. A floor (declared versions, not resolved lockfiles);
+  points at `/deadeye-guard` for the full native-auditor pass.
+- **Provider-token fingerprints** in the secret-literal rule: GitHub,
+  Slack, Anthropic, OpenAI, Stripe (live only), Google, GitLab, and signed
+  JWTs -- bare tokens with near-zero natural occurrence, so pasting one as
+  a literal is caught even with no `key =` context.
+- **CI hardening:** every GitHub Action pinned by commit SHA, a
+  least-privilege `permissions:` block, and a `govulncheck` job.
+
 ## 0.16.0
 
 **Six new context-hygiene surfaces, all advisory.** The untouched token

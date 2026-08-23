@@ -28,6 +28,25 @@ Out of scope: vulnerabilities in Claude Code or Codex themselves, and
 findings that require the attacker to already control the user's account
 on the same machine.
 
+## The exfiltration guard (threat model)
+
+Since v0.17.0 deadeye watches the credential-egress path at PreToolUse:
+a Read of a sensitive credential file, or a Bash command shaped to ship
+one out, escalates to a **permission prompt** by default
+(`security.exfil: "ask"`). The threat it addresses is
+prompt-injection-driven secret exfiltration — malicious repo or web
+content instructing the agent to read `~/.aws/credentials` or `~/.ssh/id_*`
+and POST it somewhere. The guard's value is that the escalation is a
+Claude Code permission prompt: the model cannot approve it on its own, so
+an injected instruction cannot complete the exfiltration without a human.
+
+It is **deliberately not** a complete DLP boundary. It matches
+regex-visible shapes only — shell obfuscation (`p=~/.ssh; cat $p/id_rsa`),
+a novel egress binary, or a credential path assembled at runtime will slip
+past. It reduces the blast radius of the common automated attack; it is
+not a sandbox. Defense in depth (least-privilege credentials, a real
+egress firewall, scoped tokens) still matters.
+
 ## Supported versions
 
 Only the latest release is supported. deadeye self-updates cheaply

@@ -325,6 +325,27 @@ switches.
 > your machine. Turn it off with `coder.security_osv: false` in
 > `~/.deadeye/config.json`; the bundled table keeps working fully offline.
 
+Two more security surfaces escalate to a **permission prompt** rather
+than a nudge — because a prompt-injected model can talk itself past a
+nudge, but it can't answer a prompt on your behalf:
+
+- **The exfiltration guard** (top-level `security.exfil`, default `ask`)
+  watches for the classic secret-egress move: a Read of a credential file
+  (`~/.ssh/id_*`, `~/.aws/credentials`, `.env`, `~/.claude/.credentials.json`,
+  `~/.netrc`, `~/.kube/config`, gcloud/gh tokens, and more — plus your own
+  `security.sensitive_paths`), or a Bash command that ships one out (a
+  credential path handed to `curl`/`nc`/`scp`, an `env` dump piped to the
+  network). It's high-precision: `~/.ssh/config`, `.pub` keys,
+  `.env.example`, and `ssh -i key host` all stay silent. This axis is
+  independent of coder mode — turned off only by `security.exfil: "off"`
+  or `DEADEYE=off`, **not** by `DEADEYE_CODER=off`.
+- **Adding a known-vulnerable dependency** asks (when `coder.security` is
+  set to `"ask"`): a manifest edit introducing a package with a confirmed
+  OSV advisory prompts you by name. And once per session, deadeye scans
+  the project's *existing* manifests and flags anything already in the
+  tree with a known advisory — the vulnerable library no edit touches —
+  pointing you at `/deadeye-guard` for the full native-auditor audit.
+
 Comments get their own discipline: terseness governs the *response*,
 never the code's why-comments — the persona comments the constraint or
 tradeoff the code can't show, renames before it annotates, deletes
