@@ -24,6 +24,10 @@ func runUninstall(args []string) {
 			runUninstallRules(a)
 			return
 		}
+		if a == "gemini" {
+			runUninstallGemini()
+			return
+		}
 		if a == "--purge" {
 			purge = true
 		}

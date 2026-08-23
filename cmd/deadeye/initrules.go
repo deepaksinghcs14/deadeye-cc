@@ -11,7 +11,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 )
 
-const initUsage = "usage: deadeye init <codex|cursor|windsurf> [--yes]"
+const initUsage = "usage: deadeye init <codex|gemini|cursor|windsurf> [--yes]"
 
 // rulesFileRelPath maps a rules-file host to where its always-on rules file
 // lives, relative to the project root. These hosts have NO hook contract,

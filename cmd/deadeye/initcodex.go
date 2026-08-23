@@ -78,6 +78,9 @@ func runInit(args []string) {
 	case "cursor", "windsurf":
 		runInitRules(args[0], args[1:])
 		return
+	case "gemini":
+		runInitGemini(args[1:])
+		return
 	default:
 		fmt.Fprintln(os.Stderr, initUsage)
 		os.Exit(2)
