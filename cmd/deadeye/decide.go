@@ -283,10 +283,20 @@ type bashInput struct {
 func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	switch in.ToolName {
 	case "Bash":
+		// Exfil guard first, and on its OWN axis (Security.Exfil, not
+		// Mode.Preprocess) so it survives preprocess-off. A match is the
+		// whole message -- return it, don't dilute a security stop with a
+		// preprocessing nudge.
+		if out := decideExfilBash(in, cfg, state); out.HookSpecificOutput != nil {
+			return out
+		}
 		return decideBashPreprocess(in, cfg, state)
 	case "Agent":
 		return decideAgentRouting(in, cfg, state)
 	case "Read":
+		if out := decideExfilRead(in, cfg, state); out.HookSpecificOutput != nil {
+			return out
+		}
 		return withDelegateExplore(in, cfg, state, decideReadAdvice(in, cfg, state))
 	case "Grep":
 		return withDelegateExplore(in, cfg, state, decideGrepAdvice(in, cfg, state))
