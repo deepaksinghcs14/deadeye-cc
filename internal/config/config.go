@@ -98,6 +98,24 @@ type Config struct {
 	Preprocess            Preprocess `json:"preprocess"`
 	PlanGate              PlanGate   `json:"plan_gate"`
 	Coder                 Coder      `json:"coder"`
+	Security              Security   `json:"security"`
+}
+
+// Security is the exfiltration guard's own axis -- a TOP-LEVEL block, not
+// a coder sub-field, because it is not persona behavior: it watches for a
+// credential file being read or shipped out regardless of whether the
+// coder persona is on. (The Edit/Write vuln advisory still lives under
+// coder.security for continuity; this guards a different surface --
+// PreToolUse/Read and /Bash egress shapes.)
+type Security struct {
+	// Exfil is off|advise|ask (default ask): on a match, ask escalates to
+	// a permission prompt the model can't answer for itself, advise emits
+	// a one-line nudge, off disables the guard. Killed by DEADEYE=off, not
+	// by DEADEYE_CODER=off (this isn't persona behavior).
+	Exfil string `json:"exfil"`
+	// SensitivePaths are extra glob patterns, additive to the built-in
+	// credential-path table (never replacing it).
+	SensitivePaths []string `json:"sensitive_paths"`
 }
 
 // DisabledRuleSet returns Preprocess.DisabledRules as a lookup set for
@@ -134,6 +152,10 @@ func Default() Config {
 			InjectionBudgetTokens: 2000, // raised alongside the "Check your backstop" section; see internal/coder/size_test.go
 			Security:              "advise",
 			SecurityOSV:           boolPtr(true),
+		},
+		Security: Security{
+			Exfil:          "ask",
+			SensitivePaths: []string{},
 		},
 	}
 }
@@ -204,6 +226,35 @@ func EnsureCoderBlock() {
 	_ = os.WriteFile(path, append(out, '\n'), 0o600)
 }
 
+// EnsureSecurityBlock adds the top-level security section (exfil guard) to
+// a config.json seeded before 0.17.0 -- same read-modify-write contract as
+// EnsureCoderBlock: unknown fields survive, an existing "security" key is
+// left untouched.
+func EnsureSecurityBlock() {
+	path := meta.ConfigPath()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	raw := map[string]any{}
+	if json.Unmarshal(b, &raw) != nil {
+		return
+	}
+	if _, has := raw["security"]; has {
+		return
+	}
+	seed := Default().Security
+	raw["security"] = map[string]any{
+		"exfil":           seed.Exfil,
+		"sensitive_paths": seed.SensitivePaths,
+	}
+	out, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(path, append(out, '\n'), 0o600)
+}
+
 // Load returns Default() overlaid by ~/.deadeye/config.json, overlaid by
 // ./.deadeye.json relative to this PROCESS's own cwd. Correct for the CLI
 // commands (status/route) -- each is a fresh, short-lived process already
@@ -243,6 +294,7 @@ func LoadFor(cwd string, off []string) Config {
 		cfg.Mode.WorkflowHint = "off"
 		cfg.Mode.Codemap = "off"
 		cfg.Coder.Disabled = true
+		cfg.Security.Exfil = "off" // total-off covers the exfil guard too
 	}
 	if isOff(off, "DEADEYE_PREPROCESS") {
 		cfg.Mode.Preprocess = "off"

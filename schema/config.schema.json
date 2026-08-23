@@ -133,6 +133,25 @@
           "description": "Path to a catalog override; normally set via ~/.deadeye/catalog.json instead."
         }
       }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The exfiltration guard: watches PreToolUse/Read and /Bash for a credential file being read or shipped out. A top-level axis, independent of the coder persona -- not disabled by DEADEYE_CODER=off, only by DEADEYE=off.",
+      "properties": {
+        "exfil": {
+          "type": "string",
+          "enum": ["off", "advise", "ask"],
+          "default": "ask",
+          "description": "On a match: ask escalates to a permission prompt the model can't answer for itself (a prompt-injected instruction can't approve it); advise emits a one-line nudge; off disables the guard. Default ask -- credential-file access is rare enough that interruptions should be too."
+        },
+        "sensitive_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Extra glob patterns treated as sensitive credential paths, additive to the built-in table (~/.ssh private keys, ~/.aws/credentials, .env, ~/.claude/.credentials.json, ~/.netrc, ~/.kube/config, and more). Matched with filepath.Match against the full path and basename."
+        }
+      }
     }
   }
 }

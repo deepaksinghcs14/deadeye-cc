@@ -59,6 +59,59 @@ func TestLoadForAppliesKillSwitches(t *testing.T) {
 	}
 }
 
+// TestSecurityExfilAxis: the exfil guard defaults to ask, DEADEYE=off
+// kills it (total off), and DEADEYE_CODER=off leaves it alone -- it is not
+// persona behavior.
+func TestSecurityExfilAxis(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	if got := Default().Security.Exfil; got != "ask" {
+		t.Errorf("default exfil = %q, want ask", got)
+	}
+	if cfg := LoadFor("", nil); cfg.Security.Exfil != "ask" {
+		t.Errorf("no kill switch: exfil = %q, want ask", cfg.Security.Exfil)
+	}
+	if cfg := LoadFor("", []string{"DEADEYE"}); cfg.Security.Exfil != "off" {
+		t.Errorf("DEADEYE=off must disable the exfil guard, got %q", cfg.Security.Exfil)
+	}
+	if cfg := LoadFor("", []string{"DEADEYE_CODER"}); cfg.Security.Exfil != "ask" {
+		t.Errorf("DEADEYE_CODER=off must NOT touch the exfil guard, got %q", cfg.Security.Exfil)
+	}
+}
+
+// TestEnsureSecurityBlock: a pre-0.17.0 config gains the top-level
+// security section with defaults; existing content survives; an existing
+// security key is left untouched.
+func TestEnsureSecurityBlock(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	path := meta.ConfigPath()
+	os.MkdirAll(filepath.Dir(path), 0o700)
+
+	pre017 := `{"$schema":"s","coder":{"default_level":"sniper"}}` + "\n"
+	os.WriteFile(path, []byte(pre017), 0o600)
+	EnsureSecurityBlock()
+	b, _ := os.ReadFile(path)
+	var raw map[string]any
+	if err := json.Unmarshal(b, &raw); err != nil {
+		t.Fatal(err)
+	}
+	sec, _ := raw["security"].(map[string]any)
+	if sec == nil || sec["exfil"] != "ask" {
+		t.Errorf("security block not added with defaults: %v", raw["security"])
+	}
+	if coder, _ := raw["coder"].(map[string]any); coder["default_level"] != "sniper" {
+		t.Error("user's coder settings must survive the migration")
+	}
+
+	// A user's explicit security choice is never overwritten.
+	os.WriteFile(path, []byte(`{"security":{"exfil":"advise"}}`), 0o600)
+	EnsureSecurityBlock()
+	b, _ = os.ReadFile(path)
+	if !strings.Contains(string(b), `"advise"`) {
+		t.Error("existing security block must be left untouched")
+	}
+}
+
 // TestWriteDefaultIfMissing: installing the plugin never created the
 // config file users are told they can tweak -- the first daemon start now
 // seeds it with every default spelled out. An existing file must never be

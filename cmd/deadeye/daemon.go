@@ -35,6 +35,7 @@ func runDaemon() {
 	// spelled out so users tweak a file instead of authoring one.
 	config.WriteDefaultIfMissing()
 	config.EnsureCoderBlock()
+	config.EnsureSecurityBlock()
 
 	lock, err := acquireLock(meta.LockPath())
 	if err != nil {
