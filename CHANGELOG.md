@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.17.1
+
+Bump the build toolchain to go1.26.6, clearing four Go standard-library
+advisories present in go1.26.5 -- net/url (GO-2026-6218), crypto/tls
+(GO-2026-6090), encoding/asn1 (GO-2026-5972), and net/http
+(GO-2026-5026), all reachable through `deadeye update`'s HTTPS client.
+Caught by 0.17.0's own new govulncheck CI job. No behavior change; the
+released binaries are now built against the patched standard library.
+
 ## 0.17.0
 
 **A security release: guard the exfiltration path, and stop coupling
