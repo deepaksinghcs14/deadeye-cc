@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -36,6 +37,18 @@ var manifestExtractors = map[string]func(string) []Dep{
 func IsManifest(path string) bool {
 	_, ok := manifestExtractors[filepath.Base(path)]
 	return ok
+}
+
+// ManifestFilenames returns the manifest basenames ExtractDeps understands
+// -- for the session-start scan (cmd/deadeye/depscan.go) that looks for
+// existing manifests to flag, rather than reacting to an edit.
+func ManifestFilenames() []string {
+	names := make([]string, 0, len(manifestExtractors))
+	for n := range manifestExtractors {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // ExtractDeps parses name+version pairs out of path's added text.

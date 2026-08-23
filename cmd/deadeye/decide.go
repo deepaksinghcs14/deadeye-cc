@@ -117,11 +117,17 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 		// rest of the injection still applies.
 		memory := ""
 		mapText := ""
+		depFlag := ""
 		if !state.nativeRestoreFor(in.SessionID) {
 			memory = sessionmem.LoadRecent(in.Cwd)
 			if cfg.Mode.Codemap == "on" && in.Cwd != "" {
 				mapText = codemap.Text(in.Cwd)
 			}
+			// Flag already-present vulnerable dependencies once per session
+			// (its own log row + config gate inside). Skipped on
+			// native-restore like the map -- the deps haven't changed and it
+			// would just repeat.
+			depFlag, _ = decideDependencyFlag(in.Cwd, cfg, state)
 		}
 		text := inject.Build(state.cat, memory, cfg.Mode.Effort != "off", host)
 		tokens := inject.EstimateTokens(text)
@@ -143,6 +149,9 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 				Action: "inject-codemap", Reason: "codebase map", BytesAfter: len(mapText),
 			})
 			parts = append(parts, mapText)
+		}
+		if depFlag != "" {
+			parts = append(parts, depFlag)
 		}
 	}
 
