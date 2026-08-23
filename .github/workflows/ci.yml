@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+# Least privilege: CI only reads the repo. No job here writes anything.
+permissions:
+  contents: read
+
 jobs:
   check:
     strategy:
@@ -11,12 +15,22 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
-
       - run: make check
-
       - run: bash -n hooks/*.sh
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      # Pinned version, not @latest -- a vuln scanner that silently changes
+      # under you is its own supply-chain risk. Catches stdlib CVEs too,
+      # even though this module has zero dependencies.
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+      - run: govulncheck ./...
