@@ -1,6 +1,9 @@
 package secscan
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func hasRule(findings []Finding, name string) bool {
 	for _, f := range findings {
@@ -48,6 +51,50 @@ func TestScanFires(t *testing.T) {
 			got := Scan(c.path, c.body, nil)
 			if !hasRule(got, c.rule) {
 				t.Errorf("Scan(%q, %q) = %v, want rule %q to fire", c.path, c.body, got, c.rule)
+			}
+		})
+	}
+}
+
+// TestProviderTokenFingerprints covers the bare-literal provider-token
+// branch. Every positive is assembled by concatenation so GitHub's own
+// push-protection secret scanner never fires on this repo -- the same
+// convention the AWS fixture above uses.
+func TestProviderTokenFingerprints(t *testing.T) {
+	a36 := strings.Repeat("A", 36)
+	fires := map[string]string{
+		"github-classic":  "token := \"gh" + "p_" + a36 + "\"",
+		"github-oauth":    "t := \"gh" + "o_" + a36 + "\"",
+		"github-pat-fine": "t := \"github" + "_pat_" + strings.Repeat("b", 82) + "\"",
+		"slack-bot":       "t := \"xo" + "xb-" + "123456789012-abcdefghij" + "\"",
+		"anthropic":       "k := \"sk-" + "ant-" + strings.Repeat("x", 30) + "\"",
+		"openai-project":  "k := \"sk-" + "proj-" + strings.Repeat("x", 40) + "\"",
+		"openai-legacy":   "k := \"sk-" + strings.Repeat("a", 20) + "T3Blbk" + "FJ" + strings.Repeat("b", 20) + "\"",
+		"stripe-live":     "k := \"sk_" + "live_" + strings.Repeat("z", 30) + "\"",
+		"google":          "k := \"AI" + "za" + strings.Repeat("c", 35) + "\"",
+		"gitlab":          "k := \"gl" + "pat-" + strings.Repeat("d", 25) + "\"",
+		"jwt-signed":      "auth := \"ey" + "J" + strings.Repeat("a", 14) + ".ey" + "J" + strings.Repeat("b", 14) + "." + strings.Repeat("c", 30) + "\"",
+	}
+	for name, body := range fires {
+		t.Run("fires/"+name, func(t *testing.T) {
+			if got := Scan("config.go", body, nil); !hasRule(got, "secret-literal") {
+				t.Errorf("Scan(%q) = %v, want secret-literal to fire", body, got)
+			}
+		})
+	}
+
+	quiet := map[string]string{
+		"github-too-short":  `ticket := "gh` + `p_user assigned"`,
+		"stripe-test-key":   `k := "sk_` + `test_` + strings.Repeat("z", 30) + `"`, // TEST keys deliberately excluded
+		"stripe-name-only":  `sk_live_key := os.Getenv("STRIPE")`,                  // no 24-char value
+		"google-too-short":  `s := "AI` + `zaSyA"`,
+		"jwt-unsigned-head": `h := "ey` + `JhbGciOiJIUzI1NiJ9"`, // single segment, no dots
+		"prose-mention":     `// see xoxb- tokens in the Slack docs`,
+	}
+	for name, body := range quiet {
+		t.Run("quiet/"+name, func(t *testing.T) {
+			if got := Scan("config.go", body, nil); hasRule(got, "secret-literal") {
+				t.Errorf("Scan(%q) = %v, want no secret-literal finding", body, got)
 			}
 		})
 	}

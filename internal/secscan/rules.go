@@ -87,6 +87,30 @@ var (
 	pemPrivateKeyRe = regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`)
 )
 
+// providerTokenRe matches BARE provider-token literals -- credential
+// strings distinctive enough to recognize with no `key =` context and,
+// crucially, near-zero natural occurrence. Every alternative pins a fixed
+// or high-minimum length and \b-anchors both ends, so ordinary prose and
+// code (a task id "ghp_user", a Stripe TEST fixture, a truncated JWT
+// header) can't trip it. The placeholderSecrets filter does NOT reach this
+// branch (see matchSecretLiteral), so any exclusion must live in the
+// pattern itself. Deliberate omissions: bare `sk-[A-Za-z0-9]{48}` (the
+// deprecated OpenAI shape collides with base64 blobs -- the T3BlbkFJ
+// marker form below covers real legacy keys with zero FP surface), and
+// Stripe `sk_test_` (fires on every test fixture in the wild).
+var providerTokenRe = regexp.MustCompile(strings.Join([]string{
+	`\bgh[pousr]_[A-Za-z0-9]{36}\b`,                                        // GitHub classic PAT / OAuth / user / server / refresh
+	`\bgithub_pat_[A-Za-z0-9_]{82}\b`,                                      // GitHub fine-grained PAT
+	`\bxox[bpoas]-[0-9A-Za-z-]{10,250}\b`,                                  // Slack bot/user/workspace tokens
+	`\bsk-ant-[A-Za-z0-9_-]{24,}\b`,                                        // Anthropic API key
+	`\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{32,}\b`,                     // OpenAI project/service/admin key
+	`\bsk-[A-Za-z0-9]{20}T3BlbkFJ[A-Za-z0-9]{20}\b`,                        // OpenAI legacy key (T3BlbkFJ marker)
+	`\b[sr]k_live_[A-Za-z0-9]{24,}\b`,                                      // Stripe LIVE secret/restricted key
+	`\bAIza[0-9A-Za-z_-]{35}\b`,                                            // Google API key (39 chars total)
+	`\bglpat-[0-9A-Za-z_-]{20,}\b`,                                         // GitLab personal access token
+	`\beyJ[A-Za-z0-9_-]{12,}\.eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{20,}\b`, // signed JWT (header.payload.signature)
+}, "|"))
+
 // placeholderSecrets are values that read as credentials but aren't --
 // fixture data and doc examples use exactly these. Kept short and obvious;
 // a placeholder deadeye doesn't recognize just gets flagged, which is the
@@ -98,7 +122,7 @@ var placeholderSecrets = map[string]bool{
 }
 
 func matchSecretLiteral(added string) bool {
-	if awsAccessKeyRe.MatchString(added) || pemPrivateKeyRe.MatchString(added) {
+	if awsAccessKeyRe.MatchString(added) || pemPrivateKeyRe.MatchString(added) || providerTokenRe.MatchString(added) {
 		return true
 	}
 	for _, m := range secretPatternRe.FindAllStringSubmatch(added, -1) {
