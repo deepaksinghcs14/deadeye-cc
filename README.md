@@ -310,9 +310,13 @@ on-demand deep pass — diff-scoped, reads around the hunk to verify before
 reporting, and runs `govulncheck`/`npm audit`/`pip-audit`/`cargo audit`
 when installed.
 
-Both the live check and the dependency lookup ride the coder axis:
-`coder.security: "off"` (or the `DEADEYE_CODER=off` kill switch) turns
-off the advisory along with the rest of the persona.
+The live check and the dependency lookup are **independent of the coder
+persona level** (since v0.17.0): turning the persona off with `stop
+coder` or `/deadeye-coder off` no longer silences the security advisory —
+disliking the persona's prose is not a reason to stop checking what's
+being written. It's still turned off by `coder.security: "off"`, by
+`/deadeye-mute`, or by the `DEADEYE=off` / `DEADEYE_CODER=off` env kill
+switches.
 
 > **The dependency check can reach the network.** When a manifest edit
 > touches a package the local cache doesn't know about yet, deadeye may

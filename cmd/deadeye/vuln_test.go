@@ -65,6 +65,22 @@ func TestDecideVulnAdviceCleanEditIsSilent(t *testing.T) {
 	}
 }
 
+// TestDecideVulnAdviceSurvivesPersonaOff pins the 0.17.0 decoupling:
+// turning the coder persona LEVEL off ("stop coder" / /deadeye-coder off,
+// stored as session level "off") must NOT silence the security advisory --
+// only coder.security:"off" and the env kill switches (Coder.Disabled) do.
+func TestDecideVulnAdviceSurvivesPersonaOff(t *testing.T) {
+	noNetworkOSV(t)
+	state := coderTestState(t)
+	state.setCoderLevel("v0", "off") // the persona is off for this session
+	in := editIn("v0", "handlers.go", `rows, err := db.Query("SELECT * FROM users WHERE name='" + name + "'")`)
+
+	out := decideVulnAdvice(in, config.Default(), state)
+	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "deadeye:") {
+		t.Fatalf("security advisory must survive persona-off, got %+v", out.HookSpecificOutput)
+	}
+}
+
 func TestDecideVulnAdviceRespectsCoderDisabled(t *testing.T) {
 	noNetworkOSV(t)
 	state := coderTestState(t)

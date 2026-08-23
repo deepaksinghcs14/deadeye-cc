@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/deepaksinghcs14/deadeye-cc/internal/coder"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
@@ -104,13 +103,17 @@ const vulnFindingCap = 2
 
 // decideVulnAdvice is coder mode's "check your backstop" section made
 // deterministic: a regex/manifest pass over an Edit/Write/apply_patch's
-// ADDED text only (never the target file, never the whole repo), gated on
-// the coder persona being active -- security rides the coder axis rather
-// than being a separate feature. Fails open on any parse miss or unmuted
-// disable, same as every other advisory surface (INV-5).
+// ADDED text only (never the target file, never the whole repo). Since
+// 0.17.0 it is INDEPENDENT of the coder persona LEVEL -- turning the
+// persona off ("stop coder", /deadeye-coder off, coder.default_level:
+// "off") no longer silences the security advisory, because disliking the
+// persona's prose is not a reason to stop checking what's being written.
+// Still disabled by coder.security: "off", by /deadeye-mute, and by the
+// env kill switches (DEADEYE=off / DEADEYE_CODER=off, both via
+// Coder.Disabled -- documented behavior kept). Fails open on any parse
+// miss (INV-5).
 func decideVulnAdvice(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
-	level := effectiveCoderLevel(in.SessionID, cfg, state)
-	if !coder.Active(level) || cfg.Coder.Security == "off" || state.isMuted(in.SessionID) {
+	if cfg.Coder.Disabled || cfg.Coder.Security == "off" || state.isMuted(in.SessionID) {
 		return hookio.Empty()
 	}
 	targets := extractEditTargets(in.ToolName, in.ToolInput)

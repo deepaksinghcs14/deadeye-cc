@@ -50,13 +50,15 @@ type PlanGate struct {
 // no-silent-creep intent holds via its own ceiling rather than by
 // squeezing under the advisory one.
 //
-// Security rides the coder axis rather than becoming a seventh: the
-// live Edit/Write advisory (cmd/deadeye/vuln.go) is off|advise, gated
-// alongside coder mode itself because it's part of coding, not a
-// separate feature. SecurityOSV additionally gates the OSV.dev dependency
-// lookup specifically -- it's a pointer so an explicit `false` in the
-// config file is distinguishable from the key being absent (nil means
-// "seed the default", per EnsureCoderBlock).
+// Security gates the live Edit/Write advisory (cmd/deadeye/vuln.go),
+// off|advise. Since 0.17.0 it is INDEPENDENT of the coder persona LEVEL --
+// turning the persona off no longer silences it (disliking the persona's
+// prose is not a reason to stop checking what's written) -- though the
+// env kill switches (Coder.Disabled) still cover it. SecurityOSV
+// additionally gates the OSV.dev dependency lookup specifically -- it's a
+// pointer so an explicit `false` in the config file is distinguishable
+// from the key being absent (nil means "seed the default", per
+// EnsureCoderBlock).
 type Coder struct {
 	DefaultLevel          string `json:"default_level"`
 	SubagentMatcher       string `json:"subagent_matcher"`
