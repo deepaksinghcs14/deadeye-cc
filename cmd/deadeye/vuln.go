@@ -108,18 +108,25 @@ const vulnFindingCap = 2
 // persona off ("stop coder", /deadeye-coder off, coder.default_level:
 // "off") no longer silences the security advisory, because disliking the
 // persona's prose is not a reason to stop checking what's being written.
-// Still disabled by coder.security: "off", by /deadeye-mute, and by the
-// env kill switches (DEADEYE=off / DEADEYE_CODER=off, both via
-// Coder.Disabled -- documented behavior kept). Fails open on any parse
-// miss (INV-5).
+// Still disabled by coder.security: "off" and the env kill switches
+// (DEADEYE=off / DEADEYE_CODER=off, via Coder.Disabled). /deadeye-mute
+// suppresses the advisory nags but NOT an ask-mode vulnerable-dependency
+// prompt -- that's a human-facing security stop, like the hard plan gate
+// mute also leaves on. Fails open on any parse miss (INV-5).
 func decideVulnAdvice(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
-	if cfg.Coder.Disabled || cfg.Coder.Security == "off" || state.isMuted(in.SessionID) {
+	if cfg.Coder.Disabled || cfg.Coder.Security == "off" {
 		return hookio.Empty()
 	}
 	targets := extractEditTargets(in.ToolName, in.ToolInput)
 	if len(targets) == 0 {
 		return hookio.Empty()
 	}
+
+	// Mute suppresses the advisory nags, but NOT the ask: a confirmed
+	// vulnerable-dependency add in ask mode is a human-facing security
+	// stop, like the hard plan gate, which /deadeye-mute also leaves on.
+	muted := state.isMuted(in.SessionID)
+	askMode := cfg.Coder.Security == "ask"
 
 	disabled := cfg.DisabledRuleSet()
 	osvOn := cfg.Coder.SecurityOSVEnabled()
@@ -128,7 +135,8 @@ func decideVulnAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 		cache = secscan.LoadOSVCache(meta.OSVCachePath(), nowUnix())
 	}
 
-	var lines []string
+	var lines []string   // advise-mode findings (deduped, mute-suppressed)
+	var askDeps []string // confirmed-vulnerable adds to escalate (ask mode)
 	var missingOSV []secscan.Dep
 	for _, tgt := range targets {
 		var findings []secscan.Finding
@@ -144,12 +152,17 @@ func decideVulnAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 		} else {
 			findings = secscan.Scan(tgt.Path, tgt.Added, disabled)
 		}
-		if len(lines) >= vulnFindingCap {
-			continue // still needed the loop body above for missingOSV
-		}
 		for _, f := range findings {
-			if len(lines) >= vulnFindingCap {
-				break
+			// A confirmed-vulnerable dependency add, in ask mode, escalates
+			// to a permission prompt instead of an advisory line -- no
+			// dedupe (each add is a fresh human decision) and survives mute.
+			if f.Vuln && askMode {
+				askDeps = append(askDeps, f.Advice)
+				state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "vuln-ask", Reason: f.Rule})
+				continue
+			}
+			if muted || len(lines) >= vulnFindingCap {
+				continue
 			}
 			if !state.markSuggestedIfFirst(in.SessionID, "vuln:"+f.Rule+":"+tgt.Path) {
 				continue
@@ -162,10 +175,16 @@ func decideVulnAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 	if len(missingOSV) > 0 {
 		triggerOSVRefresh(missingOSV)
 	}
-	if len(lines) == 0 {
+	if len(askDeps) == 0 && len(lines) == 0 {
 		return hookio.Empty()
 	}
 	out := hookio.ForEvent("PreToolUse")
-	out.HookSpecificOutput.AdditionalContext = strings.Join(lines, " ")
+	if len(askDeps) > 0 {
+		out.HookSpecificOutput.PermissionDecision = hookio.PermissionAsk
+		out.HookSpecificOutput.PermissionDecisionReason = "deadeye: this manifest edit adds a dependency with a known vulnerability (" + strings.Join(askDeps, "; ") + "). Approve only if you accept the advisory or have no safer version."
+	}
+	if len(lines) > 0 {
+		out.HookSpecificOutput.AdditionalContext = strings.Join(lines, " ")
+	}
 	return out
 }

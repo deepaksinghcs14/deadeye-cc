@@ -279,7 +279,10 @@ func ScanDeps(path, added string, cache OSVCache, disabled map[string]bool) []Fi
 			continue
 		}
 		if advisories := cache.lookup(d.Ecosystem, d.Name, d.Version); len(advisories) > 0 {
-			out = append(out, Finding{Rule: name, Advice: advisories[0]})
+			// Name the package+version like the superseded branch does, so
+			// both the advisory line and an ask-mode permission prompt say
+			// WHAT is vulnerable, not just the advisory id.
+			out = append(out, Finding{Rule: name, Advice: d.Name + " " + d.Version + " -- " + advisories[0], Vuln: true})
 			continue
 		}
 		if repl := supersededReplacement(d.Ecosystem, d.Name); repl != "" {

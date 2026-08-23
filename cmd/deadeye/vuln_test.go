@@ -9,6 +9,7 @@ import (
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/secscan"
 )
 
@@ -145,6 +146,102 @@ func TestDecideVulnAdviceSecurityOSVOffStaysOffline(t *testing.T) {
 	out := decideVulnAdvice(in, cfg, state)
 	if out.HookSpecificOutput == nil || !strings.Contains(out.HookSpecificOutput.AdditionalContext, "moment") {
 		t.Fatalf("bundled table should still work with security_osv:false, got %+v", out.HookSpecificOutput)
+	}
+}
+
+// primeOSVCache writes an osv-cache.json into the isolated HOME marking
+// eco:name@version as carrying advisory. coderTestState must have set HOME
+// first. Returns the manifest line that adds that exact dep.
+func primeOSVCache(t *testing.T, eco, name, version, advisory string) {
+	t.Helper()
+	if err := os.MkdirAll(meta.StateDir(), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cache := secscan.OSVCache{
+		FetchedUnix: nowUnix(),
+		Entries:     map[string][]string{eco + ":" + name + "@" + version: {advisory}},
+	}
+	b, _ := json.Marshal(cache)
+	if err := os.WriteFile(meta.OSVCachePath(), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestDecideVulnAdviceAsksOnConfirmedVulnAdd: coder.security:"ask" turns a
+// manifest edit that adds an OSV-confirmed vulnerable dependency into a
+// permission prompt naming it -- not a mere advisory line.
+func TestDecideVulnAdviceAsksOnConfirmedVulnAdd(t *testing.T) {
+	noNetworkOSV(t)
+	state := coderTestState(t)
+	primeOSVCache(t, "npm", "lodash", "4.17.20", "GHSA-p6mc-m468-83gg prototype pollution")
+	cfg := config.Default()
+	cfg.Coder.Security = "ask"
+	in := editIn("va1", "package.json", `    "lodash": "4.17.20",`)
+
+	out := decideVulnAdvice(in, cfg, state)
+	if out.HookSpecificOutput == nil || out.HookSpecificOutput.PermissionDecision != hookio.PermissionAsk {
+		t.Fatalf("confirmed-vuln add in ask mode should ask, got %+v", out.HookSpecificOutput)
+	}
+	if !strings.Contains(out.HookSpecificOutput.PermissionDecisionReason, "lodash") {
+		t.Errorf("ask reason should name the package, got %q", out.HookSpecificOutput.PermissionDecisionReason)
+	}
+}
+
+// TestDecideVulnAdviceConfirmedVulnAdviseModeDoesNotAsk: the default
+// (advise) mode surfaces the same confirmed-vuln dep as an advisory line,
+// never a permission prompt -- ask-on-add is opt-in.
+func TestDecideVulnAdviceConfirmedVulnAdviseModeDoesNotAsk(t *testing.T) {
+	noNetworkOSV(t)
+	state := coderTestState(t)
+	primeOSVCache(t, "npm", "lodash", "4.17.20", "GHSA-p6mc-m468-83gg prototype pollution")
+	in := editIn("va2", "package.json", `    "lodash": "4.17.20",`) // default security: advise
+
+	out := decideVulnAdvice(in, config.Default(), state)
+	if out.HookSpecificOutput == nil {
+		t.Fatal("advise mode should still surface the confirmed-vuln dep")
+	}
+	if out.HookSpecificOutput.PermissionDecision != "" {
+		t.Errorf("advise mode must not ask, got decision %q", out.HookSpecificOutput.PermissionDecision)
+	}
+	if !strings.Contains(out.HookSpecificOutput.AdditionalContext, "lodash") {
+		t.Errorf("advise line should name the package, got %q", out.HookSpecificOutput.AdditionalContext)
+	}
+}
+
+// TestDecideVulnAdviceSupersededStaysAdviseUnderAsk: a merely-superseded
+// dep (no OSV advisory) is NOT a vulnerability -- it stays an advisory line
+// even in ask mode; only confirmed OSV hits escalate.
+func TestDecideVulnAdviceSupersededStaysAdviseUnderAsk(t *testing.T) {
+	noNetworkOSV(t)
+	state := coderTestState(t)
+	cfg := config.Default()
+	cfg.Coder.Security = "ask"
+	in := editIn("va3", "package.json", `    "moment": "2.29.0",`) // superseded, not vulnerable
+
+	out := decideVulnAdvice(in, cfg, state)
+	if out.HookSpecificOutput == nil || out.HookSpecificOutput.PermissionDecision != "" {
+		t.Fatalf("superseded-only dep must stay advise even in ask mode, got %+v", out.HookSpecificOutput)
+	}
+	if !strings.Contains(out.HookSpecificOutput.AdditionalContext, "moment") {
+		t.Errorf("expected the superseded advisory naming moment, got %q", out.HookSpecificOutput.AdditionalContext)
+	}
+}
+
+// TestDecideVulnAdviceAskSurvivesMute: a confirmed-vuln add asks even in a
+// muted session (human security stop), while an advisory-only edit stays
+// silent under mute.
+func TestDecideVulnAdviceAskSurvivesMute(t *testing.T) {
+	noNetworkOSV(t)
+	state := coderTestState(t)
+	primeOSVCache(t, "npm", "lodash", "4.17.20", "GHSA-p6mc-m468-83gg")
+	state.setMuted("va4", true)
+	cfg := config.Default()
+	cfg.Coder.Security = "ask"
+	in := editIn("va4", "package.json", `    "lodash": "4.17.20",`)
+
+	out := decideVulnAdvice(in, cfg, state)
+	if out.HookSpecificOutput == nil || out.HookSpecificOutput.PermissionDecision != hookio.PermissionAsk {
+		t.Fatalf("ask-on-add must survive mute, got %+v", out.HookSpecificOutput)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -148,8 +149,10 @@ func TestScanDepsOSVTakesPriorityOverSuperseded(t *testing.T) {
 		"npm:moment@2.29.0": {"moment 2.29.0 has a ReDoS advisory, fixed in 2.29.4"},
 	}}
 	got := ScanDeps("package.json", `"moment": "2.29.0",`, cache, nil)
-	if len(got) != 1 || got[0].Advice != "moment 2.29.0 has a ReDoS advisory, fixed in 2.29.4" {
-		t.Errorf("got %v, want the OSV cache advisory", got)
+	// The advisory is package-prefixed (name+version -- <advisory>) and
+	// marked Vuln (a confirmed OSV hit, escalatable to an ask).
+	if len(got) != 1 || !strings.Contains(got[0].Advice, "ReDoS advisory") || !got[0].Vuln {
+		t.Errorf("got %+v, want the package-named OSV advisory with Vuln=true", got)
 	}
 }
 

@@ -112,9 +112,9 @@
         },
         "security": {
           "type": "string",
-          "enum": ["off", "advise"],
+          "enum": ["off", "advise", "ask"],
           "default": "advise",
-          "description": "Live security advisory on Edit/Write: SQL/shell/eval injection shapes, TLS-off, hardcoded secrets and provider tokens, weak crypto, and vulnerable/superseded dependencies in a manifest. Independent of the coder persona level since 0.17.0 (turning the persona off no longer silences it) -- still disabled by security: \"off\", by /deadeye-mute, or by the DEADEYE=off / DEADEYE_CODER=off env kill switches."
+          "description": "Live security advisory on Edit/Write: SQL/shell/eval injection shapes, TLS-off, hardcoded secrets and provider tokens, weak crypto, and vulnerable/superseded dependencies in a manifest. \"ask\" additionally escalates a manifest edit that ADDS a dependency with a confirmed OSV advisory to a permission prompt (injection/secret/crypto findings stay advise). Independent of the coder persona level since 0.17.0 (turning the persona off no longer silences it) -- still disabled by security: \"off\", by /deadeye-mute, or by the DEADEYE=off / DEADEYE_CODER=off env kill switches."
         },
         "security_osv": {
           "type": "boolean",
