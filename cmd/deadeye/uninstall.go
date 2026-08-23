@@ -20,6 +20,10 @@ func runUninstall(args []string) {
 			runUninstallCodex()
 			return
 		}
+		if a == "cursor" || a == "windsurf" {
+			runUninstallRules(a)
+			return
+		}
 		if a == "--purge" {
 			purge = true
 		}

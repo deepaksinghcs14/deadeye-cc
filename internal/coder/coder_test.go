@@ -116,6 +116,24 @@ func TestInstructionsBannerAndReview(t *testing.T) {
 	}
 }
 
+func TestRulesetMarkdown(t *testing.T) {
+	got := RulesetMarkdown(LevelMarksman)
+	// Self-describing header, recognizable by the marker, no runtime banner.
+	if !strings.Contains(got, RulesetMarkdownMarker) {
+		t.Error("rules-file output missing its recognition marker")
+	}
+	if strings.Contains(got, "DEADEYE CODER ACTIVE") {
+		t.Error("a static rules file must not carry the runtime ACTIVE banner")
+	}
+	if !strings.Contains(got, "The ladder") {
+		t.Error("rules file must carry the persona body")
+	}
+	// Level filtering still applies: marksman kept, the others dropped.
+	if !strings.Contains(got, "| **marksman** |") || strings.Contains(got, "| **sniper** |") {
+		t.Error("rules file not filtered to the requested level")
+	}
+}
+
 func TestNormalizeLevelAndAliases(t *testing.T) {
 	cases := map[string]string{
 		"spotter": LevelSpotter, "MARKSMAN": LevelMarksman, " sniper ": LevelSniper,

@@ -107,6 +107,29 @@ func Instructions(level string) string {
 	return banner + "\n\n" + FilterForLevel(ruleset, level)
 }
 
+// rulesFileHeader marks a rules file as deadeye's, so init/uninstall can
+// tell a file it wrote from one the user authored, and sets honest
+// expectations: a static rules file is the persona ONLY. The routing,
+// security, preprocessing, and codemap engine needs a host with a live
+// hook contract (Claude Code, Codex, Gemini CLI) -- Cursor and Windsurf
+// have no such contract, so they get the discipline and nothing else.
+const rulesFileHeader = `<!-- deadeye-coder: persona only. The routing / security / preprocessing / codemap engine needs Claude Code, Codex, or Gemini CLI; this file is the lean-coding discipline alone. Managed by ` + "`deadeye init`" + ` -- edit and it stops being auto-managed. -->`
+
+// RulesetMarkdownMarker is the sentinel init/uninstall grep for to decide
+// whether a rules file is deadeye's to touch.
+const RulesetMarkdownMarker = "deadeye-coder: persona only"
+
+// RulesetMarkdown returns the level-filtered persona as a standalone
+// markdown rules file -- for hosts with no hook contract (Cursor,
+// Windsurf) that read an always-on rules file. Unlike Instructions it
+// carries no runtime "ACTIVE" banner (a static file has no session), and
+// it leads with rulesFileHeader so the file is self-describing and
+// recognizable. Review is not a valid file level (it's session-only);
+// callers pass a persisted level.
+func RulesetMarkdown(level string) string {
+	return rulesFileHeader + "\n\n" + FilterForLevel(ruleset, level) + "\n"
+}
+
 // SubagentCard returns the condensed persona for a spawning subagent --
 // the discipline without the worked examples and prose the full ruleset
 // carries for the long-lived parent session. Subagents are short-lived

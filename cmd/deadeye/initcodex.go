@@ -65,10 +65,21 @@ func codexScriptPath() string {
 	return filepath.Join(meta.StateDir(), "hooks", "deadeye-codex-hook.sh")
 }
 
-// runInit backs `deadeye init codex [--yes]`.
+// runInit dispatches `deadeye init <host>`. codex is a full hook adapter
+// (below); cursor/windsurf are static rules files (initrules.go).
 func runInit(args []string) {
-	if len(args) == 0 || args[0] != "codex" {
-		fmt.Fprintln(os.Stderr, "usage: deadeye init codex [--yes]")
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, initUsage)
+		os.Exit(2)
+	}
+	switch args[0] {
+	case "codex":
+		// falls through to the codex body below
+	case "cursor", "windsurf":
+		runInitRules(args[0], args[1:])
+		return
+	default:
+		fmt.Fprintln(os.Stderr, initUsage)
 		os.Exit(2)
 	}
 	assumeYes := false
