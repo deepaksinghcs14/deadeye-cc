@@ -11,6 +11,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/coder"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/hosts"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/inject"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
@@ -117,9 +118,10 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionStart",
 		Action: "coder-inject", Reason: reason, BytesAfter: len(text),
 	})
-	if host == "codex" {
-		// Codex reads hookSpecificOutput.additionalContext on this surface
-		// (verified.md §12) -- no raw-stdout workaround needed there.
+	if !hosts.UsesRawInjection(host) {
+		// Reduced hosts (Codex, Gemini) read
+		// hookSpecificOutput.additionalContext on this surface (verified.md
+		// §12) -- no raw-stdout workaround needed there.
 		out := hookio.ForEvent(in.HookEventName)
 		if out.HookSpecificOutput.HookEventName == "" {
 			out.HookSpecificOutput.HookEventName = "SessionStart"

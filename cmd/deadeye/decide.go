@@ -12,6 +12,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/codemap"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/hosts"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/inject"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
@@ -159,7 +160,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 		if suggestion, fired := decidePlanGateSoft(in, cfg, state); fired {
 			parts = append(parts, suggestion)
 		}
-		if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired && host != "codex" {
+		if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired && hosts.HasSubagentSurface(host) {
 			parts = append(parts, suggestion)
 		}
 		if suggestion, fired := decideLargePaste(in, cfg, state); fired {

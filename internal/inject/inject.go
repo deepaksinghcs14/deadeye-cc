@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/hosts"
 )
 
 // EstimateTokens is a rough 4-chars-per-token heuristic for budget
@@ -19,13 +20,13 @@ import (
 // flag "this injection is getting too big" in the decision log.
 func EstimateTokens(s string) int { return (len(s) + 3) / 4 }
 
-// Build composes the injection for the given host. Codex sessions get no
-// Agent-tool tier table, no effort line, and no workflow line -- none of
-// those surfaces exist there; the hygiene rules stay.
+// Build composes the injection for the given host. Reduced hosts (Codex,
+// Gemini) get no Agent-tool tier table, no effort line, and no workflow
+// line -- none of those surfaces exist there; the hygiene rules stay.
 func Build(cat catalog.Catalog, sessionMemory string, includeEffort bool, host string) string {
 	var b strings.Builder
 	b.WriteString("deadeye guidance for this session:\n")
-	if host != "codex" {
+	if hosts.HasSubagentSurface(host) {
 		b.WriteString("- Model tiers (cheapest first) -- when calling the Agent tool, set model to the cheapest tier that fits: mechanical work -> tier 0, standard implementation -> tier 1, deep reasoning -> top tier.\n")
 		for _, m := range cat.Models {
 			fmt.Fprintf(&b, "  tier %d: %s\n", m.Tier, m.ID)
