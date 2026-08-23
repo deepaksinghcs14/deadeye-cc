@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## 0.19.0
+
+**Gemini CLI — the coder persona and session guidance (experimental).**
+Gemini CLI has a real hook system (external command, JSON stdin/stdout,
+tool-input rewriting), so it's engine-capable. This release wires the
+context-injection tier: the coder persona at session start, plus session
+guidance / codemap / vulnerable-dependency flag / large-paste / soft plan
+gate on each prompt. `deadeye init gemini` writes a self-contained
+extension under `~/.deadeye/gemini-extension/` and prints the
+`gemini extensions install` command — deadeye never edits Gemini's own
+config.
+
+Tool-level features (exfil guard, output trimming, model routing) are
+deliberately **not** wired on Gemini yet: its tool names and argument
+shapes differ from Claude's and aren't confirmed on a live install, so
+wiring the exfil guard blind could make it silently not fire. It waits
+for verification rather than risk false security. The output translator
+and ask→deny/advise fallback that will carry those features are already
+built and tested.
+
+Under the hood: the scattered `host == "codex"` checks became two
+intent-named predicates in `internal/hosts`, so Gemini inherits Codex's
+reduced-host behavior for free — and the Claude Code path is provably
+unchanged (SessionStart still raw-stdout, permission asks untranslated,
+full tier table).
+
 ## 0.18.0
 
 **Cursor and Windsurf — the coder persona, on two more editors.** Both

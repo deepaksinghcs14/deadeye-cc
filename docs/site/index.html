@@ -372,7 +372,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
           <div class="l"><span class="p">$</span> /plugin marketplace add deepaksinghcs14/deadeye-cc</div>
           <div class="l"><span class="p">$</span> /plugin install deadeye@deadeye</div>
         </div>
-        <div class="note">Hooks register themselves. Binary bootstraps on first use, sha256-verified.<br>Codex CLI: install the binary, then <code>deadeye init codex</code>. Cursor / Windsurf get the coder persona as a rules file: <code>deadeye init cursor</code>.</div>
+        <div class="note">Hooks register themselves. Binary bootstraps on first use, sha256-verified.<br>Codex CLI &amp; Gemini CLI: install the binary, then <code>deadeye init codex</code> / <code>init gemini</code>. Cursor / Windsurf get the coder persona as a rules file: <code>deadeye init cursor</code>.</div>
       </div>
 
       <div class="hero-art" aria-hidden="true">
@@ -805,7 +805,7 @@ Read .env.example
         <tr><td class="axis">Output truncation</td><td class="desc">Native truncation is size-based at 30K chars. deadeye rewrites commands before they run so only failure context enters at all — and stacks under the native cap.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
         <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
         <tr><td class="axis">Coding persona</td><td class="desc">No native equivalent — coder mode is deadeye's own ground.</td><td class="mode"><span class="pill">unique</span></td></tr>
-        <tr><td class="axis">Other hosts</td><td class="desc">Experimental: the same daemon serves OpenAI's Codex through its hooks system — output trimming, coder persona, plan gate, and the decision log — via <code>deadeye init codex</code>, which shows the exact config change and writes nothing without your yes. Cursor and Windsurf have no hook contract, so they get the coder persona alone as a rules file (<code>deadeye init cursor</code> / <code>init windsurf</code>) — the engine still needs Claude Code or Codex.</td><td class="mode"><span class="pill soft">four hosts</span></td></tr>
+        <tr><td class="axis">Other hosts</td><td class="desc">Experimental: the same daemon serves OpenAI's Codex through its hooks — output trimming, coder persona, plan gate, decision log — via <code>deadeye init codex</code>. Gemini CLI gets the coder persona and session guidance now (<code>init gemini</code>); its tool-level engine waits on live schema verification. Cursor and Windsurf have no hook contract, so they get the coder persona alone as a rules file (<code>init cursor</code> / <code>init windsurf</code>).</td><td class="mode"><span class="pill soft">five hosts</span></td></tr>
       </tbody>
     </table>
   </div>

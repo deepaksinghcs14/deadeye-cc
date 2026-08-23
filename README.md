@@ -167,6 +167,24 @@ command — `deadeye update` fetches the latest release, sha256-verifies
 it, and swaps it in atomically (the daemon hands over on the next hook
 call). Remove cleanly with `deadeye uninstall codex`.
 
+### Gemini CLI (experimental — context-injection tier)
+
+Gemini CLI has a real hook system (external command, JSON stdin/stdout,
+tool-input rewriting), so it's engine-capable. This release wires the
+**context-injection tier**: the coder persona at session start, and
+session guidance / codemap / vulnerable-dependency flag / large-paste /
+soft plan gate on each prompt. `deadeye init gemini` writes a
+self-contained extension under `~/.deadeye/gemini-extension/` and prints
+the `gemini extensions install --path …` command — deadeye never edits
+Gemini's own config.
+
+Not yet on Gemini: the **tool-level** features (exfil guard, output
+trimming, model routing). Gemini's tool names and argument shapes differ
+from Claude's and haven't been confirmed on a live install; wiring the
+exfil guard blind could make it silently not fire, so it waits for
+verification rather than risk false security. Remove with
+`deadeye uninstall gemini` (then `gemini extensions uninstall deadeye`).
+
 ### Cursor and Windsurf (persona only)
 
 Cursor and Windsurf read an always-on rules file but have no hook contract
