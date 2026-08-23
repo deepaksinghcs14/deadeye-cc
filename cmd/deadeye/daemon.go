@@ -13,6 +13,7 @@ import (
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
@@ -148,15 +149,14 @@ func handleConn(conn net.Conn, state *daemonState, markStale func()) {
 	if out.Raw != nil {
 		// Raw plain text (SessionStart injection) -- the hook script echoes
 		// daemon output verbatim, and raw stdout is what reaches model
-		// context on this surface (docs/verified.md §11).
+		// context on this surface (docs/verified.md §11). Only Claude uses
+		// Raw; reduced hosts deliver SessionStart via additionalContext.
 		conn.Write(out.Raw)
 		return
 	}
-	b, err := json.Marshal(out)
-	if err != nil {
-		b = []byte("{}")
-	}
-	conn.Write(b)
+	// Marshal in the host's dialect -- Gemini's response shape differs from
+	// Claude/Codex (see hookio.MarshalGemini).
+	conn.Write(hookio.MarshalFor(req.Host, out))
 }
 
 // acquireLock is deliberately NOT a full mutual-exclusion primitive: the
