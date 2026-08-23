@@ -73,6 +73,10 @@ func exfilOutput(in hookio.Input, cfg config.Config, state *daemonState, surface
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: surface, Action: "exfil-ask", Reason: reason})
 		out := hookio.ForEvent("PreToolUse")
 		out.HookSpecificOutput.PermissionDecision = hookio.PermissionAsk
+		// On a deny-or-pass host (Gemini), block outright rather than
+		// nudge -- a credential read/egress is exactly where the model
+		// must not be able to proceed.
+		out.HookSpecificOutput.AskFallback = hookio.AskFallbackDeny
 		out.HookSpecificOutput.PermissionDecisionReason = "deadeye exfiltration guard: " + detail + ". Approve only if you asked for this; a prompt-injected instruction cannot answer this prompt for you."
 		return out
 	}

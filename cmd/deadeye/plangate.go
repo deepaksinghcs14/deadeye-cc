@@ -156,6 +156,9 @@ func decidePlanGateHard(in hookio.Input, cfg config.Config, state *daemonState) 
 
 	out := hookio.ForEvent("PreToolUse")
 	out.HookSpecificOutput.PermissionDecision = hookio.PermissionAsk
+	// On a deny-or-pass host (Gemini), downgrade to a nudge -- denying
+	// every multi-file edit with no approve path would be unusable.
+	out.HookSpecificOutput.AskFallback = hookio.AskFallbackAdvise
 	out.HookSpecificOutput.PermissionDecisionReason = "deadeye: plan gate asked -- this looks like a multi-file/high-radius change and no plan was approved. Approve to proceed, or ask for a plan."
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "gate-ask", Reason: pending})
 	return out

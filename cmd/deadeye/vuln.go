@@ -181,6 +181,10 @@ func decideVulnAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 	out := hookio.ForEvent("PreToolUse")
 	if len(askDeps) > 0 {
 		out.HookSpecificOutput.PermissionDecision = hookio.PermissionAsk
+		// On a deny-or-pass host (Gemini), downgrade to a nudge -- there's
+		// no "I accept the advisory" approve path there, so a hard deny
+		// would strand a legitimate add.
+		out.HookSpecificOutput.AskFallback = hookio.AskFallbackAdvise
 		out.HookSpecificOutput.PermissionDecisionReason = "deadeye: this manifest edit adds a dependency with a known vulnerability (" + strings.Join(askDeps, "; ") + "). Approve only if you accept the advisory or have no safer version."
 	}
 	if len(lines) > 0 {

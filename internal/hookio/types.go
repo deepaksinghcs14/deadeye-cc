@@ -73,7 +73,22 @@ type HookSpecificOutput struct {
 	PermissionDecisionReason string          `json:"permissionDecisionReason,omitempty"`
 	UpdatedInput             json.RawMessage `json:"updatedInput,omitempty"`
 	AdditionalContext        string          `json:"additionalContext,omitempty"`
+
+	// AskFallback tells a host WITHOUT an ask primitive (Gemini can only
+	// deny or pass, not ask) what an "ask" should degrade to there:
+	// AskFallbackDeny (hard block + reason -- the exfil guard, where the
+	// model must not proceed) or AskFallbackAdvise (drop to a nudge -- the
+	// plan gate and vuln-on-add, where denying with no approve path would
+	// be unusable). Ignored on Claude/Codex, which honor permissionDecision
+	// "ask" directly. json:"-": internal routing, never serialized.
+	AskFallback string `json:"-"`
 }
+
+// AskFallback values -- how an "ask" degrades on a deny-or-pass host.
+const (
+	AskFallbackDeny   = "deny"
+	AskFallbackAdvise = "advise"
+)
 
 // Output is the full stdout payload. The zero value marshals to exactly
 // "{}" -- the canonical no-op response required by INV-5 (fail open) and
