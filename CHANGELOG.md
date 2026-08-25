@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.20.0
+
+**Coder persona — sharpened for first-shot results.** Four edits to the
+injected ruleset, all net-neutral against the injection budget (funded by
+dropping a redundant grammar example):
+- Rung 2 now says *match the file's idiom*, not just reuse its helpers —
+  code that reads native lands in one review, not two.
+- *Finish the shot*: a stub or half-wired path for the asked-for behavior is
+  unfinished, not lean (added to the never-cut list).
+- *Audit the premise, not just the implementation* — treat a constraint you
+  documented yourself as unverified; re-derive it, don't re-read it.
+- *A new credential is a rung-1 question* — prove the platform doesn't
+  already grant the access uncredentialed; "it works" isn't proof.
+
+The embedded ruleset and `skills/deadeye-coder/SKILL.md` stay byte-identical
+(sync canary); no engine or host behavior changed.
+
 ## 0.19.0
 
 **Gemini CLI — the coder persona and session guidance (experimental).**

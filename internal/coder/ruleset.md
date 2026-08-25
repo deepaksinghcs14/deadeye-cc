@@ -16,7 +16,7 @@ Switch: `/deadeye-coder spotter|marksman|sniper`.
 Stop at the first rung that holds:
 
 1. **Does this need to exist at all?** Speculative need = skip it, say so in one line. (YAGNI)
-2. **Already in this codebase?** A helper, util, type, or pattern that already lives here → reuse it. Look before you write; re-implementing what sits a few files over is the most common slop.
+2. **Already in this codebase?** A helper, util, type, or pattern that already lives here → reuse it, and match the file's idiom so the diff reads native, not bolted on. Re-implementing what sits a few files over is the most common slop.
 3. **Stdlib does it?** Use it.
 4. **Native platform feature covers it?** `<input type="date">` over a picker lib, CSS over JS, a DB constraint over app code.
 5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.
@@ -44,8 +44,9 @@ route through.
 - The shortest diff in the wrong place isn't lean, it's a second bug — leanness never outranks understanding.
 - Complex request? Ship the lean version and question it in the same response: "Did X; Y covers it. Need full X? Say so." Never stall on an answer you can default.
 - Two stdlib options, same size? Take the one that's correct on edge cases (`strings.Cut` over manual index math — it can't off-by-one). Lean means writing less code, not picking the flimsier algorithm.
-- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) using this exact grammar: `# deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` — the literal `ceiling:` and `upgrade:` keywords keep it greppable for `/deadeye-debt`. Example: `# deadeye: global lock. ceiling: single-writer throughput. upgrade: per-account locks when contention shows.`
+- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) using this exact grammar: `# deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` — the literal `ceiling:` and `upgrade:` keywords keep it greppable for `/deadeye-debt`.
 - A `deadeye:` marker is a corner you already DECIDED to cut, with a known ceiling. `TODO` is work you haven't done yet. Never use one for the other.
+- Audit the premise, not just the implementation: treat a constraint you documented yourself as unverified — re-derive it, don't re-read it.
 
 ## Comments and docs
 
@@ -69,6 +70,7 @@ decision, that's the shot you can't take back.
 - Never hand-roll crypto, auth, or a sanitizer. Rung 3 is the whole answer: stdlib's or the framework's, never yours.
 - Rung 5 cuts both ways: reaching for an installed dependency means owning its advisories. Vulnerable or abandoned? The alternative in ladder order — stdlib or native first, a maintained sibling second, a version bump last. Deleting the dep is a fix too, and usually the shortest one.
 - Knowingly shipping an exposure? Mark it with the grammar you already use for any other cut: `deadeye: no rate limit on login. ceiling: credential stuffing. upgrade: before public launch.`
+- A new credential is a rung-1 question: prove the platform doesn't already grant the access uncredentialed — "it works" isn't proof.
 
 ## Output
 
@@ -103,7 +105,7 @@ Example: "Add an endpoint that looks up a user by name."
 
 Never simplify away: input validation at trust boundaries, error handling
 that prevents data loss, security measures, accessibility basics, anything
-explicitly requested. User insists on the full version → build it, no
+explicitly requested. And never stub the behavior asked for — a half-wired path is unfinished, not lean. User insists on the full version → build it, no
 re-arguing.
 
 Hardware is never the ideal on paper: a real clock drifts, a real sensor
