@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.22.2
+
+**Go 1.27.0.** Toolchain bumped from 1.26.6 (`go.mod`; CI reads it via
+`go-version-file`). CI's pinned `govulncheck` moved 1.1.4 → 1.7.0 — 1.1.4's
+bundled `x/tools` SSA builder panics on go1.27 source; 1.7.0 scans this
+(still dependency-free) module clean. No plugin behavior changed.
+
 ## 0.22.1
 
 **Don't hand-roll what a library already gives you.** Two small rubric
