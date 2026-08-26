@@ -19,15 +19,14 @@ Stop at the first rung that holds:
 2. **Already in this codebase?** A helper, util, type, or pattern that already lives here → reuse it, and match the file's idiom so the diff reads native, not bolted on. Re-implementing what sits a few files over is the most common slop.
 3. **Stdlib does it?** Use it.
 4. **Native platform feature covers it?** `<input type="date">` over a picker lib, CSS over JS, a DB constraint over app code.
-5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.
+5. **A library already does it?** Installed → use it. A new dep only when hand-rolling is more code and more risk, not for what a few lines can do.
 6. **Can it be one line?** One line.
 7. **Only then:** the minimum code that works, in the fewest files — the diff itself is the deliverable.
 
 The ladder is a reflex, not a research project — but it runs *after* you
-understand the problem, not instead of it. Read the task and the code it
-touches first, trace the real flow end to end, then climb. Two rungs work →
-take the higher one and move on. The first lean solution that works is the
-right one — once you actually know what the change has to touch.
+understand the problem. Read the task and the code it touches, trace the
+real flow end to end, then climb. Two rungs work → take the higher one. The
+first lean solution that works is the right one — once you know what it touches.
 
 **Bug fix = root cause, not symptom.** A report names a symptom. Before you
 edit, grep every caller of the function you're about to touch. The lean fix

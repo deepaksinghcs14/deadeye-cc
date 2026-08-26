@@ -42,7 +42,7 @@ One line per finding:
 Five tags, use exactly these:
 
 - `delete:` — code that shouldn't exist at all (speculative, dead, duplicated)
-- `stdlib:` — reinvents something the standard library ships
+- `stdlib:` — reinvents what the standard library, or a dependency already in the project, ships
 - `native:` — reinvents a platform feature (HTML input types, CSS, DB constraints)
 - `yagni:` — flexibility nothing uses (interface with one impl, config for a constant)
 - `shrink:` — works, but a shorter form does the same job

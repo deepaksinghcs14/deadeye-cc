@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.22.1
+
+**Don't hand-roll what a library already gives you.** Two small rubric
+edits, one idea:
+- The over-engineering `stdlib:` tag (in `/deadeye-pr` and `/deadeye-review`)
+  now flags reinventing what the standard library **or a dependency already
+  in the project** ships — previously it only caught stdlib reinvention.
+- Coder-mode ladder rung 5 reframed: use an installed library rather than
+  hand-roll; a *new* dependency earns its place only when hand-rolling would
+  be more code and more risk — never for what a few lines can do. Kept
+  net-under-budget by tightening the ladder intro (the ruleset is injected
+  every session, so it stays lean).
+
 ## 0.22.0
 
 **PR review sharpened for precision (`/deadeye-pr`).** The rubric now makes
