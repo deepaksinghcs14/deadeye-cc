@@ -32,5 +32,5 @@ jobs:
       # Pinned version, not @latest -- a vuln scanner that silently changes
       # under you is its own supply-chain risk. Catches stdlib CVEs too,
       # even though this module has zero dependencies.
-      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
       - run: govulncheck ./...
