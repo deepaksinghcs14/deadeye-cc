@@ -43,7 +43,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 		if rec := recover(); rec != nil {
 			// Fail open (INV-5) but leave a trace -- a silent swallow makes
 			// "deadeye stopped advising" undiagnosable. Both trails are
-			// best-effort: the decision log surfaces it in /deadeye-audit,
+			// best-effort: the decision log surfaces it in /deadeye-stats,
 			// panics.log survives even if logging itself was the panic.
 			logPanic("daemon/"+req.Event, rec)
 			state.log(logstore.Record{TS: nowRFC3339(), Surface: req.Event, Action: "panic", Reason: truncatedMarker(fmt.Sprint(rec))})
@@ -144,7 +144,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 		if mapText != "" {
 			// Composed here, never inside inject.Build: codemap is
 			// independently switched (mode.codemap) and separately logged,
-			// so /deadeye-audit can attribute its real byte cost.
+			// so /deadeye-stats can attribute its real byte cost.
 			state.log(logstore.Record{
 				TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit",
 				Action: "inject-codemap", Reason: "codebase map", BytesAfter: len(mapText),
@@ -774,7 +774,7 @@ func decideSubagentStart(in hookio.Input, cfg config.Config, state *daemonState)
 	var parts []string
 	if cfg.Mode.Preprocess == "on" {
 		parts = append(parts, brevityNote)
-		// BytesAfter recorded so /deadeye-context can attribute this
+		// BytesAfter recorded so /deadeye-stats can attribute this
 		// injection's real cost like every other inject-* row.
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStart", Action: "inject-subagent", BytesAfter: len(brevityNote)})
 	}

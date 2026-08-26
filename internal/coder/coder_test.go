@@ -178,7 +178,7 @@ func TestParseCommand(t *testing.T) {
 		{"stop deadeye coder.", KindOff, ""},
 		{"add a normal mode toggle", KindNone, ""}, // ported substring-bug guard
 		{"fix the bug in main.go", KindNone, ""},
-		{"/deadeye-audit", KindNone, ""}, // sibling command, not ours
+		{"/deadeye-stats", KindNone, ""}, // sibling command, not ours
 	}
 	for _, c := range cases {
 		got := ParseCommand(c.prompt)

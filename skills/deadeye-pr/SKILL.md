@@ -51,6 +51,20 @@ guards. An unguarded-looking handler whose auth lives one file over is a
 false positive, and one wrong finding erodes trust in all of them. Report
 only what you confirmed.
 
+**Every finding carries its proof.** Append a `proof:` clause naming the
+concrete thing in THIS repo that makes the finding true — the caller you
+traced, the grep that came back empty, the auditor line, the test that
+fails. A finding you cannot prove from the code in front of you is a guess;
+drop it. Precision is the product: one finding that's true beats ten maybes,
+and every hosted reviewer drowns in the maybes — that's the gap you win on.
+
+**Run the repo's own checks and fuse them in.** Before you finalize, run what
+the project already ships when it's present — `go vet`, `tsc --noEmit`, the
+linter, the tests the diff touches — and let their output confirm or kill
+findings. Mark a finding `(confirmed)` when a tool or a failing test agrees,
+otherwise it stands as `likely`. You can run the code; a diff-only bot can't
+— that is the edge, so use it.
+
 A `deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` comment over a
 hunk is a recorded DECISION, not a finding — someone already chose to ship
 that corner with eyes open. Count those separately as accepted, don't flag
@@ -62,9 +76,15 @@ deletion — lean code without its check is unfinished.
 Review the diff through each lens. One line per finding, ranked most-severe
 first within each lens:
 
-`path:line: <tag> <what>. <fix>.`
+`path:line: <sev> <tag> <what>. <fix>. proof: <evidence>.`
 
-The path is required — a PR spans files, so every finding names its file.
+- `<sev>` is `block` (must fix before merge), `warn` (should fix), or `nit` (optional).
+- The path is required — a PR spans files, so every finding names its file.
+- `proof:` is required (see "Verify before reporting"). For `inject`/`authz`/
+  `logic`/`race`, the proof IS a reproduction: the concrete input and the
+  sink it reaches.
+- Append `(confirmed)` when a tool or test backs the finding; otherwise it
+  reads as `likely`.
 
 ### Over-engineering (lean lens — from `/deadeye-review`)
 
@@ -125,8 +145,9 @@ Lead with a one-line header, then the four lens sections, then a verdict:
 PR #<N> "<title>"  +<adds>/-<dels>, <files> files
 ```
 
-End with a single verdict line — the highest-severity thing that must happen
-before merge, or `Ship it.` when every lens came back clean.
+End with the tally and the verdict — `<B> blockers, <W> warns, <N> nits` and
+the one `block` that must be fixed before merge — or, when nothing survived
+verification, exactly: `Clean — nothing survived verification. Ship it.`
 
 Findings are a LIST. Do not apply or push any code change unless asked.
 
@@ -139,8 +160,14 @@ ONLY when the user passes `--post` or explicitly asks:
   outward-facing and public on the PR.
 - **Redact any secret value** a `secret:`/`expose:` finding surfaced before it
   goes into a public comment — name the location, never the credential.
-- Post as a single review comment: `gh pr review <N> --comment --body-file -`
-  (feed the formatted findings on stdin). One review, not a swarm of inline
-  comments.
-- Never approve, request-changes, merge, or close the PR — a `--comment`
-  review only.
+- Post ONE review that anchors each finding to its line — not a wall of text
+  in a single comment. `gh pr review` only posts a summary body, so use the
+  API for inline anchors: build a JSON payload and
+  `gh api repos/{owner}/{repo}/pulls/<N>/reviews --input -` with
+  - `event: "COMMENT"`,
+  - `body`: the tally + verdict (the summary),
+  - `comments`: one entry per finding, `{path, line, side: "RIGHT", body}`,
+    the body being the finding line (severity, tag, fix, proof).
+  Get `{owner}/{repo}` from `gh repo view --json nameWithOwner`. Anchor `line`
+  to a line the diff actually touches, or GitHub rejects the comment.
+- `event: "COMMENT"` only — never approve, request-changes, merge, or close.

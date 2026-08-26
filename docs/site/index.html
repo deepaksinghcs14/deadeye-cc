@@ -486,7 +486,7 @@ FAIL</div>
         <code>npm install express mocha</code>: 553 bytes of progress spam
         shrank to 55, errors still passed through. Three separate real
         measurements, not one number blended across different situations —
-        run <code>/deadeye-audit</code> to see your own numbers.
+        run <code>/deadeye-stats savings</code> to see your own numbers.
       </div>
     </div>
   </header>
@@ -821,7 +821,7 @@ Read .env.example
     number — if it isn't a real row in <code>decisions.jsonl</code>, it
     doesn't get printed.</p>
 
-  <div class="term"><span class="c">/deadeye-audit</span>  <span class="m">real session, this repo -- add Mark() + test, subagent delegated</span>
+  <div class="term"><span class="c">/deadeye-stats savings</span>  <span class="m">real session, this repo -- add Mark() + test, subagent delegated</span>
 
 <span class="m">17 decisions logged</span>
 
@@ -841,7 +841,7 @@ Read .env.example
   total               ~45,000 → ~19,200 bytes <span class="g">(~25,800 saved)</span>
 
 Cross-check these figures against /usage's plugin attribution.</div>
-  <p class="note" style="margin-top:16px">Real <code>/deadeye-audit</code> output, unedited: a
+  <p class="note" style="margin-top:16px">Real <code>/deadeye-stats savings</code> output, unedited: a
     real feature task (add a method, write its test, verify with
     <code>go build</code>/<code>go test</code>, hand part of it to a subagent) run
     through the installed plugin — not a scripted demo. deadeye suggested a

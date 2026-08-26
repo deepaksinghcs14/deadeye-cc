@@ -4,8 +4,8 @@
 
 Deadeye's coder mode (the lazy-senior-dev persona in
 `internal/coder/ruleset.md` / `skills/deadeye-coder/`), the companion
-skills (`deadeye-review`, `deadeye-sweep`, `deadeye-debt`,
-`deadeye-gain`, `deadeye-help`), the level-filtered injection mechanism,
+skills (`deadeye-review`, `deadeye-debt`, `deadeye-stats`,
+`deadeye-help`), the level-filtered injection mechanism,
 the mode tracker's command grammar, and the statusline badge are adapted
 from **ponytail v4.8.4** by Dietrich Gebert:
 

@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+## 0.22.0
+
+**PR review sharpened for precision (`/deadeye-pr`).** The rubric now makes
+low-noise its contract — the axis every hosted AI reviewer loses on:
+- **Proof-or-drop**: every finding must carry a `proof:` clause (the caller
+  traced, the empty grep, the auditor line, the failing test). No proof, no
+  print.
+- **Reproduction as proof** for `inject`/`authz`/`logic`/`race`: a concrete
+  input → sink, not a bare label.
+- **Deterministic-tool fusion**: run the repo's own `go vet`/`tsc`/linter/
+  touched tests and mark findings `(confirmed)` vs `likely` — a diff-only
+  bot can't run your suite; the in-agent reviewer can.
+- **Severity** (`block`/`warn`/`nit`) with a tallied verdict.
+- **Inline per-line posting** on `--post` via `gh api .../pulls/<N>/reviews`
+  (a `comments[]` array), instead of one wall-of-text comment.
+
+**Tool surface consolidated (Breaking).** The command set had grown to
+overlap; reconciled to a clearer, smaller surface:
+- The three decision-log reports merged into one **`/deadeye-stats
+  [savings|context]`** (default = the measured-impact scoreboard). Removes
+  `/deadeye-audit`, `/deadeye-gain`, and `/deadeye-context`, and fixes their
+  command/skill typing split. The `deadeye audit|gain|context` binary
+  subcommands are unchanged — the skill fronts them.
+- **`/deadeye-sweep` folded into `/deadeye-review --repo`** — one
+  over-engineering entry point, scope as an argument. Removes
+  `/deadeye-sweep`; its ranked-by-biggest-cut rubric is preserved as the
+  repo branch.
+
+Migration: `/deadeye-audit` → `/deadeye-stats savings`; `/deadeye-gain` →
+`/deadeye-stats`; `/deadeye-context` → `/deadeye-stats context`;
+`/deadeye-sweep` → `/deadeye-review --repo`. No engine, routing, or host
+behavior changed.
+
 ## 0.21.0
 
 **PR review across four lenses, on every host (`/deadeye-pr`).** A new

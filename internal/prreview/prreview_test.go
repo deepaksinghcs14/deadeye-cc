@@ -35,7 +35,7 @@ func TestMarkerPresent(t *testing.T) {
 }
 
 // TestNoTripleSingleQuote: the Gemini rendering wraps the rubric in a TOML
-// literal string ('''...'''), so the rubric must never contain ''' itself
+// literal string (”'...”'), so the rubric must never contain ”' itself
 // or that file would become invalid TOML.
 func TestNoTripleSingleQuote(t *testing.T) {
 	if strings.Contains(Body(), "'''") {

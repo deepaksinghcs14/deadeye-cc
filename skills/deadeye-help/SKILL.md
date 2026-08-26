@@ -28,15 +28,12 @@ Present this reference card, formatted cleanly:
 |---|---|
 | `/deadeye-status` | Modes, coder level, kill switches, catalog, daemon health |
 | `/deadeye-route [task]` | Dry-run the routing decision with full reasoning |
-| `/deadeye-audit` | Token-savings report from the decision log |
-| `/deadeye-gain` | Compact measured-impact scoreboard |
-| `/deadeye-context [session-id]` | Per-session ranked breakdown of context bytes by source |
+| `/deadeye-stats [savings\|context]` | Decision-log reports: measured impact (default), token savings, per-session context breakdown |
 | `/deadeye-coder [level]` | Switch/report the coder persona level |
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
-| `/deadeye-review` | Over-engineering review of the current diff |
+| `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
 | `/deadeye-guard` | Security review of the current diff -- injection, secrets, authz, crypto, deps |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses -- over-engineering, correctness, performance, security |
-| `/deadeye-sweep` | Whole-repo over-engineering audit |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
 | `/deadeye-help` | This card |
 

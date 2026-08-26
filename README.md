@@ -63,7 +63,7 @@ shrank to 55, a 90.1% reduction, with errors and warnings still passed
 through when they occur. Three separate real measurements, not one number
 averaged across different situations — see
 [the site](https://deepaksinghcs14.github.io/deadeye-cc/) for details, or
-run `/deadeye-audit` to see your own numbers. One gotcha worth knowing: an
+run `/deadeye-stats savings` to see your own numbers. One gotcha worth knowing: an
 early, naive version of this filter could report a passing test suite as
 "failed" whenever the filter pattern matched nothing. That's fixed now,
 and tested against both directions.)*
@@ -97,7 +97,7 @@ deadeye recommended a cheaper model before the subagent even started, both
 the test and build commands had their noisy output trimmed, and the turn
 ended with `deadeye: ~25,800 bytes kept out of context this session (2
 rewrites).` That 25,800 number is an estimate each rewrite rule carries
-around (the same number `/deadeye-audit` prints, and it labels it as an
+around (the same number `/deadeye-stats savings` prints, and it labels it as an
 estimate right there in the output) — not a fresh measurement of this
 specific task, whose real output happened to be pretty small. The
 `485 → 99` and `10,301 → 55` numbers above are the actual measured ones;
@@ -238,15 +238,12 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 |---|---|
 | `/deadeye-status` | Shows current modes, coder level, kill switches, model list, and whether the background daemon is running |
 | `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without actually doing anything |
-| `/deadeye-audit` | Prints a savings report straight from the decision log |
-| `/deadeye-gain` | Compact measured-impact scoreboard from the same log |
-| `/deadeye-context [session-id]` | Per-session ranked breakdown of context bytes by source — deadeye's own injections, observed arrivals, and kept-out savings |
+| `/deadeye-stats [savings\|context]` | Decision-log reports in one place: measured-impact scoreboard (default), token-savings report, and per-session context-byte breakdown |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories, plan-gate nags, and workflow hints for this session (rewrites keep working) |
-| `/deadeye-review` | Over-engineering review of the current diff |
+| `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
 | `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, vulnerable deps |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses — over-engineering, correctness, performance, security; prints locally, opt-in to post to the PR |
-| `/deadeye-sweep` | Whole-repo over-engineering audit |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye lessons [reset]` | Inspect (or clear) the recorded routing outcomes that bias future decisions |
@@ -407,9 +404,9 @@ for work not done yet.
 When the persona does deliberately cut a corner with a known ceiling, it
 leaves a `deadeye:` comment naming the ceiling and the upgrade trigger —
 `/deadeye-debt` collects those into a ledger so shortcuts get tracked
-instead of forgotten, `/deadeye-review` checks the current diff for
-over-engineering, and `/deadeye-sweep` audits the whole repo for what's
-still cuttable. An optional statusline badge shows each session's live
+instead of forgotten, and `/deadeye-review` checks the working diff for
+over-engineering — or the whole repo for what's still cuttable with
+`/deadeye-review --repo`. An optional statusline badge shows each session's live
 level; deadeye will offer (once) to set it up, and never edits your
 settings itself.
 

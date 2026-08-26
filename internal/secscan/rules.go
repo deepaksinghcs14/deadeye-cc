@@ -17,7 +17,7 @@ import (
 
 // Finding is one advisory produced by Scan.
 type Finding struct {
-	Rule   string // stable name: log reason, config disable key, /deadeye-audit grouping
+	Rule   string // stable name: log reason, config disable key, /deadeye-stats grouping
 	Advice string // one line, deadeye voice, names the fix
 	// Vuln marks a CONFIRMED vulnerability (an OSV advisory hit on a
 	// dependency being added), as opposed to a style/superseded/heuristic

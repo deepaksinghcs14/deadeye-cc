@@ -10,7 +10,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
 
-// runGain backs `deadeye gain` / the /deadeye-gain skill: a compact
+// runGain backs `deadeye gain` / the /deadeye-stats skill: a compact
 // scoreboard of what deadeye has actually done on THIS machine, from the
 // decision log. Real `measured` bytes and per-rule estimates are shown
 // under different labels -- "measured, not estimated" means never blending
@@ -104,8 +104,8 @@ func renderGain(logPath string) {
 	fmt.Println(cDim("  No per-repo savings % is shown: the unbuilt version of your code was"))
 	fmt.Println(cDim("  never written, so there is no baseline to subtract from."))
 	fmt.Println("  This repo:  " + cValue("/deadeye-debt") + cDim("  (shortcuts you deferred)"))
-	fmt.Println("              " + cValue("/deadeye-sweep") + cDim(" (what's still cuttable)"))
-	fmt.Println("  Full detail: " + cValue("/deadeye-audit"))
+	fmt.Println("              " + cValue("/deadeye-review --repo") + cDim(" (what's still cuttable)"))
+	fmt.Println("  Full detail: " + cValue("/deadeye-stats savings"))
 }
 
 func fmtBytes(n int) string {

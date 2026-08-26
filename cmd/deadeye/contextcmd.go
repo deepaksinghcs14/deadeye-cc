@@ -8,7 +8,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
 
-// runContext backs `deadeye context` / the /deadeye-context command: a
+// runContext backs `deadeye context` / the /deadeye-stats command: a
 // per-session ranked breakdown of context bytes by source, from the
 // decision log. You can't trim what you can't see -- this is the
 // diagnostic behind every context-hygiene rule.

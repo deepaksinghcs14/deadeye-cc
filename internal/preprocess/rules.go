@@ -17,12 +17,12 @@ import (
 // caller surfaces Note via additionalContext instead of updatedInput.
 type Rule struct {
 	Name       string
-	Note       string // human-readable savings/behavior note, shown in the decision log and /deadeye-audit
+	Note       string // human-readable savings/behavior note, shown in the decision log and /deadeye-stats
 	Advisory   bool
 	TryRewrite func(cwd, cmd string) (rewritten string, matched bool)
 
 	// EstBeforeBytes/EstAfterBytes are rough, static "typical case"
-	// estimates for /deadeye-audit -- not measurements of this specific
+	// estimates for /deadeye-stats -- not measurements of this specific
 	// invocation (PreToolUse runs before the command executes, so the real
 	// output size isn't known yet). Real bytes_before/after can replace
 	// these once Phase 1's PostToolUse tool_response is wired up (see
