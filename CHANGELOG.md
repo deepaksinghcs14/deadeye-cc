@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## 0.21.0
+
+**PR review across four lenses, on every host (`/deadeye-pr`).** A new
+on-demand review that runs over a GitHub PR's diff through four lenses —
+over-engineering, correctness, performance, security — and prints tagged,
+one-line-per-finding results locally; pass `--post` to publish them back to
+the PR as a single review comment (with an explicit confirm, and secret
+values redacted). It reuses the `/deadeye-review` and `/deadeye-guard` tag
+rubrics verbatim and adds correctness + performance, so it stays recognizably
+deadeye while going broader than either (this deliberately overlaps the
+host's own deep reviewer).
+
+One canonical rubric (`internal/prreview/ruleset.md`) is the single source of
+truth — mirroring the coder pattern. Claude Code ships it as the `deadeye-pr`
+skill (kept byte-identical by a sync canary). `deadeye init
+codex|gemini|cursor|windsurf` renders the **same** rubric into each host's
+native on-demand surface (a Codex prompt, a Gemini TOML command, a Cursor
+skill, a Windsurf workflow), swapping only the PR-argument token.
+
+The four non-Claude renderings are **experimental**: those command surfaces
+are documented but unverified on a live install, so confirm they fire before
+relying on them. deadeye writes only its own command file (guarded by a
+never-clobber marker) and never edits the host's own config; the PR command
+is project-local for gemini/cursor/windsurf and lands in `~/.codex/prompts`
+for codex. `deadeye uninstall <host>` removes it. No Claude-path behavior
+changed.
+
 ## 0.20.0
 
 **Coder persona — sharpened for first-shot results.** Four edits to the

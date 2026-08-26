@@ -202,6 +202,19 @@ The file is level-filtered to your `coder.default_level` and tagged so
 never touches a rules file you authored. For the full engine, use Claude
 Code or Codex.
 
+### PR review on every host (experimental)
+
+`deadeye init codex|gemini|cursor|windsurf` also installs the `/deadeye-pr`
+on-demand review command in that host's native format — a Codex prompt, a
+Gemini TOML command, a Cursor skill, a Windsurf workflow — carrying the same
+four-lens rubric (over-engineering, correctness, performance, security) that
+Claude Code ships as the `deadeye-pr` skill. It reviews a GitHub PR's diff
+and prints findings locally; pass `--post` to publish them back to the PR.
+Experimental: these command surfaces are documented but unverified on a live
+install, so confirm it fires before relying on it. deadeye writes only its
+own command file and never edits the host's config; `deadeye uninstall
+<host>` removes it.
+
 ### From source
 
 ```bash
@@ -232,6 +245,7 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 | `/deadeye-mute [off]` | Mute advisories, plan-gate nags, and workflow hints for this session (rewrites keep working) |
 | `/deadeye-review` | Over-engineering review of the current diff |
 | `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, vulnerable deps |
+| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses — over-engineering, correctness, performance, security; prints locally, opt-in to post to the PR |
 | `/deadeye-sweep` | Whole-repo over-engineering audit |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |

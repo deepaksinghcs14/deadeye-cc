@@ -26,6 +26,7 @@ func TestGeminiScriptMatches(t *testing.T) {
 // --host gemini, and uninstall removes it all.
 func TestInitAndUninstallGemini(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Chdir(t.TempDir()) // isolate the project-local /deadeye-pr command write
 
 	runInitGemini([]string{"--yes"})
 
@@ -83,6 +84,7 @@ func TestInitAndUninstallGemini(t *testing.T) {
 // reference the adapter script by its real path (Gemini runs it directly).
 func TestGeminiHooksCommandUsesAbsoluteScript(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Chdir(t.TempDir()) // isolate the project-local /deadeye-pr command write
 	runInitGemini([]string{"--yes"})
 	b, _ := os.ReadFile(geminiHooksPath())
 	if !strings.Contains(string(b), filepath.Join(geminiScriptPath())) {

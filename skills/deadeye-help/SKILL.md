@@ -35,6 +35,7 @@ Present this reference card, formatted cleanly:
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
 | `/deadeye-review` | Over-engineering review of the current diff |
 | `/deadeye-guard` | Security review of the current diff -- injection, secrets, authz, crypto, deps |
+| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses -- over-engineering, correctness, performance, security |
 | `/deadeye-sweep` | Whole-repo over-engineering audit |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
 | `/deadeye-help` | This card |

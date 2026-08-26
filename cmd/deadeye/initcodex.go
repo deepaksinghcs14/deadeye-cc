@@ -179,6 +179,7 @@ func runInit(args []string) {
 	}
 	fmt.Println(cGood("Registered") + " deadeye for events: " + strings.Join(added, ", "))
 	fmt.Println(cDim("Codex will ask you to trust these hooks on first run -- that prompt is Codex's, not deadeye's."))
+	installPRCommand("codex")
 	fmt.Println(cDim("Remove any time with: deadeye uninstall codex"))
 }
 
@@ -275,6 +276,7 @@ func runUninstallCodex() {
 		os.Exit(1)
 	}
 	os.Remove(codexScriptPath())
+	removePRCommand("codex")
 	fmt.Printf("Removed %d deadeye hook entr%s from %s; adapter script deleted.\n", removed, map[bool]string{true: "y", false: "ies"}[removed == 1], hooksPath)
 }
 
