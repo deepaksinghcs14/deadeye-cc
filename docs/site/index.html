@@ -330,42 +330,55 @@ footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
   .tick{animation:fade .5s ease both}
   @keyframes fade{from{opacity:0;transform:translateX(-6px)}to{opacity:.42}}
 }
+
+/* redesign: USP grid (data-forward) */
+.usp{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-top:8px}
+.usp-card{background:var(--slate);padding:26px 24px}
+.usp-stat{display:block;font-family:"Saira Condensed",sans-serif;font-weight:700;
+  font-size:clamp(30px,3.4vw,42px);line-height:1;color:var(--brass);letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums}
+.usp-card b{display:block;font-family:"IBM Plex Mono",monospace;font-weight:600;
+  font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--bone);
+  margin:12px 0 10px}
+.usp-card p{color:var(--mute);font-size:14px;margin:0;line-height:1.6}
+@media(max-width:820px){.usp{grid-template-columns:1fr}}
+@media(min-width:821px) and (max-width:1000px){.usp{grid-template-columns:repeat(2,1fr)}}
+/* redesign: deep-dive expanders under the comparison */
+.deep-set details{border-bottom:1px solid var(--line)}
+.deep-set summary{font-size:22px}
+.deep-body{margin-top:22px}
+.deep-body .two{margin-top:0}
+.deep-body .two + .two{margin-top:28px}
+.deep-body .lede{margin-bottom:24px}
 </style>
 </head>
 <body>
 
 <div class="wrap">
   <nav class="nav">
-    <span class="brand">
-      <img class="brand-mark" src="logo-dark.svg" alt="" width="18" height="22">
-      deadeye
-    </span>
+    <span class="brand"><img class="brand-mark" src="logo-dark.svg" alt="" width="18" height="22"> deadeye</span>
     <div class="nav-links">
+      <a href="#why">Why</a>
       <a href="#how">How it decides</a>
-      <a href="#coder">Coder mode</a>
-      <a href="#security">Security</a>
-      <a href="#codemap">Codebase map</a>
+      <a href="#manages">What it manages</a>
+      <a href="#layers">What it adds</a>
       <a href="#measured">Measured</a>
       <a href="#install">Install</a>
       <a href="https://github.com/deepaksinghcs14/deadeye-cc">GitHub</a>
     </div>
   </nav>
-
-  <section class="hero-section">
+<section class="hero-section">
   <header class="hero">
     <div class="hero-top">
       <div class="hero-copy">
         <h1>deadeye<span class="dot">.</span></h1>
         <p class="tagline">He doesn't waste shots.</p>
-        <p class="sub">A plugin for your coding agent that picks the right
-          model, effort level, and amount of context for the task in front
-          of it — before the tokens are spent, not after. Built for
-          Claude&nbsp;Code; runs on OpenAI's Codex&nbsp;CLI too
-          (experimental).</p>
+        <p class="sub">A plugin for your coding agent that fits the model, effort level, and context to each task — before the tokens are spent, not after. Built for Claude&nbsp;Code; also Codex, Gemini, Cursor &amp; Windsurf (experimental).</p>
 
         <div class="host-chips">
           <span class="chip claude"><svg width="13" height="13" aria-hidden="true" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Claude</title><path d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></svg><span><span class="k">built for</span> Claude Code</span></span>
-          <span class="chip"><svg width="13" height="13" aria-hidden="true" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>OpenAI</title><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg><span><span class="k">works with</span> Codex CLI <span class="k">· experimental</span></span></span>
+          <span class="chip"><svg width="13" height="13" aria-hidden="true" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>OpenAI</title><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg><span><span class="k">works with</span> Codex CLI <span class="k">· experimental</span></span></span><span class="chip"><svg width="13" height="13" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Gemini CLI</title><path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/></svg><span><span class="k">works with</span> Gemini CLI</span></span><span class="chip"><svg width="13" height="13" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Cursor</title><path d="M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23"/></svg><span><span class="k">coder persona</span> Cursor</span></span><span class="chip"><svg width="13" height="13" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Windsurf</title><path d="M23.55 5.067c-1.2038-.002-2.1806.973-2.1806 2.1765v4.8676c0 .972-.8035 1.7594-1.7597 1.7594-.568 0-1.1352-.286-1.4718-.7659l-4.9713-7.1003c-.4125-.5896-1.0837-.941-1.8103-.941-1.1334 0-2.1533.9635-2.1533 2.153v4.8957c0 .972-.7969 1.7594-1.7596 1.7594-.57 0-1.1363-.286-1.4728-.7658L.4076 5.1598C.2822 4.9798 0 5.0688 0 5.2882v4.2452c0 .2147.0656.4228.1884.599l5.4748 7.8183c.3234.462.8006.8052 1.3509.9298 1.3771.313 2.6446-.747 2.6446-2.0977v-4.893c0-.972.7875-1.7593 1.7596-1.7593h.003a1.798 1.798 0 0 1 1.4718.7658l4.9723 7.0994c.4135.5905 1.05.941 1.8093.941 1.1587 0 2.1515-.9645 2.1515-2.153v-4.8948c0-.972.7875-1.7594 1.7596-1.7594h.194a.22.22 0 0 0 .2204-.2202v-4.622a.22.22 0 0 0-.2203-.2203Z"/></svg><span><span class="k">coder persona</span> Windsurf</span></span>
         </div>
 
         <div class="install">
@@ -494,6 +507,12 @@ FAIL</div>
 </div>
 
 <div class="wrap">
+<section id="why" class="reveal">
+  <p class="eyebrow">Why deadeye</p>
+  <h2>What sets it apart</h2>
+  <p class="lede">Most tools optimize after the fact, guess at the savings, or ship your code to a server. deadeye does none of that.</p>
+  <div class="usp"><div class="usp-card"><span class="usp-stat">79.6–99.5%</span><b>smaller command output</b><p>Verbose test/build/install output is trimmed before it enters context — measured on real runs, not averaged: 485 bytes → 99, a 202-line passing suite → 55.</p></div><div class="usp-card"><span class="usp-stat">86.0%</span><b>lighter subagents</b><p>The coder persona a subagent inherits dropped from 7,666 to 1,073 bytes per spawn — measured, on every spawn.</p></div><div class="usp-card"><span class="usp-stat">100%</span><b>measured, never estimated</b><p>Every figure is a real row in <code>decisions.jsonl</code> — and 95% of events (the quiet no-ops) aren't logged at all. No invented savings for code never written.</p></div><div class="usp-card"><span class="usp-stat">0</span><b>bytes leave your machine</b><p>No phone-home, no API keys, no telemetry. All state lives in one file under <code>~/.deadeye/</code>.</p></div><div class="usp-card"><span class="usp-stat">4 signals</span><b>decided before the spend</b><p>Model, effort, and context are fit <em>ahead</em> of the call from four cheap signals — no extra LLM call, no keyword-matching, reasoning always visible.</p></div><div class="usp-card"><span class="usp-stat">Fail-open</span><b>never blocks, never overrides</b><p>If anything inside it errors, your call passes through untouched. It advises on your main session — it never seizes your settings or your model.</p></div></div>
+</section>
 <section id="how" class="reveal">
   <p class="eyebrow">How it decides</p>
   <h2>Reads the task, not keywords</h2>
@@ -532,9 +551,28 @@ FAIL</div>
         <code>enforce</code> — by default, deadeye only advises.</p>
     </div>
   </div>
-</section>
 
-<section class="reveal">
+  
+  <h3 style="margin-top:52px">When it doesn't know, it goes big</h3>
+  <div class="two">
+    <div>
+      <p class="lede" style="margin-bottom:0">Missing information never buys a
+        cheaper model. If deadeye can't tell how big or risky a change really
+        is, it assumes the worst case. Picking something cheaper always
+        needs real supporting evidence above a minimum confidence level;
+        picking something more capable never needs a reason.</p>
+    </div>
+    <div>
+      <ul class="rules">
+        <li><b>Wrong-but-expensive is recoverable</b><span>Worst case, it costs you some money. Wrong-but-cheap costs you a bad diff, plus the time spent finding it.</span></li>
+        <li><b>Never touches your settings</b><span>deadeye keeps its own state in one file. Your <code>settings.json</code> stays yours, untouched.</span></li>
+        <li><b>Never blocks your work</b><span>If anything inside deadeye errors, that call just passes through untouched. A tool like this should never be the reason your work stops.</span></li>
+      </ul>
+    </div>
+  </div>
+
+</section>
+<section id="manages" class="reveal">
   <p class="eyebrow">Range card</p>
   <h2>Eight things it manages</h2>
   <p class="lede">Each one works on its own, has its own on/off setting, and
@@ -557,11 +595,30 @@ FAIL</div>
     </table>
   </div>
 </section>
-
-<section id="coder" class="reveal">
-  <p class="eyebrow">Coder mode</p>
-  <h2>A marksman's coding discipline</h2>
-  <p class="lede">Beyond routing and trimming, deadeye can inject a coding
+<section id="layers" class="reveal">
+  <p class="eyebrow">Fits alongside the built-ins</p>
+  <h2>Covers what Claude Code doesn't</h2>
+  <p class="lede">Claude Code ships its own reviews, plan mode, and
+    size-based output truncation. deadeye doesn't compete — it layers
+    under and around them. The three deepest — coder mode, security, and the codebase map — expand below.</p>
+  <div class="card">
+    <div class="card-top"><span>Built-in</span><span>what deadeye adds</span></div>
+    <table>
+      <tbody>
+        <tr><td class="axis">/code-review, /simplify</td><td class="desc">deadeye-review is the lean lens only: verified findings, net-lines accounting, cuts that flow into the debt ledger — the working diff by default, or the whole repo with <code>--repo</code>. Instant local pass; escalate to ultra for pre-merge depth.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
+        <tr><td class="axis">/security-review</td><td class="desc">deadeye-guard is the diff-scoped lean pass: live regex/manifest advisories while you type, then a verify-before-report deep check on demand across seven exposure classes — injection, secrets, authz, crypto, exposure, vulnerable deps, DoS — with native-auditor (govulncheck / OSV) coverage. Escalate to /security-review for the full audit.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
+        <tr><td class="axis">PR review</td><td class="desc">deadeye-pr runs a whole PR through four lenses — over-engineering, correctness, performance, security — as terse tagged findings, each carrying its proof and confirmed against the repo's own tools and tests. Severity-ranked; prints locally, opt-in <code>--post</code> for inline per-line comments. Huge PRs fan out to parallel subagents so nothing is truncated.</td><td class="mode"><span class="pill soft">four lenses</span></td></tr>
+        <tr><td class="axis">Plan mode</td><td class="desc">Native plan mode exists but nothing triggers it — deadeye's gate notices a risky multi-file edit coming and nudges into it.</td><td class="mode"><span class="pill soft">triggers</span></td></tr>
+        <tr><td class="axis">Output truncation</td><td class="desc">Native truncation is size-based at 30K chars. deadeye rewrites commands before they run so only failure context enters at all — and stacks under the native cap.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
+        <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
+        <tr><td class="axis">Coding persona</td><td class="desc">No native equivalent — coder mode is deadeye's own ground.</td><td class="mode"><span class="pill">unique</span></td></tr>
+        <tr><td class="axis">Other hosts</td><td class="desc">Experimental: the same daemon serves OpenAI's Codex through its hooks — output trimming, coder persona, plan gate, decision log — via <code>deadeye init codex</code>. Gemini CLI gets the coder persona and session guidance now (<code>init gemini</code>); its tool-level engine waits on live schema verification. Cursor and Windsurf have no hook contract, so they get the coder persona alone as a rules file (<code>init cursor</code> / <code>init windsurf</code>). And <code>/deadeye-pr</code> — the four-lens PR review — installs on all four via <code>init</code> in each host's native command format, experimental until live-verified.</td><td class="mode"><span class="pill soft">five hosts</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+<div class="faq deep-set" style="margin-top:40px">
+<details class="deep"><summary>A marksman's coding discipline</summary>
+<div class="deep-body"><p class="lede">Beyond routing and trimming, deadeye can inject a coding
     persona: a lazy-senior-dev discipline that pushes every change toward
     the leanest solution that actually works. Injected at every session
     start — it survives compaction — and travels into subagents too.</p>
@@ -683,61 +740,10 @@ DEADEYE CODER ACTIVE — level: sniper
         audit</code>/<code>pip-audit</code>/<code>cargo audit</code> when
         installed.</p>
     </div>
-  </div>
-</section>
-
-<section id="codemap" class="reveal">
-  <p class="eyebrow">Codebase map</p>
-  <h2>A fresh session shouldn't start from zero</h2>
-  <p class="lede">A fresh session normally burns 15–40 tool calls
-    rediscovering the project — directory layout, what each package does,
-    which files matter. deadeye persists that per project under
-    <code>~/.deadeye/map/</code> and injects it once, at the first prompt.</p>
-
-  <div class="two">
-    <div>
-      <div class="card">
-        <div class="card-top"><span>What persists</span><span>~/.deadeye/map/</span></div>
-        <table>
-          <tbody>
-            <tr><td class="axis">Skeleton</td><td class="desc">Directory rows with file counts and, for Go repos, each package's one-line doc-comment purpose. Built from <code>git ls-files</code>, regenerated only when the tracked-file list changes.</td><td class="mode"><span class="pill soft">map.md</span></td></tr>
-            <tr><td class="axis">Touch counter</td><td class="desc">A <code>path → sessions</code> counter merged at every session end, ranked by relevance rather than recency — a file touched in 14 of 20 sessions stays on top.</td><td class="mode"><span class="pill soft">touched.json</span></td></tr>
-            <tr><td class="axis">Exploration notes</td><td class="desc">The <code>explore</code> skill caches its summary via <code>deadeye notes-append</code> so the next session inherits findings instead of re-deriving them. Newest 5 kept.</td><td class="mode"><span class="pill soft">notes.md</span></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="note" style="margin-top:14px">First-ever session in a
-        project gets nothing — the map is written at session end, so value
-        starts at session #2. Resumed or compacted sessions are skipped;
-        their context already carries the exploration.</p>
-    </div>
-    <div>
-      <div class="term"><span class="m">injected once, at session start:</span>
-
-<span class="c"># Codebase map: deadeye-cc</span>
-scope: 145 git-tracked files
-
-cmd/deadeye/            37 files  .go
-internal/codemap/        6 files  .go   the structural
-                                         half of the map
-internal/coder/          4 files  .go   the lean-first
-                                         persona
-
-<span class="m">Frequently touched files:</span>
-  README.md                     4 sessions
-  internal/codemap/codemap.go   3 sessions</div>
-      <p class="note" style="margin-top:14px">Lives under
-        <code>mode.codemap</code> (<code>off</code>/<code>on</code>,
-        default <code>on</code>) — the same <code>DEADEYE=off</code> kill
-        switch turns it off along with everything else.</p>
-    </div>
-  </div>
-</section>
-
-<section id="security" class="reveal">
-  <p class="eyebrow">Check your backstop</p>
-  <h2>A prompt injection can't answer a permission prompt</h2>
-  <p class="lede">The real attack on a coding agent isn't bad code you write
+  </div></div>
+</details>
+<details class="deep"><summary>A prompt injection can't answer a permission prompt</summary>
+<div class="deep-body"><p class="lede">The real attack on a coding agent isn't bad code you write
     — it's malicious content in a repo or a web page telling the agent to
     read your credentials and ship them out. deadeye already sits at the
     exact choke points, so it watches them: the moment that matters
@@ -786,32 +792,55 @@ Read .env.example
         attack — it isn't a sandbox. <code>/deadeye-guard</code> is the
         deep, diff-scoped pass with native auditors.</p>
     </div>
-  </div>
-</section>
+  </div></div>
+</details>
+<details class="deep"><summary>A fresh session shouldn't start from zero</summary>
+<div class="deep-body"><p class="lede">A fresh session normally burns 15–40 tool calls
+    rediscovering the project — directory layout, what each package does,
+    which files matter. deadeye persists that per project under
+    <code>~/.deadeye/map/</code> and injects it once, at the first prompt.</p>
 
-<section class="reveal">
-  <p class="eyebrow">Fits alongside the built-ins</p>
-  <h2>Covers what Claude Code doesn't</h2>
-  <p class="lede">Claude Code ships its own reviews, plan mode, and
-    size-based output truncation. deadeye doesn't compete — it layers
-    under and around them.</p>
-  <div class="card">
-    <div class="card-top"><span>Built-in</span><span>what deadeye adds</span></div>
-    <table>
-      <tbody>
-        <tr><td class="axis">/code-review, /simplify</td><td class="desc">deadeye-review is the lean lens only: verified findings, net-lines accounting, cuts that flow into the debt ledger — the working diff by default, or the whole repo with <code>--repo</code>. Instant local pass; escalate to ultra for pre-merge depth.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
-        <tr><td class="axis">/security-review</td><td class="desc">deadeye-guard is the diff-scoped lean pass: live regex/manifest advisories while you type, then a verify-before-report deep check on demand across seven exposure classes — injection, secrets, authz, crypto, exposure, vulnerable deps, DoS — with native-auditor (govulncheck / OSV) coverage. Escalate to /security-review for the full audit.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
-        <tr><td class="axis">PR review</td><td class="desc">deadeye-pr runs a whole PR through four lenses — over-engineering, correctness, performance, security — as terse tagged findings, each carrying its proof and confirmed against the repo's own tools and tests. Severity-ranked; prints locally, opt-in <code>--post</code> for inline per-line comments. Huge PRs fan out to parallel subagents so nothing is truncated.</td><td class="mode"><span class="pill soft">four lenses</span></td></tr>
-        <tr><td class="axis">Plan mode</td><td class="desc">Native plan mode exists but nothing triggers it — deadeye's gate notices a risky multi-file edit coming and nudges into it.</td><td class="mode"><span class="pill soft">triggers</span></td></tr>
-        <tr><td class="axis">Output truncation</td><td class="desc">Native truncation is size-based at 30K chars. deadeye rewrites commands before they run so only failure context enters at all — and stacks under the native cap.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
-        <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
-        <tr><td class="axis">Coding persona</td><td class="desc">No native equivalent — coder mode is deadeye's own ground.</td><td class="mode"><span class="pill">unique</span></td></tr>
-        <tr><td class="axis">Other hosts</td><td class="desc">Experimental: the same daemon serves OpenAI's Codex through its hooks — output trimming, coder persona, plan gate, decision log — via <code>deadeye init codex</code>. Gemini CLI gets the coder persona and session guidance now (<code>init gemini</code>); its tool-level engine waits on live schema verification. Cursor and Windsurf have no hook contract, so they get the coder persona alone as a rules file (<code>init cursor</code> / <code>init windsurf</code>). And <code>/deadeye-pr</code> — the four-lens PR review — installs on all four via <code>init</code> in each host's native command format, experimental until live-verified.</td><td class="mode"><span class="pill soft">five hosts</span></td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
+  <div class="two">
+    <div>
+      <div class="card">
+        <div class="card-top"><span>What persists</span><span>~/.deadeye/map/</span></div>
+        <table>
+          <tbody>
+            <tr><td class="axis">Skeleton</td><td class="desc">Directory rows with file counts and, for Go repos, each package's one-line doc-comment purpose. Built from <code>git ls-files</code>, regenerated only when the tracked-file list changes.</td><td class="mode"><span class="pill soft">map.md</span></td></tr>
+            <tr><td class="axis">Touch counter</td><td class="desc">A <code>path → sessions</code> counter merged at every session end, ranked by relevance rather than recency — a file touched in 14 of 20 sessions stays on top.</td><td class="mode"><span class="pill soft">touched.json</span></td></tr>
+            <tr><td class="axis">Exploration notes</td><td class="desc">The <code>explore</code> skill caches its summary via <code>deadeye notes-append</code> so the next session inherits findings instead of re-deriving them. Newest 5 kept.</td><td class="mode"><span class="pill soft">notes.md</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:14px">First-ever session in a
+        project gets nothing — the map is written at session end, so value
+        starts at session #2. Resumed or compacted sessions are skipped;
+        their context already carries the exploration.</p>
+    </div>
+    <div>
+      <div class="term"><span class="m">injected once, at session start:</span>
 
+<span class="c"># Codebase map: deadeye-cc</span>
+scope: 145 git-tracked files
+
+cmd/deadeye/            37 files  .go
+internal/codemap/        6 files  .go   the structural
+                                         half of the map
+internal/coder/          4 files  .go   the lean-first
+                                         persona
+
+<span class="m">Frequently touched files:</span>
+  README.md                     4 sessions
+  internal/codemap/codemap.go   3 sessions</div>
+      <p class="note" style="margin-top:14px">Lives under
+        <code>mode.codemap</code> (<code>off</code>/<code>on</code>,
+        default <code>on</code>) — the same <code>DEADEYE=off</code> kill
+        switch turns it off along with everything else.</p>
+    </div>
+  </div></div>
+</details>
+</div>
+</section>
 <section id="measured" class="reveal">
   <p class="eyebrow">Measured, not estimated</p>
   <h2>Every number here comes from a logged decision</h2>
@@ -841,47 +870,8 @@ Read .env.example
   total               ~45,000 → ~19,200 bytes <span class="g">(~25,800 saved)</span>
 
 Cross-check these figures against /usage's plugin attribution.</div>
-  <p class="note" style="margin-top:16px">Real <code>/deadeye-stats savings</code> output, unedited: a
-    real feature task (add a method, write its test, verify with
-    <code>go build</code>/<code>go test</code>, hand part of it to a subagent) run
-    through the installed plugin — not a scripted demo. deadeye suggested a
-    cheaper model before the subagent started, both commands had their
-    output trimmed, and the turn ended with a savings summary. The 25,800
-    figure is each rewrite rule's own estimate (the same number this
-    command always prints, and it labels it as an estimate right there in
-    the output). The <code>485 → 99</code> and <code>10,301 → 55</code>
-    numbers above are the real measured ones; this log is here to show
-    model-picking, output-trimming, and the end-of-turn summary all firing
-    together on one real task. Yours will show whatever your own log
-    contains — and since v0.7.0, quiet <code>noop</code> events (95% of
-    all rows on one real machine: 812 of 856) aren't logged at all, so
-    your log holds only the rows where deadeye actually did something.
-    Newest measured win, same log: the coder persona a subagent inherits
-    went from 7,666 bytes per spawn to 1,073 — an 86.0% cut, logged as
-    <code>coder-subagent bytes_after</code> on every spawn.</p>
+  <p class="note" style="margin-top:16px">Unedited output from a real feature task run through the installed plugin — a cheaper model suggested before a subagent started, both commands trimmed, an end-of-turn savings summary. The 25,800 figure is each rule’s own labelled estimate; the <code>485 → 99</code> and <code>10,301 → 55</code> numbers up top are the measured ones. Yours shows whatever your log holds — and quiet <code>noop</code> rows (95% of events) aren’t logged at all.</p>
 </section>
-
-<section class="reveal">
-  <p class="eyebrow">The rule behind everything</p>
-  <h2>When it doesn't know, it goes big</h2>
-  <div class="two">
-    <div>
-      <p class="lede" style="margin-bottom:0">Missing information never buys a
-        cheaper model. If deadeye can't tell how big or risky a change really
-        is, it assumes the worst case. Picking something cheaper always
-        needs real supporting evidence above a minimum confidence level;
-        picking something more capable never needs a reason.</p>
-    </div>
-    <div>
-      <ul class="rules">
-        <li><b>Wrong-but-expensive is recoverable</b><span>Worst case, it costs you some money. Wrong-but-cheap costs you a bad diff, plus the time spent finding it.</span></li>
-        <li><b>Never touches your settings</b><span>deadeye keeps its own state in one file. Your <code>settings.json</code> stays yours, untouched.</span></li>
-        <li><b>Never blocks your work</b><span>If anything inside deadeye errors, that call just passes through untouched. A tool like this should never be the reason your work stops.</span></li>
-      </ul>
-    </div>
-  </div>
-</section>
-
 <section id="install" class="reveal">
   <p class="eyebrow">Install</p>
   <h2>Two commands</h2>
