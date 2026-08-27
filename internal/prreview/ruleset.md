@@ -105,6 +105,7 @@ second impl in a test file makes it a false positive. Footer:
 - `leak:` — a resource opened and never released: a file/conn/rows with no `defer Close()`, a leaked goroutine, an un-cancelled context.
 - `break:` — a removed/renamed export, or a changed public signature/behavior, that breaks existing consumers — even when the diff compiles.
 - `untested:` — non-trivial changed logic (branch, loop, parser, money/security path) with no test exercising it. Name the regression that would slip through.
+- `a11y:` — (UI diffs only) a control that shuts some users out: an image with no alt text, an input with no label, a click handler on a non-interactive element with no keyboard path, a stripped focus outline, or color as the only signal.
 
 Rank by likelihood of actually firing. Footer: `<N> correctness risks.` or
 `Reads correct.`

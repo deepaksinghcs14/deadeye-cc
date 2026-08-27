@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.24.1
+
+**Accessibility lens (`/deadeye-pr`).** New `a11y:` tag in the correctness
+lens, gated to UI diffs so it stays silent on backend/CLI code: flags an
+image with no alt text, an input with no label, a click handler on a
+non-interactive element with no keyboard path, a stripped focus outline, or
+color as the only signal. Closes the last coder-vs-reviewer gap — coder mode
+already listed "accessibility basics" as a don't-cut; now a reviewer enforces
+it.
+
 ## 0.24.0
 
 **Three new defect classes the reviewer now catches, and a concurrency rule
