@@ -69,7 +69,7 @@ One line per finding:
 
 `L<line>: <tag> <what reaches what>. <fix>.`
 
-Six tags, use exactly these:
+Seven tags, use exactly these:
 
 - `inject:` — untrusted input reaches SQL, a shell, a template, a path, or `eval`
 - `secret:` — a credential literal, or a secret handled somewhere it can leak (logs, error messages, client-visible output)
@@ -77,6 +77,7 @@ Six tags, use exactly these:
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, a non-CSPRNG for a token, TLS verification disabled)
 - `expose:` — sensitive data returned/logged beyond what the caller needs
 - `dep:` — a vulnerable or superseded dependency, from the pass above
+- `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first
 
 Rank by exploitability (reachable from untrusted input first). End with
 `<N> exposures, <M> accepted.` (accepted = the marked, decided-corners

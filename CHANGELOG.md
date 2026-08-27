@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.24.2
+
+**Resource-exhaustion / DoS lens.** New `dos:` tag in `/deadeye-guard` and
+`/deadeye-pr`'s security lens: untrusted input sizing an allocation, an
+unbounded loop, or unbounded recursion → memory/CPU exhaustion. Closes the
+last real hole in the security backstop (guard covered injection, secrets,
+authz, crypto, exposure, and deps, but not resource exhaustion). Kept off the
+always-on coder injection deliberately — it's an on-demand review concern.
+
 ## 0.24.1
 
 **Accessibility lens (`/deadeye-pr`).** New `a11y:` tag in the correctness

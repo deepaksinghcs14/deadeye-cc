@@ -129,6 +129,7 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS verification off)
 - `expose:` — sensitive data returned or logged beyond what the caller needs
 - `dep:` — a vulnerable or superseded dependency
+- `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first.
 
 If a dependency manifest changed (`go.mod`, `package.json`,
 `requirements.txt`/`pyproject.toml`, `Cargo.toml`, `pom.xml`/`build.gradle`),
