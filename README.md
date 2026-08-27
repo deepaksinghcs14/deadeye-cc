@@ -32,6 +32,8 @@ get the job done right. Left on its own, Claude Code tends to spend more
 tokens than a task actually needs. deadeye catches that before the tokens
 are gone. **[Site →](https://deepaksinghcs14.github.io/deadeye-cc/)**
 
+> 🔜 **Something's coming.** [Join the waitlist →](https://deepaksinghcs14.github.io/deadeye-cc/soon.html)
+
 ## Before / after
 
 <p align="center">
