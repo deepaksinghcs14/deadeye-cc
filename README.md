@@ -12,118 +12,64 @@
 </p>
 
 <p align="center">
-  <a href="https://claude.com/claude-code"><img src="https://img.shields.io/badge/built_for-Claude_Code-D97757?style=flat-square&logo=claude&logoColor=white" alt="Built for Claude Code"></a>
-  <a href="https://developers.openai.com/codex/cli"><img src="https://img.shields.io/badge/works_with-Codex_CLI-111111?style=flat-square&logo=data:image/svg%2Bxml;base64,PHN2ZyBmaWxsPSJ3aGl0ZSIgcm9sZT0iaW1nIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI%2BPHRpdGxlPk9wZW5BSTwvdGl0bGU%2BPHBhdGggZD0iTTIyLjI4MTkgOS44MjExYTUuOTg0NyA1Ljk4NDcgMCAwIDAtLjUxNTctNC45MTA4IDYuMDQ2MiA2LjA0NjIgMCAwIDAtNi41MDk4LTIuOUE2LjA2NTEgNi4wNjUxIDAgMCAwIDQuOTgwNyA0LjE4MThhNS45ODQ3IDUuOTg0NyAwIDAgMC0zLjk5NzcgMi45IDYuMDQ2MiA2LjA0NjIgMCAwIDAgLjc0MjcgNy4wOTY2IDUuOTggNS45OCAwIDAgMCAuNTExIDQuOTEwNyA2LjA1MSA2LjA1MSAwIDAgMCA2LjUxNDYgMi45MDAxQTUuOTg0NyA1Ljk4NDcgMCAwIDAgMTMuMjU5OSAyNGE2LjA1NTcgNi4wNTU3IDAgMCAwIDUuNzcxOC00LjIwNTggNS45ODk0IDUuOTg5NCAwIDAgMCAzLjk5NzctMi45MDAxIDYuMDU1NyA2LjA1NTcgMCAwIDAtLjc0NzUtNy4wNzI5em0tOS4wMjIgMTIuNjA4MWE0LjQ3NTUgNC40NzU1IDAgMCAxLTIuODc2NC0xLjA0MDhsLjE0MTktLjA4MDQgNC43NzgzLTIuNzU4MmEuNzk0OC43OTQ4IDAgMCAwIC4zOTI3LS42ODEzdi02LjczNjlsMi4wMiAxLjE2ODZhLjA3MS4wNzEgMCAwIDEgLjAzOC4wNTJ2NS41ODI2YTQuNTA0IDQuNTA0IDAgMCAxLTQuNDk0NSA0LjQ5NDR6bS05LjY2MDctNC4xMjU0YTQuNDcwOCA0LjQ3MDggMCAwIDEtLjUzNDYtMy4wMTM3bC4xNDIuMDg1MiA0Ljc4MyAyLjc1ODJhLjc3MTIuNzcxMiAwIDAgMCAuNzgwNiAwbDUuODQyOC0zLjM2ODV2Mi4zMzI0YS4wODA0LjA4MDQgMCAwIDEtLjAzMzIuMDYxNUw5Ljc0IDE5Ljk1MDJhNC40OTkyIDQuNDk5MiAwIDAgMS02LjE0MDgtMS42NDY0ek0yLjM0MDggNy44OTU2YTQuNDg1IDQuNDg1IDAgMCAxIDIuMzY1NS0xLjk3MjhWMTEuNmEuNzY2NC43NjY0IDAgMCAwIC4zODc5LjY3NjVsNS44MTQ0IDMuMzU0My0yLjAyMDEgMS4xNjg1YS4wNzU3LjA3NTcgMCAwIDEtLjA3MSAwbC00LjgzMDMtMi43ODY1QTQuNTA0IDQuNTA0IDAgMCAxIDIuMzQwOCA3Ljg3MnptMTYuNTk2MyAzLjg1NThMMTMuMTAzOCA4LjM2NCAxNS4xMTkyIDcuMmEuMDc1Ny4wNzU3IDAgMCAxIC4wNzEgMGw0LjgzMDMgMi43OTEzYTQuNDk0NCA0LjQ5NDQgMCAwIDEtLjY3NjUgOC4xMDQydi01LjY3NzJhLjc5Ljc5IDAgMCAwLS40MDctLjY2N3ptMi4wMTA3LTMuMDIzMWwtLjE0Mi0uMDg1Mi00Ljc3MzUtMi43ODE4YS43NzU5Ljc3NTkgMCAwIDAtLjc4NTQgMEw5LjQwOSA5LjIyOTdWNi44OTc0YS4wNjYyLjA2NjIgMCAwIDEgLjAyODQtLjA2MTVsNC44MzAzLTIuNzg2NmE0LjQ5OTIgNC40OTkyIDAgMCAxIDYuNjgwMiA0LjY2ek04LjMwNjUgMTIuODYzbC0yLjAyLTEuMTYzOGEuMDgwNC4wODA0IDAgMCAxLS4wMzgtLjA1NjdWNi4wNzQyYTQuNDk5MiA0LjQ5OTIgMCAwIDEgNy4zNzU3LTMuNDUzN2wtLjE0Mi4wODA1TDguNzA0IDUuNDU5YS43OTQ4Ljc5NDggMCAwIDAtLjM5MjcuNjgxM3ptMS4wOTc2LTIuMzY1NGwyLjYwMi0xLjQ5OTggMi42MDY5IDEuNDk5OHYyLjk5OTRsLTIuNTk3NCAxLjQ5OTctMi42MDY3LTEuNDk5N1oiLz48L3N2Zz4K" alt="Works with Codex CLI (experimental)"></a>
-</p>
-
-<p align="center">
+  <a href="https://github.com/deepaksinghcs14/deadeye-cc/actions/workflows/ci.yml"><img src="https://github.com/deepaksinghcs14/deadeye-cc/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/github/v/release/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111&label=release" alt="Release">
   <img src="https://img.shields.io/github/license/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111" alt="MIT license">
-  <img src="https://img.shields.io/badge/storage-1%20jsonl%20file-111111?style=flat-square" alt="One JSONL file">
-  <img src="https://img.shields.io/badge/measured%20reduction-79.6%25%20to%2099.5%25-111111?style=flat-square" alt="79.6% to 99.5% measured reduction">
+  <img src="https://img.shields.io/github/go-mod/go-version/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111" alt="Go version">
+  <img src="https://img.shields.io/badge/measured_reduction-79.6%E2%80%9399.5%25-C89A46?style=flat-square&labelColor=1B2127" alt="Measured token reduction 79.6 to 99.5 percent">
 </p>
 
+He doesn't check twice, and he doesn't spray and pray. One round chambered,
+one shot on target, and he's done — because the shot you never had to take
+is the best one. deadeye puts that discipline inside your coding agent.
 
-He doesn't check twice or spray and pray — he doesn't need to. deadeye is
-a Claude Code plugin that watches what your agent is about to do — spawn a
-subagent, dump a noisy test log, make a big multi-file edit — and picks
-the cheapest model, effort level, and amount of context that will still
-get the job done right. Left on its own, Claude Code tends to spend more
-tokens than a task actually needs. deadeye catches that before the tokens
-are gone. **[Site →](https://deepaksinghcs14.github.io/deadeye-cc/)**
+It watches what your agent is about to do — spawn a subagent, dump a noisy
+test log, make a big multi-file edit — and fits the model, effort level, and
+context to the task **before the tokens are spent, not after**. Left alone, a
+coding agent spends more than a task needs; deadeye catches that at the choke
+points it already sits on. Everything it remembers lives in one local file:
+no hosted service, no API keys, no telemetry.
 
-> 🔜 **Something's coming.** [Join the waitlist →](https://deepaksinghcs14.github.io/deadeye-cc/soon.html)
-
-## Before / after
+**[Full feature tour, with live examples → the site](https://deepaksinghcs14.github.io/deadeye-cc/)**
 
 <p align="center">
-  <a href="https://deepaksinghcs14.github.io/deadeye-cc/"><img src="assets/stats.png" alt="deadeye stats overview" width="680"></a>
+  <a href="https://deepaksinghcs14.github.io/deadeye-cc/soon.html"><img src="assets/soon-banner.svg" alt="Something's coming — join the waitlist" width="860"></a>
 </p>
 
-You ask your agent to run the test suite before merging, and one test is
-actually broken.
+## Numbers
 
-Without deadeye:
+Every figure is measured from a real run and logged to
+`~/.deadeye/decisions.jsonl` — nothing averaged, nothing modelled. The
+rewrite happens *before* the command runs, so only the part worth keeping
+ever enters context.
 
-> All 14 lines of verbose output enter context — 4 `PASS` lines, then the
-> failure, no differently weighted than if all 5 had passed.
+| Real run | Before | After | Cut |
+|---|---:|---:|---:|
+| `go test` with one genuine failure | 485 B | 99 B | **79.6%** |
+| This repo's own suite (202 lines, all passing) | 10,301 B | 55 B | **99.5%** |
+| `npm install express mocha` (progress spam) | 553 B | 55 B | **90.1%** |
+| Coder persona a subagent inherits, per spawn | 7,666 B | 1,073 B | **86.0%** |
 
-With deadeye:
-
-> ```
-> --- FAIL: TestReconciliationAppliesTaxBeforeDiscount (0.00s)
-> FAIL
-> FAIL	canondemo/orders	0.539s
-> FAIL
-> ```
-
-*(On that real run: 485 bytes shrank to 99 — a 79.6% reduction — and the
-failure details stayed fully intact. On this repo's own full test suite,
-which all passes: 10,301 bytes shrank to 55, a 99.5% reduction. On a real
-`npm install express mocha`: 553 bytes of progress/funding/audit spam
-shrank to 55, a 90.1% reduction, with errors and warnings still passed
-through when they occur. Three separate real measurements, not one number
-averaged across different situations — see
-[the site](https://deepaksinghcs14.github.io/deadeye-cc/) for details, or
-run `/deadeye-stats savings` to see your own numbers. One gotcha worth knowing: an
-early, naive version of this filter could report a passing test suite as
-"failed" whenever the filter pattern matched nothing. That's fixed now,
-and tested against both directions.)*
-
-deadeye also shows one quiet line at the end of a turn, telling you how
-much it's kept out of context so far this session — `deadeye: ~9,600
-bytes kept out of context this session (1 rewrite).` It only shows up
-when that total has actually grown since the last time you saw it.
-
-## Real task, end to end
-
-Not a scripted demo — a real feature task run through the installed
-plugin: add a `Mark()` method to a small package, write a test for it,
-verify with `go test` and `go build`, and hand part of the work off to a
-subagent. Here's the decision log for that one turn:
-
-```
-PreToolUse/Agent   advise         all evidence supports downshift: low complexity, confidence >= threshold
-SubagentStart      noop
-PreToolUse/Bash    rewrite        reason=test-filter
-PreToolUse/Bash    rewrite        reason=build-filter
-Stop               savings-shown  bytes_after=25800
-```
-
-(One thing has changed since this log was captured: as of v0.7.0 quiet
-events aren't logged at all — on one real machine `noop` rows were 812 of
-856 total, ~95% noise — so your log will show only the rows where deadeye
-actually did something.)
-
-deadeye recommended a cheaper model before the subagent even started, both
-the test and build commands had their noisy output trimmed, and the turn
-ended with `deadeye: ~25,800 bytes kept out of context this session (2
-rewrites).` That 25,800 number is an estimate each rewrite rule carries
-around (the same number `/deadeye-stats savings` prints, and it labels it as an
-estimate right there in the output) — not a fresh measurement of this
-specific task, whose real output happened to be pretty small. The
-`485 → 99` and `10,301 → 55` numbers above are the actual measured ones;
-this example is here to show the model-picking, output-trimming, and
-end-of-turn summary all working together on one real task, not to add a
-third headline number.
+Run `/deadeye-stats savings` to see your own. Quiet no-op events (95% of all
+rows on one real machine) aren't logged at all — the log holds only the rows
+where deadeye actually did something.
 
 ## How it works
 
 ```
-1. Look      Checks a few cheap, deterministic signals: files touched, recent git activity, whether tests exist nearby, how the request reads
-2. Decide    Picks the cheapest (model, effort) combination that should still clear the bar for this task
-3. Apply     Rewrites the subagent's model, trims noisy command output, and asks before risky multi-file edits
-4. Learn     If you manually pick a bigger model than it recommended, it remembers and gets more cautious for that kind of task next time
+1. Look      Cheap, deterministic signals: files touched, recent git activity, whether tests exist nearby, how the request reads
+2. Decide    The cheapest (model, effort) that should still clear the bar for this task
+3. Apply     Rewrites the subagent's model, trims noisy command output, asks before risky multi-file edits
+4. Learn     If you manually pick a bigger model than it recommended, it gets more cautious for that kind of task next time
 ```
 
-The rule behind all four steps: **when it doesn't know, it goes big.**
-Missing or shaky evidence never buys a cheaper model or a lower effort
-level — deadeye defaults to the most capable option. Picking something
-cheaper requires real supporting evidence and a minimum confidence level;
-picking something more capable never needs a reason. Every decision is
-printable — run `/deadeye-route` any time to see the full reasoning, not
-a black box. Full config schema:
-[`schema/config.schema.json`](schema/config.schema.json).
+The rule behind all four: **when it doesn't know, it goes big.** Missing or
+shaky evidence never buys a cheaper model — picking cheaper needs real
+evidence above a confidence bar; picking more capable never needs a reason.
+Every decision is printable: run `/deadeye-route` to see the full reasoning,
+never a black box. deadeye advises by default and never touches your
+`settings.json`; if anything inside it errors, your call passes through
+untouched.
 
 ## Install
 
@@ -136,95 +82,57 @@ a black box. Full config schema:
 
 That's everything on macOS/Linux — hooks, slash commands, and the binary
 bootstraps itself on first use (downloaded once from Releases,
-sha256-verified). On Windows the hooks and daemon work too (PowerShell
-hook scripts ship in the plugin) — but grab the binary from
-[Releases](https://github.com/deepaksinghcs14/deadeye-cc/releases)
-yourself first (self-bootstrap isn't built there), and the optional
-statusline badge is bash-only for now.
+sha256-verified). On Windows, install the binary from
+[Releases](https://github.com/deepaksinghcs14/deadeye-cc/releases) first
+(self-bootstrap isn't built there yet).
+
+deadeye also runs on four other hosts, each to the depth its extension API
+allows:
 
 ### Codex CLI (experimental)
 
-deadeye also runs under OpenAI's Codex CLI, whose experimental hooks
-system speaks (nearly) the same contract. Install the binary (from
-source or Releases), then:
-
-```bash
-deadeye init codex
-```
-
-That shows you the exact `~/.codex/hooks.json` changes and writes them
-only after you confirm — deadeye never edits another tool's config
-silently. Codex will ask you to trust the hooks on first run (its
-prompt, not ours), and hooks need `[features] hooks = true` in
-`~/.codex/config.toml`.
-
-What works on Codex — verified live, not assumed: output trimming and
-all advisories (rewrites confirmed working through real Codex runs),
-the coder persona (injected at session start, re-injected after
-compaction, level switching by typing `/deadeye-coder …` as a prompt),
-the plan gate (Codex edits arrive as `apply_patch`), `/deadeye-mute`,
-and the full decision log. Not on Codex: model routing (no subagent
-surface to route) and the statusline badge. Update any time with one
-command — `deadeye update` fetches the latest release, sha256-verifies
-it, and swaps it in atomically (the daemon hands over on the next hook
-call). Remove cleanly with `deadeye uninstall codex`.
+Install the binary, then `deadeye init codex` — it shows the exact
+`~/.codex/hooks.json` changes and writes them only after you confirm
+(deadeye never edits another tool's config silently). You get output
+trimming, the coder persona, the plan gate, `/deadeye-mute`, and the full
+decision log; not model routing (Codex has no subagent surface to route).
+Needs `[features] hooks = true` in `~/.codex/config.toml`. Remove with
+`deadeye uninstall codex`.
 
 ### Gemini CLI (experimental — context-injection tier)
 
-Gemini CLI has a real hook system (external command, JSON stdin/stdout,
-tool-input rewriting), so it's engine-capable. This release wires the
-**context-injection tier**: the coder persona at session start, and
-session guidance / codemap / vulnerable-dependency flag / large-paste /
-soft plan gate on each prompt. `deadeye init gemini` writes a
-self-contained extension under `~/.deadeye/gemini-extension/` and prints
-the `gemini extensions install --path …` command — deadeye never edits
-Gemini's own config.
-
-Not yet on Gemini: the **tool-level** features (exfil guard, output
-trimming, model routing). Gemini's tool names and argument shapes differ
-from Claude's and haven't been confirmed on a live install; wiring the
-exfil guard blind could make it silently not fire, so it waits for
-verification rather than risk false security. Remove with
-`deadeye uninstall gemini` (then `gemini extensions uninstall deadeye`).
+`deadeye init gemini` writes a self-contained extension under
+`~/.deadeye/gemini-extension/` and prints the `gemini extensions install`
+command — deadeye never edits Gemini's own config. You get the coder
+persona plus session guidance (codemap, vulnerable-dependency flag, soft
+plan gate). The tool-level features (exfil guard, output trimming, routing)
+wait on live schema verification rather than risk firing blind. Remove with
+`deadeye uninstall gemini`.
 
 ### Cursor and Windsurf (persona only)
 
-Cursor and Windsurf read an always-on rules file but have no hook contract
-— no way to run deadeye's daemon on tool calls. So they get the **coder
-persona only** (the lean-first discipline), not the routing, security,
-preprocessing, or codemap engine. From your project directory:
+No hook contract, so these get the **coder persona only**, as a rules file:
 
 ```bash
 deadeye init cursor      # writes .cursor/rules/deadeye.md
 deadeye init windsurf    # writes .windsurf/rules/deadeye.md
 ```
 
-The file is level-filtered to your `coder.default_level` and tagged so
-`deadeye uninstall cursor|windsurf` removes only what deadeye wrote — it
-never touches a rules file you authored. For the full engine, use Claude
-Code or Codex.
+Level-filtered to your `coder.default_level`, and uninstall removes only
+what deadeye wrote. For the full engine, use Claude Code or Codex.
 
 ### PR review on every host (experimental)
 
-`deadeye init codex|gemini|cursor|windsurf` also installs the `/deadeye-pr`
-on-demand review command in that host's native format — a Codex prompt, a
-Gemini TOML command, a Cursor skill, a Windsurf workflow — carrying the same
-four-lens rubric (over-engineering, correctness, performance, security) that
-Claude Code ships as the `deadeye-pr` skill. It reviews a GitHub PR's diff
-and prints findings locally; pass `--post` to publish them back to the PR.
-Experimental: these command surfaces are documented but unverified on a live
-install, so confirm it fires before relying on it. deadeye writes only its
-own command file and never edits the host's config; `deadeye uninstall
-<host>` removes it.
+`deadeye init <host>` also installs the `/deadeye-pr` review command in
+that host's native format — a Codex prompt, a Gemini TOML command, a Cursor
+skill, a Windsurf workflow — carrying the same four-lens rubric Claude Code
+ships as the `deadeye-pr` skill. Experimental until live-verified.
 
 ### From source
 
 ```bash
 go install github.com/deepaksinghcs14/deadeye-cc/cmd/deadeye@latest
 ```
-
-A binary already on PATH always beats the bootstrap, so your build stays in
-charge.
 
 ### Uninstall
 
@@ -234,251 +142,63 @@ deadeye uninstall --purge   # removes the binary, the daemon socket, and ~/.dead
 
 Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 
+## What it controls
+
+Eight independent controls — each has its own on/off, and switching one off
+never touches the others.
+
+| What | Modes | What it does |
+|---|---|---|
+| Context hygiene | `off` / `on` | Trims verbose command output (test suites across nine ecosystems, builds, linters, installs, log tails) before it enters context, and flags wasteful patterns — re-reading unchanged files, re-running the same command, an oversized MCP response, a good moment to `/compact`. |
+| Coder persona | `off` / `spotter` / `marksman` / `sniper` | A lean-first coding discipline — including a live security check on what's written and its dependencies — injected each session and into subagents. |
+| Security | `off` / `advise` / `ask` | An exfiltration guard: a Read of a credential file, or a Bash command shipping one out, escalates to a permission prompt a prompt-injected model can't answer. Independent of the persona. |
+| Codebase map | `off` / `on` | A persistent per-project map — skeleton, most-touched files, exploration notes — injected once per session so a fresh session doesn't re-explore from scratch. |
+| Effort level | `off` / `advise` | Suggests lower effort for mechanical steps; no effect if `CLAUDE_EFFORT` is pinned. |
+| Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one. |
+| Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit. |
+| Workflow suggestion | `off` / `on` | Flags tasks that look like parallel/fan-out work — only ever suggests, never starts one. |
+
+Settings live in `~/.deadeye/config.json` (with an optional per-repo
+`.deadeye.json` override); full schema in
+[`schema/config.schema.json`](schema/config.schema.json). Four env vars are
+kill switches: `DEADEYE=off` (everything), `DEADEYE_PREPROCESS=off`,
+`DEADEYE_GATE=off`, `DEADEYE_CODER=off`.
+
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/deadeye-status` | Shows current modes, coder level, kill switches, model list, and whether the background daemon is running |
-| `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without actually doing anything |
-| `/deadeye-stats [savings\|context]` | Decision-log reports in one place: measured-impact scoreboard (default), token-savings report, and per-session context-byte breakdown |
+| `/deadeye-status` | Modes, coder level, kill switches, model list, daemon health |
+| `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without doing anything |
+| `/deadeye-stats [savings\|context]` | Decision-log reports: measured-impact scoreboard (default), token-savings, per-session context bytes |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
-| `/deadeye-mute [off]` | Mute advisories, plan-gate nags, and workflow hints for this session (rewrites keep working) |
+| `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
 | `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
-| `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, vulnerable deps |
-| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses — over-engineering, correctness, performance, security; prints locally, opt-in to post to the PR |
+| `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, deps, DoS |
+| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
-| `deadeye lessons [reset]` | Inspect (or clear) the recorded routing outcomes that bias future decisions |
-| `deadeye notes-append <kind>` | Append a note (body on stdin) to the project's codebase-map notes — used by the `explore` skill to cache findings across sessions |
-| `deadeye update` | Update the managed binary to the latest release (sha256-verified, atomic) — the one-command updater for Codex-only installs |
-| `deadeye uninstall --purge` | Removes the binary, its background process, and all local state |
+| `deadeye update` | Update the managed binary (sha256-verified, atomic) — for Codex-only installs |
+| `deadeye uninstall --purge` | Remove the binary, its background process, and all local state |
 
 ## Coder mode
 
-deadeye also ships a coding persona: a lazy-senior-dev discipline that
-pushes every change toward the leanest solution that actually works —
-question whether the code needs to exist at all, reach for the standard
-library before custom code, native platform features before dependencies,
-one line before fifty. It's injected at the start of every session
-(surviving compaction) and travels into subagents too.
+deadeye's coding persona is the lazy-senior-dev discipline: it pushes every
+change toward the leanest solution that actually works — question whether
+the code needs to exist, stdlib before custom code, native before
+dependencies, one line before fifty. Injected every session (it survives
+compaction) and into subagents.
 
-Three intensity levels:
-
-| Level | What it does |
+| Level | Discipline |
 |---|---|
-| `spotter` | Builds what's asked, but names the leaner alternative in one line — you pick |
-| `marksman` | The lean-first ladder enforced. Shortest working diff. **Default.** |
-| `sniper` | Maximum minimalism — ships the one-liner and challenges the rest of the requirement in the same breath |
+| `spotter` | Builds what's asked, names the leaner alternative in one line — you pick. |
+| `marksman` | The lean-first ladder enforced: YAGNI, stdlib and native first, shortest working diff. **(default)** |
+| `sniper` | One shot only — ships the one-liner and challenges the rest of the requirement. |
 
-- Switch any time: `/deadeye-coder spotter|marksman|sniper|off`
-- Persist a default for new sessions: `/deadeye-coder default <level>`
-  (writes deadeye's own `~/.deadeye/config.json` — never Claude's settings)
-- Turn off mid-session by saying exactly `normal mode` or `stop coder`
-- Kill switch: `DEADEYE_CODER=off`
-
-### How it works
-
-One canonical ruleset ships embedded in the deadeye binary. At every
-session start the background daemon prints it straight into the model's
-context, filtered to the active level — so a `marksman` session never
-pays tokens for the `spotter` and `sniper` rows. Long sessions hold: when
-Claude Code compacts the conversation, the SessionStart hook fires again
-and the persona is re-injected at whatever level you'd switched to.
-Subagents inherit it too — but not the whole thing: they get a condensed
-card carrying just the behavior-bearing rules. Measured from the decision
-log: **7,666 bytes per spawn before, 1,073 after — an 86.0% cut**, paid on
-every single subagent your sessions ever launch. (Scope subagent
-injection with `coder.subagent_matcher` in config if you only want it in
-some agent types.)
-
-Which level governs a session is resolved in strict order: the
-`DEADEYE_CODER=off` kill switch wins, then an explicit `/deadeye-coder`
-switch you made this session, then `coder.default_level` from config,
-then the built-in default (`marksman`). Level switches are handled by the
-daemon, take effect on your next message, and last until the session ends.
-
-### What it changes in a real task
-
-The persona is a decision ladder the model climbs before writing anything,
-stopping at the first rung that holds:
-
-1. Does this need to exist at all? Speculative need → skip it, say so in one line.
-2. Already in this codebase? Reuse the helper that's three files over.
-3. Standard library does it? Use it.
-4. Native platform feature covers it? A DB constraint over app code, CSS over JS.
-5. An already-installed dependency solves it? Never add a new one for what a few lines can do.
-6. Can it be one line? One line.
-7. Only then: the minimum code that works.
-
-Concretely, the same request comes back differently per level. Ask for
-"a cache for these API responses" and:
-
-- **spotter** builds the cache, then adds: "FYI: `functools.lru_cache`
-  covers this in one line if you'd rather not own a cache class."
-- **marksman** puts `@lru_cache(maxsize=1000)` on the fetch function and
-  notes what was skipped and when to add it.
-- **sniper** declines to cache until a profiler says so — and tells you
-  what one line to add when it does.
-
-Answers follow a fixed shape — code first, then at most three short
-lines: what was skipped, and when to add it. Bug fixes go to the root
-cause (one guard in the shared function every caller routes through, not
-a patch on the one path the ticket named). And the discipline never cuts
-safety: input validation, error handling that prevents data loss,
-security, and accessibility survive every level.
-
-### Check your backstop
-
-The same discipline extends to security, scaled by level rather than
-sitting beside it: the moment untrusted input reaches a query, a shell, a
-template, a path, or `eval` — or the code touches a credential or an
-authz decision — coder mode names the boundary and takes the safe form,
-because the safe form is usually the shorter one. A parameterized query
-is shorter than the escaping you'd hand-roll; `exec.Command(bin,
-args...)` is shorter than building a shell string.
-
-- **spotter** builds it, then flags the exposure: "FYI: `name` is
-  interpolated into the query — bind it instead."
-- **marksman** writes the safe form by default and names the vuln class
-  in one line: "Parameterized query, `name` bound not interpolated."
-- **sniper** deletes the exposure outright: "returns id+name only —
-  fewer columns out, less to leak."
-
-That's the persona's judgment. Backing it is a deterministic check on
-every `Edit`/`Write`: SQL/shell/eval injection shapes, hardcoded secrets,
-weak crypto, and disabled TLS verification, covering Go,
-JavaScript/TypeScript, Python, Java, and Rust — checked against only the
-text being added, never the whole file or the whole repo. Editing a
-manifest (`go.mod`, `package.json`, `requirements.txt`/`pyproject.toml`,
-`Cargo.toml`, `pom.xml`/`build.gradle`) also checks the dependency
-itself: a bundled table flags packages the platform has since absorbed
-(`request` → `fetch`, `moment` → `Temporal`/`date-fns`), and an optional
-OSV.dev lookup catches known vulnerabilities. `/deadeye-guard` is the
-on-demand deep pass — diff-scoped, reads around the hunk to verify before
-reporting, and runs `govulncheck`/`npm audit`/`pip-audit`/`cargo audit`
-when installed.
-
-The live check and the dependency lookup are **independent of the coder
-persona level** (since v0.17.0): turning the persona off with `stop
-coder` or `/deadeye-coder off` no longer silences the security advisory —
-disliking the persona's prose is not a reason to stop checking what's
-being written. It's still turned off by `coder.security: "off"`, by
-`/deadeye-mute`, or by the `DEADEYE=off` / `DEADEYE_CODER=off` env kill
-switches.
-
-> **The dependency check can reach the network.** When a manifest edit
-> touches a package the local cache doesn't know about yet, deadeye may
-> query OSV.dev in the background — never blocking the edit — with just
-> the package name and version. Nothing else about your code ever leaves
-> your machine. Turn it off with `coder.security_osv: false` in
-> `~/.deadeye/config.json`; the bundled table keeps working fully offline.
-
-Two more security surfaces escalate to a **permission prompt** rather
-than a nudge — because a prompt-injected model can talk itself past a
-nudge, but it can't answer a prompt on your behalf:
-
-- **The exfiltration guard** (top-level `security.exfil`, default `ask`)
-  watches for the classic secret-egress move: a Read of a credential file
-  (`~/.ssh/id_*`, `~/.aws/credentials`, `.env`, `~/.claude/.credentials.json`,
-  `~/.netrc`, `~/.kube/config`, gcloud/gh tokens, and more — plus your own
-  `security.sensitive_paths`), or a Bash command that ships one out (a
-  credential path handed to `curl`/`nc`/`scp`, an `env` dump piped to the
-  network). It's high-precision: `~/.ssh/config`, `.pub` keys,
-  `.env.example`, and `ssh -i key host` all stay silent. This axis is
-  independent of coder mode — turned off only by `security.exfil: "off"`
-  or `DEADEYE=off`, **not** by `DEADEYE_CODER=off`.
-- **Adding a known-vulnerable dependency** asks (when `coder.security` is
-  set to `"ask"`): a manifest edit introducing a package with a confirmed
-  OSV advisory prompts you by name. And once per session, deadeye scans
-  the project's *existing* manifests and flags anything already in the
-  tree with a known advisory — the vulnerable library no edit touches —
-  pointing you at `/deadeye-guard` for the full native-auditor audit.
-
-Comments get their own discipline: terseness governs the *response*,
-never the code's why-comments — the persona comments the constraint or
-tradeoff the code can't show, renames before it annotates, deletes
-comments that restate the next line, and gives every exported function a
-one-line contract doc. Deliberate corner-cuts use a pinned, greppable
-grammar — `deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` —
-so `/deadeye-debt` parses the ledger reliably, and `TODO` stays reserved
-for work not done yet.
-
-When the persona does deliberately cut a corner with a known ceiling, it
-leaves a `deadeye:` comment naming the ceiling and the upgrade trigger —
-`/deadeye-debt` collects those into a ledger so shortcuts get tracked
-instead of forgotten, and `/deadeye-review` checks the working diff for
-over-engineering — or the whole repo for what's still cuttable with
-`/deadeye-review --repo`. An optional statusline badge shows each session's live
-level; deadeye will offer (once) to set it up, and never edits your
-settings itself.
-
-> **Already running another lean-coding persona plugin?** Uninstall it
-> before enabling coder mode — two overlapping personas means paying for
-> both rulesets every session.
-
-## Codebase map
-
-A fresh session normally burns 15–40 tool calls rediscovering the project
-— directory layout, what each package does, which files matter. deadeye's
-session memory already carried *what recently changed* (branch, commits,
-dirty files); the codebase map adds *what the project is*, persisted
-per-project under `~/.deadeye/map/` and injected once at each session's
-first prompt:
-
-- **A structural skeleton** — directory rows with file counts and, for Go
-  repos, each package's one-line doc-comment purpose. Built from
-  `git ls-files`, regenerated at session end only when the tracked-file
-  list actually changed. A stable repo pays nothing to keep it current.
-- **Most-touched files, accumulated forever** — a `path → sessions` counter
-  merged at every session end, ranked by relevance rather than recency: a
-  file touched in 14 of 20 sessions stays at the top; a one-off from weeks
-  ago sinks on its own instead of scrolling off a fixed-length log.
-- **Recent exploration notes** — when the `explore` skill finishes a real
-  dig, it caches its summary via `deadeye notes-append` (best-effort,
-  bounded to the 5 newest entries) so the next session inherits the
-  findings instead of re-deriving them.
-
-The first-ever session in a project gets nothing (the map is written at
-session end — value starts at session #2), resumed/compacted sessions are
-skipped (their context already carries the exploration), and everything
-lives under the `mode.codemap` switch (`off`/`on`, default `on`; also off
-under `DEADEYE=off`). `off` stops both the writes and the injection.
-
-## How this fits with Claude Code's built-ins
-
-Claude Code ships its own `/code-review` (with a paid multi-agent
-"ultra" tier), `/simplify`, `/security-review`, plan mode, and size-based
-output truncation. deadeye doesn't compete with those — it covers what
-they don't:
-
-| Claude Code built-in | What deadeye adds |
-|---|---|
-| `/code-review` / `/simplify` — correctness & cleanup reviews, on demand | `/deadeye-review` is the *lean lens only*: verified findings, `net: -N lines` accounting, and cuts that flow into the `deadeye:` debt ledger. Run it as the instant local pass; escalate to `/code-review ultra` for depth before a merge |
-| `/security-review` — full security audit, on demand | `/deadeye-guard` is the diff-scoped lean pass: live regex/manifest advisories while you type, a verify-before-report deep check with native-auditor coverage on demand. Run it for the fast local pass; escalate to `/security-review` for the full audit before a merge |
-| Plan mode — exists, but nothing triggers it | deadeye's plan gate notices a risky multi-file edit coming and nudges *into* plan mode |
-| Bash output truncation — size-based, at 30,000 chars | deadeye rewrites commands *before they run* so only failure context enters at all — content-based, and it stacks under the native cap |
-| Subagent models — inherit the parent's model | deadeye recommends the cheapest tier the evidence supports, explains why, and learns from your escalations |
-| Coding persona — none | Coder mode: the lean-first discipline, injected every session, surviving compaction, traveling into subagents |
-
-## The seven things it controls
-
-| What | Modes | What it does |
-|---|---|---|
-| Context hygiene | `off` / `on` | Trims verbose command output before it enters context — test suites (Go, JS, Python, Rust, Java, Gradle, .NET, Ruby, PHP), builds, linters, package installs, pod logs, log tails. Flags unbounded dumps before they run: unscoped `git diff`/`git log`, `terraform plan`, `kubectl get -o yaml`, `npm ls`, bare `find`/`tree`/`du`, full package lists, and content-mode Grep with no limit. Also flags wasteful patterns: re-reading a file that hasn't changed, whole-reads of huge files, re-running the same command (identical, or the same target with only flag changes), re-fetching a URL already in context, an oversized MCP response worth narrowing, a paste-sized prompt better kept in a file, a long exploration streak better delegated to a subagent, and a good moment to `/compact` at a task boundary instead of letting auto-compact land mid-task |
-| Coder persona | `off` / `spotter` / `marksman` / `sniper` | The lean-first coding discipline above — including a live security check on what's written and its dependencies — injected per session and into subagents |
-| Codebase map | `off` / `on` | A persistent per-project map — directory/package skeleton, most-touched files accumulated across every session, recent exploration notes — injected once per session so a fresh session doesn't re-explore the repo from scratch |
-| Effort level | `off` / `advise` | Suggests using lower effort for mechanical steps; has no effect if `CLAUDE_EFFORT` is already pinned for the session |
-| Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one yourself |
-| Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit |
-| Workflow suggestion | `off` / `on` | Flags tasks that look like they'd benefit from running many things in parallel — only ever suggests it, never starts one on its own |
-
-Each of these works independently — you can turn any one off without
-affecting the others. Settings live in `~/.deadeye/config.json`, with an
-optional project-level `.deadeye.json` that overrides it for one repo.
-Four env vars act as kill switches: `DEADEYE=off` turns everything off;
-`DEADEYE_PREPROCESS=off`, `DEADEYE_GATE=off`, and `DEADEYE_CODER=off`
-turn off just the context hygiene, just the plan gate, or just the coder
-persona, respectively.
+Deliberate shortcuts get a `deadeye:` comment naming the ceiling and upgrade
+trigger, which `/deadeye-debt` collects into a ledger. Safety is never cut:
+input validation, error handling, security, and accessibility hold at every
+level. [See it per-level on the site →](https://deepaksinghcs14.github.io/deadeye-cc/#layers)
 
 ## Development
 
@@ -488,50 +208,39 @@ make build   # ./bin/deadeye
 ```
 
 `scripts/gen-catalog.go` regenerates the compiled-in model/pricing table
-after editing its seed prices — there's no reachable pricing API to fetch
-from at runtime, so this is a release-time step, not a background refresh.
+after editing its seed prices — a release-time step, since there's no
+reachable pricing API at runtime.
 
 ## FAQ
 
 **Does it phone home?**
-No. Everything it remembers lives in one file on your own machine, at
-`~/.deadeye/`. No hosted service, no API keys, no telemetry.
+No. Everything it remembers lives in one file at `~/.deadeye/`. No hosted
+service, no API keys, no telemetry.
 
 **Why not just ask an LLM which model to use?**
-Four cheap, predictable signals — how many files are touched, recent git
-activity, whether tests exist nearby, and how the request is phrased — are
-enough to make a reasonable call, and they're free to check (no extra API
-call needed). Asking an LLM to decide would spend tokens just to figure out
-how to save tokens, and would add a network dependency this tool is
-specifically built to avoid.
+Four cheap, predictable signals — files touched, recent git activity,
+whether tests exist nearby, how the request reads — are enough to make a
+reasonable call, and they're free to check. Asking an LLM would spend tokens
+to figure out how to save tokens, and add the network dependency this tool
+is built to avoid.
 
 **Will it make Claude dumber?**
-That's exactly the failure mode it's built to avoid. When deadeye isn't
-confident about a task, it defaults to the more capable option — picking
-something cheaper always requires real evidence first. If you ever find a
-case where it under-powered a task, that's a bug — report it along with
-the `/deadeye-route` output.
-
-**What doesn't it know how to do (yet)?**
-It can't tell whether an edit actually broke something later — it only
-knows when you manually pick a bigger model than it suggested, not whether
-a test started failing afterward. It doesn't know which other repos depend
-on the one you're editing — that's a different tool's job,
-[greybeard](https://github.com/deepaksinghcs14/greybeard). And it can't
-tell whether you approved or declined a plan-gate prompt, because Claude
-Code doesn't report that back to plugins — so it just asks once per task
-and doesn't ask again either way.
+That's the exact failure mode it's built to avoid. When it isn't confident,
+it defaults to the more capable option — cheaper always needs evidence
+first. If you find a case where it under-powered a task, that's a bug;
+report it with the `/deadeye-route` output.
 
 **Why "deadeye"?**
 Because efficiency isn't spending less — it's not missing.
 
 ## Contributing
 
-Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
-ground rules (the short version: fail open, go big when unsure, bring a
-regression test you've watched fail). Security reports go through
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the ground
+rules (the short version: fail open, go big when unsure, bring a regression
+test you've watched fail). Security reports go through
 [SECURITY.md](SECURITY.md) — never a public issue.
 
 ## License
 
-[MIT](LICENSE) — third-party notices in [THIRD-PARTY.md](THIRD-PARTY.md).
+[MIT](LICENSE) — the shortest license that hits. Third-party notices in
+[THIRD-PARTY.md](THIRD-PARTY.md).
