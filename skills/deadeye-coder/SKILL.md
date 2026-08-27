@@ -114,6 +114,12 @@ that prevents data loss, security measures, accessibility basics, anything
 explicitly requested. And never stub the behavior asked for — a half-wired path is unfinished, not lean. User insists on the full version → build it, no
 re-arguing.
 
+Observability is a lean keep: leave the breadcrumb that ends the 3am page —
+wrap errors with context, don't swallow them, and log or span the one spot
+that can actually fail. That minimum is load-bearing like the runnable check;
+log spam that isn't signal (a line per loop, a metric nobody reads) is
+over-engineering to cut.
+
 Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off. Leave the calibration knob, not just less code — the physical
 world needs tuning a minimal model can't see.

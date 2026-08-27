@@ -36,11 +36,11 @@ Preconditions and graceful degradation:
   instead. Do not invent PR contents.
 - Not a GitHub repo / no PR for the branch → say so; don't substitute a
   different scope.
-- Huge PR (say, more than ~40 changed files or a few thousand lines) → review
-  the highest-signal files first and end with an explicit
-  `N files not reviewed — name them to go deeper.` line. Never silently
-  truncate; a partial review that looks complete is worse than one that says
-  what it skipped.
+- Huge PR (more than ~40 changed files or a few thousand lines) → review it ALL
+  by fanning out one subagent per ~2,500-line package-grouped cluster, in
+  parallel, each returning findings in the standard format. Verify every
+  returned finding yourself before reporting it. Never truncate, and never
+  report partial coverage as complete.
 
 ## Verify before reporting
 
@@ -94,6 +94,10 @@ first within each lens:
 - `yagni:` — flexibility nothing uses (interface with one impl, config for a constant)
 - `shrink:` — works, but a shorter form does the same job
 
+Log spam is over-instrumentation, cut it: a line per loop iteration, a metric
+nobody reads, a span on a trivial call → `delete:`/`shrink:`. But the one
+breadcrumb at a real failure boundary is signal, not bloat — leave it.
+
 Before `yagni:`/`delete:`, grep for implementers/callers outside the diff — a
 second impl in a test file makes it a false positive. Footer:
 `net: -<N> lines possible.` or, if already minimal, `Lean already.`
@@ -101,7 +105,7 @@ second impl in a test file makes it a false positive. Footer:
 ### Correctness
 
 - `logic:` — wrong result or a mishandled edge case (empty, zero, boundary, unicode)
-- `nil:` — an unchecked nil / null / undefined, or a swallowed/ignored error
+- `nil:` — an unchecked nil / null / undefined, a swallowed/ignored error, or a failure path that leaves no diagnostic behind
 - `race:` — a data race or unsynchronized shared state under concurrency
 - `bound:` — off-by-one, slice/array overrun, integer overflow
 - `contract:` — violates a caller assumption or the function's own documented contract

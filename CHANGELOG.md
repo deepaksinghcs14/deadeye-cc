@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 0.23.0
+
+**Observability is now a first-class concern — the lean way.** deadeye could
+already write code that's lean, correct, and secure, and still undebuggable
+at 3am. Closed that gap two-directionally, matching how rung 5 treats
+dependencies:
+- **Coder mode** — a new *keep* in "When NOT to cut": leave the breadcrumb
+  that ends the 3am page (wrap errors with context, don't swallow them; one
+  log/span where the thing that can actually fail fails) — load-bearing like
+  the runnable check. And its flip side: log spam (a line per loop, a metric
+  nobody reads) is over-engineering to cut. The injected-ruleset ceiling was
+  raised 8000 → 8400 bytes for this, deliberately (documented in the guard
+  test), not silently.
+- **`/deadeye-pr` + `/deadeye-review`** — `nil:` now also flags a failure
+  path that leaves no diagnostic behind; the over-engineering lens calls out
+  log spam as `delete:`/`shrink:`, while explicitly protecting the one
+  breadcrumb at a real failure boundary from being flagged as bloat.
+
+**`/deadeye-pr` reviews huge PRs in full instead of truncating.** A PR over
+~40 files / a few thousand lines now fans out one subagent per ~2,500-line
+package-grouped cluster in parallel, each returning findings in the standard
+format, every finding verified before reporting. No more "N files not
+reviewed" partial passes.
+
 ## 0.22.2
 
 **Go 1.27.0.** Toolchain bumped from 1.26.6 (`go.mod`; CI reads it via

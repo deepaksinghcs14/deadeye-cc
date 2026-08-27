@@ -113,5 +113,9 @@ Skip vendored code, generated code, and lockfiles.
 - Findings are a LIST. Do not apply them unless asked.
 - Never flag the one runnable check coder mode leaves behind for
   deletion — lean code without its check is unfinished.
+- Log spam is over-instrumentation, cut it (a line per loop, a metric nobody
+  reads) — but never flag the one breadcrumb at a real failure boundary as
+  bloat; a wrapped error or the log where it fails is load-bearing, like the
+  runnable check.
 - Correctness and performance are OUT of scope here; security is
   `/deadeye-guard`'s job, not this one.
