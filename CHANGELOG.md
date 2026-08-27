@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 0.24.0
+
+**Three new defect classes the reviewer now catches, and a concurrency rule
+for coder mode.** Gaps found by auditing coder + the reviewers for what they
+*couldn't* see:
+- `/deadeye-pr` correctness lens gains three tags:
+  - `leak:` — a resource opened and never released (file/conn/rows with no
+    `defer Close()`, a leaked goroutine, an un-cancelled context).
+  - `break:` — a removed/renamed export or changed public signature/behavior
+    that breaks existing consumers, even when the diff itself compiles.
+  - `untested:` — non-trivial changed logic that ships with no test
+    exercising it — closing the loop with coder mode's "one runnable check."
+- **Coder mode** gains a concurrency rule: concurrency is a cost, not a
+  default — no goroutine/thread/lock the task doesn't need, and shared
+  mutable state only under synchronization. Gives the build side the
+  discipline `/deadeye-pr`'s `race:` only enforced on review. Injection
+  ceiling raised 8.4KB -> 8.6KB for it, deliberately (documented in the guard
+  test).
+
+`/deadeye-review` (over-eng only) and `/deadeye-guard` (security only) are
+unchanged — none of these fit their scope.
+
 ## 0.23.0
 
 **Observability is now a first-class concern — the lean way.** deadeye could

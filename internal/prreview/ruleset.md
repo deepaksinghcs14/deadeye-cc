@@ -102,6 +102,9 @@ second impl in a test file makes it a false positive. Footer:
 - `race:` — a data race or unsynchronized shared state under concurrency
 - `bound:` — off-by-one, slice/array overrun, integer overflow
 - `contract:` — violates a caller assumption or the function's own documented contract
+- `leak:` — a resource opened and never released: a file/conn/rows with no `defer Close()`, a leaked goroutine, an un-cancelled context.
+- `break:` — a removed/renamed export, or a changed public signature/behavior, that breaks existing consumers — even when the diff compiles.
+- `untested:` — non-trivial changed logic (branch, loop, parser, money/security path) with no test exercising it. Name the regression that would slip through.
 
 Rank by likelihood of actually firing. Footer: `<N> correctness risks.` or
 `Reads correct.`

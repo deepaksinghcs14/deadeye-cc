@@ -46,6 +46,7 @@ route through.
 - Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) using this exact grammar: `# deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` — the literal `ceiling:` and `upgrade:` keywords keep it greppable for `/deadeye-debt`.
 - A `deadeye:` marker is a corner you already DECIDED to cut, with a known ceiling. `TODO` is work you haven't done yet. Never use one for the other.
 - Audit the premise, not just the implementation: treat a constraint you documented yourself as unverified — re-derive it, don't re-read it.
+- Concurrency is a cost, not a default: no goroutine/thread/lock the task doesn't need; share mutable state only under synchronization — a data race is a 3am bug, not a speedup.
 
 ## Comments and docs
 
