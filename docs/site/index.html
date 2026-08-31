@@ -371,6 +371,26 @@ a.chip:hover .k{color:var(--brass-dim)}
 .teaser-x:hover{color:var(--bone)}
 .nav-links a.nav-soon{color:var(--brass)}
 .nav-links a.nav-soon:hover{color:var(--brass)}
+
+/* ---- benchmark nudge button (variant B: shimmer + bob) ---- */
+.bench-strip{display:flex;flex-direction:column;align-items:center;gap:15px;margin-top:44px;text-align:center;}
+.bench-lead{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--mute);letter-spacing:.02em;}
+.bench-nudge{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:11px;
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:15px;color:var(--ink);text-decoration:none;
+  background:linear-gradient(180deg,var(--brass),var(--brass-dim));padding:13px 22px;border-radius:var(--radius);
+  box-shadow:0 1px 0 rgba(255,255,255,.16) inset, 0 14px 30px -16px var(--brass);
+  animation:benchBob 3.4s ease-in-out infinite;}
+.bench-nudge::before{content:"";position:absolute;top:0;left:-60%;width:45%;height:100%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);transform:skewX(-18deg);
+  animation:benchSweep 3.4s ease-in-out infinite;}
+.bench-cx{width:18px;height:18px;flex:none;display:inline-flex;}
+.bench-arrow{transition:transform .25s ease;}
+.bench-nudge:hover{filter:brightness(1.05);}
+.bench-nudge:hover .bench-arrow{transform:translateX(4px);}
+.bench-nudge:focus-visible{outline:2px solid var(--brass);outline-offset:3px;}
+@keyframes benchSweep{0%,55%{left:-60%}80%,100%{left:130%}}
+@keyframes benchBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.bench-nudge,.bench-nudge::before{animation:none;}}
 </style>
 </head>
 <body>
@@ -389,6 +409,7 @@ a.chip:hover .k{color:var(--brass-dim)}
       <a href="#layers">What it adds</a>
       <a href="#measured">Measured</a>
       <a href="#install">Install</a>
+      <a href="benchmark.html">Benchmark</a>
       <a href="soon.html" class="nav-soon">Soon</a>
       <a href="https://github.com/deepaksinghcs14/deadeye-cc">GitHub</a>
     </div>
@@ -536,6 +557,14 @@ FAIL</div>
   <h2>What sets it apart</h2>
   <p class="lede">Most tools optimize after the fact, guess at the savings, or ship your code to a server. deadeye does none of that.</p>
   <div class="usp"><div class="usp-card"><span class="usp-stat">79.6–99.5%</span><b>smaller command output</b><p>Verbose test/build/install output is trimmed before it enters context — measured on real runs, not averaged: 485 bytes → 99, a 202-line passing suite → 55.</p></div><div class="usp-card"><span class="usp-stat">86.0%</span><b>lighter subagents</b><p>The coder persona a subagent inherits dropped from 7,666 to 1,073 bytes per spawn — measured, on every spawn.</p></div><div class="usp-card"><span class="usp-stat">100%</span><b>measured, never estimated</b><p>Every figure is a real row in <code>decisions.jsonl</code> — and 95% of events (the quiet no-ops) aren't logged at all. No invented savings for code never written.</p></div><div class="usp-card"><span class="usp-stat">0</span><b>bytes leave your machine</b><p>No phone-home, no API keys, no telemetry. All state lives in one file under <code>~/.deadeye/</code>.</p></div><div class="usp-card"><span class="usp-stat">4 signals</span><b>decided before the spend</b><p>Model, effort, and context are fit <em>ahead</em> of the call from four cheap signals — no extra LLM call, no keyword-matching, reasoning always visible.</p></div><div class="usp-card"><span class="usp-stat">Fail-open</span><b>never blocks, never overrides</b><p>If anything inside it errors, your call passes through untouched. It advises on your main session — it never seizes your settings or your model.</p></div></div>
+  <div class="bench-strip reveal">
+    <span class="bench-lead">We didn't just claim it — we measured it.</span>
+    <a class="bench-nudge" href="benchmark.html" aria-label="See the routing-savings benchmark">
+      <span class="bench-cx" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg></span>
+      <span>See the proof · <span style="font-variant-numeric:tabular-nums">6× measured</span></span>
+      <span class="bench-arrow">→</span>
+    </a>
+  </div>
 </section>
 <section id="how" class="reveal">
   <p class="eyebrow">How it decides</p>

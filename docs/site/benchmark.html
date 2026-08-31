@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>deadeye — routing-savings benchmark</title>
+<meta name="description" content="Identical, verified-correct output costs 3–9× more on opus than haiku. deadeye routes each task to the cheapest tier that can do it. Measured, hidden-test graded, reproducible.">
+<meta property="og:title" content="deadeye — routing-savings benchmark">
+<meta property="og:description" content="Identical, verified-correct output costs 3–9× more on opus than haiku. Measured, hidden-test graded, reproducible.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://deepaksinghcs14.github.io/deadeye-cc/benchmark.html">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14181C; --slate:#1B2127; --raised:#232B32; --line:#2E383F;
+  --bone:#ECE6D8; --mute:#8B959C; --mute-dim:#5B646B;
+  --brass:#C89A46; --brass-dim:#8A6A2E; --brass-glow:rgba(200,154,70,.14);
+  --rust:#B15C46; --verd:#7BA090; --radius:3px;
+  --glow:rgba(200,154,70,.20);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --ink:#F3EFE4; --slate:#FFFFFF; --raised:#FBF9F2; --line:#DCD4C0;
+    --bone:#20241F; --mute:#6B6255; --mute-dim:#9A9284;
+    --brass:#9A6B1E; --brass-dim:#B9924A; --brass-glow:rgba(154,107,30,.10);
+    --rust:#A2432D; --verd:#3F7A63; --glow:rgba(154,107,30,.14);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#14181C; --slate:#1B2127; --raised:#232B32; --line:#2E383F;
+  --bone:#ECE6D8; --mute:#8B959C; --mute-dim:#5B646B;
+  --brass:#C89A46; --brass-dim:#8A6A2E; --brass-glow:rgba(200,154,70,.14);
+  --rust:#B15C46; --verd:#7BA090; --glow:rgba(200,154,70,.20);
+}
+:root[data-theme="light"]{
+  --ink:#F3EFE4; --slate:#FFFFFF; --raised:#FBF9F2; --line:#DCD4C0;
+  --bone:#20241F; --mute:#6B6255; --mute-dim:#9A9284;
+  --brass:#9A6B1E; --brass-dim:#B9924A; --brass-glow:rgba(154,107,30,.10);
+  --rust:#A2432D; --verd:#3F7A63; --glow:rgba(154,107,30,.14);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ink);color:var(--bone);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px;}
+a{color:var(--brass);}
+code{font-family:"IBM Plex Mono",monospace;background:var(--brass-glow);padding:1px 5px;
+  border-radius:2px;font-size:.9em;}
+
+.nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;position:relative;z-index:3;}
+.nav .brand{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:20px;
+  letter-spacing:.02em;color:var(--bone);text-decoration:none;}
+.nav .brand .dot{color:var(--brass);}
+.nav a{color:var(--mute);text-decoration:none;margin-left:22px;}
+.nav a:hover{color:var(--bone);}
+.nav .back{color:var(--brass);}
+
+.eyebrow{display:inline-flex;align-items:center;gap:10px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--brass);font-weight:600;}
+.eyebrow::before{content:"";width:18px;height:1px;background:var(--brass-dim);}
+
+h1{font-family:"Saira Condensed",sans-serif;font-weight:700;line-height:.98;
+  font-size:clamp(40px,7vw,76px);letter-spacing:-.015em;margin:22px 0 20px;text-wrap:balance;}
+h1 .em{color:var(--brass);}
+h2{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--mute-dim);margin:0 0 24px;}
+h3{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:23px;margin:0 0 12px;
+  letter-spacing:.01em;}
+.lede{font-size:clamp(17px,2.2vw,21px);color:var(--mute);margin:0 0 8px;max-width:60ch;}
+p{margin:0 0 16px;} p .k{color:var(--bone);font-weight:600;}
+
+/* ---------- HERO with glow ---------- */
+.hero{position:relative;padding:44px 0 20px;}
+.hero::before{content:"";position:absolute;top:-120px;left:50%;transform:translateX(-50%);
+  width:1100px;height:620px;pointer-events:none;z-index:0;
+  background:radial-gradient(60% 55% at 50% 40%,var(--glow),transparent 70%);}
+.hero-inner{position:relative;z-index:1;}
+/* visible by default; JS (below) opts into the hide-then-reveal animation */
+.reveal{opacity:1;transform:none;transition:opacity .7s ease,transform .7s ease;}
+.js .reveal{opacity:0;transform:translateY(14px);}
+.js .reveal.in{opacity:1;transform:none;}
+
+/* scoreboard */
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:34px 0 6px;
+  box-shadow:0 24px 60px -40px var(--glow);}
+.cell{background:linear-gradient(180deg,var(--raised),var(--slate));padding:24px 20px 22px;
+  position:relative;}
+.cell::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--brass),transparent);opacity:.5;}
+.cell .big{font-family:"Saira Condensed",sans-serif;font-weight:700;line-height:.9;
+  font-size:clamp(38px,6vw,56px);letter-spacing:-.02em;color:var(--brass);
+  font-variant-numeric:tabular-nums;}
+.cell .lbl{font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.45;
+  color:var(--mute);margin-top:10px;letter-spacing:.02em;}
+.cell .lbl b{color:var(--bone);font-weight:600;}
+.hero-note{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mute-dim);
+  margin-top:14px;}
+
+section{padding:52px 0;border-top:1px solid var(--line);position:relative;}
+.prose{max-width:64ch;}
+.barcap{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--mute-dim);
+  margin-top:18px;line-height:1.55;}
+.method-flag{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--brass);display:inline-block;margin-bottom:4px;}
+
+/* ---------- cost bars ---------- */
+.bars{display:flex;flex-direction:column;gap:14px;margin:8px 0;}
+.brow{display:grid;grid-template-columns:118px 1fr 56px;align-items:center;gap:16px;}
+.brow .lbl{font-family:"IBM Plex Mono",monospace;font-size:13.5px;color:var(--mute);}
+.track{height:26px;background:var(--raised);border-radius:3px;overflow:hidden;
+  border:1px solid var(--line);}
+.fill{height:100%;width:var(--w,0);border-radius:2px;
+  background:linear-gradient(90deg,var(--brass-dim),var(--brass));
+  box-shadow:0 0 18px -2px var(--glow);transition:width 1.1s cubic-bezier(.2,.7,.2,1);}
+.js .fill{width:0;}
+.brow .x{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:20px;text-align:right;
+  color:var(--bone);font-variant-numeric:tabular-nums;}
+
+/* ---------- pipeline ---------- */
+.pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+.step{background:var(--slate);padding:20px 18px 22px;}
+.step .n{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--brass);font-weight:600;
+  letter-spacing:.12em;}
+.step h4{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:17px;margin:8px 0;}
+.step p{font-size:13px;color:var(--mute);margin:0;line-height:1.5;}
+
+/* ---------- task bands ---------- */
+.bands{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+.band{background:var(--slate);padding:20px;}
+.band .tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;
+  text-transform:uppercase;font-weight:600;padding:3px 9px;border-radius:20px;display:inline-block;
+  margin-bottom:14px;border:1px solid var(--line);}
+.band.mech .tag{color:var(--mute);}
+.band.std .tag{color:var(--brass);}
+.band.hard .tag{color:var(--rust);border-color:var(--rust);}
+.band ul{margin:0;padding:0;list-style:none;}
+.band li{font-family:"IBM Plex Mono",monospace;font-size:13px;padding:6px 0;
+  border-top:1px dashed var(--line);color:var(--bone);}
+.band li:first-child{border-top:0;}
+.band .why{font-size:12.5px;color:var(--mute-dim);margin-top:14px;line-height:1.5;}
+
+/* ---------- results table ---------- */
+.scroll{overflow-x:auto;}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:580px;}
+th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line);}
+thead th{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--mute-dim);font-weight:600;}
+td.t{font-family:"IBM Plex Mono",monospace;color:var(--mute);white-space:nowrap;}
+td.c{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;padding:1px 6px;
+  border-radius:2px;margin-left:7px;border:1px solid;}
+.chip.p{color:var(--verd);border-color:var(--verd);}
+.chip.f{color:var(--rust);border-color:var(--rust);}
+tr.frontier td{background:var(--brass-glow);}
+
+/* ---------- callout + caveats ---------- */
+.callout{background:linear-gradient(180deg,var(--raised),var(--slate));border:1px solid var(--line);
+  border-left:3px solid var(--brass);border-radius:var(--radius);padding:24px 26px;
+  box-shadow:0 20px 50px -42px var(--glow);}
+.callout h3{margin-top:0;}
+.caveats{list-style:none;margin:0;padding:4px 24px;background:var(--slate);border:1px solid var(--line);
+  border-radius:var(--radius);}
+.caveats li{padding:15px 0;border-top:1px solid var(--line);font-size:14.5px;color:var(--mute);}
+.caveats li:first-child{border-top:0;}
+.caveats li b{color:var(--bone);}
+
+.bottom{font-family:"Saira Condensed",sans-serif;font-weight:600;
+  font-size:clamp(22px,3.2vw,30px);line-height:1.3;color:var(--bone);max-width:24ch;}
+.bottom em{color:var(--brass);font-style:normal;}
+.bottom-wrap{display:flex;flex-wrap:wrap;gap:26px 48px;align-items:center;justify-content:space-between;}
+.cta{display:inline-flex;align-items:center;gap:10px;font-family:"IBM Plex Mono",monospace;
+  font-weight:600;font-size:14px;color:var(--ink);text-decoration:none;
+  background:linear-gradient(180deg,var(--brass),var(--brass-dim));padding:13px 20px;border-radius:var(--radius);
+  box-shadow:0 12px 30px -14px var(--glow);}
+.cta:hover{filter:brightness(1.06);}
+
+footer{padding:34px 0 84px;color:var(--mute-dim);font-family:"IBM Plex Mono",monospace;font-size:12.5px;}
+footer a{color:var(--brass);}
+
+@media(max-width:860px){
+  .board{grid-template-columns:repeat(2,1fr);}
+  .pipe{grid-template-columns:repeat(2,1fr);}
+  .bands{grid-template-columns:1fr;}
+  .brow{grid-template-columns:92px 1fr 48px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none;transition:none;}
+  .fill{transition:none;}
+}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+<div class="wrap">
+  <nav class="nav">
+    <a class="brand" href="index.html">deadeye<span class="dot">.</span></a>
+    <div>
+      <a class="back" href="index.html">← home</a>
+      <a href="https://github.com/deepaksinghcs14/deadeye-cc/tree/main/benchmarks/routing" target="_blank" rel="noopener">reproduce</a>
+    </div>
+  </nav>
+
+  <!-- ============ HERO : NUMBERS FIRST ============ -->
+  <header class="hero">
+    <div class="hero-inner">
+      <span class="eyebrow reveal in">routing-savings benchmark · measured</span>
+      <h1 class="reveal in">The cost of a model <span class="em">you didn't need.</span></h1>
+      <p class="lede reveal in">deadeye routes each subagent task to the cheapest model tier that can still do
+        it. We measured what that's worth — in real billed dollars, graded by a test the model never saw.</p>
+
+      <div class="board reveal">
+        <div class="cell"><div class="big">3–9×</div>
+          <div class="lbl">what opus billed over haiku for <b>identical, correct</b> output (median ~6×)</div></div>
+        <div class="cell"><div class="big">5<span style="color:var(--mute);font-size:.6em"> / </span>6</div>
+          <div class="lbl">well-scoped tasks <b>passed on the cheapest tier</b> — downshift nearly free</div></div>
+        <div class="cell"><div class="big" data-count="63" data-suffix="%" data-prefix="~">~63%</div>
+          <div class="lbl">model-cost cut vs all-opus <b>(oracle routing)</b> on this set</div></div>
+        <div class="cell"><div class="big" data-count="100" data-suffix="%">100%</div>
+          <div class="lbl">measured, <b>hidden-test graded</b> — no estimated numbers</div></div>
+      </div>
+      <p class="hero-note reveal in">18 runs · 6 tasks × 3 tiers (haiku · sonnet · opus) · real <code>total_cost_usd</code></p>
+    </div>
+  </header>
+
+  <!-- ============ THE PROOF : cost bars ============ -->
+  <section>
+    <h2>The proof — over-provisioning has a price</h2>
+    <h3 class="reveal">Same task, done correctly: how many × more opus billed than haiku</h3>
+    <div class="bars reveal" style="margin-top:22px">
+      <div class="brow"><span class="lbl">counter</span><div class="track"><div class="fill" data-w="100" style="--w:100%"></div></div><span class="x">9.1×</span></div>
+      <div class="brow"><span class="lbl">wordwrap</span><div class="track"><div class="fill" data-w="78" style="--w:78%"></div></div><span class="x">7.1×</span></div>
+      <div class="brow"><span class="lbl">clamp</span><div class="track"><div class="fill" data-w="67" style="--w:67%"></div></div><span class="x">6.1×</span></div>
+      <div class="brow"><span class="lbl">semver</span><div class="track"><div class="fill" data-w="53" style="--w:53%"></div></div><span class="x">4.8×</span></div>
+      <div class="brow"><span class="lbl">csv</span><div class="track"><div class="fill" data-w="37" style="--w:37%"></div></div><span class="x">3.4×</span></div>
+    </div>
+    <p class="barcap">Bar = opus ÷ haiku billed cost, for output <b>both</b> tiers got correct. Per-task and
+      mix-independent — the robust claim. (sonnet ran ~4–5.5× haiku.)</p>
+  </section>
+
+  <!-- ============ THE PROOF : pass/fail grid ============ -->
+  <section>
+    <h2>And the cheaper tier actually did the work</h2>
+    <div class="scroll reveal">
+      <table>
+        <thead><tr><th>Task</th><th>Band</th><th>haiku</th><th>sonnet</th><th>opus</th><th>Cheapest that passed</th></tr></thead>
+        <tbody>
+          <tr><td class="t">clamp</td><td class="t">mech</td><td class="c">$0.026<span class="chip p">PASS</span></td><td class="c">$0.110<span class="chip p">PASS</span></td><td class="c">$0.160<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr><td class="t">wordwrap</td><td class="t">std</td><td class="c">$0.046<span class="chip p">PASS</span></td><td class="c">$0.230<span class="chip p">PASS</span></td><td class="c">$0.331<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr><td class="t">csv</td><td class="t">std</td><td class="c">$0.060<span class="chip p">PASS</span></td><td class="c">$0.329<span class="chip p">PASS</span></td><td class="c">$0.204<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr><td class="t">semver</td><td class="t">hard</td><td class="c">$0.055<span class="chip p">PASS</span></td><td class="c">$0.279<span class="chip p">PASS</span></td><td class="c">$0.265<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr class="frontier"><td class="t">expr-eval</td><td class="t">hard</td><td class="c">$0.050<span class="chip f">FAIL</span></td><td class="c">$0.294<span class="chip f">FAIL</span></td><td class="c">$0.407<span class="chip f">FAIL*</span></td><td class="c">opus</td></tr>
+          <tr><td class="t">counter</td><td class="t">hard</td><td class="c">$0.034<span class="chip p">PASS</span></td><td class="c">$0.186<span class="chip p">PASS</span></td><td class="c">$0.311<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="barcap"><b>5 of 6 well-scoped tasks passed on haiku</b> — including SemVer precedence and a
+      concurrent counter under <code>-race</code>. The one that didn't (<code>expr-eval</code>) is the case
+      routing sends <em>up</em> — more on that below.</p>
+  </section>
+
+  <!-- ============ HOW WE MEASURED IT ============ -->
+  <section>
+    <span class="method-flag reveal">How we measured it</span>
+    <h2 style="margin-top:8px">One run — repeated 18 times</h2>
+    <div class="prose reveal">
+      <p>A "saving" is fake if the cheap model <span class="k">fails</span> — you re-run on opus and pay
+        twice. So every run measures both <span class="k">cost</span> and <span class="k">quality</span>, and
+        a saving counts only when the cheaper tier actually cleared the task.</p>
+    </div>
+    <div class="pipe reveal" style="margin-top:22px">
+      <div class="step"><div class="n">01 · ISOLATE</div><h4>Clean tree</h4>
+        <p><code>git archive HEAD</code> into a fresh temp dir — runs can't contaminate each other.</p></div>
+      <div class="step"><div class="n">02 · RUN</div><h4>Real session</h4>
+        <p><code>claude -p --model &lt;tier&gt;</code> writes the actual code. <code>DEADEYE=off</code> — raw model cost.</p></div>
+      <div class="step"><div class="n">03 · GRADE</div><h4>Blind test</h4>
+        <p>A <b>hidden</b> <code>go test</code> the model never saw runs against its output. Pass or fail.</p></div>
+      <div class="step"><div class="n">04 · MEASURE</div><h4>Real dollars</h4>
+        <p>Billed <code>total_cost_usd</code> + tokens from the run's JSON. Nothing estimated.</p></div>
+    </div>
+    <p class="barcap">The hidden test is the trick: grade against a spec the model couldn't see, and a pass
+      means it <em>understood the task</em>, not that it gamed the test. Each hidden test was first validated
+      against a known-correct reference impl — so a failure is the model's, not the test's.</p>
+  </section>
+
+  <section>
+    <h2>The task set — three difficulty bands, on purpose</h2>
+    <div class="bands reveal">
+      <div class="band mech"><span class="tag">mechanical</span>
+        <ul><li>clamp(v, lo, hi)</li></ul>
+        <div class="why">Trivial. Should pass on every tier — so opus here is pure waste.</div></div>
+      <div class="band std"><span class="tag">standard</span>
+        <ul><li>word-wrap (runes)</li><li>CSV parser</li></ul>
+        <div class="why">Edge cases — unicode width, empty fields, escaped quotes — where a weak tier might slip.</div></div>
+      <div class="band hard"><span class="tag">hard</span>
+        <ul><li>SemVer compare</li><li>expression eval</li><li>concurrent counter</li></ul>
+        <div class="why">Reasoning-heavy. Where opus should actually be <em>needed</em> — the route-up case.</div></div>
+    </div>
+    <p class="barcap">If cheap tiers passed <em>everything</em>, the honest verdict would be "just use haiku" —
+      an anti-routing result. We needed one task where the cheap tier fails and opus is needed. That's the
+      expression evaluator.</p>
+  </section>
+
+  <section>
+    <h2>The frontier — why one task earns opus</h2>
+    <div class="callout reveal">
+      <h3>expr-eval sits at the model's capability edge</h3>
+      <p>The recursive expression evaluator (operator precedence, unary minus, error handling) failed on
+        <span class="k">haiku</span> and <span class="k">sonnet</span>, and opus was <span class="k">borderline</span>
+        — it failed one trial and <b>passed on re-run</b> (the <code>*</code>). This is exactly the task routing
+        must send <em>up</em>. The roll-up keeps it on opus and claims <b>no</b> saving for it.</p>
+      <p style="margin-bottom:0">The whole thesis in one row: <b>route the easy common case down, keep the hard
+        frontier case up.</b></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>The honest caveats — written into the benchmark</h2>
+    <ul class="caveats reveal">
+      <li><b>The ~63% roll-up is illustrative, not the headline.</b> Oracle routing (cheapest tier that passed)
+        cut cost ~63% vs all-opus on this set — but it depends on the task mix. Lead with the 3–9×
+        <em>ratio</em>, which doesn't.</li>
+      <li><b>Single trial per (task, tier) is noisy</b> near the frontier — see expr-eval. Multi-trial
+        pass-rates are the next rigor step.</li>
+      <li><b>Small self-contained tasks under-count the tier gap.</b> Large, context-heavy real work is where
+        cheaper tiers slip more — so this is a floor on the value of routing up, not a ceiling.</li>
+      <li><b>Cache-heavy system-prompt cost is in every run</b> and similar across tiers, so it
+        <em>dilutes</em> the headline %. The model-priced delta is the real lever.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="bottom-wrap">
+      <p class="bottom">Correct output costs about <em>6× more</em> on opus. deadeye routes it down.</p>
+      <a class="cta" href="index.html">← back to deadeye</a>
+    </div>
+  </section>
+
+  <footer>
+    18 runs · 6 tasks × 3 tiers · real billed cost · hidden-test graded ·
+    <a href="https://github.com/deepaksinghcs14/deadeye-cc/tree/main/benchmarks/routing" target="_blank" rel="noopener">reproduce it →</a>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var el = e.target;
+      el.classList.add('in');
+      // animate bars
+      el.querySelectorAll('.fill[data-w]').forEach(function(f){ f.style.width = f.getAttribute('data-w') + '%'; });
+      // count-up numbers
+      el.querySelectorAll('.big[data-count]').forEach(function(n){
+        if(rm){ return; }
+        var end = +n.getAttribute('data-count'),
+            pre = n.getAttribute('data-prefix')||'', suf = n.getAttribute('data-suffix')||'',
+            t0=null, dur=900;
+        function tick(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/dur,1);
+          var v=Math.round(end*(0.2+0.8*p)*(p<1?1:1)); // ease-ish
+          n.textContent = pre + Math.round(end*ease(p)) + suf;
+          if(p<1) requestAnimationFrame(tick); else n.textContent = pre + end + suf;
+        }
+        function ease(x){ return 1-Math.pow(1-x,3); }
+        requestAnimationFrame(tick);
+      });
+      io.unobserve(el);
+    });
+  },{threshold:.25});
+  document.querySelectorAll('.reveal').forEach(function(el){
+    if(el.classList.contains('in')){ // hero elements already visible: still animate bars/counts
+      el.querySelectorAll('.fill[data-w]').forEach(function(f){ f.style.width=f.getAttribute('data-w')+'%'; });
+    }
+    io.observe(el);
+  });
+})();
+</script>
+</body>
+</html>

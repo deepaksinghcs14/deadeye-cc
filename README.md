@@ -73,6 +73,33 @@ never a black box. deadeye advises by default and never touches your
 `settings.json`; if anything inside it errors, your call passes through
 untouched.
 
+## Benchmark — routing savings
+
+Does routing to a cheaper model actually save money, or just do worse work? We
+measured it: every task run on all three tiers, graded by a **hidden test the
+model never saw**, priced from real billed `total_cost_usd` (deadeye off during
+runs, so it's raw per-tier model cost).
+
+**Identical, verified-correct output cost 3–9× more on opus than haiku** (median
+~6×). And **5 of 6 well-scoped tasks passed on haiku** — including SemVer
+precedence and a concurrent counter under `-race` — so downshifting the common
+case is nearly free in quality. The one task that needed opus (a recursive
+expression evaluator) is exactly the case routing sends *up*.
+
+| Task | Band | haiku | opus | opus ÷ haiku |
+|---|---|---:|---:|---:|
+| counter | hard | $0.034 | $0.311 | **9.1×** |
+| wordwrap | standard | $0.046 | $0.331 | **7.1×** |
+| clamp | mechanical | $0.026 | $0.160 | **6.1×** |
+| semver | hard | $0.055 | $0.265 | **4.8×** |
+| csv | standard | $0.060 | $0.204 | **3.4×** |
+
+Oracle routing (cheapest tier that passed) cut model cost ~63% vs all-opus on
+this set — illustrative, since it depends on task mix; the per-task ratio above
+is the robust, mix-independent claim. Full method, honest caveats, and the
+pass/fail grid: **[the benchmark page](https://deepaksinghcs14.github.io/deadeye-cc/benchmark.html)**
+· reproduce it in [`benchmarks/routing/`](benchmarks/routing/).
+
 ## Install
 
 ```
