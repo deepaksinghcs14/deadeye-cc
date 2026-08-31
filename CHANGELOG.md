@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 0.27.0
+
+**Detect a stale/shadowed binary.** A real footgun surfaced: a `deadeye` on
+your PATH (e.g. an old `go install`ed one) is used by the hook and deliberately
+never auto-updated, so the plugin can march ahead (0.25) while the binary stays
+behind (0.13) silently -- deadeye's daemon<->client handshake only compares the
+binary to itself, never to the plugin. Now the binary reads the installed
+plugin's version (`<plugin_root>/.claude-plugin/plugin.json`) and, when it's
+running strictly behind it, warns:
+- **`/deadeye-status`** shows a `⚠ binary X is BEHIND the plugin Y` banner with
+  the fix (run `which deadeye`, then update or remove the PATH binary so
+  `~/.deadeye/bin/deadeye` takes over).
+- A **once-per-skew SessionStart nudge** asks the agent to tell the user the
+  same, so they don't have to open status to find out.
+
+A binary AHEAD of the plugin (a dev checkout) stays quiet. Inherent caveat: a
+binary already stuck on an old version can't warn about itself until it's
+updated once -- but every managed-binary install, and anyone after a single
+update, is covered, and this stops the skew from recurring silently.
+
 ## 0.26.0
 
 **Update-available ask.** deadeye now tells you when a newer release is out and

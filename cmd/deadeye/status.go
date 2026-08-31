@@ -34,6 +34,13 @@ func runStatus() {
 
 	fmt.Printf("%s %s\n\n", cHead(meta.Name), cValue(meta.Version))
 
+	if pv := pluginVersion(os.Getenv("CLAUDE_PLUGIN_ROOT")); pv != "" && semverNewer(pv, meta.Version) {
+		fmt.Println(cWarn("⚠ binary " + meta.Version + " is BEHIND the installed plugin " + pv + " -- a `deadeye`"))
+		fmt.Println(cWarn("  on your PATH is likely shadowing the managed one. Run `which deadeye`, then update"))
+		fmt.Println(cWarn("  or remove it so ~/.deadeye/bin/deadeye takes over."))
+		fmt.Println()
+	}
+
 	fmt.Println(cHead("Modes") + cDim("   change → deadeye config set <key> <value>"))
 	srow("routing", cfg.Mode.Routing, "mode.routing", "off · advise · enforce")
 	srow("effort", cfg.Mode.Effort, "mode.effort", "off · advise")
