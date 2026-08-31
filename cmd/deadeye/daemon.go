@@ -28,6 +28,7 @@ const idleTimeout = 30 * time.Minute
 // socket client" -- INV-8's latency budget is met without it, per
 // docs/verified.md V8, but it's built per the approved Phase 0 scope).
 func runDaemon() {
+	updateRefreshEnabled = true // only the live daemon does the background update check
 	if err := os.MkdirAll(meta.StateDir(), 0o700); err != nil {
 		return
 	}

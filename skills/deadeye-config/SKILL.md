@@ -36,6 +36,7 @@ Keys and allowed values (authoritative -- never invent others):
 | `mode.plan_gate` | off · soft · hard |
 | `mode.workflow_hint` | off · on |
 | `mode.codemap` | off · on |
+| `mode.update_check` | off · on |
 | `coder.default_level` | off · spotter · marksman · sniper |
 | `coder.security` | off · advise · ask |
 | `coder.security_osv` | true · false |

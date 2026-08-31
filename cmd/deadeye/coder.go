@@ -116,6 +116,9 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 	if nudge := statuslineNudge(pluginRoot, configDir, state, in.SessionID); nudge != "" {
 		text += "\n\n" + nudge
 	}
+	if u := updateNudge(cfg, state, in.SessionID); u != "" {
+		text += "\n\n" + u
+	}
 
 	state.log(logstore.Record{
 		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SessionStart",

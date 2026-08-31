@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 0.26.0
+
+**Update-available ask.** deadeye now tells you when a newer release is out and
+offers to update -- you no longer have to notice by hand. Once per session it
+consults a cache; when a new version has landed, the agent asks (once per
+version) whether to update, and if you say yes hands you `/plugin update` then
+`/reload-plugins`. The managed binary already re-syncs itself after that (it did
+before this change too) -- this closes the loop on the plugin side.
+
+- **Background, never blocking.** The latest version is read from a cache
+  refreshed in the background at most once/day (same discipline as the OSV
+  cache); the hook response never waits on the network.
+- **Asks, doesn't nag.** At most once per new version; declining drops it for
+  the session, and a still-newer release asks again.
+- **Opt-out.** `mode.update_check: off` (default on) turns it off entirely.
+  Visible in `/deadeye-status` and tunable via `deadeye config` / `/deadeye-config`.
+
 ## 0.25.0
 
 **Onboarding: first-run welcome, a settings hub, and no-JSON tuning.** New

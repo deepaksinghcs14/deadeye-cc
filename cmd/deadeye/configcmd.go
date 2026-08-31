@@ -32,6 +32,7 @@ var tunables = []tunable{
 	{"mode.plan_gate", "plan gate", "enum", []string{"off", "soft", "hard"}},
 	{"mode.workflow_hint", "workflow hints", "enum", []string{"off", "on"}},
 	{"mode.codemap", "codebase map", "enum", []string{"off", "on"}},
+	{"mode.update_check", "update check", "enum", []string{"off", "on"}},
 	{"coder.default_level", "coder persona", "enum", []string{"off", "spotter", "marksman", "sniper"}},
 	{"coder.security", "coder security check", "enum", []string{"off", "advise", "ask"}},
 	{"coder.security_osv", "OSV dependency lookup", "bool", []string{"true", "false"}},

@@ -49,6 +49,12 @@
           "enum": ["off", "on"],
           "default": "on",
           "description": "Cross-session codebase map: a directory/package skeleton rebuilt when the tracked-file list changes, plus accumulated touch-frequency and exploration notes, injected once per session. off disables both the SessionEnd writes and the injection."
+        },
+        "update_check": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "on",
+          "description": "Once-per-session background check for a newer deadeye release; when one is out, the agent asks (once per version) whether to update via /plugin update. Cached ~24h, never blocks the hook response. off disables the check and the ask."
         }
       }
     },

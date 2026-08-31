@@ -25,6 +25,7 @@ type Modes struct {
 	PlanGate     string `json:"plan_gate"`
 	WorkflowHint string `json:"workflow_hint"`
 	Codemap      string `json:"codemap"`
+	UpdateCheck  string `json:"update_check"`
 }
 
 // Preprocess is per-rule config for internal/preprocess.
@@ -143,6 +144,7 @@ func Default() Config {
 			PlanGate:     "soft",
 			WorkflowHint: "on",
 			Codemap:      "on",
+			UpdateCheck:  "on",
 		},
 		DownshiftThreshold:    0.8,
 		InjectionBudgetTokens: 400,
