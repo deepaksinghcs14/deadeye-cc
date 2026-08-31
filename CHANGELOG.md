@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.31.0
+
+**Cheaper huge-PR reviews.** `/deadeye-pr`'s large-PR fan-out now spawns each
+~2,500-line cluster subagent at the cheapest model tier its cluster needs --
+tier 0/1 for routine code (the lenses are mostly pattern scans), the top tier
+reserved for clusters on a risky surface (auth, crypto, concurrency, raw SQL or
+shell, money). Full coverage as before, but a big review no longer routes every
+cluster to opus by default.
+
 ## 0.30.0
 
 **Opt-in AI routing judge.** When the cheap signals can't confidently place a

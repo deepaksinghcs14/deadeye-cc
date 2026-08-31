@@ -186,7 +186,7 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
 | `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
 | `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, deps, DoS |
-| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR |
+| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. Huge PRs fan out to parallel subagents, each at the cheapest model tier its cluster needs. |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye update` | Update the managed binary (sha256-verified, atomic) — for Codex-only installs |

@@ -38,9 +38,12 @@ Preconditions and graceful degradation:
   different scope.
 - Huge PR (more than ~40 changed files or a few thousand lines) → review it ALL
   by fanning out one subagent per ~2,500-line package-grouped cluster, in
-  parallel, each returning findings in the standard format. Verify every
-  returned finding yourself before reporting it. Never truncate, and never
-  report partial coverage as complete.
+  parallel, each returning findings in the standard format. Spawn each cluster
+  subagent at the cheapest model tier that fits it — tier 0/1 for routine code
+  (these lenses are mostly pattern scans), reserving the top tier only for a
+  cluster on a risky surface (auth, crypto, concurrency, raw SQL or shell,
+  money). Verify every returned finding yourself before reporting it. Never
+  truncate, and never report partial coverage as complete.
 
 ## Verify before reporting
 
