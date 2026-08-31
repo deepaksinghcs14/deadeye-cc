@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 0.25.0
+
+**Onboarding: first-run welcome, a settings hub, and no-JSON tuning.** New
+installs were left to discover deadeye on their own; now they don't have to.
+- **First-run welcome** — a once-ever message at the first session orients the
+  user: what deadeye does, `/deadeye-help` (every command), `/deadeye-status`
+  (see settings), `/deadeye-config` (change them), and `DEADEYE=off`. Same
+  once-ever guarantee as the statusline offer; flag at `~/.deadeye/welcomed`.
+- **`/deadeye-status` is now a settings hub** — each row shows its config key
+  and allowed values, with `change →` hints and a footer pointing at
+  `deadeye config` and `/deadeye-help`.
+- **`deadeye config`** — tune without hand-editing JSON: an interactive
+  numbered picker in the terminal, `deadeye config set/get <key> <value>`
+  (schema-validated, preserves other keys, atomic write), and `list`.
+- **`/deadeye-config`** — the conversational picker inside Claude: the agent
+  lists settings and applies your choice via `config set`, so "turn off the
+  plan gate" just works.
+
+Zero new dependencies — the picker is standard-library only (no TUI lib), a
+deliberate choice to keep deadeye dependency-free. No web server: tuning eight
+settings didn't justify one.
+
 ## 0.24.2
 
 **Resource-exhaustion / DoS lens.** New `dos:` tag in `/deadeye-guard` and

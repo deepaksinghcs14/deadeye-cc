@@ -34,15 +34,19 @@ func runStatus() {
 
 	fmt.Printf("%s %s\n\n", cHead(meta.Name), cValue(meta.Version))
 
-	fmt.Println(cHead("Modes"))
-	fmt.Printf("  routing:       %s\n", cMode(cfg.Mode.Routing))
-	fmt.Printf("  effort:        %s\n", cMode(cfg.Mode.Effort))
-	fmt.Printf("  preprocess:    %s\n", cMode(cfg.Mode.Preprocess))
-	fmt.Printf("  plan_gate:     %s\n", cMode(cfg.Mode.PlanGate))
-	fmt.Printf("  workflow_hint: %s\n\n", cMode(cfg.Mode.WorkflowHint))
+	fmt.Println(cHead("Modes") + cDim("   change → deadeye config set <key> <value>"))
+	srow("routing", cfg.Mode.Routing, "mode.routing", "off · advise · enforce")
+	srow("effort", cfg.Mode.Effort, "mode.effort", "off · advise")
+	srow("preprocess", cfg.Mode.Preprocess, "mode.preprocess", "off · on")
+	srow("plan_gate", cfg.Mode.PlanGate, "mode.plan_gate", "off · soft · hard")
+	srow("workflow_hint", cfg.Mode.WorkflowHint, "mode.workflow_hint", "off · on")
+	srow("codemap", cfg.Mode.Codemap, "mode.codemap", "off · on")
+	fmt.Println()
 
-	fmt.Println(cHead("Coder mode"))
-	fmt.Printf("  default level: %s\n", cValue(cfg.Coder.DefaultLevel))
+	fmt.Println(cHead("Coder mode") + cDim("   change → /deadeye-coder <level>  or  deadeye config"))
+	srow("persona", cfg.Coder.DefaultLevel, "coder.default_level", "off · spotter · marksman · sniper")
+	srow("security check", cfg.Coder.Security, "coder.security", "off · advise · ask")
+	srow("exfil guard", cfg.Security.Exfil, "security.exfil", "off · advise · ask")
 	liveLevel := "inactive"
 	if b, err := os.ReadFile(meta.CoderModePath()); err == nil {
 		liveLevel = strings.TrimSpace(string(b))
@@ -84,11 +88,29 @@ func runStatus() {
 	}
 	fmt.Printf("%s %s %s\n", cHead("Log:"), meta.LogPath(), cDim(fmt.Sprintf("(%d records)", len(records))))
 
+	fmt.Println()
+	fmt.Println(cDim("Change a setting:  deadeye config set <key> <value>   (interactive: deadeye config)"))
+	fmt.Println(cDim("All commands:      /deadeye-help"))
+
 	if level := os.Getenv("CLAUDE_EFFORT"); level != "" {
 		fmt.Println()
 		fmt.Println(cWarn(fmt.Sprintf("CLAUDE_EFFORT=%s is set: the effort axis is inert for this session -- deadeye's", level)))
 		fmt.Println(cWarn("effort guidance is advisory only and cannot override a pinned level."))
 	}
+}
+
+// srow prints one settings row: label, colored value, its config key, and the
+// allowed values -- so /deadeye-status doubles as a "here's what to change and
+// how" hub. Padding is computed on the RAW value length (color escapes don't
+// count toward width), so the key column stays aligned.
+func srow(label, value, key, allowed string) {
+	pad := 12 - len(value)
+	if pad < 1 {
+		pad = 1
+	}
+	fmt.Printf("  %-15s %s%s%s %s\n",
+		label, cMode(value), strings.Repeat(" ", pad),
+		cDim(fmt.Sprintf("%-26s", key)), cDim(allowed))
 }
 
 func daemonStatus() string {

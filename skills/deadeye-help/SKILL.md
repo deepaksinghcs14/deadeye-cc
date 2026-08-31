@@ -27,6 +27,7 @@ Present this reference card, formatted cleanly:
 | Command | What it does |
 |---|---|
 | `/deadeye-status` | Modes, coder level, kill switches, catalog, daemon health |
+| `/deadeye-config` | View or change any setting from chat (or just say what to change) |
 | `/deadeye-route [task]` | Dry-run the routing decision with full reasoning |
 | `/deadeye-stats [savings\|context]` | Decision-log reports: measured impact (default), token savings, per-session context breakdown |
 | `/deadeye-coder [level]` | Switch/report the coder persona level |

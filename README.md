@@ -164,12 +164,19 @@ Settings live in `~/.deadeye/config.json` (with an optional per-repo
 kill switches: `DEADEYE=off` (everything), `DEADEYE_PREPROCESS=off`,
 `DEADEYE_GATE=off`, `DEADEYE_CODER=off`.
 
+Change any setting without editing JSON: **`/deadeye-config`** from chat (or
+just say what you want — "turn off the plan gate"), **`deadeye config`** for an
+interactive picker in your terminal, or **`deadeye config set <key> <value>`**.
+`/deadeye-status` shows every setting with its key and allowed values; new
+installs get a one-time welcome pointing at all of this.
+
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `/deadeye-status` | Modes, coder level, kill switches, model list, daemon health |
 | `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without doing anything |
+| `/deadeye-config` | View or change any setting from chat, or interactively with `deadeye config` |
 | `/deadeye-stats [savings\|context]` | Decision-log reports: measured-impact scoreboard (default), token-savings, per-session context bytes |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
@@ -179,6 +186,7 @@ kill switches: `DEADEYE=off` (everything), `DEADEYE_PREPROCESS=off`,
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye update` | Update the managed binary (sha256-verified, atomic) — for Codex-only installs |
+| `deadeye config` | Interactive settings picker in your terminal (or `config get/set <key>`) |
 | `deadeye uninstall --purge` | Remove the binary, its background process, and all local state |
 
 ## Coder mode

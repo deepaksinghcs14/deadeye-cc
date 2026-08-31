@@ -110,6 +110,9 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 	if inject.EstimateTokens(text) > cfg.Coder.InjectionBudgetTokens {
 		reason = "coder ruleset injection (over budget, shipped anyway -- trim before adding more)"
 	}
+	if w := welcomeNudge(state, in.SessionID); w != "" {
+		text += "\n\n" + w
+	}
 	if nudge := statuslineNudge(pluginRoot, configDir, state, in.SessionID); nudge != "" {
 		text += "\n\n" + nudge
 	}
@@ -183,6 +186,36 @@ func statuslineNudge(pluginRoot, configDir string, state *daemonState, sessionID
 		return "deadeye: a statusline badge showing the coder level is available at hooks/deadeye-statusline.sh inside the deadeye plugin directory. OFFER the user (once) to add it as their statusLine command in " + settingsPath + " -- never edit their settings without asking."
 	}
 	return "deadeye: a statusline badge showing the coder level is available. OFFER the user (once) to add this to " + settingsPath + " -- never edit their settings without asking:\n  \"statusLine\": { \"type\": \"command\", \"command\": \"bash \\\"" + script + "\\\"\" }"
+}
+
+// welcomeNudge returns, at most once ever, a first-run onboarding message
+// asking the AGENT to briefly orient the user -- what deadeye does, and where
+// to see (/deadeye-status), change (/deadeye-config), and list every command
+// (/deadeye-help). Same once-ever O_EXCL claim as statuslineNudge: the flag
+// file at WelcomedPath records that the welcome was shown, so it never repeats.
+func welcomeNudge(state *daemonState, sessionID string) string {
+	if _, err := os.Stat(meta.WelcomedPath()); err == nil {
+		return "" // already welcomed, ever
+	}
+	_ = os.MkdirAll(meta.StateDir(), 0o700)
+	f, err := os.OpenFile(meta.WelcomedPath(), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return "" // another session claimed the welcome first
+	}
+	_, _ = f.WriteString("1\n")
+	f.Close()
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: sessionID, Surface: "SessionStart", Action: "welcome"})
+
+	return "deadeye: FIRST RUN (this session only). Give the user a brief, one-time " +
+		"welcome -- do not repeat it in later turns or sessions. Concisely cover:\n" +
+		"- what deadeye does: fits the model, effort, and context to each task to save " +
+		"tokens, plus a lean-first coding persona; it advises by default and never blocks.\n" +
+		"- /deadeye-help -- lists EVERY command (send them here to discover the rest).\n" +
+		"- /deadeye-status -- see what's on and your current settings.\n" +
+		"- /deadeye-config -- change any setting (or just ask in plain English, e.g. " +
+		"\"turn off the plan gate\").\n" +
+		"- turn it all off any time with DEADEYE=off.\n" +
+		"Keep it to a few lines; don't lecture."
 }
 
 // coderTracker handles /deadeye-coder invocations and deactivation
