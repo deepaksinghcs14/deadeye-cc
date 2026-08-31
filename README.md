@@ -63,9 +63,11 @@ where deadeye actually did something.
 4. Learn     If you manually pick a bigger model than it recommended, it gets more cautious for that kind of task next time
 ```
 
-The rule behind all four: **when it doesn't know, it goes big.** Missing or
-shaky evidence never buys a cheaper model — picking cheaper needs real
-evidence above a confidence bar; picking more capable never needs a reason.
+The rule behind all four: **when unsure, a capable middle — not the priciest.**
+Thin or shaky evidence defaults to the sonnet tier, reserving opus for genuinely
+high-complexity work; picking cheaper needs real evidence above a confidence bar.
+Optionally, an AI judge (`claude -p`, no API key) classifies the ambiguous cases
+for a sharper call.
 Every decision is printable: run `/deadeye-route` to see the full reasoning,
 never a black box. deadeye advises by default and never touches your
 `settings.json`; if anything inside it errors, your call passes through
@@ -155,8 +157,10 @@ never touches the others.
 | Codebase map | `off` / `on` | A persistent per-project map — skeleton, most-touched files, exploration notes — injected once per session so a fresh session doesn't re-explore from scratch. |
 | Effort level | `off` / `advise` | Suggests lower effort for mechanical steps; no effect if `CLAUDE_EFFORT` is pinned. |
 | Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one. |
+| AI routing judge | `off` / `on` | Opt-in: when the cheap signals can't place a subtask, classify it with a `claude -p` call (haiku, no API key) instead of defaulting a tier. |
 | Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit. |
 | Workflow suggestion | `off` / `on` | Flags tasks that look like parallel/fan-out work — only ever suggests, never starts one. |
+| Update check | `off` / `on` | Once/day background check for a newer release; asks (once per version) whether to update. |
 
 Settings live in `~/.deadeye/config.json` (with an optional per-repo
 `.deadeye.json` override); full schema in
