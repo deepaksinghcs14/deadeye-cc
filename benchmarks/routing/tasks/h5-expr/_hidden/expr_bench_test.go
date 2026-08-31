@@ -7,14 +7,14 @@ func TestBenchEvalValid(t *testing.T) {
 		in   string
 		want int
 	}{
-		{"2+3*4", 14},        // precedence
-		{"(2+3)*4", 20},      // parens
-		{"10-3-2", 5},        // left-assoc subtraction
-		{"100/5/2", 10},      // left-assoc division
-		{"2*(3+4)-1", 13},    // mixed
-		{"-5+3", -2},         // unary minus
-		{"  7  ", 7},         // whitespace
-		{"2*-3", -6},         // unary after operator
+		{"2+3*4", 14},     // precedence
+		{"(2+3)*4", 20},   // parens
+		{"10-3-2", 5},     // left-assoc subtraction
+		{"100/5/2", 10},   // left-assoc division
+		{"2*(3+4)-1", 13}, // mixed
+		{"-5+3", -2},      // unary minus
+		{"  7  ", 7},      // whitespace
+		{"2*-3", -6},      // unary after operator
 	}
 	for _, c := range cases {
 		got, err := Eval(c.in)

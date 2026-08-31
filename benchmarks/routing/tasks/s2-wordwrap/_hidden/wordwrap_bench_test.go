@@ -15,8 +15,8 @@ func TestBenchWordWrap(t *testing.T) {
 		{"a bb ccc", 3, []string{"a", "bb", "ccc"}},
 		{"hello world", 5, []string{"hello", "world"}},
 		{"supercalifragilistic hi", 5, []string{"supercalifragilistic", "hi"}}, // long word unsplit
-		{"  multiple   spaces  here ", 100, []string{"multiple spaces here"}},   // collapse + trim
-		{"héllo wörld", 5, []string{"héllo", "wörld"}},                          // rune-count, not byte
+		{"  multiple   spaces  here ", 100, []string{"multiple spaces here"}},  // collapse + trim
+		{"héllo wörld", 5, []string{"héllo", "wörld"}},                         // rune-count, not byte
 	}
 	for _, c := range cases {
 		if got := WordWrap(c.text, c.width); !reflect.DeepEqual(got, c.want) {

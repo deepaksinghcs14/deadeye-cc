@@ -42,7 +42,7 @@ for t in "${tasks[@]}"; do
     ( cd "$work" && DEADEYE=off claude -p --permission-mode acceptEdits \
         --model "$tier" --output-format json "$prompt" ) > "$work/run.json" 2> "$work/claude.err"
     end=$(date +%s)
-    verdict="$( cd "$work" && HIDDEN="$BR/tasks/$id/hidden" bash "$BR/check.sh" "$pkg" "$race" )"
+    verdict="$( cd "$work" && HIDDEN="$BR/tasks/$id/_hidden" bash "$BR/check.sh" "$pkg" "$race" )"
     dur=$((end-start))
     python3 - "$id" "$band" "$tier" "$idx" "$verdict" "$dur" "$work/run.json" >> "$OUT" <<'PY'
 import json,sys
