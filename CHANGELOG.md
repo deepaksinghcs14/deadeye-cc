@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.28.0
+
+**Auto-update now reaches a shadowed binary (the fix behind the 0.27 warning).**
+The hook used to prefer *any* `deadeye` on PATH and never update it -- so an old
+`go install`ed binary (say 0.13) shadowed the managed, self-updating one forever
+while the plugin marched ahead, silently. The resolution rule changed:
+- A PATH `deadeye` is used **only if it's at least the plugin's version.** A
+  stale one is bypassed for the managed `~/.deadeye/bin/deadeye`, which
+  bootstraps itself to the plugin version on SessionStart.
+- A **current-or-newer PATH build still wins**, so a dev's own build stays in
+  charge -- and with no plugin context (e.g. Codex) PATH wins as before.
+- Fail-open throughout; the version check is only paid when a PATH binary
+  actually exists (the common plugin-only install resolves straight to the
+  managed binary, zero extra cost).
+
+Mirrored in the Windows PowerShell hook (resolution only; Windows self-bootstrap
+is still pending, so the 0.27 skew warning remains the safety net there). A Go
+test runs the hook against stub binaries to lock the behavior in.
+
 ## 0.27.0
 
 **Detect a stale/shadowed binary.** A real footgun surfaced: a `deadeye` on
