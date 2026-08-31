@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 0.29.0
+
+**Model routing: stop defaulting to opus when the evidence is thin.** Most
+subagent spawns are description-only against a clean tree, which leaves 3 of 4
+signals with nothing to assess -- so they couldn't clear the confidence bar and
+fell to the "when unsure, go big" ceiling, which was **opus**. That's where the
+cost leaked. Two changes:
+- The kernel now has **two ceilings**: the *unsure* default (thin, untrusted,
+  or below-threshold evidence) is **sonnet (tier 1)** -- a capable middle, not
+  the priciest; **opus (tier 2)** is reserved for genuinely high-complexity
+  readings (the >=0.9 upshift and the confident 0.75-0.9 band). INV-1 still
+  holds -- unsure still goes bigger than the low-complexity evidence alone
+  would justify, just not all the way to opus.
+- The injected Agent-tier guidance is now prescriptive: **always set `model`
+  explicitly** (unset defaults costlier), tier 0/1 cover most subtasks, opus is
+  the exception.
+
+Net: the agent picks the cheapest fitting tier itself, and when it doesn't, the
+daemon's fallback is sonnet instead of opus. Genuinely hard tasks still reach
+opus; a manual escalation still teaches deadeye to be more conservative for that
+task shape.
+
 ## 0.28.0
 
 **Auto-update now reaches a shadowed binary (the fix behind the 0.27 warning).**

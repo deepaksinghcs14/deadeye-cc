@@ -39,24 +39,21 @@ func decisionRank(d Decision) int {
 	return tier*len(effortOrder) + effortIndex(d.Effort)
 }
 
-// TestEmptyEvidenceIsCeiling is INV-1's headline property: missing
-// evidence must never produce a cheaper model or lower effort than any
-// possible evidence-driven decision.
-func TestEmptyEvidenceIsCeiling(t *testing.T) {
+// TestEmptyEvidenceIsUnsureDefault: missing evidence yields the UNSURE
+// default -- a capable middle (tier 1 / sonnet), not the cheapest and not
+// the priciest. INV-1 still holds (unsure goes bigger than the low-
+// complexity evidence alone would justify), it just no longer defaults to
+// opus. Confident, low-complexity evidence downshifts BELOW this default;
+// genuinely-hard evidence rises ABOVE it (tested separately).
+func TestEmptyEvidenceIsUnsureDefault(t *testing.T) {
 	cat := testCatalog()
 	ceiling := Decide(nil, cat, 0.8)
-	if ceiling.Model != "top" || ceiling.Effort != "high" {
-		t.Fatalf("empty evidence = %+v, want top tier / high effort", ceiling)
+	if ceiling.Model != "mid" || ceiling.Effort != "high" {
+		t.Fatalf("empty evidence = %+v, want mid tier (sonnet) / high effort", ceiling)
 	}
 
-	// No evidence-driven decision should ever outrank (be MORE expensive
-	// than) the ceiling -- confident, bounded-complexity evidence is
-	// supposed to downshift BELOW it; that's the whole point. (Very-high-
-	// complexity evidence is deliberately excluded from this list: it
-	// legitimately upshifts PAST the ceiling's effort, to xhigh -- see
-	// TestVeryHighComplexityUpshiftsRegardlessOfConfidence -- so "the
-	// ceiling" is an upper bound for these bounded-complexity cases only,
-	// not an absolute cap across every possible decision.)
+	// Confident, low-complexity evidence downshifts to at or below the unsure
+	// default -- never more expensive than it.
 	cases := [][]signals.Evidence{
 		{{Complexity: 0.1, Confidence: 0.95}},
 		{{Complexity: 0.4, Confidence: 0.9}},
@@ -65,7 +62,7 @@ func TestEmptyEvidenceIsCeiling(t *testing.T) {
 	for _, ev := range cases {
 		d := Decide(ev, cat, 0.8)
 		if decisionRank(d) > decisionRank(ceiling) {
-			t.Errorf("evidence %+v produced %+v, ranked above the ceiling %+v", ev, d, ceiling)
+			t.Errorf("low-complexity evidence %+v produced %+v, ranked above the unsure default %+v", ev, d, ceiling)
 		}
 	}
 }
@@ -83,20 +80,19 @@ func TestLowConfidenceBlocksDownshift(t *testing.T) {
 
 // TestOneDisagreeingSignalBlocksDownshift: even with other confident,
 // low-complexity evidence present, one signal reporting high complexity
-// must prevent downshift (max-complexity aggregation). Checks tier/effort
-// only, not full struct equality with the zero-evidence ceiling: complexity
-// 0.8 falls in the gap above the last band and below veryHighComplexity, so
-// the real, evaluated confidence (0.95) is what should be reported here --
-// see TestComplexityGapReportsRealConfidence for that behavior directly.
+// must prevent downshift (max-complexity aggregation). Complexity 0.8 is a
+// confident reading in the 0.75-0.9 band -- genuinely complex -- so it rises
+// to the HIGH ceiling (opus/tier 2), distinct from the thin-evidence unsure
+// default (sonnet/tier 1). The point is it did NOT downshift to the cheap
+// tier.
 func TestOneDisagreeingSignalBlocksDownshift(t *testing.T) {
 	cat := testCatalog()
 	d := Decide([]signals.Evidence{
 		{Complexity: 0.05, Confidence: 0.95},
 		{Complexity: 0.8, Confidence: 0.95},
 	}, cat, 0.8)
-	ceiling := Decide(nil, cat, 0.8)
-	if d.Model != ceiling.Model || d.Effort != ceiling.Effort {
-		t.Errorf("disagreeing evidence set downshifted: got %+v, want tier/effort of ceiling %+v", d, ceiling)
+	if d.Model != "top" || d.Effort != "high" {
+		t.Errorf("disagreeing evidence set = %+v, want the high ceiling (top tier / high effort), not a downshift", d)
 	}
 }
 
@@ -163,22 +159,23 @@ func TestVeryHighComplexityUpshiftsRegardlessOfConfidence(t *testing.T) {
 	}
 }
 
-// TestCeilingCapsBelowTheMostExpensiveTier is the regression test for a
-// real bug caught live: with the real builtin catalog (tier 3 =
-// claude-fable-5, 2x opus's price), the ceiling picked the highest TIER,
-// which happens to be the most EXPENSIVE model -- three read-only
-// search-agent calls with thin evidence were all advised fable-5 in one
-// real session. ceilingTier caps this at tier 2 (opus-equivalent).
-func TestCeilingCapsBelowTheMostExpensiveTier(t *testing.T) {
+// TestCeilingsCapBelowTheMostExpensiveTier: neither ceiling ever routes to
+// the catalog's priciest tier. The unsure default lands at tier 1 (sonnet);
+// the high-complexity ceiling lands at tier 2 (opus) -- both below tier 3
+// (fable), the regression this guards (thin evidence once routed to fable-5
+// at 2x opus in a real session, just for being most expensive).
+func TestCeilingsCapBelowTheMostExpensiveTier(t *testing.T) {
 	cat := catalog.Catalog{Models: []catalog.Model{
 		{ID: "haiku-like", Tier: 0},
 		{ID: "sonnet-like", Tier: 1},
 		{ID: "opus-like", Tier: 2},
 		{ID: "priciest", Tier: 3},
 	}}
-	d := Decide(nil, cat, 0.8)
-	if d.Model != "opus-like" {
-		t.Errorf("ceiling model = %q, want %q -- ceilingTier=2 should exclude the catalog's most expensive tier", d.Model, "opus-like")
+	if d := Decide(nil, cat, 0.8); d.Model != "sonnet-like" {
+		t.Errorf("unsure default = %q, want %q (tier 1)", d.Model, "sonnet-like")
+	}
+	if d := Decide([]signals.Evidence{{Complexity: 0.95, Confidence: 0.9}}, cat, 0.8); d.Model != "opus-like" {
+		t.Errorf("high-complexity ceiling = %q, want %q (tier 2, below the priciest tier 3)", d.Model, "opus-like")
 	}
 }
 

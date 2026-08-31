@@ -25,16 +25,26 @@ type Decision struct {
 // confidence threshold required.
 const veryHighComplexity = 0.9
 
-// ceilingTier caps the "we don't know" decision at this tier or below.
-// The highest tier in the catalog is the most EXPENSIVE model, not
-// necessarily the best default -- verified live: with thin evidence (a
-// clean working tree, a repo-wide search prompt with no keyword match),
-// the ceiling routed to claude-fable-5 at $10/$50 per MTok, 2x opus,
-// simply because it happened to be the priciest model in the catalog.
-// Routing every "unknown" case to whatever is most expensive makes a
-// cost-optimizing plugin cost-negative. Raise to a higher tier (or
-// remove the cap) to restore "always the single most capable model".
-const ceilingTier = 2
+// Two ceilings, because "we don't know" and "we know it's hard" are
+// different situations that shouldn't cost the same:
+//
+//   - unsureCeilingTier (sonnet) is the default when evidence is thin,
+//     untrusted, or just below the confidence bar. This fires for MOST
+//     subagent spawns (a description-only prompt against a clean tree
+//     leaves three of four signals with nothing to assess), so paying opus
+//     for it -- the old behavior -- was where the money leaked. Sonnet is a
+//     capable middle: conservative enough for an unknown task, far cheaper
+//     than opus. INV-1 ("when unsure, go bigger than the evidence alone
+//     justifies") still holds -- it just goes to a sane middle, not the
+//     priciest model on the shelf.
+//   - highCeilingTier (opus) is reserved for evidence that genuinely reads
+//     HARD: a very-high-complexity signal (>= veryHighComplexity, upshifted
+//     to xhigh) or a confident reading in the 0.75-0.9 band. Capped at tier
+//     2 so it never routes to whatever happens to be the catalog's priciest
+//     tier (verified live: thin evidence once routed to fable-5 at 2x opus
+//     simply for being most expensive).
+const unsureCeilingTier = 1
+const highCeilingTier = 2
 
 // Grid search, not sequential choice (PLAN.md §3.2): conceptually this
 // enumerates (tier, effort) cells, estimates cost from catalog pricing,
@@ -72,7 +82,7 @@ var bands = []struct {
 // downshift-*supporting* item from an otherwise-agreeing set never makes
 // the result cheaper.
 func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold float64) Decision {
-	ceiling := ceilingDecision(cat, "default ceiling: no evidence, or evidence insufficient to downshift", 0, "high")
+	ceiling := ceilingDecision(cat, "default: no evidence, or evidence insufficient to downshift -- a capable middle (sonnet-tier), not the priciest model", 0, "high", unsureCeilingTier)
 
 	if len(evidence) == 0 {
 		return ceiling
@@ -89,7 +99,7 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 		// kernel whose whole design (INV-1) is "when it doesn't know, it
 		// goes big". Untrustworthy evidence forces the ceiling outright.
 		if math.IsNaN(e.Complexity) || math.IsNaN(e.Confidence) {
-			return ceilingDecision(cat, "default ceiling: NaN evidence value, cannot be trusted", 0, "high")
+			return ceilingDecision(cat, "NaN evidence value, cannot be trusted -- default (sonnet-tier)", 0, "high", unsureCeilingTier)
 		}
 		if e.Complexity > maxComplexity {
 			maxComplexity = e.Complexity
@@ -104,7 +114,7 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 		// default ceiling's effort, to xhigh -- distinct from "we don't
 		// know" (which stays at "high"). Upshifting is always free
 		// (INV-1): no confidence threshold gates this branch.
-		return ceilingDecision(cat, "evidence indicates very high complexity -- upshifted, no confidence threshold required", minConfidence, "xhigh")
+		return ceilingDecision(cat, "evidence indicates very high complexity -- upshifted, no confidence threshold required", minConfidence, "xhigh", highCeilingTier)
 	}
 	// A NaN downshiftThreshold must block downshift, not disable the gate:
 	// `minConfidence < NaN` is always false, so without this guard a NaN
@@ -124,7 +134,7 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 				// fallthrough below was fixed to stop making: report the
 				// real minConfidence and an accurate reason, not the
 				// generic zero-evidence `ceiling`.
-				return ceilingDecision(cat, "no model at the tier this band requires -- catalog gap", minConfidence, "high")
+				return ceilingDecision(cat, "no model at the tier this band requires -- catalog gap", minConfidence, "high", highCeilingTier)
 			}
 			return Decision{
 				Model:      model,
@@ -142,14 +152,16 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 	// Confidence:0 and "no evidence" even when real, sufficiently-confident
 	// evidence existed and was evaluated (caught live: /deadeye-route
 	// prints both fields straight from this Decision).
-	return ceilingDecision(cat, "evidence complexity too high to downshift", minConfidence, "high")
+	// Confident, but in the 0.75-0.9 band: genuinely complex, so it earns the
+	// high ceiling (opus), distinct from the thin-evidence sonnet default above.
+	return ceilingDecision(cat, "evidence complexity too high to downshift -- genuinely complex", minConfidence, "high", highCeilingTier)
 }
 
-func ceilingDecision(cat catalog.Catalog, reason string, confidence float64, effort string) Decision {
+func ceilingDecision(cat catalog.Catalog, reason string, confidence float64, effort string, maxTier int) Decision {
 	model := ""
 	best := -1
 	for _, m := range cat.Models {
-		if m.Tier <= ceilingTier && m.Tier > best {
+		if m.Tier <= maxTier && m.Tier > best {
 			best = m.Tier
 			model = m.ID
 		}

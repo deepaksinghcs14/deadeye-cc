@@ -27,7 +27,7 @@ func Build(cat catalog.Catalog, sessionMemory string, includeEffort bool, host s
 	var b strings.Builder
 	b.WriteString("deadeye guidance for this session:\n")
 	if hosts.HasSubagentSurface(host) {
-		b.WriteString("- Model tiers (cheapest first) -- when calling the Agent tool, set model to the cheapest tier that fits: mechanical work -> tier 0, standard implementation -> tier 1, deep reasoning -> top tier.\n")
+		b.WriteString("- Model tiers -- ALWAYS set the Agent tool's `model` explicitly (leaving it unset defaults costlier than most subtasks need). Pick the cheapest that fits: tier 0 (haiku) for mechanical edits, search, lookups, formatting, and classification; tier 1 (sonnet) for standard multi-file coding -- MOST subtasks land here; the top tier (opus) ONLY for deep architecture, tricky debugging, or security-critical work. Reserve the top tier.\n")
 		for _, m := range cat.Models {
 			fmt.Fprintf(&b, "  tier %d: %s\n", m.Tier, m.ID)
 		}
