@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.31.1
+
+**Huge-PR review floor is sonnet.** Tightening 0.31.0: a fan-out cluster with
+real logic is never reviewed below tier 1 (sonnet) -- tier 0 (haiku) is reserved
+for purely mechanical clusters (generated code, lockfiles, vendored deps, pure
+renames), and risky surfaces still go to the top tier. Keeps big reviews cheap
+without letting a weak model miss a subtle bug in real code.
+
 ## 0.31.0
 
 **Cheaper huge-PR reviews.** `/deadeye-pr`'s large-PR fan-out now spawns each

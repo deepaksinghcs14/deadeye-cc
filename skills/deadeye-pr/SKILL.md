@@ -39,11 +39,13 @@ Preconditions and graceful degradation:
 - Huge PR (more than ~40 changed files or a few thousand lines) → review it ALL
   by fanning out one subagent per ~2,500-line package-grouped cluster, in
   parallel, each returning findings in the standard format. Spawn each cluster
-  subagent at the cheapest model tier that fits it — tier 0/1 for routine code
-  (these lenses are mostly pattern scans), reserving the top tier only for a
-  cluster on a risky surface (auth, crypto, concurrency, raw SQL or shell,
-  money). Verify every returned finding yourself before reporting it. Never
-  truncate, and never report partial coverage as complete.
+  subagent at the cheapest tier that fits it, but the review floor is tier 1
+  (sonnet) for any cluster with real logic — drop to tier 0 only for a purely
+  mechanical cluster (generated code, lockfiles, vendored deps, pure renames),
+  and reserve the top tier for a cluster on a risky surface (auth, crypto,
+  concurrency, raw SQL or shell, money). Verify every returned finding yourself
+  before reporting it. Never truncate, and never report partial coverage as
+  complete.
 
 ## Verify before reporting
 
