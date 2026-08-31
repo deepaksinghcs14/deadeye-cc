@@ -13,6 +13,10 @@
 param([string]$Event)
 $ErrorActionPreference = 'SilentlyContinue'
 
+# Recursion guard: deadeye's AI routing judge spawns a nested `claude -p`
+# session; it must run no deadeye hooks (no re-judging, no cost).
+if ($env:DEADEYE_JUDGE) { Write-Output '{}'; exit 0 }
+
 function Get-PluginVersion {
     $pj = "$env:CLAUDE_PLUGIN_ROOT\.claude-plugin\plugin.json"
     if ($env:CLAUDE_PLUGIN_ROOT -and (Test-Path $pj)) {

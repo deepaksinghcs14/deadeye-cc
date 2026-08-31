@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 0.30.0
+
+**Opt-in AI routing judge.** When the cheap signals can't confidently place a
+subtask (the case that used to default to a tier), deadeye can now classify its
+complexity with a real model call -- far more accurate than keyword heuristics
+on exactly the ambiguous cases (validated: "reformat utils.go" -> tier 0,
+"redesign auth and migrate the token store" -> tier 2, which the heuristics
+mis-sized).
+- **No API key** -- shells to `claude -p` (haiku), reusing your Claude Code
+  login. `DEADEYE_JUDGE=1` makes the nested session run no deadeye hooks
+  (recursion-guarded, no cost from the judge session).
+- **Only the ambiguous spawns** -- confident heuristic decisions are left
+  alone, so the token/latency tax lands only where it saves opus.
+- **Cached** by task text, **bounded** (6s timeout), **fail-open** (any error
+  leaves the heuristic decision untouched).
+- **Off by default** (it breaks the zero-network promise). Enable with
+  `deadeye config set mode.routing_judge on`; shown in `/deadeye-status`.
+
 ## 0.29.0
 
 **Model routing: stop defaulting to opus when the evidence is thin.** Most

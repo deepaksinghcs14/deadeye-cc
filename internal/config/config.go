@@ -26,6 +26,7 @@ type Modes struct {
 	WorkflowHint string `json:"workflow_hint"`
 	Codemap      string `json:"codemap"`
 	UpdateCheck  string `json:"update_check"`
+	RoutingJudge string `json:"routing_judge"`
 }
 
 // Preprocess is per-rule config for internal/preprocess.
@@ -145,6 +146,7 @@ func Default() Config {
 			WorkflowHint: "on",
 			Codemap:      "on",
 			UpdateCheck:  "on",
+			RoutingJudge: "off", // opt-in: the LLM judge calls claude -p, breaking zero-network by default
 		},
 		DownshiftThreshold:    0.8,
 		InjectionBudgetTokens: 400,

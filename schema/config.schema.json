@@ -55,6 +55,12 @@
           "enum": ["off", "on"],
           "default": "on",
           "description": "Once-per-session background check for a newer deadeye release; when one is out, the agent asks (once per version) whether to update via /plugin update. Cached ~24h, never blocks the hook response. off disables the check and the ask."
+        },
+        "routing_judge": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "off",
+          "description": "OPT-IN. When the cheap signals can't confidently place a subtask, classify its complexity with a real model call (shells to `claude -p`, haiku -- reuses your Claude login, no API key) instead of defaulting to the sonnet tier. Cached, bounded, fail-open. Breaks the zero-network default, so off unless you turn it on."
         }
       }
     },

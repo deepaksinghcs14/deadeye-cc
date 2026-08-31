@@ -37,6 +37,7 @@ Keys and allowed values (authoritative -- never invent others):
 | `mode.workflow_hint` | off · on |
 | `mode.codemap` | off · on |
 | `mode.update_check` | off · on |
+| `mode.routing_judge` | off · on |
 | `coder.default_level` | off · spotter · marksman · sniper |
 | `coder.security` | off · advise · ask |
 | `coder.security_osv` | true · false |

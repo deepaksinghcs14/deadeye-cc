@@ -49,6 +49,7 @@ func runStatus() {
 	srow("workflow_hint", cfg.Mode.WorkflowHint, "mode.workflow_hint", "off · on")
 	srow("codemap", cfg.Mode.Codemap, "mode.codemap", "off · on")
 	srow("update check", cfg.Mode.UpdateCheck, "mode.update_check", "off · on")
+	srow("routing judge", cfg.Mode.RoutingJudge, "mode.routing_judge", "off · on")
 	fmt.Println()
 
 	fmt.Println(cHead("Coder mode") + cDim("   change → /deadeye-coder <level>  or  deadeye config"))

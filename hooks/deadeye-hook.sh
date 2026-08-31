@@ -13,6 +13,11 @@
 # plugin-only install resolves straight to the managed binary.
 set -u
 
+# Recursion guard: deadeye's own AI routing judge (mode.routing_judge) spawns a
+# nested `claude -p` session to classify a task. That session must run no
+# deadeye hooks -- no re-judging, no cost from the judge session itself.
+[ -n "${DEADEYE_JUDGE:-}" ] && { echo '{}'; exit 0; }
+
 EVENT="${1:-}"
 MANAGED="$HOME/.deadeye/bin/deadeye"
 

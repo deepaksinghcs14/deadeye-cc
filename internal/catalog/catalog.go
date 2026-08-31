@@ -66,6 +66,16 @@ func (c Catalog) FamilyFor(id string) (string, bool) {
 	return "", false
 }
 
+// ModelAtTier returns the model id at the given tier, and whether one exists.
+func (c Catalog) ModelAtTier(tier int) (string, bool) {
+	for _, m := range c.Models {
+		if m.Tier == tier {
+			return m.ID, true
+		}
+	}
+	return "", false
+}
+
 // Cheapest returns the lowest-tier model in the catalog.
 func (c Catalog) Cheapest() (Model, bool) {
 	if len(c.Models) == 0 {

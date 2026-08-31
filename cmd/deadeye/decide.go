@@ -378,6 +378,20 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, state.outcomesSnapshot(), shape, time.Now())
 	decision := kernel.Decide(evidence, state.cat, threshold)
 
+	// Optional AI judge (opt-in): only when the cheap signals couldn't
+	// confidently place the task. A real model call is more accurate on these
+	// ambiguous cases than the keyword heuristics; fail-open leaves the
+	// heuristic decision untouched.
+	if cfg.Mode.RoutingJudge == "on" && decision.Unsure && ai.Model == "" {
+		if tier, ok := judgeTierCached(scope.Prompt); ok {
+			if m, ok := state.cat.ModelAtTier(tier); ok {
+				decision.Model = m
+				decision.Effort = []string{"low", "medium", "high"}[tier]
+				decision.Reason = fmt.Sprintf("AI judge classified this subtask as tier %d", tier)
+			}
+		}
+	}
+
 	checkEscalation(in, ai, shape, state)
 	// Only record this decision as "last routing" when the caller left
 	// model unset -- deadeye's recommendation was actually the one in

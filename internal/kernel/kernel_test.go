@@ -209,6 +209,24 @@ func TestBandModelGapReportsRealConfidence(t *testing.T) {
 	}
 }
 
+// TestUnsureFlag: Decision.Unsure marks exactly the thin-evidence defaults
+// (what the optional AI judge re-classifies), not confident reads.
+func TestUnsureFlag(t *testing.T) {
+	cat := testCatalog()
+	if !Decide(nil, cat, 0.8).Unsure {
+		t.Error("empty evidence should be Unsure")
+	}
+	if !Decide([]signals.Evidence{{Complexity: 0.1, Confidence: 0.3}}, cat, 0.8).Unsure {
+		t.Error("low-confidence evidence should be Unsure")
+	}
+	if Decide([]signals.Evidence{{Complexity: 0.1, Confidence: 0.95}}, cat, 0.8).Unsure {
+		t.Error("a confident downshift should NOT be Unsure")
+	}
+	if Decide([]signals.Evidence{{Complexity: 0.95, Confidence: 0.9}}, cat, 0.8).Unsure {
+		t.Error("a very-high-complexity read should NOT be Unsure")
+	}
+}
+
 func TestAllAgreeingLowComplexityDownshifts(t *testing.T) {
 	cat := testCatalog()
 	d := Decide([]signals.Evidence{

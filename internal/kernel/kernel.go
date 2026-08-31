@@ -18,6 +18,11 @@ type Decision struct {
 	Workflow   string // "none" | "recommend" -- never "trigger" (INV-2)
 	Reason     string
 	Confidence float64
+	// Unsure is true when this decision is the thin-evidence default (empty,
+	// NaN, or below-confidence-threshold evidence) rather than a confident
+	// read -- i.e. the case the cheap signals couldn't actually place. The
+	// optional AI judge (mode.routing_judge) only re-classifies these.
+	Unsure bool
 }
 
 // veryHighComplexity triggers an xhigh upshift independent of the
@@ -83,6 +88,7 @@ var bands = []struct {
 // the result cheaper.
 func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold float64) Decision {
 	ceiling := ceilingDecision(cat, "default: no evidence, or evidence insufficient to downshift -- a capable middle (sonnet-tier), not the priciest model", 0, "high", unsureCeilingTier)
+	ceiling.Unsure = true
 
 	if len(evidence) == 0 {
 		return ceiling
@@ -99,7 +105,9 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 		// kernel whose whole design (INV-1) is "when it doesn't know, it
 		// goes big". Untrustworthy evidence forces the ceiling outright.
 		if math.IsNaN(e.Complexity) || math.IsNaN(e.Confidence) {
-			return ceilingDecision(cat, "NaN evidence value, cannot be trusted -- default (sonnet-tier)", 0, "high", unsureCeilingTier)
+			d := ceilingDecision(cat, "NaN evidence value, cannot be trusted -- default (sonnet-tier)", 0, "high", unsureCeilingTier)
+			d.Unsure = true
+			return d
 		}
 		if e.Complexity > maxComplexity {
 			maxComplexity = e.Complexity
