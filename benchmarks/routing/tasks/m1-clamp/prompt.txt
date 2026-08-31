@@ -1,0 +1,1 @@
+Create a new Go package at internal/mathutil/mathutil.go (package mathutil) with an exported function `func Clamp(v, lo, hi int) int` that returns v clamped to the inclusive range [lo, hi]: if v < lo return lo, if v > hi return hi, otherwise v. Add a one-line package doc comment. Keep it minimal.
