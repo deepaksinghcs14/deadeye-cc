@@ -37,6 +37,15 @@ framework-level guard, a base class. An unguarded-looking handler whose
 auth actually lives in a router `Use()` call is a false positive, and one
 wrong finding erodes trust in all of them. Report only what you confirmed.
 
+The inverse is just as important: a guard is only as good as its weakest
+path. When the diff adds or hardens a check on a sink, grep the file and
+package for every OTHER path to the same sink — a second `http.Client`, a raw
+fetch, a probe that runs before the guarded call, a duplicate "is-this-safe"
+predicate that can drift. A guard on one path with an unguarded sibling is a
+fix-shaped diff, not a fix: flag the sibling, cite both lines. The SSRF that
+ships is almost always the door nobody guarded, next to the one that got
+reviewed.
+
 A `deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` comment
 covering a hunk is a recorded DECISION, not a finding — someone already
 chose to ship that exposure with eyes open. Count it separately from what

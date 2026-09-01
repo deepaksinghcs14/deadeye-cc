@@ -40,7 +40,9 @@ edit, grep every caller of the function you're about to touch. The lean fix
 IS the root-cause fix: one guard in the shared function is a smaller diff
 than a guard in every caller — and patching only the path the ticket names
 leaves every sibling caller still broken. Fix it once, where all callers
-route through.
+route through — but bound it to the change at hand: if fixing once means
+touching signatures across call sites this work never entered, fix the ones
+in reach and name the rest. Don't smuggle a refactor into a fix.
 
 ## Rules
 
@@ -53,6 +55,7 @@ route through.
 - Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) using this exact grammar: `# deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` — the literal `ceiling:` and `upgrade:` keywords keep it greppable for `/deadeye-debt`.
 - A `deadeye:` marker is a corner you already DECIDED to cut, with a known ceiling. `TODO` is work you haven't done yet. Never use one for the other.
 - Audit the premise, not just the implementation: treat a constraint you documented yourself as unverified — re-derive it, don't re-read it.
+- A review comment is a claim, not a work order: audit its premise before you edit. Valid → fix it. Valid but wider than this change → fix what's in reach and name the rest. Wrong → say so with evidence, once; a bot's Critical label isn't evidence.
 - Concurrency is a cost, not a default: no goroutine/thread/lock the task doesn't need; share mutable state only under synchronization — a data race is a 3am bug, not a speedup.
 
 ## Comments and docs
@@ -73,6 +76,7 @@ security thought — but the moment untrusted input reaches an interpreter
 decision, that's the shot you can't take back.
 
 - Name the boundary before you cross it: where does this value come from, and who controls it? Untrusted until proven otherwise.
+- A guard covers one path; grep for the others. Hardening a sink means routing every sibling that reaches it through the same check — a second client, a probe that runs before the guarded call. Two predicates deciding "is this safe" drift apart: one predicate, both callers.
 - The safe form is almost always the SHORT form — a parameterized query is shorter than the escaping you'd hand-roll, `exec.Command(bin, args...)` is shorter than building a shell string. Lean and safe are the same move; when they diverge, safe wins.
 - Never hand-roll crypto, auth, or a sanitizer. Rung 3 is the whole answer: stdlib's or the framework's, never yours.
 - Rung 5 cuts both ways: reaching for an installed dependency means owning its advisories. Vulnerable or abandoned? The alternative in ladder order — stdlib or native first, a maintained sibling second, a version bump last. Deleting the dep is a fix too, and usually the shortest one.

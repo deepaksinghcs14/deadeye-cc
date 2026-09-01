@@ -81,15 +81,24 @@ deletion — lean code without its check is unfinished.
 Review the diff through each lens. One line per finding, ranked most-severe
 first within each lens:
 
-`path:line: <sev> <tag> <what>. <fix>. proof: <evidence>.`
+Each finding is one comment — write it like a sharp human reviewer, not a
+linter firing rules:
 
-- `<sev>` is `block` (must fix before merge), `warn` (should fix), or `nit` (optional).
-- The path is required — a PR spans files, so every finding names its file.
+`<glyph> path:line — <tag>: <what actually happens, concretely>. Fix: <fix>. proof: <evidence>.`
+
+- `<glyph>` carries the severity so it reads at a glance: 🔴 `block` (must fix
+  before merge), 🟡 `warn` (should fix), ⚪ `nit` (optional).
+- **Lead with the consequence, in plain words** — what breaks or what an
+  attacker reaches, not just the tag. "The raw user URL reaches `http.Get`, so
+  `target=http://169.254.169.254/` walks to your cloud metadata" lands;
+  "unvalidated input" does not.
+- The path is required — a PR spans files. If a sibling path shares the bug,
+  name it in the same breath.
 - `proof:` is required (see "Verify before reporting"). For `inject`/`authz`/
-  `logic`/`race`, the proof IS a reproduction: the concrete input and the
-  sink it reaches.
+  `logic`/`race`, the proof IS a reproduction: the concrete input and the sink
+  it reaches.
 - Append `(confirmed)` when a tool or test backs the finding; otherwise it
-  reads as `likely`.
+  reads as `likely`. Direct, not rude — you're helping a peer ship.
 
 ### Over-engineering (lean lens — from `/deadeye-review`)
 
@@ -143,6 +152,14 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 - `dep:` — a vulnerable or superseded dependency
 - `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first.
 
+**A guard is only as good as its weakest path.** When the diff adds or hardens
+a check on a sink, grep the file and package for *every other path to the same
+sink* — a second `http.Client`, a raw fetch, a probe that runs *before* the
+guarded call, a duplicate "is-this-safe" predicate that can drift. A guard on
+one path with an unguarded sibling is a fix-shaped diff, not a fix: flag the
+sibling with the same tag and cite both lines in `proof:`. The SSRF that ships
+is almost always the door nobody guarded.
+
 If a dependency manifest changed (`go.mod`, `package.json`,
 `requirements.txt`/`pyproject.toml`, `Cargo.toml`, `pom.xml`/`build.gradle`),
 run its native auditor if installed — `govulncheck ./...`, `npm audit`,
@@ -150,6 +167,21 @@ run its native auditor if installed — `govulncheck ./...`, `npm audit`,
 none is installed, SAY SO rather than fabricating a CVE. Never invent an
 advisory ID or a fixed version you didn't see from a tool. Rank by
 exploitability. Footer: `<N> exposures, <M> accepted.` or `Clean line of fire.`
+
+## Don't repeat what's already on the PR
+
+Before you report, read what's already there — re-posting a finding another
+reviewer already made is how a review loses trust. Fetch the existing comments
+(bots like CodeRabbit / CodeAnts post here too):
+
+- `gh api repos/{owner}/{repo}/pulls/<N>/comments` — inline review threads
+- `gh api repos/{owner}/{repo}/issues/<N>/comments` — the PR conversation
+
+Drop anything already raised — match on the sink or the fix, not exact wording
+(you and a bot word the same bug differently). Report only net-new, and print
+one honest line so coverage stays clear —
+`N findings already raised by existing reviewers — skipped` — whether you're
+posting or just printing.
 
 ## Output
 

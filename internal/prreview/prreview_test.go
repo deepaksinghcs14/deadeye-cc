@@ -43,11 +43,14 @@ func TestNoTripleSingleQuote(t *testing.T) {
 	}
 }
 
-// TestFitsWindsurfCap: Windsurf workflows cap at 12000 chars. The rendered
-// file is the rubric plus a small host header, so the rubric alone must stay
-// well under that ceiling.
+// TestFitsWindsurfCap: Windsurf workflows cap at 12000 CHARACTERS. The rendered
+// file is the rubric plus a ~200-char host header, so the rubric in chars (not
+// bytes -- em-dashes and the severity glyphs are multi-byte) must stay under
+// ~11750 to leave the header room. Cap raised from a 11000-byte proxy to a real
+// 11750-char measure when the PR reviewer grew the sibling-path guard, the
+// dedup-existing-comments step, and the engaging finding format.
 func TestFitsWindsurfCap(t *testing.T) {
-	if n := len(Body()); n > 11000 {
-		t.Errorf("rubric is %d bytes -- trim it; the Windsurf workflow rendering must stay under 12000", n)
+	if n := len([]rune(Body())); n > 11750 {
+		t.Errorf("rubric is %d chars -- trim it; the Windsurf workflow rendering must stay under 12000", n)
 	}
 }

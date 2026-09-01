@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.32.0
+
+**Learned from a real SSRF-review miss.** Coder persona gains three lessons a
+review missed: a review comment is a claim to audit like your own premise (fix,
+fix-what's-in-reach-and-name-the-rest, or refute with evidence once); bound the
+root-cause fix to the change instead of smuggling a refactor into it; and a
+guard covers one path -- grep for the siblings to the same sink. `/deadeye-pr`
+and `/deadeye-guard` gain the matching sibling-path / duplicate-predicate check
+(the SSRF that ships is the unguarded door next to the reviewed one).
+`/deadeye-pr` also now **dedupes against existing PR comments** (human and bot)
+before reporting, and posts findings in a more **engaging, consequence-first**
+voice instead of a linter's.
+
 ## 0.31.1
 
 **Huge-PR review floor is sonnet.** Tightening 0.31.0: a fan-out cluster with
