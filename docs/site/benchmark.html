@@ -62,6 +62,18 @@ code{font-family:"IBM Plex Mono",monospace;background:var(--brass-glow);padding:
 .nav a:hover{color:var(--bone);}
 .nav .back{color:var(--brass);}
 
+.tabs{display:flex;gap:3px;background:var(--raised);border:1px solid var(--line);border-radius:var(--radius);
+  padding:3px;width:fit-content;margin:10px 0 2px;position:relative;z-index:3;}
+.tab{appearance:none;-webkit-appearance:none;border:0;background:transparent;color:var(--mute);cursor:pointer;
+  font-family:"IBM Plex Mono",monospace;font-size:13.5px;font-weight:600;letter-spacing:.02em;text-align:left;
+  padding:8px 20px 9px;border-radius:2px;transition:color .2s,background .2s,box-shadow .2s;}
+.tab:hover{color:var(--bone);}
+.tab[aria-selected="true"]{background:linear-gradient(180deg,var(--brass),var(--brass-dim));color:var(--ink);
+  box-shadow:0 8px 20px -12px var(--glow);}
+.tab .sub{display:block;font-size:9.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+  opacity:.7;margin-top:2px;}
+.tabpane[hidden]{display:none;}
+
 .eyebrow{display:inline-flex;align-items:center;gap:10px;
   font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.22em;
   text-transform:uppercase;color:var(--brass);font-weight:600;}
@@ -211,6 +223,12 @@ footer a{color:var(--brass);}
     </div>
   </nav>
 
+  <div class="tabs" role="tablist" aria-label="Benchmarks">
+    <button class="tab" id="tab-router" role="tab" aria-selected="true" aria-controls="pane-router">Spend less<span class="sub">model routing</span></button>
+    <button class="tab" id="tab-review" role="tab" aria-selected="false" aria-controls="pane-review">Catch more<span class="sub">PR review</span></button>
+  </div>
+
+  <div class="tabpane" id="pane-router" role="tabpanel" aria-labelledby="tab-router">
   <!-- ============ HERO : NUMBERS FIRST ============ -->
   <header class="hero">
     <div class="hero-inner">
@@ -339,6 +357,15 @@ footer a{color:var(--brass);}
     </ul>
   </section>
 
+  <section>
+    <div class="bottom-wrap">
+      <p class="bottom">Correct output costs about <em>6× more</em> on opus. deadeye routes it down.</p>
+      <a class="cta" href="index.html">← back to deadeye</a>
+    </div>
+  </section>
+  </div><!-- /pane-router -->
+
+  <div class="tabpane" id="pane-review" role="tabpanel" aria-labelledby="tab-review" hidden>
   <!-- ============ REVIEW-QUALITY BENCHMARK ============ -->
   <section id="review">
     <span class="eyebrow reveal in">review-quality benchmark · held-out</span>
@@ -413,50 +440,59 @@ footer a{color:var(--brass);}
 
   <section>
     <div class="bottom-wrap">
-      <p class="bottom">Two things measured, not claimed: routing that's <em>~6× cheaper</em>, review that's <em>97% precise</em>.</p>
+      <p class="bottom">54% of held-out bugs caught cold, at <em>97% precision</em> — every finding proven in source.</p>
       <a class="cta" href="index.html">← back to deadeye</a>
     </div>
   </section>
+  </div><!-- /pane-review -->
 
   <footer>
-    18 runs · 6 tasks × 3 tiers · real billed cost · hidden-test graded ·
-    <a href="https://github.com/deepaksinghcs14/deadeye-cc/tree/main/benchmarks/routing" target="_blank" rel="noopener">reproduce it →</a>
+    Two benchmarks · measured and graded, not asserted ·
+    <a href="https://github.com/deepaksinghcs14/deadeye-cc" target="_blank" rel="noopener">deadeye on GitHub →</a>
   </footer>
 </div>
 
 <script>
 (function(){
   var rm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var io = new IntersectionObserver(function(entries){
-    entries.forEach(function(e){
-      if(!e.isIntersecting) return;
-      var el = e.target;
-      el.classList.add('in');
-      // animate bars
-      el.querySelectorAll('.fill[data-w]').forEach(function(f){ f.style.width = f.getAttribute('data-w') + '%'; });
-      // count-up numbers
-      el.querySelectorAll('.big[data-count]').forEach(function(n){
-        if(rm){ return; }
-        var end = +n.getAttribute('data-count'),
-            pre = n.getAttribute('data-prefix')||'', suf = n.getAttribute('data-suffix')||'',
-            t0=null, dur=900;
-        function tick(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/dur,1);
-          var v=Math.round(end*(0.2+0.8*p)*(p<1?1:1)); // ease-ish
-          n.textContent = pre + Math.round(end*ease(p)) + suf;
-          if(p<1) requestAnimationFrame(tick); else n.textContent = pre + end + suf;
-        }
-        function ease(x){ return 1-Math.pow(1-x,3); }
-        requestAnimationFrame(tick);
-      });
-      io.unobserve(el);
+
+  function fillBars(el){ el.querySelectorAll('.fill[data-w]').forEach(function(f){ f.style.width = f.getAttribute('data-w') + '%'; }); }
+  function countUp(el){
+    el.querySelectorAll('.big[data-count]').forEach(function(n){
+      var end = +n.getAttribute('data-count'), pre = n.getAttribute('data-prefix')||'', suf = n.getAttribute('data-suffix')||'';
+      if(rm || n.dataset.done){ n.textContent = pre + end + suf; return; }
+      n.dataset.done = '1';
+      var t0=null, dur=900;
+      function ease(x){ return 1-Math.pow(1-x,3); }
+      function tick(ts){ if(!t0)t0=ts; var p=Math.min((ts-t0)/dur,1);
+        n.textContent = pre + Math.round(end*ease(p)) + suf;
+        if(p<1) requestAnimationFrame(tick); else n.textContent = pre + end + suf; }
+      requestAnimationFrame(tick);
     });
+  }
+  function reveal(el){ el.classList.add('in'); fillBars(el); countUp(el); }
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(!e.isIntersecting) return; reveal(e.target); io.unobserve(e.target); });
   },{threshold:.25});
   document.querySelectorAll('.reveal').forEach(function(el){
-    if(el.classList.contains('in')){ // hero elements already visible: still animate bars/counts
-      el.querySelectorAll('.fill[data-w]').forEach(function(f){ f.style.width=f.getAttribute('data-w')+'%'; });
-    }
+    if(el.classList.contains('in')) fillBars(el);
     io.observe(el);
   });
+
+  // ---- tabs ----
+  var tabs = document.querySelectorAll('.tab');
+  function activate(name, fromClick){
+    tabs.forEach(function(t){ t.setAttribute('aria-selected', t.getAttribute('aria-controls') === 'pane-' + name ? 'true' : 'false'); });
+    document.querySelectorAll('.tabpane').forEach(function(p){
+      var on = p.id === 'pane-' + name;
+      p.hidden = !on;
+      if(on) p.querySelectorAll('.reveal').forEach(reveal); // newly shown pane: make sure its content is visible
+    });
+    if(fromClick){ history.replaceState(null, '', name === 'review' ? '#review' : '#'); window.scrollTo({top:0, behavior:'smooth'}); }
+  }
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ activate(t.getAttribute('aria-controls').replace('pane-',''), true); }); });
+  if(location.hash === '#review') activate('review', false);
 })();
 </script>
 </body>
