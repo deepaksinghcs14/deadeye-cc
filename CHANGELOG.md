@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.34.0
+
+**PR review -- weak-class lenses, held-out A/B.** The `/deadeye-pr` "Rigor"
+section gains a dense lens list ("The bugs a scan slides past") aimed at the
+classes a cold review most often misses: sibling branches that should mirror but
+one drops a step; a refactor that silently drops a predicate from a condition (a
+removed `&&` conjunct); a value that passes a type/identity check yet is wrong (a
+`str` subclass, `null` vs `undefined`); an error branch that stores or returns a
+nil used later; in-place mutation of a list borrowed from a default arg, shared
+config, or module cache; and the async `await` that never resolves / check-then-
+act across it. Validated by an A/B on 15 fresh held-out regression PRs -- each a
+bug the project itself later fixed, none overlapping the earlier benchmark, each
+reviewed cold twice (old rubric vs new) and graded against the shipped fix:
+recall 4/15 -> 6/15 with **zero regressions**, both gains source-verified against
+the real fix (a dropped `|| Type.default_value` fallback in Rails; an inverted
+`&&` nil guard in Kubernetes). Concurrency races stayed hard (0/4 either way).
+Net rubric size unchanged -- the three prior habits were tightened to pay for the
+new lens list.
+
 ## 0.33.0
 
 **PR review -- rigor upgrade, benchmarked.** After a head-to-head against four
