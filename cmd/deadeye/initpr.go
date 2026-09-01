@@ -59,8 +59,9 @@ func renderPRCommand(host string) string {
 		return "---\nname: deadeye-pr\ndescription: " + desc + "\ndisable-model-invocation: true\n---\n\n" +
 			"Target PR: the PR number or URL in the user's message (if none, the current branch's PR).\n\n" + body
 	case "windsurf":
+		// Windsurf workflows cap at 12000 chars; use the trimmed rubric.
 		return "---\ndescription: " + desc + "\n---\n\n" +
-			"Target PR: the PR number or URL in the user's message (if none, the current branch's PR).\n\n" + body
+			"Target PR: the PR number or URL in the user's message (if none, the current branch's PR).\n\n" + prreview.WindsurfBody()
 	}
 	return ""
 }

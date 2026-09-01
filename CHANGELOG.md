@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.33.0
+
+**PR review -- rigor upgrade, benchmarked.** After a head-to-head against four
+hosted review tools (Codity/CodeRabbit/CodeAnt/Copilot) on three real PRs,
+`/deadeye-pr` gains a "Rigor" section targeting the misses: sweep EVERY instance
+of a bug class (an unfixed sibling is a half-fix); disprove your own mitigation
+before clearing a finding (trace it runs on the failing path; for a null/absent-
+gated branch read the migration backfill); and sweep the cheap layer -- unused
+imports, unpinned deps, license/metadata, a `default:` handing a CPU host a GPU
+image -- plus enumerate every environment a changed test claims to cover. On the
+benchmark this lifted catalogued-issue recall 41%%->63%% at zero false positives,
+and it generalized on a held-out PR (caught a real unclosed-session leak a
+baseline pass missed). The flagship rubric carries the full rigor; the
+experimental Windsurf rendering auto-trims (`WindsurfBody`) to its 12000-char cap.
+
 ## 0.32.0
 
 **Learned from a real SSRF-review miss.** Coder persona gains three lessons a

@@ -43,14 +43,21 @@ func TestNoTripleSingleQuote(t *testing.T) {
 	}
 }
 
-// TestFitsWindsurfCap: Windsurf workflows cap at 12000 CHARACTERS. The rendered
-// file is the rubric plus a ~200-char host header, so the rubric in chars (not
-// bytes -- em-dashes and the severity glyphs are multi-byte) must stay under
-// ~11750 to leave the header room. Cap raised from a 11000-byte proxy to a real
-// 11750-char measure when the PR reviewer grew the sibling-path guard, the
-// dedup-existing-comments step, and the engaging finding format.
+// TestFitsWindsurfCap: Windsurf workflows cap at 12000 CHARACTERS. Only the
+// Windsurf rendering must fit -- WindsurfBody() drops the opt-in Posting section
+// for that host, while the flagship Body() (Claude/Codex/Gemini + the skill) is
+// free to grow. The rendered file is WindsurfBody() plus a ~220-char host
+// header, so the trimmed body (chars, not bytes -- em-dashes/glyphs are
+// multi-byte) must stay under ~11700 to leave header room under 12000.
 func TestFitsWindsurfCap(t *testing.T) {
-	if n := len([]rune(Body())); n > 11750 {
-		t.Errorf("rubric is %d chars -- trim it; the Windsurf workflow rendering must stay under 12000", n)
+	if n := len([]rune(WindsurfBody())); n > 11700 {
+		t.Errorf("Windsurf rubric is %d chars -- trim it; the rendered workflow must stay under 12000", n)
+	}
+	// Guard against over-trimming: the Windsurf variant must still carry the
+	// lenses and the rigor section, not just a header.
+	for _, must := range []string{"## The four lenses", "## Verify before reporting", "inject:", "logic:"} {
+		if !strings.Contains(WindsurfBody(), must) {
+			t.Errorf("WindsurfBody() is missing %q -- over-trimmed", must)
+		}
 	}
 }

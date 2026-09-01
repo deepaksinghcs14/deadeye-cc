@@ -76,6 +76,15 @@ that corner with eyes open. Count those separately as accepted, don't flag
 them. Never flag the one runnable check coder mode leaves behind for
 deletion — lean code without its check is unfinished.
 
+## Rigor — where reviews miss
+
+Precision is the floor, not the ceiling. Three habits separate a real review
+from a plausible one:
+
+- **Sweep every instance — never stop at the first.** One missing registration → check every `__init__`/`__all__`; one unguarded import → check every import; one leaked handle or session → check every sibling that opens one, inside AND outside the diff; one hollow test → check every changed test. A fix with an unfixed twin is a half-fix — name the twin.
+- **Disprove your own mitigation before you clear a finding.** "X covers it" is not a pass until you trace that X actually runs on the failing path — an early `return`/guard that fires before X makes X irrelevant. For a branch gated on a field being non-null or present, read the migration: is existing data backfilled? An early `return false` on a never-populated column denies every row that predates the change.
+- **Sweep the cheap layer too, and prove each:** unused imports, dead scaffolding, hard-coded endpoints or placeholder secrets in tests/notebooks, unpinned deps, license/metadata vs upstream, a `default:` that hands a CPU host a GPU-only image. For a changed test, enumerate every environment it runs in and every branch it claims — one that mocks the unit under test, or asserts on hardware it won't have, proves nothing.
+
 ## The four lenses
 
 Review the diff through each lens. One line per finding, ranked most-severe
