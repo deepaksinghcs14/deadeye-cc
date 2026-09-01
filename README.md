@@ -100,6 +100,25 @@ is the robust, mix-independent claim. Full method, honest caveats, and the
 pass/fail grid: **[the benchmark page](https://deepaksinghcs14.github.io/deadeye-cc/benchmark.html)**
 · reproduce it in [`benchmarks/routing/`](benchmarks/routing/).
 
+## Benchmark — review quality (held-out)
+
+Does the PR reviewer actually catch real bugs? We measured it on **24 real-world
+pull requests across 17 projects**, each one shipping a bug the project *later
+fixed* in a follow-up commit. deadeye reviewed the introducing PR **cold** — diff
+and source only, no fix, no comments — and the project's own fix is the answer
+key. A finding counts as a catch only when it matches what the fix changed;
+anything ambiguous is scored a miss.
+
+**Recall 54% (13/24) at 97% precision** — one false positive across 31 findings,
+every finding re-verified in source by an adversarial pass. It caught **every
+authorization regression in the set** (4/4) — the cross-file permission bugs a
+diff-only reviewer misses — and was weakest on concurrency races (1/4), the
+honest soft spot. Beyond the 24 seeded bugs it surfaced 17 more real issues on
+the same PRs.
+
+Held-out, graded against public git history, precision adversarially verified.
+Full breakdown by bug class: **[the benchmark page](https://deepaksinghcs14.github.io/deadeye-cc/benchmark.html#review)**.
+
 ## Install
 
 ```
