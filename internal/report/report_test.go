@@ -99,6 +99,46 @@ func TestBuildFamilyBarsExcludesUnknownButKeepsKnown(t *testing.T) {
 	}
 }
 
+// TestBuildRoutingEmptyNoteExplainsPreExistingHistory is the regression
+// test for a bug caught live on the first real release: a repo with real
+// routing history (predating the Model field) showed "168" in the KPI
+// tile and a bare "No routing decisions logged yet" in the panel right
+// below it -- a direct contradiction that reads as broken. When routing
+// rows exist but none resolve to a family, RoutingEmptyNote must explain
+// why, naming the real count.
+func TestBuildRoutingEmptyNoteExplainsPreExistingHistory(t *testing.T) {
+	logs := []logstore.Record{
+		{Surface: "PreToolUse/Agent", Action: "advise"},
+		{Surface: "PreToolUse/Agent", Action: "advise"},
+	}
+	d := Build(logs, nil, "repo", testCatalog(), time.Now())
+	if !strings.Contains(d.RoutingEmptyNote, "2 routing decisions") {
+		t.Errorf("RoutingEmptyNote = %q, want it to name the real count (2)", d.RoutingEmptyNote)
+	}
+}
+
+// TestBuildRoutingEmptyNoteBlankWhenTrulyEmpty: a repo with zero routing
+// history at all gets the plain empty state, not a note about
+// "0 routing decisions logged before..." -- that would read as nonsense.
+func TestBuildRoutingEmptyNoteBlankWhenTrulyEmpty(t *testing.T) {
+	d := Build(nil, nil, "repo", testCatalog(), time.Now())
+	if d.RoutingEmptyNote != "" {
+		t.Errorf("RoutingEmptyNote = %q, want empty when there's no routing history at all", d.RoutingEmptyNote)
+	}
+}
+
+// TestBuildRoutingEmptyNoteBlankWhenBarsPresent: the note is only for the
+// empty-panel case -- when bars actually render, no note is needed.
+func TestBuildRoutingEmptyNoteBlankWhenBarsPresent(t *testing.T) {
+	logs := []logstore.Record{
+		{Surface: "PreToolUse/Agent", Action: "advise", Model: "haiku-id"},
+	}
+	d := Build(logs, nil, "repo", testCatalog(), time.Now())
+	if d.RoutingEmptyNote != "" {
+		t.Errorf("RoutingEmptyNote = %q, want empty when RoutingBars actually render", d.RoutingEmptyNote)
+	}
+}
+
 func TestBuildRuleBarsFromMeasuredAction(t *testing.T) {
 	logs := []logstore.Record{
 		{Action: "measured", Reason: "test-filter", BytesAfter: 300},

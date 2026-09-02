@@ -97,16 +97,17 @@ type PRStats struct {
 // Data is the fully-resolved view model report.html.tmpl renders. Every
 // field is already computed -- no template-side math, per the package doc.
 type Data struct {
-	GeneratedAt  string
-	Repo         string
-	Kpis         []Kpi
-	TrendChart   *TrendChart
-	Surfaces     []SurfaceCard
-	RoutingBars  []Bar
-	RoutingTotal int
-	HygieneBars  []Bar
-	SecurityRows []Kpi
-	PR           *PRStats
+	GeneratedAt      string
+	Repo             string
+	Kpis             []Kpi
+	TrendChart       *TrendChart
+	Surfaces         []SurfaceCard
+	RoutingBars      []Bar
+	RoutingTotal     int
+	RoutingEmptyNote string
+	HygieneBars      []Bar
+	SecurityRows     []Kpi
+	PR               *PRStats
 }
 
 // trendWeeks is how far back the featured shape's weekly trend looks --
@@ -215,6 +216,16 @@ func Build(logs []logstore.Record, outcomes []lessons.Outcome, repo string, cat 
 	}
 
 	d.RoutingBars, d.RoutingTotal = buildFamilyBars(familyCounts)
+	if len(d.RoutingBars) == 0 && routingCount > 0 {
+		// Real routing history exists, but none of it resolved to a known
+		// family -- almost always because it predates the Model field
+		// (added this release). Bare "No routing decisions logged yet"
+		// would flatly contradict the "Routing decisions" KPI tile a few
+		// pixels above, which is exactly the "this looks broken" bug
+		// caught live: a fresh install with real history showed 168 there
+		// and an empty chart here with no explanation.
+		d.RoutingEmptyNote = fmt.Sprintf("%d routing decisions logged before this repo started tracking model tier -- new decisions will show here.", routingCount)
+	}
 	d.HygieneBars = buildRuleBars(perRuleMeasured)
 
 	if exfilAsk > 0 {

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.38.1
+
+**Fix a real-first-run bug in `deadeye report`, caught live.** A repo with
+routing history that predates 0.38.0's model-tier logging showed a KPI
+tile reading "168 routing decisions" directly above a panel reading "No
+routing decisions logged yet" — a flat contradiction that read as broken.
+`RoutingEmptyNote` now explains why when routing rows exist but none
+resolved to a known family (almost always: they predate this field), and
+stays silent when there's genuinely no routing history at all or when the
+bars already render.
+
 ## 0.38.0
 
 **Cross-surface learning loop, a local status report, and PR-review fix

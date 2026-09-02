@@ -1,6 +1,6 @@
 {
   "name": "deadeye",
-  "version": "0.38.0",
+  "version": "0.38.1",
   "description": "Fits model, effort, and context to each task via a deterministic policy kernel behind Claude Code hooks. He doesn't waste shots.",
   "author": {
     "name": "Deepak Singh",

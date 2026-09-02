@@ -241,6 +241,7 @@
       <div class="barrows">{{range .RoutingBars}}
         <div class="barrow"><span class="label">{{.Label}}</span><span class="track"><span class="fill" style="width:{{.Percent}}%;background:var(--{{.Color}})"></span></span><span class="val tab">{{.Value}}</span></div>
       {{end}}</div>
+      {{else if .RoutingEmptyNote}}<div class="empty-panel">{{.RoutingEmptyNote}}</div>
       {{else}}<div class="empty-panel">No routing decisions logged yet.</div>{{end}}
     </section>
 
