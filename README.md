@@ -73,7 +73,13 @@ never a black box. deadeye advises by default and never touches your
 `settings.json`; if anything inside it errors, your call passes through
 untouched.
 
-## Benchmark — routing savings
+## Benchmark
+
+Two questions, measured separately: does routing to a cheaper model actually
+save money without losing quality, and does the PR reviewer actually catch
+real bugs?
+
+### Routing savings
 
 Does routing to a cheaper model actually save money, or just do worse work? We
 measured it: every task run on all three tiers, graded by a **hidden test the
@@ -100,7 +106,7 @@ is the robust, mix-independent claim. Full method, honest caveats, and the
 pass/fail grid: **[the benchmark page](https://deepaksinghcs14.github.io/deadeye-cc/benchmark.html)**
 · reproduce it in [`benchmarks/routing/`](benchmarks/routing/).
 
-## Benchmark — review quality (held-out)
+### Review quality (held-out)
 
 Does the PR reviewer actually catch real bugs? We measured it on **24 real-world
 pull requests across 17 projects**, each one shipping a bug the project *later
@@ -121,6 +127,11 @@ Full breakdown by bug class: **[the benchmark page](https://deepaksinghcs14.gith
 
 ## Install
 
+deadeye is a Claude Code plugin at its core, and also runs — to varying
+depth — on four other hosts.
+
+### Claude Code
+
 ```
 /plugin marketplace add deepaksinghcs14/deadeye-cc
 ```
@@ -128,14 +139,20 @@ Full breakdown by bug class: **[the benchmark page](https://deepaksinghcs14.gith
 /plugin install deadeye@deadeye
 ```
 
-That's everything on macOS/Linux — hooks, slash commands, and the binary
-bootstraps itself on first use (downloaded once from Releases,
-sha256-verified). On Windows, install the binary from
-[Releases](https://github.com/deepaksinghcs14/deadeye-cc/releases) first
-(self-bootstrap isn't built there yet).
+**macOS/Linux**: that's everything. Hooks and slash commands are live
+immediately, and the binary bootstraps itself on first use — downloaded
+once from [Releases](https://github.com/deepaksinghcs14/deadeye-cc/releases),
+sha256-verified, no extra step.
 
-deadeye also runs on four other hosts, each to the depth its extension API
-allows:
+**Windows**: self-bootstrap isn't built yet, so the binary needs a manual
+step after the two commands above:
+
+1. Download `deadeye_windows_amd64.exe` (or `_arm64`) from
+   [Releases](https://github.com/deepaksinghcs14/deadeye-cc/releases).
+2. Either put it on `PATH` as `deadeye.exe`, or place it at the managed
+   path deadeye's hooks look for: `%USERPROFILE%\.deadeye\bin\deadeye.exe`.
+3. Run `deadeye version` to confirm it resolves. `/deadeye-status` flags a
+   version mismatch if a stale copy shadows the plugin later.
 
 ### Codex CLI (experimental)
 
@@ -146,7 +163,8 @@ and writes them only after you confirm
 trimming, the coder persona, the plan gate, `/deadeye-mute`, and the full
 decision log; not Claude-style model routing. Older Codex builds may need
 `[features] hooks = true` in the Codex config. Init also installs the
-`$deadeye-pr` user skill. Remove with `deadeye uninstall codex`.
+`$deadeye-pr` and `$deadeye-review` user skills. Remove with
+`deadeye uninstall codex`.
 
 ### Gemini CLI (experimental — context-injection tier)
 
@@ -170,15 +188,15 @@ deadeye init windsurf    # writes .windsurf/rules/deadeye.md
 Level-filtered to your `coder.default_level`, and uninstall removes only
 what deadeye wrote. For the full engine, use Claude Code or Codex.
 
-### PR review on every host (experimental)
+### Review commands on every host (experimental)
 
-`deadeye init <host>` also installs the PR review command in that host's
-native format — a Codex user skill (`$deadeye-pr`), a Gemini TOML command,
-a Cursor skill, a Windsurf workflow — carrying the same four lenses Claude
-Code ships as the `deadeye-pr` skill. Windsurf's 12000-char workflow cap
-drops the "Rigor" habits section and inline PR-comment posting (a one-line
-pointer to `gh pr review` instead); every other host gets the rubric in
-full. Experimental until live-verified.
+`deadeye init <host>` also installs both four-lens review commands —
+`/deadeye-pr` (a GitHub PR) and `/deadeye-review` (the working diff, or
+`--repo`) — in that host's native format: a Codex user skill, a Gemini TOML
+command, a Cursor skill, a Windsurf workflow. Windsurf's 12000-char workflow
+cap drops the "Rigor" habits section and the learning loop/fix-acceleration
+extras to fit; every other host gets the rubric in full. Experimental until
+live-verified.
 
 ### From source
 
