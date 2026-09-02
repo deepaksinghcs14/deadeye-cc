@@ -2,6 +2,53 @@
 
 ## Unreleased
 
+**Review-surface audit: sinks, lenses, severity, PR mechanics.** A pass over
+deadeye's own review surfaces found 26 gaps, split into a truth-fixes batch
+(shipped separately: stale descriptions, a vacuous Windsurf test, dangling
+doc citations, a wrong benchmark number) and this rubric-content batch:
+
+- Security's `inject:` sink list gains a URL fetch (SSRF), a raw-HTML/DOM
+  sink (XSS), and a deserializer as first-class members, in the PR rubric,
+  `/deadeye-guard`, and coder mode's live backstop check.
+- Correctness lenses widened: `race:` now covers async cancellation, a
+  promise that never resolves, ordering races, and check-then-act across
+  `await`; `leak:` covers remote/session handles, transactions, timers,
+  locks, subscriptions, and missing cleanup-registration; `logic:` covers
+  before/after state, rollback/revert, and AST/node-kind contracts;
+  `untested:` now also flags a hollow test (mocks its own unit, skips
+  rollback/cancel/error); `a11y:` covers responsive/visual breakage too.
+- Severity moved from three levels to four: `critical` / `high` / `medium`
+  / `nit` (was `block` / `warn` / `nit`), in the PR rubric and
+  `/deadeye-guard`.
+- Dependency pass now covers lockfile-only changes (a transitive bump with
+  no manifest edit) and CI supply chain (unpinned Action refs, mutable
+  Docker base images, `curl | sh` installers) — and a newly ADDED
+  dependency gets a direct OSV cross-check even when a native auditor
+  exists, matching the bar coder mode's live advisory already holds new
+  deps to.
+- PR mechanics: huge-PR fanout gains a cross-cluster integration pass (a
+  removed export in one cluster, its only caller in another); PR dedupe
+  now also fetches review summary bodies (`/pulls/<N>/reviews`), not just
+  inline/issue comments — previously deadeye could partially re-report its
+  own prior run; `--post` is stripped before resolving the PR target; and
+  inline posting now anchors deleted-line findings with `side: "LEFT"`
+  instead of always `"RIGHT"`.
+- `/deadeye-guard` and `/deadeye-review` (diff mode) ported the
+  proof-discipline upgrade PR review got in v0.33–v0.35 (callee-trace,
+  `proof:` clause, tool-fusion for guard; path anchors for both) — they'd
+  been left on the pre-upgrade rubric.
+
+Windsurf's 12000-char workflow cap was already the binding constraint before
+this batch (1006 chars of headroom); every addition above that ships to
+Windsurf was written to fit inside it, with ~80 chars headroom remaining.
+The coder-mode injection ceiling (9350 bytes) had ~130–200 bytes of headroom
+before this batch and needed no raise.
+
+Not A/B validated against held-out regression PRs before shipping, unlike
+v0.34/v0.35 — the local `benchmarks/regression/` set this project has used
+for that isn't available in this working tree. Recall impact of the lens
+widenings and severity re-grading is unmeasured.
+
 ## 0.36.0
 
 **Codex hook compatibility.** `deadeye init codex` now honors `CODEX_HOME`,

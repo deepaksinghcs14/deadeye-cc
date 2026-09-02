@@ -20,7 +20,8 @@ this is the fast, on-demand, deadeye-flavored pass.
 
 Resolve the target PR, then review only its diff:
 
-- An argument (a PR number like `123` or a full PR URL) → that PR.
+- An argument (a PR number like `123` or a full PR URL, after stripping
+  `--post`) → that PR.
 - No argument → the PR for the current branch.
 - Fetch the diff and metadata with the GitHub CLI:
   - `gh pr diff <N>` (or `gh pr diff` for the current branch) for the unified diff.
@@ -45,7 +46,9 @@ Preconditions and graceful degradation:
   and reserve the top tier for a cluster on a risky surface (auth, crypto,
   concurrency, raw SQL or shell, money). Verify every returned finding yourself
   before reporting it. Never truncate, and never report partial coverage as
-  complete.
+  complete. Then run one integration pass over the combined findings for what
+  no single cluster sees alone — an export removed in one, its only caller
+  in another (`break:`/`contract:`).
 
 ## Verify before reporting
 
@@ -95,8 +98,9 @@ linter firing rules:
 
 `<glyph> path:line — <tag>: <what actually happens, concretely>. Fix: <fix>. proof: <evidence>.`
 
-- `<glyph>` carries the severity so it reads at a glance: 🔴 `block` (must fix
-  before merge), 🟡 `warn` (should fix), ⚪ `nit` (optional).
+- `<glyph>` carries the severity: 🔴 `critical` (exploitable now, data loss,
+  breaks prod), 🟠 `high` (pre-merge), 🟡 `medium` (should fix), ⚪ `nit`
+  (optional).
 - **Lead with the consequence, in plain words** — what breaks or what an
   attacker reaches, not just the tag. "The raw user URL reaches `http.Get`, so
   `target=http://169.254.169.254/` walks to your cloud metadata" lands;
@@ -127,15 +131,15 @@ second impl in a test file makes it a false positive. Footer:
 
 ### Correctness
 
-- `logic:` — wrong result or a mishandled edge case (empty, zero, boundary, unicode)
+- `logic:` — wrong result or a mishandled edge case (empty, zero, boundary, unicode, before/after state, rollback/revert, an AST/node-kind contract)
 - `nil:` — an unchecked nil / null / undefined, a swallowed/ignored error, or a failure path that leaves no diagnostic behind
-- `race:` — a data race or unsynchronized shared state under concurrency
+- `race:` — a data race, unsynchronized shared state, async cancellation, a promise that never resolves, an ordering race, or check-then-act invalidated across `await`
 - `bound:` — off-by-one, slice/array overrun, integer overflow
 - `contract:` — violates a caller assumption or the function's own documented contract
-- `leak:` — a resource opened and never released: a file/conn/rows with no `defer Close()`, a leaked goroutine, an un-cancelled context.
+- `leak:` — a resource opened and never released: file/conn/rows, goroutine, context, remote/session handle, transaction, timer, lock, subscription, temp file, or missing cleanup-registration.
 - `break:` — a removed/renamed export, or a changed public signature/behavior, that breaks existing consumers — even when the diff compiles.
-- `untested:` — non-trivial changed logic (branch, loop, parser, money/security path) with no test exercising it. Name the regression that would slip through.
-- `a11y:` — (UI diffs only) a control that shuts some users out: an image with no alt text, an input with no label, a click handler on a non-interactive element with no keyboard path, a stripped focus outline, or color as the only signal.
+- `untested:` — non-trivial changed logic with no test exercising it, or a hollow test that mocks its own unit or skips rollback/cancel/error. Name the regression that would slip through.
+- `a11y:` — (UI diffs only) a control that shuts some users out (missing alt text, an unlabeled input, a non-interactive click handler with no keyboard path, a stripped focus outline, color as the only signal) or breaks visually (clips on mobile, unreadable contrast, a broken breakpoint).
 
 Rank by likelihood of actually firing. Footer: `<N> correctness risks.` or
 `Reads correct.`
@@ -153,7 +157,7 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 
 ### Security (from `/deadeye-guard`)
 
-- `inject:` — untrusted input reaches SQL, a shell, a template, a path, or `eval`
+- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a URL fetch (SSRF), a raw-HTML/DOM sink (XSS), or a deserializer
 - `secret:` — a credential literal, or a secret handled where it can leak (logs, errors, client output)
 - `authz:` — a decision or resource access with no confirmed permission check
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS verification off)
@@ -169,13 +173,18 @@ one path with an unguarded sibling is a fix-shaped diff, not a fix: flag the
 sibling with the same tag and cite both lines in `proof:`. The SSRF that ships
 is almost always the door nobody guarded.
 
-If a dependency manifest changed (`go.mod`, `package.json`,
-`requirements.txt`/`pyproject.toml`, `Cargo.toml`, `pom.xml`/`build.gradle`),
-run its native auditor if installed — `govulncheck ./...`, `npm audit`,
-`pip-audit`, `cargo audit`, or `osv-scanner -L <manifest>` as a fallback. If
-none is installed, SAY SO rather than fabricating a CVE. Never invent an
-advisory ID or a fixed version you didn't see from a tool. Rank by
-exploitability. Footer: `<N> exposures, <M> accepted.` or `Clean line of fire.`
+If a dependency manifest OR its lockfile changed (`go.mod`/`go.sum`,
+`package.json`+lockfile, `requirements.txt`/`pyproject.toml`+lockfile,
+`Cargo.toml`/`Cargo.lock`, `pom.xml`/`build.gradle`), run its native auditor
+if installed — `govulncheck ./...`, `npm audit`, `pip-audit`, `cargo audit`
+— or `osv-scanner -L <manifest>` if none is. A newly ADDED dep also gets a
+direct OSV cross-check. A lockfile-only bump needs the same pass — a vuln
+can land transitively with no manifest edit. Also
+flag CI supply chain: an unpinned Action ref (`x@main`), a `:latest`
+Docker base, or `curl | sh`. No auditor installed →
+SAY SO, don't fabricate a CVE. Never invent an advisory ID or fixed version
+you didn't see from a tool. Rank by exploitability. Footer: `<N> exposures,
+<M> accepted.` or `Clean line of fire.`
 
 ## Don't repeat what's already on the PR
 
@@ -185,6 +194,8 @@ reviewer already made is how a review loses trust. Fetch the existing comments
 
 - `gh api repos/{owner}/{repo}/pulls/<N>/comments` — inline review threads
 - `gh api repos/{owner}/{repo}/issues/<N>/comments` — the PR conversation
+- `gh api repos/{owner}/{repo}/pulls/<N>/reviews` — summary bodies, incl.
+  deadeye's own prior run
 
 Drop anything already raised — match on the sink or the fix, not exact wording
 (you and a bot word the same bug differently). Report only net-new, and print
@@ -200,9 +211,10 @@ Lead with a one-line header, then the four lens sections, then a verdict:
 PR #<N> "<title>"  +<adds>/-<dels>, <files> files
 ```
 
-End with the tally and the verdict — `<B> blockers, <W> warns, <N> nits` and
-the one `block` that must be fixed before merge — or, when nothing survived
-verification, exactly: `Clean — nothing survived verification. Ship it.`
+End with the tally and the verdict — `<C> critical, <H> high, <M> medium, <N>
+nits` and the one `critical` that must ship fixed — or, when nothing
+survived verification, exactly: `Clean — nothing survived verification.
+Ship it.`
 
 Findings are a LIST. Do not apply or push any code change unless asked.
 
@@ -221,8 +233,11 @@ ONLY when the user passes `--post` or explicitly asks:
   `gh api repos/{owner}/{repo}/pulls/<N>/reviews --input -` with
   - `event: "COMMENT"`,
   - `body`: the tally + verdict (the summary),
-  - `comments`: one entry per finding, `{path, line, side: "RIGHT", body}`,
-    the body being the finding line (severity, tag, fix, proof).
+  - `comments`: one entry per finding, `{path, line, side, body}` —
+    `side: "RIGHT"` for an added/context line, or `side: "LEFT"` with the
+    ORIGINAL file's line number for a finding on a deleted line (a removed
+    guard, a dropped `ok &&`) — the body being the finding line (severity,
+    tag, fix, proof).
   Get `{owner}/{repo}` from `gh repo view --json nameWithOwner`. Anchor `line`
   to a line the diff actually touches, or GitHub rejects the comment.
 - `event: "COMMENT"` only — never approve, request-changes, merge, or close.

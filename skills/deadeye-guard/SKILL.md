@@ -32,10 +32,23 @@ requires seeing the caller.
 ## Verify before reporting
 
 Before claiming a sanitizer, an authz check, or input validation is
-MISSING, grep for it OUTSIDE the diff — middleware, a decorator, a
-framework-level guard, a base class. An unguarded-looking handler whose
-auth actually lives in a router `Use()` call is a false positive, and one
-wrong finding erodes trust in all of them. Report only what you confirmed.
+MISSING, grep OUTSIDE the diff AND follow the value into the callee — a
+base class, a caller that guards, or the deeper function it's handed to —
+the real guard often lives one call down, not just in middleware or a
+framework-level decorator. An unguarded-looking handler whose auth
+actually lives in a router `Use()` call, or one call deeper, is a false
+positive, and one wrong finding erodes trust in all of them. An `authz`
+claim needs a concrete input that reaches the sink, or drop it.
+
+**Every finding carries its proof.** Append a `proof:` clause naming the
+concrete thing in THIS repo that makes the finding true — the caller you
+traced, the grep that came back empty, the auditor line. A finding you
+cannot prove from the code in front of you is a guess; drop it.
+
+**Run the repo's own checks and fuse them in.** Before you finalize, run
+what the project already ships — `go vet`, `tsc --noEmit`, the linter, a
+touched test — and let their output confirm or kill findings. Mark a
+finding `(confirmed)` when a tool agrees; otherwise it stands as `likely`.
 
 The inverse is just as important: a guard is only as good as its weakest
 path. When the diff adds or hardens a check on a sink, grep the file and
@@ -53,8 +66,9 @@ you flag; `/deadeye-debt` owns the ledger of those.
 
 ## Dependency pass
 
-Detect the ecosystem from the manifest touched in the diff (`go.mod`,
-`package.json`, `requirements.txt`/`pyproject.toml`, `Cargo.toml`,
+Detect the ecosystem from the manifest OR its lockfile touched in the diff
+(`go.mod`/`go.sum`, `package.json`+lockfile,
+`requirements.txt`/`pyproject.toml`+lockfile, `Cargo.toml`/`Cargo.lock`,
 `pom.xml`/`build.gradle`), then run its native auditor if installed:
 
 | Ecosystem | Command |
@@ -64,6 +78,15 @@ Detect the ecosystem from the manifest touched in the diff (`go.mod`,
 | Python | `pip-audit -f json` (or `osv-scanner -L requirements.txt`) |
 | Rust | `cargo audit` |
 | any | `osv-scanner -L <manifest>` as a fallback |
+
+A lockfile-only bump needs the same pass — a vulnerable version can land
+transitively with no manifest edit. A newly ADDED dependency also gets a
+direct OSV cross-check even when a native auditor exists, matching the bar
+coder mode's live Edit/Write advisory already holds new deps to.
+
+Also flag CI supply chain: an unpinned GitHub Actions ref (`uses: x@main`,
+not a SHA), a mutable Docker base image (`:latest`), or a `curl | sh`
+install script.
 
 If the tool isn't installed, SAY SO and fall back to what coder mode's
 live advisory already used — the bundled superseded-package table and
@@ -76,11 +99,16 @@ stdlib or native first, a maintained sibling second, a version bump last
 
 One line per finding:
 
-`L<line>: <tag> <what reaches what>. <fix>.`
+`<glyph> path:line — <tag>: <what reaches what>. Fix: <fix>. proof: <evidence>.`
+
+`<glyph>` carries the severity: 🔴 `critical` (exploitable now, data loss,
+breaks prod), 🟠 `high` (must fix before merge), 🟡 `medium` (should fix),
+⚪ `nit` (optional). The path is required — a diff can span files; name a
+sibling path in the same breath if it shares the bug.
 
 Seven tags, use exactly these:
 
-- `inject:` — untrusted input reaches SQL, a shell, a template, a path, or `eval`
+- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a URL fetch (SSRF), a raw-HTML/DOM sink (XSS), or a deserializer
 - `secret:` — a credential literal, or a secret handled somewhere it can leak (logs, error messages, client-visible output)
 - `authz:` — a decision or resource access with no confirmed permission check
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, a non-CSPRNG for a token, TLS verification disabled)
@@ -89,23 +117,23 @@ Seven tags, use exactly these:
 - `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first
 
 Rank by exploitability (reachable from untrusted input first). End with
-`<N> exposures, <M> accepted.` (accepted = the marked, decided-corners
-count from the verify step) — or, when nothing survives, exactly:
-`Clean line of fire.`
+`<C> critical, <H> high, <M> medium, <N> nits, <A> accepted` (accepted = the
+marked, decided-corners count from the verify step) — or, when nothing
+survives, exactly: `Clean line of fire.`
 
 More than ~12 findings: keep the highest-exploitability ones and say how
 many lower-severity ones were omitted.
 
 ## Examples
 
-✅ `L42: inject: name interpolated into a raw SQL string. Bind it as a query parameter.`
-✅ `L88: authz: /admin/users has no role check in this diff or its router group. Add one, or confirm it's covered upstream.`
-✅ `L15: dep: lodash 4.17.20 has an open OSV advisory (GHSA-p6mc-m468-83gg). 4.17.21 patches it, or drop it -- the two helpers used here are stdlib now.`
-✅ `L120: crypto: password hashed with md5. Use bcrypt/scrypt/argon2 instead.`
+✅ `🔴 auth.go:42 — inject: name interpolated into a raw SQL string. Fix: bind it as a query parameter. proof: L42 builds the query with fmt.Sprintf, no placeholder.`
+✅ `🟠 admin.go:88 — authz: /admin/users has no role check in this diff or its router group. Fix: add one, or confirm it's covered upstream. proof: grep for RequireRole across the package returned nothing.`
+✅ `🟠 package.json:15 — dep: lodash 4.17.20 has an open OSV advisory (GHSA-p6mc-m468-83gg). Fix: 4.17.21 patches it, or drop it -- the two helpers used here are stdlib now. proof: osv-scanner -L package.json.`
+✅ `🟡 auth.go:120 — crypto: password hashed with md5. Fix: use bcrypt/scrypt/argon2 instead. proof: L120 calls md5.Sum on the raw password.`
 
 ❌ "This endpoint might have some security considerations worth thinking
-about..." — hedging isn't a finding. Name the line, the reachable input,
-the fix.
+about..." — hedging isn't a finding. Name the path, the line, the
+reachable input, the fix, the proof.
 
 ## Boundaries
 

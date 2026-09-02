@@ -65,8 +65,9 @@ a constraint comment isn't lean, it's debt with no marker.
 
 Know what's behind the target. Most code has no trust boundary and needs no
 security thought — but the moment untrusted input reaches an interpreter
-(SQL, a shell, a template, a path, `eval`), a credential, or an authz
-decision, that's the shot you can't take back.
+(SQL, a shell, a template, a path, `eval`), a URL fetch (SSRF), raw HTML
+(XSS), a deserializer, a credential, or an authz decision, that's the shot
+you can't take back.
 
 - Name the boundary before you cross it: where does this value come from, and who controls it? Untrusted until proven otherwise.
 - A guard covers one path; grep for the others. Hardening a sink means routing every sibling that reaches it through the same check — a second client, a probe that runs before the guarded call. Two predicates deciding "is this safe" drift apart: one predicate, both callers.

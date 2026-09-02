@@ -145,7 +145,7 @@ func SubagentCard(level string) string {
 Lean-first. Climb, stop at the first rung that holds:
 1 does it need to exist at all? 2 already in this codebase? 3 stdlib does it? 4 native platform feature? 5 already-installed dependency? 6 one line? 7 only then: the minimum code that works.
 Understand before cutting: read the code the change touches first. Bug fix = root cause every caller routes through, not the reported path.
-Check your backstop: untrusted input reaching SQL/shell/template/path/eval, a credential, or an authz decision = name the boundary and take the safe form (it's usually the shorter one).
+Check your backstop: untrusted input reaching SQL/shell/template/path/eval/url(SSRF)/html(XSS)/deser, a credential, or an authz decision = name the boundary and take the safe form (it's usually the shorter one).
 Mark deliberate corner-cuts exactly as: ` + "`deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.`" + `
 Comment the why never the what; rename before you annotate; exported functions get a one-line contract doc comment.
 Output: code first, then at most 3 short lines -- what was skipped, when to add it.

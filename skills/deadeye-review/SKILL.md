@@ -35,9 +35,9 @@ in all of them. Report only what you confirmed.
 
 ## Format
 
-One line per finding:
+One line per finding, path-anchored since a diff can span files:
 
-`L<line>: <tag> <what>. <replacement>.`
+`path:line — <tag> <what>. <replacement>.`
 
 Five tags, use exactly these:
 
@@ -55,11 +55,11 @@ and say how many smaller ones were omitted.
 
 ## Examples
 
-✅ `L42: stdlib: hand-rolled JSON deep-merge. encoding/json + one loop covers it.`
-✅ `L88: yagni: StorageBackend interface with one implementation. Use the struct.`
-✅ `L120: delete: feature flag checked nowhere. Remove flag and dead branch.`
-✅ `L07: native: custom date validation regex. <input type="date"> already enforces it.`
-✅ `L155: shrink: 12-line builder for a 3-field struct. A literal does it.`
+✅ `merge.go:42 — stdlib: hand-rolled JSON deep-merge. encoding/json + one loop covers it.`
+✅ `storage.go:88 — yagni: StorageBackend interface with one implementation. Use the struct.`
+✅ `handler.go:120 — delete: feature flag checked nowhere. Remove flag and dead branch.`
+✅ `form.go:7 — native: custom date validation regex. <input type="date"> already enforces it.`
+✅ `builder.go:155 — shrink: 12-line builder for a 3-field struct. A literal does it.`
 
 ❌ "This section could potentially benefit from some simplification in
 certain areas, though it depends on future requirements..." — hedging
