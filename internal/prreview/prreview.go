@@ -24,13 +24,18 @@ func Body() string { return body }
 
 // WindsurfBody returns the rubric trimmed to fit Windsurf's hard 12000-char
 // workflow cap. Every other host gets the full Body(); Windsurf (experimental,
-// no hook contract) drops the opt-in "Posting back to the PR" section -- the
-// largest and least relevant there -- leaving a one-line pointer. This lets the
-// flagship rubric grow without the weakest host capping the best reviewer.
+// no hook contract) drops TWO sections to fit: the "Rigor -- where reviews
+// miss" habits (the largest single section) and the opt-in "Posting back to
+// the PR" section (the least relevant there, reduced to a one-line pointer).
+// This lets the flagship rubric grow without the weakest host capping the
+// best reviewer -- Windsurf still gets the four lenses and the
+// verify-before-reporting/proof discipline, just not the Rigor upgrade.
 func WindsurfBody() string {
 	b := body
-	// Drop the flagship-only "Rigor" section (the base rubric -- lenses, verify,
-	// proof, sibling-path, dedup -- still ships to Windsurf).
+	// Drop the flagship-only "Rigor" section (the base rubric -- lenses,
+	// verify, proof, dedup -- still ships to Windsurf; the Rigor section's
+	// own sibling-path sweep, mitigation-disproof, and cheap-layer checklist
+	// do not).
 	if s := strings.Index(b, "## Rigor"); s >= 0 {
 		if e := strings.Index(b[s:], "## The four lenses"); e >= 0 {
 			b = b[:s] + b[s+e:]

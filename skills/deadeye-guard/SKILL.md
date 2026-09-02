@@ -1,6 +1,6 @@
 ---
 name: deadeye-guard
-description: Security review of the current diff -- injection, secrets, authz, crypto, and vulnerable dependencies.
+description: Security review of the current diff -- injection, secrets, authz, crypto, exposure, DoS, and vulnerable dependencies.
 license: MIT
 ---
 

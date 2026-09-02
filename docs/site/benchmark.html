@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>deadeye — benchmarks</title>
-<meta name="description" content="Measured, not asserted: routing bills 3–9× less for identical correct output, and cold PR review catches 54% of held-out bugs at 97% precision — graded against each project's own fix.">
+<meta name="description" content="Measured, not asserted: routing bills 3–9× less for identical correct output, and cold PR review catches 61% of held-out bugs at 97% precision — graded against each project's own fix.">
 <meta property="og:title" content="deadeye — benchmarks">
-<meta property="og:description" content="Routing bills 3–9× less for identical correct output; cold PR review catches 54% of held-out bugs at 97% precision. Measured and graded, not asserted.">
+<meta property="og:description" content="Routing bills 3–9× less for identical correct output; cold PR review catches 61% of held-out bugs at 97% precision. Measured and graded, not asserted.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://deepaksinghcs14.github.io/deadeye-cc/benchmark.html">
 <meta name="twitter:card" content="summary_large_image">
@@ -376,7 +376,7 @@ footer a{color:var(--brass);}
 
     <div class="board reveal">
       <div class="cell"><div class="big" data-count="61" data-suffix="%">61%</div>
-        <div class="lbl">of the seeded bugs <b>caught cold</b> — from the diff + source alone (13 / 24)</div></div>
+        <div class="lbl">of the seeded bugs <b>caught cold</b> — from the diff + source alone (11 / 18)</div></div>
       <div class="cell"><div class="big" data-count="97" data-suffix="%">97%</div>
         <div class="lbl"><b>precision</b> — one false positive across 31 findings, each verified in source</div></div>
       <div class="cell"><div class="big">4<span style="color:var(--mute);font-size:.6em"> / </span>4</div>
@@ -440,7 +440,7 @@ footer a{color:var(--brass);}
   <section>
     <h2>The honest caveats — this benchmark too</h2>
     <ul class="caveats reveal">
-      <li><b>Recall is one held-out number, not a ceiling.</b> 54% on this balanced 24-PR set; it moves with the
+      <li><b>Recall is one held-out number, not a ceiling.</b> 61% on this balanced 24-PR set; it moves with the
         mix and the difficulty. The durable strength is <em>precision</em>.</li>
       <li><b>Concurrency is the weak lens.</b> Races came in at 1 of 4 — a cold data-race read off a diff is
         genuinely hard.</li>
@@ -451,7 +451,7 @@ footer a{color:var(--brass);}
 
   <section>
     <div class="bottom-wrap">
-      <p class="bottom">54% of held-out bugs caught cold, at <em>97% precision</em> — every finding proven in source.</p>
+      <p class="bottom">61% of held-out bugs caught cold, at <em>97% precision</em> — every finding proven in source.</p>
       <a class="cta" href="index.html">← back to deadeye</a>
     </div>
   </section>

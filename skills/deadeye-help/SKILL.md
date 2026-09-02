@@ -33,13 +33,14 @@ Present this reference card, formatted cleanly:
 | `/deadeye-coder [level]` | Switch/report the coder persona level |
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
 | `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
-| `/deadeye-guard` | Security review of the current diff -- injection, secrets, authz, crypto, deps |
+| `/deadeye-guard` | Security review of the current diff -- injection, secrets, authz, crypto, exposure, deps, DoS |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses -- over-engineering, correctness, performance, security |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
 | `/deadeye-help` | This card |
 
 CLI-only: `deadeye lessons [reset]` inspects/clears the recorded routing
-outcomes that bias future decisions.
+outcomes that bias future decisions. `deadeye update` updates the managed
+binary directly (sha256-verified, atomic) — for Codex-only installs.
 
 ## Kill switches (env)
 
@@ -59,6 +60,7 @@ overrides in `.deadeye.json`). Coder knobs: `coder.default_level`,
 ## Update
 
 `/plugin marketplace update deadeye` then `/reload-plugins` — or enable
-auto-update under `/plugin` → Marketplaces.
+auto-update under `/plugin` → Marketplaces. Codex-only install: run
+`deadeye update` instead (see CLI-only above).
 
 One-shot: do NOT change any mode or write anything.

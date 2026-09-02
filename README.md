@@ -109,7 +109,7 @@ and source only, no fix, no comments — and the project's own fix is the answer
 key. A finding counts as a catch only when it matches what the fix changed;
 anything ambiguous is scored a miss.
 
-**Recall 54% (13/24) at 97% precision** — one false positive across 31 findings,
+**Recall 61% (11/18) at 97% precision** — one false positive across 31 findings,
 every finding re-verified in source by an adversarial pass. It caught **every
 authorization regression in the set** (4/4) — the cross-file permission bugs a
 diff-only reviewer misses — and was weakest on concurrency races (1/4), the
@@ -174,8 +174,11 @@ what deadeye wrote. For the full engine, use Claude Code or Codex.
 
 `deadeye init <host>` also installs the PR review command in that host's
 native format — a Codex user skill (`$deadeye-pr`), a Gemini TOML command,
-a Cursor skill, a Windsurf workflow — carrying the same four-lens rubric
-Claude Code ships as the `deadeye-pr` skill. Experimental until live-verified.
+a Cursor skill, a Windsurf workflow — carrying the same four lenses Claude
+Code ships as the `deadeye-pr` skill. Windsurf's 12000-char workflow cap
+drops the "Rigor" habits section and inline PR-comment posting (a one-line
+pointer to `gh pr review` instead); every other host gets the rubric in
+full. Experimental until live-verified.
 
 ### From source
 
@@ -232,7 +235,7 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
 | `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
-| `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, deps, DoS |
+| `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, exposure, deps, DoS |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. On Codex, invoke the installed skill as `$deadeye-pr`. Huge PRs fan out to parallel subagents where the host supports them. |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
