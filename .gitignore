@@ -34,15 +34,10 @@ go.work.sum
 # .vscode/
 
 # /docs/* is local-only by default; docs/site/ (the public Pages site
-# source) was always the pre-wired exception. PLAN.md and verified.md are
-# published too -- 32+ Go files' comments cite them by path (docs/PLAN.md
-# §N, docs/verified.md), and a gitignored citation is a dangling reference
-# for anyone who clones. Anything else added under docs/ later stays local
-# unless deliberately un-ignored here.
+# source) is the pre-wired exception. Anything else added under docs/
+# stays local unless deliberately un-ignored here.
 /docs/*
 !/docs/site/
-!/docs/PLAN.md
-!/docs/verified.md
 
 # Cases here are synthetic "vulnerable PR" diffs built by reversing real CVE
 # fix commits from other projects -- useful for A/B validating a rubric
