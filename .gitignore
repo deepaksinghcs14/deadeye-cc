@@ -30,7 +30,7 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
+.idea/
 # .vscode/
 
 # Internal working docs (plan, verification notes) -- local use only, not
