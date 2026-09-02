@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.36.0
+
+**Codex hook compatibility.** `deadeye init codex` now honors `CODEX_HOME`,
+refreshes deadeye-owned sidecars on repeat runs, upgrades stale hook matchers in
+place, registers Codex's subagent-start context surface, and installs PR review
+as the `$deadeye-pr` user skill instead of a deprecated custom prompt. Codex hook
+output now avoids unsupported `ask` decisions and Stop/PostCompact
+hook-specific payloads, fixing the `Stop hook (failed)` invalid-JSON path while
+leaving Claude's hook flow unchanged.
+
 ## 0.35.0
 
 **PR review -- precision sharpening ("Verify before reporting").** The section now

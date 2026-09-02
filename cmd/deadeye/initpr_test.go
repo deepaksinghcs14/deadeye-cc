@@ -19,7 +19,7 @@ func TestWritePRCommandPerHost(t *testing.T) {
 	t.Chdir(cwd)
 
 	cases := []struct{ host, argToken string }{
-		{"codex", "$ARGUMENTS"},
+		{"codex", "user's prompt"},
 		{"gemini", "{{args}}"},
 		{"cursor", "user's message"},
 		{"windsurf", "user's message"},
@@ -40,13 +40,16 @@ func TestWritePRCommandPerHost(t *testing.T) {
 		if !strings.Contains(s, c.argToken) {
 			t.Errorf("%s: rendering missing arg token %q", c.host, c.argToken)
 		}
+		if c.host == "codex" && strings.Contains(s, "$ARGUMENTS") {
+			t.Error("codex skill should not use deprecated custom-prompt arguments")
+		}
 		removePRCommand(c.host)
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Errorf("%s: removePRCommand left the file (err=%v)", c.host, err)
 		}
 	}
 
-	if p, _ := prCommandPath("codex", cwd, home); p != filepath.Join(home, ".codex", "prompts", "deadeye-pr.md") {
+	if p, _ := prCommandPath("codex", cwd, home); p != filepath.Join(home, ".agents", "skills", "deadeye-pr", "SKILL.md") {
 		t.Errorf("codex path = %s", p)
 	}
 }
@@ -74,5 +77,38 @@ func TestWritePRCommandRefusesForeign(t *testing.T) {
 	removePRCommand("windsurf")
 	if _, err := os.Stat(path); err != nil {
 		t.Error("removePRCommand deleted a foreign file")
+	}
+}
+
+func TestRemoveCodexPRCommandRemovesLegacyPrompt(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	codexHome := filepath.Join(home, "codex-home")
+	t.Setenv("CODEX_HOME", codexHome)
+	cwd := t.TempDir()
+	t.Chdir(cwd)
+
+	skill, err := writePRCommand("codex")
+	if err != nil {
+		t.Fatalf("writePRCommand: %v", err)
+	}
+	legacy := []string{
+		filepath.Join(home, ".codex", "prompts", "deadeye-pr.md"),
+		filepath.Join(codexHome, "prompts", "deadeye-pr.md"),
+	}
+	for _, path := range legacy {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(prreview.Marker+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	removePRCommand("codex")
+	for _, path := range append([]string{skill}, legacy...) {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Errorf("removePRCommand left %s (err=%v)", path, err)
+		}
 	}
 }

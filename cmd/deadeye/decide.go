@@ -58,10 +58,17 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	case "SessionStart":
 		out = decideCoderSessionStart(in, cfg, req.PluginRoot, req.ConfigDir, req.Host, state)
 	case "PostCompact":
-		// Codex has no SessionStart source=compact -- PostCompact is its
-		// compaction-survival surface. Same handler, same semantics.
 		in.Source = "compact"
-		out = decideCoderSessionStart(in, cfg, req.PluginRoot, req.ConfigDir, req.Host, state)
+		if req.Host == "codex" {
+			// Codex PostCompact only accepts common output fields. SessionStart
+			// source=compact is the model-context restore path; this hook just
+			// keeps deadeye's per-session counters aligned for older installs.
+			state.markNativeRestore(in.SessionID)
+			state.resetArrivalTracking(in.SessionID)
+			out = hookio.Empty()
+		} else {
+			out = decideCoderSessionStart(in, cfg, req.PluginRoot, req.ConfigDir, req.Host, state)
+		}
 	case "UserPromptSubmit":
 		out = decideUserPromptSubmit(in, cfg, req.ClientVersion, req.Host, state)
 	case "PreToolUse":

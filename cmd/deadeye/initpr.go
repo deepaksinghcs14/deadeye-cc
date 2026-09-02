@@ -9,18 +9,16 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/prreview"
 )
 
-// The /deadeye-pr on-demand review command, rendered into each non-Claude
-// host's native command surface. Claude Code gets it as a shipped skill
+// The on-demand PR review command/skill, rendered into each non-Claude host's
+// native surface. Claude Code gets it as a shipped skill
 // (skills/deadeye-pr/SKILL.md) and needs no init. Every rendering is the
-// canonical prreview.Body() wrapped in a host-specific header that passes
-// the PR argument in that host's syntax -- so all hosts run the identical
-// rubric. EXPERIMENTAL for every host here: these command surfaces are
-// documented but unverified on a live install (verified.md §14).
+// canonical prreview.Body() wrapped in a host-specific header -- so all hosts
+// run the identical rubric. EXPERIMENTAL for every host here: these command
+// surfaces are documented but unverified on a live install (verified.md §14).
 //
 // Placement is project-local for gemini/cursor/windsurf (their documented
 // project command dirs, matching where those inits already write) and
-// ~/.codex/prompts for codex (Codex's only prompt location, where init
-// codex already writes). Each is a NEW deadeye-owned file guarded by the
+// ~/.agents/skills for codex. Each is a NEW deadeye-owned file guarded by the
 // never-clobber marker -- deadeye never edits a host's own config file.
 
 // prCommandPath returns the on-demand PR-review command file for host, or
@@ -29,7 +27,7 @@ import (
 func prCommandPath(host, cwd, home string) (string, bool) {
 	switch host {
 	case "codex":
-		return filepath.Join(home, ".codex", "prompts", "deadeye-pr.md"), true
+		return filepath.Join(home, ".agents", "skills", "deadeye-pr", "SKILL.md"), true
 	case "gemini":
 		return filepath.Join(cwd, ".gemini", "commands", "deadeye-pr.toml"), true
 	case "cursor":
@@ -40,6 +38,17 @@ func prCommandPath(host, cwd, home string) (string, bool) {
 	return "", false
 }
 
+func legacyCodexPRCommandPaths(home string) []string {
+	paths := []string{filepath.Join(home, ".codex", "prompts", "deadeye-pr.md")}
+	if codexHome := os.Getenv("CODEX_HOME"); codexHome != "" {
+		path := filepath.Join(codexHome, "prompts", "deadeye-pr.md")
+		if path != paths[0] {
+			paths = append(paths, path)
+		}
+	}
+	return paths
+}
+
 // renderPRCommand wraps the canonical rubric in host's command-file format,
 // substituting the PR-argument token in that host's syntax.
 func renderPRCommand(host string) string {
@@ -47,8 +56,8 @@ func renderPRCommand(host string) string {
 	body := prreview.Body()
 	switch host {
 	case "codex":
-		return "---\ndescription: " + desc + "\nargument-hint: \"[<PR number or URL>] [--post]\"\n---\n\n" +
-			"Target PR: $ARGUMENTS  (a PR number or URL; if empty, the current branch's PR.)\n\n" + body
+		return "---\nname: deadeye-pr\ndescription: " + desc + "\nlicense: MIT\nargument-hint: \"[<PR number or URL>] [--post]\"\n---\n\n" +
+			"Target PR: the PR number or URL in the user's prompt (if none, the current branch's PR).\n\n" + body
 	case "gemini":
 		// TOML literal string ('''): no escape processing, so backticks,
 		// backslashes, and quotes in the rubric pass through verbatim. The
@@ -102,8 +111,22 @@ func installPRCommand(host string) {
 	if path, err := writePRCommand(host); err != nil {
 		fmt.Println(cWarn("PR-review command skipped: ") + err.Error())
 	} else {
-		fmt.Println(cGood("Wrote") + " PR-review command " + cValue(path) + cDim("  (/deadeye-pr -- experimental)"))
+		kind := "PR-review command"
+		trigger := "  (/deadeye-pr -- experimental)"
+		if host == "codex" {
+			kind = "PR-review skill"
+			trigger = "  ($deadeye-pr -- experimental)"
+		}
+		fmt.Println(cGood("Wrote") + " " + kind + " " + cValue(path) + cDim(trigger))
 	}
+}
+
+func removeDeadeyePRFile(path string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(b), prreview.Marker) {
+		return false
+	}
+	return os.Remove(path) == nil
 }
 
 // removePRCommand deletes host's PR-review command file if it still carries
@@ -122,13 +145,19 @@ func removePRCommand(host string) {
 	if !ok {
 		return
 	}
-	b, err := os.ReadFile(path)
-	if err != nil || !strings.Contains(string(b), prreview.Marker) {
-		return
-	}
+	removed := removeDeadeyePRFile(path)
 	if host == "cursor" {
-		os.RemoveAll(filepath.Dir(path)) // the deadeye-pr/ skill dir
+		if removed {
+			os.RemoveAll(filepath.Dir(path)) // the deadeye-pr/ skill dir
+		}
 		return
 	}
-	os.Remove(path)
+	if host == "codex" {
+		if removed {
+			os.Remove(filepath.Dir(path)) // only succeeds when the skill dir is empty
+		}
+		for _, legacy := range legacyCodexPRCommandPaths(home) {
+			removeDeadeyePRFile(legacy)
+		}
+	}
 }

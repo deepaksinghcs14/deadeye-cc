@@ -36,10 +36,10 @@ type Input struct {
 	AgentType      string          `json:"agent_type,omitempty"`
 }
 
-// PermissionDecision values. The top-level Output.PermissionDecision
-// accepts only allow|deny|ask; hookSpecificOutput's PreToolUse variant
-// additionally accepts "defer" -- both confirmed against the live
-// validator's error dump.
+// PermissionDecision values. Claude accepts allow|deny|ask; Codex accepts
+// allow|deny, but not ask; hookSpecificOutput's PreToolUse variant additionally
+// accepts "defer" on Claude -- confirmed against the live validator's error
+// dump.
 const (
 	PermissionAllow = "allow"
 	PermissionDeny  = "deny"
@@ -49,13 +49,9 @@ const (
 
 // HookSpecificOutput is the per-event response shape nested under
 // hookSpecificOutput. HookEventName is REQUIRED whenever this struct is
-// present -- Claude Code rejects the entire response otherwise. Only
-// PreToolUse, UserPromptSubmit, PostToolUse, PostToolBatch, and
-// Stop/SubagentStop accept hookSpecificOutput at all; SessionStart does
-// NOT (use Output.Raw for that event -- raw stdout is the one mechanism
-// proven to reach model context there; docs/verified.md §11, superseding
-// §5.1's SystemMessage suggestion, which the schema accepts but the
-// model never sees).
+// present -- Claude Code rejects the entire response otherwise. Claude
+// SessionStart does NOT accept hookSpecificOutput (use Output.Raw there);
+// Codex and Gemini do.
 //
 // UpdatedInput does NOT have merge semantics -- corrected live in Phase 3
 // (docs/verified.md), overturning an earlier docs-derived assumption that
@@ -74,13 +70,13 @@ type HookSpecificOutput struct {
 	UpdatedInput             json.RawMessage `json:"updatedInput,omitempty"`
 	AdditionalContext        string          `json:"additionalContext,omitempty"`
 
-	// AskFallback tells a host WITHOUT an ask primitive (Gemini can only
-	// deny or pass, not ask) what an "ask" should degrade to there:
+	// AskFallback tells a host WITHOUT an ask primitive (Codex and Gemini can
+	// only deny or pass, not ask) what an "ask" should degrade to there:
 	// AskFallbackDeny (hard block + reason -- the exfil guard, where the
 	// model must not proceed) or AskFallbackAdvise (drop to a nudge -- the
 	// plan gate and vuln-on-add, where denying with no approve path would
-	// be unusable). Ignored on Claude/Codex, which honor permissionDecision
-	// "ask" directly. json:"-": internal routing, never serialized.
+	// be unusable). Ignored on Claude, which honors permissionDecision "ask"
+	// directly. json:"-": internal routing, never serialized.
 	AskFallback string `json:"-"`
 }
 

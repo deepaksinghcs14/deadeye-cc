@@ -48,11 +48,7 @@ func MarshalGemini(out Output) []byte {
 			g.Reason = hs.PermissionDecisionReason
 		} else {
 			// Downgrade to a nudge: surface the reason as context.
-			if inner.AdditionalContext == "" {
-				inner.AdditionalContext = hs.PermissionDecisionReason
-			} else {
-				inner.AdditionalContext += " " + hs.PermissionDecisionReason
-			}
+			inner.AdditionalContext = appendContext(inner.AdditionalContext, hs.PermissionDecisionReason)
 		}
 	}
 
@@ -66,16 +62,70 @@ func MarshalGemini(out Output) []byte {
 	return b
 }
 
-// MarshalFor renders out in the given host's dialect: Gemini gets the
-// translated shape above, every other host (Claude, Codex) gets the
-// canonical Output JSON.
-func MarshalFor(host string, out Output) []byte {
-	if host == "gemini" {
-		return MarshalGemini(out)
+// MarshalCodex renders out in Codex's dialect. Codex accepts allow/deny but
+// not ask, so asks collapse through the same deny-or-advise fallback.
+func MarshalCodex(out Output) []byte {
+	hs := out.HookSpecificOutput
+	if hs != nil && codexCommonOutputOnlyEvent(hs.HookEventName) {
+		clone := out
+		clone.SystemMessage = appendContext(clone.SystemMessage, hs.AdditionalContext)
+		clone.HookSpecificOutput = nil
+		return marshalOutput(clone)
 	}
+	if hs == nil || hs.PermissionDecision != PermissionAsk {
+		return marshalOutput(out)
+	}
+
+	clone := out
+	inner := *hs
+	clone.HookSpecificOutput = &inner
+
+	if inner.AskFallback == AskFallbackDeny {
+		inner.PermissionDecision = PermissionDeny
+	} else {
+		inner.AdditionalContext = appendContext(inner.AdditionalContext, inner.PermissionDecisionReason)
+		inner.PermissionDecision = ""
+		inner.PermissionDecisionReason = ""
+	}
+
+	return marshalOutput(clone)
+}
+
+func codexCommonOutputOnlyEvent(event string) bool {
+	switch event {
+	case "PreCompact", "PostCompact", "Stop", "SubagentStop":
+		return true
+	default:
+		return false
+	}
+}
+
+func appendContext(current, extra string) string {
+	if current == "" {
+		return extra
+	}
+	if extra == "" {
+		return current
+	}
+	return current + " " + extra
+}
+
+func marshalOutput(out Output) []byte {
 	b, err := json.Marshal(out)
 	if err != nil {
 		return []byte("{}")
 	}
 	return b
+}
+
+// MarshalFor renders out in the given host's dialect.
+func MarshalFor(host string, out Output) []byte {
+	switch host {
+	case "gemini":
+		return MarshalGemini(out)
+	case "codex":
+		return MarshalCodex(out)
+	default:
+		return marshalOutput(out)
+	}
 }

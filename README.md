@@ -140,12 +140,13 @@ allows:
 ### Codex CLI (experimental)
 
 Install the binary, then `deadeye init codex` — it shows the exact
-`~/.codex/hooks.json` changes and writes them only after you confirm
+Codex hooks file changes (`$CODEX_HOME/hooks.json`, or `~/.codex/hooks.json`)
+and writes them only after you confirm
 (deadeye never edits another tool's config silently). You get output
 trimming, the coder persona, the plan gate, `/deadeye-mute`, and the full
-decision log; not model routing (Codex has no subagent surface to route).
-Needs `[features] hooks = true` in `~/.codex/config.toml`. Remove with
-`deadeye uninstall codex`.
+decision log; not Claude-style model routing. Older Codex builds may need
+`[features] hooks = true` in the Codex config. Init also installs the
+`$deadeye-pr` user skill. Remove with `deadeye uninstall codex`.
 
 ### Gemini CLI (experimental — context-injection tier)
 
@@ -171,10 +172,10 @@ what deadeye wrote. For the full engine, use Claude Code or Codex.
 
 ### PR review on every host (experimental)
 
-`deadeye init <host>` also installs the `/deadeye-pr` review command in
-that host's native format — a Codex prompt, a Gemini TOML command, a Cursor
-skill, a Windsurf workflow — carrying the same four-lens rubric Claude Code
-ships as the `deadeye-pr` skill. Experimental until live-verified.
+`deadeye init <host>` also installs the PR review command in that host's
+native format — a Codex user skill (`$deadeye-pr`), a Gemini TOML command,
+a Cursor skill, a Windsurf workflow — carrying the same four-lens rubric
+Claude Code ships as the `deadeye-pr` skill. Experimental until live-verified.
 
 ### From source
 
@@ -232,7 +233,7 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
 | `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
 | `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, deps, DoS |
-| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. Huge PRs fan out to parallel subagents, each at the cheapest model tier its cluster needs. |
+| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. On Codex, invoke the installed skill as `$deadeye-pr`. Huge PRs fan out to parallel subagents where the host supports them. |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye update` | Update the managed binary (sha256-verified, atomic) — for Codex-only installs |

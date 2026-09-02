@@ -32,6 +32,19 @@ func TestStopShowsSummaryAfterARewrite(t *testing.T) {
 	}
 }
 
+func TestCodexStopOutputUsesCommonSchema(t *testing.T) {
+	state := newDaemonState(catalog.Catalog{}, nil)
+	state.log(logstore.Record{SessionID: "s1", Surface: "PreToolUse/Bash", Action: "rewrite", BytesBeforeEst: 30000, BytesAfter: 9600})
+
+	b := hookio.MarshalFor("codex", decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state))
+	if strings.Contains(string(b), "hookSpecificOutput") {
+		t.Fatalf("Codex Stop output should not include hookSpecificOutput: %s", b)
+	}
+	if !strings.Contains(string(b), "systemMessage") {
+		t.Fatalf("Codex Stop output should use systemMessage: %s", b)
+	}
+}
+
 // TestStopDoesNotRepeatAStaleTotal is the "subtle, blends in" requirement:
 // once shown, the same cumulative total must not repeat on a later turn
 // where nothing new was saved.

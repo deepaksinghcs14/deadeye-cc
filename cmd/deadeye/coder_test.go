@@ -526,10 +526,11 @@ func TestCodexHostBehavior(t *testing.T) {
 		t.Fatal("codex SessionStart should carry the persona in additionalContext")
 	}
 
-	// PostCompact: same handler, marks native restore.
+	// PostCompact: state reset only on Codex; SessionStart source=compact
+	// carries the model-visible restore context.
 	out2 := decide(proto.Request{Event: "PostCompact", Host: "codex", Payload: []byte(`{"session_id":"pc1"}`)}, state)
-	if out2.HookSpecificOutput == nil || !strings.Contains(out2.HookSpecificOutput.AdditionalContext, "DEADEYE CODER ACTIVE") {
-		t.Error("PostCompact should re-inject the persona for codex")
+	if out2.HookSpecificOutput != nil || out2.Raw != nil {
+		t.Error("PostCompact should not emit unsupported Codex hook-specific output")
 	}
 	if !state.nativeRestoreFor("pc1") {
 		t.Error("PostCompact must mark native restore")

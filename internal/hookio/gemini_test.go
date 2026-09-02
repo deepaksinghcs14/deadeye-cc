@@ -84,23 +84,54 @@ func TestMarshalGeminiAskAdvise(t *testing.T) {
 	}
 }
 
-// TestMarshalForDialect: only gemini gets the translated shape; claude and
-// codex get canonical Output JSON (permissionDecision preserved).
+// TestMarshalForDialect: hosts get the dialect their hook engine accepts.
 func TestMarshalForDialect(t *testing.T) {
 	out := ForEvent("PreToolUse")
 	out.HookSpecificOutput.PermissionDecision = PermissionAsk
 	out.HookSpecificOutput.AskFallback = AskFallbackDeny
 	out.HookSpecificOutput.PermissionDecisionReason = "r"
 
-	for _, host := range []string{"", "claude", "codex"} {
+	for _, host := range []string{"", "claude"} {
 		m := decode(t, MarshalFor(host, out))
 		hs, _ := m["hookSpecificOutput"].(map[string]any)
 		if hs == nil || hs["permissionDecision"] != "ask" {
 			t.Errorf("host %q should keep Claude-dialect permissionDecision:ask, got %v", host, m)
 		}
 	}
+	if m := decode(t, MarshalFor("codex", out)); m["hookSpecificOutput"].(map[string]any)["permissionDecision"] != "deny" {
+		t.Errorf("codex should translate ask+deny to nested permissionDecision:deny, got %v", m)
+	}
 	// Gemini translates ask+deny to a top-level deny.
 	if m := decode(t, MarshalFor("gemini", out)); m["decision"] != "deny" {
 		t.Errorf("gemini should translate to decision:deny, got %v", m)
+	}
+}
+
+func TestMarshalCodexAskAdvise(t *testing.T) {
+	out := ForEvent("PreToolUse")
+	out.HookSpecificOutput.PermissionDecision = PermissionAsk
+	out.HookSpecificOutput.AskFallback = AskFallbackAdvise
+	out.HookSpecificOutput.PermissionDecisionReason = "plan gate"
+
+	m := decode(t, MarshalCodex(out))
+	hs, _ := m["hookSpecificOutput"].(map[string]any)
+	if hs == nil || hs["permissionDecision"] != nil {
+		t.Errorf("ask+advise must not emit permissionDecision on Codex, got %v", m)
+	}
+	if !strings.Contains(hs["additionalContext"].(string), "plan gate") {
+		t.Errorf("ask+advise should surface the reason as context, got %v", m)
+	}
+}
+
+func TestMarshalCodexStopUsesCommonOutput(t *testing.T) {
+	out := ForEvent("Stop")
+	out.HookSpecificOutput.AdditionalContext = "deadeye: summary"
+
+	m := decode(t, MarshalCodex(out))
+	if _, ok := m["hookSpecificOutput"]; ok {
+		t.Errorf("Codex Stop must not emit hookSpecificOutput, got %v", m)
+	}
+	if m["systemMessage"] != "deadeye: summary" {
+		t.Errorf("Codex Stop should carry the message as systemMessage, got %v", m)
 	}
 }
