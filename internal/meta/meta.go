@@ -78,3 +78,4 @@ func CapturesDir() string          { return filepath.Join(StateDir(), "captures"
 func ConfigPath() string           { return filepath.Join(StateDir(), "config.json") }
 func CatalogOverridePath() string  { return filepath.Join(StateDir(), "catalog.json") }
 func OSVCachePath() string         { return filepath.Join(StateDir(), "osv-cache.json") }
+func ReportPath() string           { return filepath.Join(StateDir(), "report.html") }

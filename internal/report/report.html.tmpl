@@ -1,0 +1,300 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>deadeye report -- {{.Repo}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#eef0f2; --page:#e6e9ec; --surface:#f7f8f9; --surface-raised:#ffffff;
+    --ink:#1b2027; --ink-secondary:#454c56; --muted:#6b7280; --faint:#8d94a0;
+    --hairline:rgba(27,32,39,.11); --hairline-strong:rgba(27,32,39,.22);
+    --accent:#96702f; --accent-ink:#fff8ec;
+    --good:#3f6b3a; --warn:#a15d22; --critical:#93342b; --status-medium:#8f7519;
+    --cat-1:#b8863a; --cat-2:#2570a3; --cat-3:#b5592e; --cat-4:#7a6bb0;
+    --chart-grid:#d7dbdf;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#14171c; --page:#0f1216; --surface:#1a1e24; --surface-raised:#1e232a;
+      --ink:#eceae3; --ink-secondary:#c2c7ce; --muted:#8b93a1; --faint:#5c6572;
+      --hairline:rgba(236,234,227,.10); --hairline-strong:rgba(236,234,227,.20);
+      --accent:#c9a15f; --accent-ink:#23180a;
+      --good:#84a578; --warn:#d99a55; --critical:#cf8079; --status-medium:#d4b64a;
+      --cat-1:#b8863a; --cat-2:#5b9bd1; --cat-3:#c76c3e; --cat-4:#8f7cc9;
+      --chart-grid:#262b32;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#14171c; --page:#0f1216; --surface:#1a1e24; --surface-raised:#1e232a;
+    --ink:#eceae3; --ink-secondary:#c2c7ce; --muted:#8b93a1; --faint:#5c6572;
+    --hairline:rgba(236,234,227,.10); --hairline-strong:rgba(236,234,227,.20);
+    --accent:#c9a15f; --accent-ink:#23180a;
+    --good:#84a578; --warn:#d99a55; --critical:#cf8079; --status-medium:#d4b64a;
+    --cat-1:#b8863a; --cat-2:#5b9bd1; --cat-3:#c76c3e; --cat-4:#8f7cc9;
+    --chart-grid:#262b32;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html{color-scheme:light dark}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{text-wrap:balance;margin:0}
+  p{margin:0}
+  a{color:var(--accent)}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+  .tab{font-variant-numeric:tabular-nums}
+  .eyebrow{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .shell{max-width:1180px;margin:0 auto;padding:0 24px 80px}
+  .masthead{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:24px 4px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:30px;height:30px;flex:none}
+  .brand-mark svg{width:100%;height:100%;display:block}
+  .brand-name{font-weight:700;font-size:19px;letter-spacing:-.005em}
+  .brand-tag{font-size:12.5px;color:var(--muted)}
+  .scopebar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 4px 26px;font-size:14px;color:var(--muted)}
+  .scopebar .repo{color:var(--ink);font-weight:600}
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  @media (max-width:820px){ .kpi-row{grid-template-columns:repeat(2,1fr)} }
+  .kpi{background:var(--surface-raised);border:1px solid var(--hairline);border-radius:12px;padding:20px 20px 16px}
+  .kpi .eyebrow{margin-bottom:12px}
+  .kpi .value{font-weight:700;font-size:32px;letter-spacing:-.02em;line-height:1}
+  .kpi .sub{margin-top:9px;font-size:12.5px;color:var(--muted)}
+  .section{background:var(--surface-raised);border:1px solid var(--hairline);border-radius:14px;padding:26px 26px 24px;margin-bottom:14px}
+  .section-head h2{font-size:20px;font-weight:700;letter-spacing:-.01em}
+  .section-sub{font-size:14px;color:var(--muted);max-width:64ch;margin-top:6px;margin-bottom:22px}
+  .section-sub b{color:var(--ink-secondary);font-weight:600}
+  .hero-chart-wrap{border:1px solid var(--hairline);border-radius:10px;padding:18px 18px 8px;background:var(--surface)}
+  .hero-chart-legend{display:flex;align-items:center;gap:18px;margin-bottom:6px;font-size:12.5px;color:var(--muted)}
+  .legend-key{display:flex;align-items:center;gap:6px}
+  .legend-swatch{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .legend-swatch.marker{width:2px;height:12px;border-radius:0;background:var(--critical);opacity:.55}
+  #heroChart{width:100%;height:auto;overflow:visible}
+  .chart-tooltip{position:absolute;pointer-events:none;background:var(--ink);color:var(--ground);font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:6px 9px;border-radius:6px;transform:translate(-50%,-130%);white-space:nowrap;opacity:0;transition:opacity .1s ease;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+  .chart-tooltip b{color:var(--accent)}
+  .no-data{font-size:13.5px;color:var(--muted);padding:20px 4px}
+  .surfaces{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}
+  @media (max-width:820px){ .surfaces{grid-template-columns:1fr} }
+  .surface{border:1px solid var(--hairline);border-radius:10px;padding:16px 17px;background:var(--surface)}
+  .surface-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px}
+  .surface-head .name{font-weight:600;font-size:14px}
+  .pill{font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:2px 7px;border-radius:20px;border:1px solid var(--hairline-strong);color:var(--muted)}
+  .shapes{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .shape{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 8px;border-radius:6px;background:var(--surface-raised);border:1px solid var(--hairline-strong);color:var(--ink-secondary)}
+  .shape .n{color:var(--warn);margin-left:4px}
+  .surface-note{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.55}
+  .stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--hairline);border:1px solid var(--hairline);border-radius:10px;overflow:hidden;margin-bottom:22px}
+  @media (max-width:700px){ .stat-strip{grid-template-columns:repeat(2,1fr)} }
+  .stat-chip{background:var(--surface);padding:16px 18px}
+  .stat-chip .eyebrow{margin-bottom:8px}
+  .stat-chip .value{font-weight:700;font-size:26px;letter-spacing:-.015em}
+  .pr-detail{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:760px){ .pr-detail{grid-template-columns:1fr} }
+  .detail-box{border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;background:var(--surface)}
+  .detail-box h4{font-size:13.5px;font-weight:700;margin-bottom:16px}
+  .barrows{display:flex;flex-direction:column;gap:12px}
+  .barrow{display:grid;grid-template-columns:110px 1fr 60px;align-items:center;gap:10px}
+  .barrow .label{font-size:12.5px;color:var(--ink-secondary)}
+  .barrow .track{height:9px;background:var(--ground);border-radius:5px;overflow:hidden}
+  .barrow .fill{height:100%;border-radius:5px;background:var(--accent)}
+  .barrow .val{font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:right;color:var(--ink)}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  @media (max-width:900px){ .grid3{grid-template-columns:1fr} }
+  .panel{background:var(--surface-raised);border:1px solid var(--hairline);border-radius:14px;padding:22px 22px 20px}
+  .panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:16px}
+  .panel-head h3{font-size:15.5px;font-weight:700}
+  .panel-head .count{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted)}
+  .rows{display:flex;flex-direction:column}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--hairline);font-size:13px}
+  .row:last-child{border-bottom:none}
+  .row .k{color:var(--ink-secondary)}
+  .row .v{font-family:'IBM Plex Mono',monospace;color:var(--ink)}
+  .empty-panel{font-size:12.5px;color:var(--faint)}
+  .footline{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 4px 0;font-size:12.5px;color:var(--faint)}
+  .footline .cmd{font-family:'IBM Plex Mono',monospace;background:var(--surface);border:1px solid var(--hairline-strong);padding:5px 10px;border-radius:6px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 34 34" fill="none">
+          <circle cx="17" cy="17" r="15.5" stroke="var(--hairline-strong)" stroke-width="1"/>
+          <circle cx="17" cy="17" r="9.5" stroke="var(--muted)" stroke-width="1"/>
+          <line x1="17" y1="0.5" x2="17" y2="8" stroke="var(--accent)" stroke-width="1.6"/>
+          <line x1="17" y1="26" x2="17" y2="33.5" stroke="var(--accent)" stroke-width="1.6"/>
+          <line x1="0.5" y1="17" x2="8" y2="17" stroke="var(--accent)" stroke-width="1.6"/>
+          <line x1="26" y1="17" x2="33.5" y2="17" stroke="var(--accent)" stroke-width="1.6"/>
+          <circle cx="17" cy="17" r="2" fill="var(--accent)"/>
+        </svg>
+      </span>
+      <div>
+        <div class="brand-name">Deadeye</div>
+        <div class="brand-tag">Range report -- he doesn't waste shots</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="scopebar">
+    <div><span>Showing</span> <span class="repo">{{.Repo}}</span></div>
+    <div class="mono">generated {{.GeneratedAt}}</div>
+  </div>
+
+  <section class="kpi-row" aria-label="measured impact">
+    {{range .Kpis}}
+    <div class="kpi">
+      <div class="eyebrow">{{.Label}}</div>
+      <div class="value">{{.Value}}</div>
+      {{if .Sub}}<div class="sub">{{.Sub}}</div>{{end}}
+    </div>
+    {{end}}
+  </section>
+
+  <section class="section" aria-labelledby="learning-h">
+    <div class="section-head"><h2 id="learning-h">Learning loop</h2></div>
+    {{if .TrendChart}}
+    <p class="section-sub"><b>{{.TrendChart.Shape}}</b> tracked over the last {{len .TrendChart.Points}} weeks in this repo.</p>
+    <div class="hero-chart-wrap">
+      <div class="hero-chart-legend">
+        <span class="legend-key"><span class="legend-swatch"></span> {{.TrendChart.Shape}} occurrences / week</span>
+        {{if .TrendChart.HasReminder}}<span class="legend-key"><span class="legend-swatch marker"></span> reminder began</span>{{end}}
+      </div>
+      <div style="position:relative">
+        <svg id="heroChart" viewBox="0 0 640 220" role="img" aria-label="Weekly occurrences of {{.TrendChart.Shape}} in this repo">
+          <line x1="44" y1="30" x2="620" y2="30" stroke="var(--chart-grid)" stroke-width="1"/>
+          <line x1="44" y1="{{.TrendChart.MidY}}" x2="620" y2="{{.TrendChart.MidY}}" stroke="var(--chart-grid)" stroke-width="1"/>
+          <line x1="44" y1="180" x2="620" y2="180" stroke="var(--hairline-strong)" stroke-width="1"/>
+          <text x="34" y="34" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="var(--muted)">{{.TrendChart.MaxLabel}}</text>
+          <text x="34" y="{{.TrendChart.MidY}}" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="var(--muted)">{{.TrendChart.MidLabel}}</text>
+          <text x="34" y="184" text-anchor="end" font-family="IBM Plex Mono" font-size="11" fill="var(--muted)">0</text>
+          {{if .TrendChart.HasReminder}}
+          <line x1="{{.TrendChart.ReminderX}}" y1="28" x2="{{.TrendChart.ReminderX}}" y2="180" stroke="var(--critical)" stroke-width="1.5" opacity=".5"/>
+          {{end}}
+          <path d="{{.TrendChart.AreaPath}}" fill="var(--accent)" opacity=".1"/>
+          <polyline points="{{.TrendChart.LinePoints}}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <g id="heroPoints">
+            {{range .TrendChart.Points}}
+            <circle cx="{{.X}}" cy="{{.Y}}" r="{{if .IsEndpoint}}5.5{{else}}4.5{{end}}" fill="{{if .IsEndpoint}}var(--accent){{else}}var(--surface){{end}}" stroke="{{if .IsEndpoint}}var(--surface){{else}}var(--accent){{end}}" stroke-width="2" data-week="{{.Label}}" data-val="{{.Value}}"/>
+            {{end}}
+          </g>
+          {{range .TrendChart.Points}}
+          <text x="{{.X}}" y="203" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5" fill="var(--faint)">{{.Label}}</text>
+          {{end}}
+        </svg>
+        <div class="chart-tooltip" id="chartTooltip">wk &middot; <b>0</b></div>
+      </div>
+    </div>
+    {{else}}
+    <p class="section-sub">Not enough history yet to chart a trend -- once a shape has recurred across two or more weeks, its trend shows here.</p>
+    {{end}}
+
+    <div class="surfaces">
+      {{range .Surfaces}}
+      <div class="surface">
+        <div class="surface-head"><span class="name">{{.Name}}</span><span class="pill">{{.Badge}}</span></div>
+        {{if .Shapes}}
+        <div class="shapes">{{range .Shapes}}<span class="shape">{{.Shape}} <span class="n">&times;{{.Count}}</span></span>{{end}}</div>
+        {{end}}
+        <div class="surface-note">{{.Note}}</div>
+      </div>
+      {{end}}
+    </div>
+  </section>
+
+  {{if .PR}}
+  <section class="section" aria-labelledby="prstats-h">
+    <div class="section-head"><h2 id="prstats-h">PR review activity</h2></div>
+    <p class="section-sub"><b>/deadeye-pr</b> across {{.PR.Reviewed}} reviewed PRs in this repo -- prints by default, only posts to GitHub when asked.</p>
+    <div class="stat-strip">
+      <div class="stat-chip"><div class="eyebrow">PRs reviewed</div><div class="value">{{.PR.Reviewed}}</div></div>
+      <div class="stat-chip"><div class="eyebrow">Findings raised</div><div class="value">{{.PR.Findings}}</div></div>
+      <div class="stat-chip"><div class="eyebrow">Comments posted</div><div class="value">{{.PR.Posted}}</div></div>
+      <div class="stat-chip"><div class="eyebrow">Already raised -- skipped</div><div class="value">{{.PR.Skipped}}</div></div>
+    </div>
+    <div class="pr-detail">
+      <div class="detail-box">
+        <h4>Findings by lens</h4>
+        {{if .PR.ByLens}}
+        <div class="barrows">{{range .PR.ByLens}}
+          <div class="barrow"><span class="label">{{.Label}}</span><span class="track"><span class="fill" style="width:{{.Percent}}%"></span></span><span class="val tab">{{.Value}}</span></div>
+        {{end}}</div>
+        {{else}}<div class="empty-panel">No findings recorded yet.</div>{{end}}
+      </div>
+      <div class="detail-box">
+        <h4>Findings by severity</h4>
+        {{if .PR.BySeverity}}
+        <div class="barrows">{{range .PR.BySeverity}}
+          <div class="barrow"><span class="label">{{.Label}}</span><span class="track"><span class="fill" style="width:{{.Percent}}%;background:var(--{{if eq .Color "critical"}}critical{{else if eq .Color "high"}}warn{{else if eq .Color "medium"}}status-medium{{else}}faint{{end}})"></span></span><span class="val tab">{{.Value}}</span></div>
+        {{end}}</div>
+        {{else}}<div class="empty-panel">No findings recorded yet.</div>{{end}}
+      </div>
+    </div>
+  </section>
+  {{end}}
+
+  <div class="grid3">
+    <section class="panel" aria-labelledby="routing-h">
+      <div class="panel-head"><h3 id="routing-h">Routing -- model mix</h3><span class="count">{{.RoutingTotal}} decisions</span></div>
+      {{if .RoutingBars}}
+      <div class="barrows">{{range .RoutingBars}}
+        <div class="barrow"><span class="label">{{.Label}}</span><span class="track"><span class="fill" style="width:{{.Percent}}%;background:var(--{{.Color}})"></span></span><span class="val tab">{{.Value}}</span></div>
+      {{end}}</div>
+      {{else}}<div class="empty-panel">No routing decisions logged yet.</div>{{end}}
+    </section>
+
+    <section class="panel" aria-labelledby="ctx-h">
+      <div class="panel-head"><h3 id="ctx-h">Context hygiene -- measured</h3></div>
+      {{if .HygieneBars}}
+      <div class="barrows">{{range .HygieneBars}}
+        <div class="barrow"><span class="label">{{.Label}}</span><span class="track"><span class="fill" style="width:{{.Percent}}%"></span></span><span class="val tab">{{.Value}}</span></div>
+      {{end}}</div>
+      {{else}}<div class="empty-panel">No measured rewrites logged yet.</div>{{end}}
+    </section>
+
+    <section class="panel" aria-labelledby="sec-h">
+      <div class="panel-head"><h3 id="sec-h">Security &amp; coder mode</h3></div>
+      {{if .SecurityRows}}
+      <div class="rows">{{range .SecurityRows}}<div class="row"><span class="k">{{.Label}}</span><span class="v">{{.Value}}</span></div>{{end}}</div>
+      {{else}}<div class="empty-panel">Nothing flagged yet.</div>{{end}}
+    </section>
+  </div>
+
+  <div class="footline">
+    <span>Everything above comes from <span class="mono">~/.deadeye/*.jsonl</span> on this machine -- no hosted service, no telemetry.</span>
+    <span class="cmd">deadeye report</span>
+  </div>
+
+</div>
+<script>
+  (function(){
+    var svg = document.getElementById('heroChart');
+    if (!svg) return;
+    var tip = document.getElementById('chartTooltip');
+    svg.querySelectorAll('#heroPoints circle').forEach(function(c){
+      c.style.cursor = 'crosshair';
+      c.addEventListener('mouseenter', function(){
+        c.setAttribute('data-r0', c.getAttribute('r'));
+        c.setAttribute('r', Number(c.getAttribute('r')) + 2);
+      });
+      c.addEventListener('mouseleave', function(){
+        var r0 = c.getAttribute('data-r0');
+        if (r0) c.setAttribute('r', r0);
+        tip.style.opacity = 0;
+      });
+      c.addEventListener('mousemove', function(){
+        var svgRect = svg.getBoundingClientRect();
+        var vb = svg.viewBox.baseVal;
+        var cx = parseFloat(c.getAttribute('cx')) * (svgRect.width / vb.width);
+        var cy = parseFloat(c.getAttribute('cy')) * (svgRect.height / vb.height);
+        tip.style.left = cx + 'px';
+        tip.style.top = cy + 'px';
+        tip.innerHTML = c.getAttribute('data-week') + ' &middot; <b>' + c.getAttribute('data-val') + '&times;</b>';
+        tip.style.opacity = 1;
+      });
+    });
+  })();
+</script>
+</body>
+</html>

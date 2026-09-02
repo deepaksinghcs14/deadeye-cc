@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/report"
 )
 
 // runGain backs `deadeye gain` / the /deadeye-stats skill: a compact
@@ -16,8 +18,15 @@ import (
 // under different labels -- "measured, not estimated" means never blending
 // the two, and never printing a per-repo % for code that was never
 // written (the honesty boundary the gain skill carries).
+//
+// printReportLink is called here, NOT inside renderGain -- renderGain is
+// directly unit-tested with an injected log path and no HOME isolation
+// (gain_test.go), so a side-effecting file write belongs in this thin,
+// untested wrapper only, same reasoning notes-append/capture keep their
+// writes out of anything a test calls directly.
 func runGain() {
 	renderGain(meta.LogPath())
+	printReportLink()
 }
 
 func renderGain(logPath string) {
@@ -106,6 +115,26 @@ func renderGain(logPath string) {
 	fmt.Println("  This repo:  " + cValue("/deadeye-debt") + cDim("  (shortcuts you deferred)"))
 	fmt.Println("              " + cValue("/deadeye-review --repo") + cDim(" (what's still cuttable)"))
 	fmt.Println("  Full detail: " + cValue("/deadeye-stats savings"))
+}
+
+// printReportLink regenerates report.html (internal/report.Generate is the
+// one shared entry point `deadeye report` also calls) and prints its path
+// as the last line -- the link `deadeye gain`/`/deadeye-stats` shows is
+// never stale. Best-effort: a generation failure is swallowed, same
+// posture as every other cache-artifact write in this codebase (codemap,
+// session memory) -- a broken report must never break the text scoreboard
+// this function exists to show.
+func printReportLink() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	path, err := report.Generate(cwd)
+	if err != nil {
+		return
+	}
+	fmt.Println()
+	fmt.Println("  Visual report: " + cValue("file://"+path))
 }
 
 func fmtBytes(n int) string {

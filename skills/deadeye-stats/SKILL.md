@@ -15,6 +15,10 @@ with none, show the measured-impact scoreboard.
 - `savings` → the full token-savings report (`deadeye audit`)
 - `context [session-id]` → per-session context-byte breakdown (`deadeye context [session-id]`)
 
+`deadeye gain`'s last line is a `file://` link to a regenerated visual
+report (`deadeye report` under the hood) — relay it as-is, the same as
+every other figure in this skill.
+
 Run the matching binary and present its output **as-is** — every figure
 comes from the decision log, not an invented aggregate. If the binary
 reports "command not found", it's almost certainly just not on PATH
@@ -58,5 +62,8 @@ exactly when presenting any view:
 - No id shows the newest session; pass a session id for an older one (an
   unknown id lists the newest five to pick from).
 
-One-shot: do NOT change the coder level, write any files, or persist
-anything.
+One-shot: do NOT change the coder level or persist anything else. The one
+exception is `report.html`, regenerated as a side effect of `deadeye gain` --
+a disposable cache artifact rebuilt from the same decision log every time
+(the same doctrine `internal/codemap`'s cache already follows), not
+persisted session state.
