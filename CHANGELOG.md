@@ -3,9 +3,10 @@
 ## 0.37.0
 
 **Review-surface audit: sinks, lenses, severity, PR mechanics.** A pass over
-deadeye's own review surfaces found 26 gaps, split into a truth-fixes batch
-(shipped separately: stale descriptions, a vacuous Windsurf test, dangling
-doc citations, a wrong benchmark number) and this rubric-content batch:
+deadeye's own review surfaces found 26 gaps. Doc and test fixes (stale
+descriptions, a vacuous Windsurf test, dangling doc citations, a wrong
+benchmark number) shipped in a separate commit; this entry covers the
+rubric-content changes:
 
 - Security's `inject:` sink list gains a URL fetch (SSRF), a raw-HTML/DOM
   sink (XSS), and a deserializer as first-class members, in the PR rubric,
@@ -39,15 +40,33 @@ doc citations, a wrong benchmark number) and this rubric-content batch:
   been left on the pre-upgrade rubric.
 
 Windsurf's 12000-char workflow cap was already the binding constraint before
-this batch (1006 chars of headroom); every addition above that ships to
+these changes (1006 chars of headroom); every addition above that ships to
 Windsurf was written to fit inside it, with ~80 chars headroom remaining.
 The coder-mode injection ceiling (9350 bytes) had ~130–200 bytes of headroom
-before this batch and needed no raise.
+before these changes and needed no raise.
 
 Not A/B validated against held-out regression PRs before shipping, unlike
 v0.34/v0.35 — the local `benchmarks/regression/` set this project has used
-for that isn't available in this working tree. Recall impact of the lens
-widenings and severity re-grading is unmeasured.
+for that isn't available in this working tree.
+
+**Validated afterward, against a rebuilt regression set.** Built a new,
+smaller set: 10 real GitHub Security Advisories, one per widened lens — SSRF,
+DOM XSS, deserialization, a reused-state race, a resource leak, a DoS, an
+authz bypass as a control, SQL injection, shell injection, a logic/boundary
+bug — each turned into a synthetic "vulnerable PR diff" by reversing its real
+fix commit, reviewed cold against the pre-0.37.0 rubric text and the 0.37.0
+rubric text. Result: **10/10 recall on both rubric versions, zero
+regressions.** These cases are documented CVEs whose own fix commits tend to
+name the exact invariant being violated, so this is a ceiling-recall check,
+not a recall discriminator. Where the two versions diverged on cases both
+caught: the new named SSRF sink fixed a real mistag (`authz:` → `inject:` on
+the same finding); the four-level severity scheme correctly escalated a DoS
+finding from a soft `warn` to `critical`/ship-blocker that the old
+three-level scheme under-severed; and the widened `untested:` lens surfaced
+two findings the old wording didn't prompt for. Kept locally under
+`benchmarks/regression/` (gitignored — the cases are reversed real CVE fix
+commits, not something to publish from a public repo). Reviewed at sonnet
+tier, not the flagship tier the README's headline numbers use.
 
 ## 0.36.0
 

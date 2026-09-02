@@ -43,3 +43,8 @@ go.work.sum
 !/docs/site/
 !/docs/PLAN.md
 !/docs/verified.md
+
+# Cases here are synthetic "vulnerable PR" diffs built by reversing real CVE
+# fix commits from other projects -- useful for A/B validating a rubric
+# change locally, not something to publish from a public repo.
+/benchmarks/regression/
