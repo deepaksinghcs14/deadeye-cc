@@ -12,7 +12,6 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/codemap"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/hosts"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/inject"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
@@ -167,7 +166,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 		if suggestion, fired := decidePlanGateSoft(in, cfg, state); fired {
 			parts = append(parts, suggestion)
 		}
-		if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, state); fired && hosts.HasSubagentSurface(host) {
+		if suggestion, fired := decideWorkflowHint(in, cfg, clientVersion, host, state); fired {
 			parts = append(parts, suggestion)
 		}
 		if suggestion, fired := decideLargePaste(in, cfg, state); fired {
@@ -386,17 +385,12 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	decision := kernel.Decide(evidence, state.cat, threshold)
 
 	// Optional AI judge (opt-in): only when the cheap signals couldn't
-	// confidently place the task. A real model call is more accurate on these
-	// ambiguous cases than the keyword heuristics; fail-open leaves the
-	// heuristic decision untouched.
-	if cfg.Mode.RoutingJudge == "on" && decision.Unsure && ai.Model == "" {
-		if tier, ok := judgeTierCached(scope.Prompt); ok {
-			if m, ok := state.cat.ModelAtTier(tier); ok {
-				decision.Model = m
-				decision.Effort = []string{"low", "medium", "high"}[tier]
-				decision.Reason = fmt.Sprintf("AI judge classified this subtask as tier %d", tier)
-			}
-		}
+	// confidently place the task, and only when the caller left model unset
+	// -- an explicit caller-chosen model is never second-guessed. A real
+	// model call is more accurate on these ambiguous cases than the keyword
+	// heuristics; fail-open leaves the heuristic decision untouched.
+	if ai.Model == "" {
+		decision = applyRoutingJudge(cfg, decision, state.cat, scope.Prompt)
 	}
 
 	checkEscalation(in, ai, shape, state)

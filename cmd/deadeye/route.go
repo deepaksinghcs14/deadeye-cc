@@ -53,6 +53,10 @@ func runRoute(taskDescription string) {
 	cfg := config.Load()
 	cat := catalog.Load()
 	decision := kernel.Decide(evidence, cat, cfg.DownshiftThreshold)
+	// Same judge path decideAgentRouting uses -- a real Agent call gets
+	// this too when mode.routing_judge=on, so the dry-run must show it or
+	// the explanation can silently diverge from the real decision.
+	decision = applyRoutingJudge(cfg, decision, cat, scope.Prompt)
 
 	if taskDescription != "" {
 		fmt.Printf("Task: %q\n", taskDescription)

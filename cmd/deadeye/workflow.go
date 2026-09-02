@@ -6,6 +6,7 @@ import (
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/hosts"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 )
 
@@ -41,8 +42,17 @@ func looksFanOutShaped(prompt string) bool {
 // "session model supports xhigh", has no signal anywhere in the hook
 // contract (effort.level reports the CURRENT effort, not the model's
 // maximum) and fails open by construction.
-func decideWorkflowHint(in hookio.Input, cfg config.Config, clientVersion string, state *daemonState) (suggestion string, fired bool) {
+func decideWorkflowHint(in hookio.Input, cfg config.Config, clientVersion, host string, state *daemonState) (suggestion string, fired bool) {
 	if cfg.Mode.WorkflowHint != "on" {
+		return "", false
+	}
+	// Host check lives here, not at the call site: markSuggestedIfFirst and
+	// the decision-log write below are real side effects (dedup consumed,
+	// a "workflow-suggest" row recorded) that must not fire on a host that
+	// can never show the resulting text -- a call-site-only gate burned the
+	// dedup key and logged a suggestion the user never saw on Codex/Gemini,
+	// corrupting /deadeye-stats' measured-impact scoreboard for them.
+	if !hosts.HasSubagentSurface(host) {
 		return "", false
 	}
 	if !versionAtLeast(clientVersion, 2, 1, 154) {

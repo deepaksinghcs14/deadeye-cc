@@ -27,6 +27,22 @@ grep -rnE '(#|//|/\*|<!--) ?deadeye:' . \
   --exclude-dir=dist --exclude-dir=build --exclude-dir=vendor
 ```
 
+**Filter before counting — three kinds of hit are not markers, verify each
+one before it lands in the ledger:**
+
+1. This skill's own file (`skills/deadeye-debt/SKILL.md`) — its own grammar
+   example matches its own grep.
+2. A line quoting the grammar template verbatim, with the literal
+   placeholders `<shortcut>`, `<limit>`, or `<trigger>` still in it — docs
+   and other skills quote the sentence to explain the convention; a real
+   marker always has those filled in with actual text, never the bracketed
+   words themselves.
+3. Non-code brand/marketing copy (an SVG comment, a README aside) that
+   happens to start with "deadeye:" but isn't a shortcut-marker comment at
+   all — read the hit, don't just count it.
+
+Only what survives that filter is a real marker.
+
 ## Ledger format
 
 One row per marker:

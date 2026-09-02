@@ -54,7 +54,7 @@ binary directly (sha256-verified, atomic) — for Codex-only installs.
 `~/.deadeye/config.json` (seeded with defaults on first run; project
 overrides in `.deadeye.json`). Coder knobs: `coder.default_level`,
 `coder.subagent_matcher`, `coder.injection_budget_tokens`,
-`coder.security` (`off`/`advise`, the live Edit/Write advisory),
+`coder.security` (`off`/`advise`/`ask`, the live Edit/Write advisory),
 `coder.security_osv` (`false` keeps the dependency check fully offline).
 
 ## Update

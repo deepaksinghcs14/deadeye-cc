@@ -41,6 +41,42 @@ func TestFamilyForMatchesEveryModel(t *testing.T) {
 	}
 }
 
+// TestTierForMatchesEveryModel guards TierFor -- lessons.go's escalation
+// detection and decide.go's routing baseline both key off it, so a broken
+// lookup here would silently corrupt the learning loop with no test to
+// catch it.
+func TestTierForMatchesEveryModel(t *testing.T) {
+	for _, m := range builtin.Models {
+		got, ok := builtin.TierFor(m.ID)
+		if !ok || got != m.Tier {
+			t.Errorf("TierFor(%q) = (%d, %v), want (%d, true)", m.ID, got, ok, m.Tier)
+		}
+	}
+	if _, ok := builtin.TierFor("no-such-model"); ok {
+		t.Error("TierFor matched an unknown model id")
+	}
+}
+
+// TestModelAtTierRoundTripsTierFor guards ModelAtTier -- the AI judge's
+// tier classification (decide.go, route.go) is translated back into a
+// model id through it, so a broken lookup would substitute the wrong model
+// into a live routing decision with no test to catch it.
+func TestModelAtTierRoundTripsTierFor(t *testing.T) {
+	for _, m := range builtin.Models {
+		id, ok := builtin.ModelAtTier(m.Tier)
+		if !ok {
+			t.Errorf("ModelAtTier(%d) found nothing, want a model", m.Tier)
+			continue
+		}
+		if gotTier, _ := builtin.TierFor(id); gotTier != m.Tier {
+			t.Errorf("ModelAtTier(%d) = %q, which TierFor reports as tier %d", m.Tier, id, gotTier)
+		}
+	}
+	if _, ok := builtin.ModelAtTier(-1); ok {
+		t.Error("ModelAtTier matched a tier that doesn't exist")
+	}
+}
+
 func TestLoadFallsBackToBuiltinWhenNoOverride(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // meta.StateDir() resolves under $HOME
 	c := Load()

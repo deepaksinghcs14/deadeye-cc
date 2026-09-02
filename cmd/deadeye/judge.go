@@ -4,10 +4,15 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"os/exec"
 	"sync"
 	"time"
+
+	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 )
 
 // The optional AI routing judge (mode.routing_judge=on). When the cheap
@@ -48,6 +53,35 @@ func judgeTierCached(task string) (int, bool) {
 		judgeCache.Store(key, tier)
 	}
 	return tier, ok
+}
+
+// applyRoutingJudge runs the optional AI judge against decision when the
+// cheap signals couldn't confidently place the task, folding its
+// classification back in. Shared by the real routing path
+// (decideAgentRouting) and the dry-run explain path (runRoute) so
+// /deadeye-route can never show a different outcome than a real Agent call
+// would get -- they were drifting when each kept its own copy of this logic.
+func applyRoutingJudge(cfg config.Config, decision kernel.Decision, cat catalog.Catalog, prompt string) kernel.Decision {
+	if cfg.Mode.RoutingJudge != "on" || !decision.Unsure {
+		return decision
+	}
+	tier, ok := judgeTierCached(prompt)
+	if !ok {
+		return decision
+	}
+	m, ok := cat.ModelAtTier(tier)
+	if !ok {
+		return decision
+	}
+	decision.Model = m
+	decision.Effort = []string{"low", "medium", "high"}[tier]
+	decision.Reason = fmt.Sprintf("AI judge classified this subtask as tier %d", tier)
+	// The judge resolved what the heuristics couldn't -- clear the
+	// thin-evidence flags so downstream code doesn't treat a
+	// judge-classified decision as still unresolved.
+	decision.Confidence = 1
+	decision.Unsure = false
+	return decision
 }
 
 // judgeTierClaude runs the classification through `claude -p`. DEADEYE_JUDGE=1

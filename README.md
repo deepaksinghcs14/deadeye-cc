@@ -48,7 +48,7 @@ ever enters context.
 | `go test` with one genuine failure | 485 B | 99 B | **79.6%** |
 | This repo's own suite (202 lines, all passing) | 10,301 B | 55 B | **99.5%** |
 | `npm install express mocha` (progress spam) | 553 B | 55 B | **90.1%** |
-| Coder persona a subagent inherits, per spawn | 7,666 B | 1,073 B | **86.0%** |
+| Coder persona a subagent inherits, per spawn | 9,235 B | 1,099 B | **88.1%** |
 
 Run `/deadeye-stats savings` to see your own. Quiet no-op events (95% of all
 rows on one real machine) aren't logged at all — the log holds only the rows
@@ -196,7 +196,7 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 
 ## What it controls
 
-Eight independent controls — each has its own on/off, and switching one off
+Ten independent controls — each has its own on/off, and switching one off
 never touches the others.
 
 | What | Modes | What it does |
@@ -241,7 +241,9 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye update` | Update the managed binary (sha256-verified, atomic) — for Codex-only installs |
 | `deadeye config` | Interactive settings picker in your terminal (or `config get/set <key>`) |
+| `deadeye lessons [reset]` | Show or clear the escalation-learning history behind the downshift threshold |
 | `deadeye uninstall --purge` | Remove the binary, its background process, and all local state |
+| `deadeye uninstall <host>` | Remove what `deadeye init <host>` wrote, for `codex`, `gemini`, `cursor`, or `windsurf` |
 
 ## Coder mode
 
