@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.37.0
 
 **Review-surface audit: sinks, lenses, severity, PR mechanics.** A pass over
 deadeye's own review surfaces found 26 gaps, split into a truth-fixes batch
