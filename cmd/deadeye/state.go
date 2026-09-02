@@ -208,6 +208,24 @@ func (d *daemonState) outcomesSnapshot() []lessons.Outcome {
 	return out
 }
 
+// reloadOutcomes re-scans outcomes.jsonl into outcomeCache from disk.
+// `deadeye lessons record` runs as a separate short-lived process (same
+// design as `deadeye notes-append`), so its write is invisible to a
+// long-running daemon's in-memory cache until this runs -- the daemon
+// otherwise only ever appends via recordOutcome, never re-reads. Called
+// once per session, at the same UserPromptSubmit gate the codemap
+// injection uses, not on every request. A scan error leaves the existing
+// cache untouched (fail open) rather than discarding known-good data.
+func (d *daemonState) reloadOutcomes() {
+	fresh, err := lessons.Scan(meta.OutcomesPath())
+	if err != nil {
+		return
+	}
+	d.mu.Lock()
+	d.outcomeCache = fresh
+	d.mu.Unlock()
+}
+
 // setLastRouting records the most recent Agent-routing decision for
 // escalation detection on the session's next Agent call.
 func (d *daemonState) setLastRouting(sessionID, taskShape, model, effort string, tier int) {

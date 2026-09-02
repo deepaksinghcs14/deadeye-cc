@@ -64,6 +64,20 @@ covering a hunk is a recorded DECISION, not a finding — someone already
 chose to ship that exposure with eyes open. Count it separately from what
 you flag; `/deadeye-debt` owns the ledger of those.
 
+**Feed the learning loop.** For each finding that survives verification and
+makes your final report (never a candidate you dropped), record it so
+coder mode gets reminded next session (best-effort — if `deadeye` isn't on
+PATH, retry once with `~/.deadeye/bin/deadeye`; if that also fails, move
+on, it's never a reason to withhold the finding):
+
+```bash
+deadeye lessons record coder-miss security:<tag>
+```
+
+using the finding's tag name without its trailing colon (a `crypto:`
+finding → `security:crypto`). This is a no-op when coder mode wasn't
+active this session — nothing to attribute, nothing gets written.
+
 ## Dependency pass
 
 Detect the ecosystem from the manifest OR its lockfile touched in the diff

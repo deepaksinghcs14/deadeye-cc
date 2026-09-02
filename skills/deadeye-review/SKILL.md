@@ -33,6 +33,22 @@ OUTSIDE the diff — an "interface with one impl" whose second impl lives
 in a test file is a false positive, and one wrong finding erodes trust
 in all of them. Report only what you confirmed.
 
+**Feed the learning loop.** For each finding that survives verification
+and makes your final report (never a candidate you dropped), record it so
+coder mode gets reminded next session (best-effort — if `deadeye` isn't on
+PATH, retry once with `~/.deadeye/bin/deadeye`; if that also fails, move
+on, it's never a reason to withhold the finding):
+
+```bash
+deadeye lessons record coder-miss over-engineering:<tag>
+```
+
+using the finding's tag name without its trailing colon (a `yagni:`
+finding → `over-engineering:yagni`). This is a no-op when coder mode
+wasn't active this session. Diff-scope only — `--repo` mode below scans
+pre-existing code nothing here wrote this session, so it never attributes
+to coder mode.
+
 ## Format
 
 One line per finding, path-anchored since a diff can span files:

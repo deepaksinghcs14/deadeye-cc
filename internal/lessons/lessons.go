@@ -9,6 +9,12 @@
 // last recommendation for a similar task shape, that's a real signal the
 // recommendation was too low. Revert/test-fail detection (transcript
 // parsing, git state correlation) is real future work, not attempted here.
+//
+// docs/PRD-lessons.md (local-only) generalizes this to two more surfaces:
+// coder-miss (a review skill confirms a finding in code coder mode just
+// wrote) and review-false-positive (the user disputes a reported
+// finding). Both are per-repo, unlike escalation's global routing shape --
+// see Outcome.Repo.
 package lessons
 
 import (
@@ -16,6 +22,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 )
@@ -28,14 +35,41 @@ import (
 const WeightEscalation = 1.0
 
 // Outcome is one observed signal attached to a task shape.
+//
+// Surface and Repo are additive: a pre-existing row with neither field set
+// (every row recorded before this field existed) means Surface=="routing"
+// and Repo=="" (global) -- today's only outcome kind, unchanged. Callers
+// must treat an empty Surface as "routing", never as "unknown surface,
+// exclude it" -- that would silently drop every historical escalation.
 type Outcome struct {
 	TS        string  `json:"ts"`
 	SessionID string  `json:"session_id"`
+	Surface   string  `json:"surface,omitempty"` // "routing" (default/empty) | "coder" | "pr-review"
 	TaskShape string  `json:"task_shape"`
 	Model     string  `json:"model"`
 	Effort    string  `json:"effort"`
-	Kind      string  `json:"kind"` // "escalation" for now; see package doc
+	Kind      string  `json:"kind"` // "escalation" | "coder-miss" | "review-false-positive"
 	Weight    float64 `json:"weight"`
+	Repo      string  `json:"repo,omitempty"` // gitutil.ProjectKey; "" means global (routing's shape already is)
+}
+
+// SurfaceRouting, SurfaceCoder, and SurfacePRReview are Outcome.Surface's
+// three values. SurfaceRouting is also the empty string's meaning, for
+// back-compat with rows written before this field existed -- never compare
+// against "" directly outside this package.
+const (
+	SurfaceRouting  = "routing"
+	SurfaceCoder    = "coder"
+	SurfacePRReview = "pr-review"
+)
+
+// EffectiveSurface returns o's surface, mapping the back-compat empty
+// value (every row written before Surface existed) to SurfaceRouting.
+func (o Outcome) EffectiveSurface() string {
+	if o.Surface == "" {
+		return SurfaceRouting
+	}
+	return o.Surface
 }
 
 // smoothing keeps a single early escalation from permanently maxing out
@@ -71,7 +105,7 @@ func AdjustedDownshiftThreshold(base float64, outcomes []Outcome, taskShape stri
 	}
 	var escalationWeight float64
 	for _, o := range outcomes {
-		if o.TaskShape != taskShape || o.Kind != "escalation" {
+		if o.EffectiveSurface() != SurfaceRouting || o.TaskShape != taskShape || o.Kind != "escalation" {
 			continue
 		}
 		if ts, err := time.Parse(time.RFC3339, o.TS); err == nil && now.Sub(ts) > recencyWindow {
@@ -84,6 +118,68 @@ func AdjustedDownshiftThreshold(base float64, outcomes []Outcome, taskShape stri
 	}
 	bias := escalationWeight / (escalationWeight + smoothing)
 	return base + (1-base)*bias
+}
+
+// WeightMiss is coder-miss and review-false-positive's per-occurrence
+// weight -- the same value as WeightEscalation, kept as its own name since
+// the two are recorded by different callers, not because the number
+// differs.
+const WeightMiss = 1.0
+
+// RankedShape is one TaskShape's aggregated recent activity within a
+// surface+repo, for RecentShapes.
+type RankedShape struct {
+	Shape  string
+	Count  int
+	Weight float64
+}
+
+// RecentShapes ranks the task shapes recorded for surface+repo within the
+// same 30-day recencyWindow AdjustedDownshiftThreshold uses (no new
+// coefficients), by total weight descending (ties broken by count, then
+// shape name, for determinism), capped at n. Used to render a bounded
+// "recent misses" list -- never unbounded, per INV-4's no-silent-creep
+// intent. repo == "" matches only global-scoped outcomes (routing's
+// shape); coder and pr-review outcomes are always repo-scoped in practice.
+func RecentShapes(outcomes []Outcome, surface, repo string, now time.Time, n int) []RankedShape {
+	if n <= 0 {
+		return nil
+	}
+	agg := map[string]*RankedShape{}
+	var order []string
+	for _, o := range outcomes {
+		if o.EffectiveSurface() != surface || o.Repo != repo {
+			continue
+		}
+		if ts, err := time.Parse(time.RFC3339, o.TS); err == nil && now.Sub(ts) > recencyWindow {
+			continue
+		}
+		r, ok := agg[o.TaskShape]
+		if !ok {
+			r = &RankedShape{Shape: o.TaskShape}
+			agg[o.TaskShape] = r
+			order = append(order, o.TaskShape)
+		}
+		r.Count++
+		r.Weight += o.Weight
+	}
+	ranked := make([]RankedShape, 0, len(order))
+	for _, shape := range order {
+		ranked = append(ranked, *agg[shape])
+	}
+	sort.Slice(ranked, func(i, j int) bool {
+		if ranked[i].Weight != ranked[j].Weight {
+			return ranked[i].Weight > ranked[j].Weight
+		}
+		if ranked[i].Count != ranked[j].Count {
+			return ranked[i].Count > ranked[j].Count
+		}
+		return ranked[i].Shape < ranked[j].Shape
+	})
+	if len(ranked) > n {
+		ranked = ranked[:n]
+	}
+	return ranked
 }
 
 // Store is an append-only JSONL log, the same pattern as

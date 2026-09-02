@@ -124,11 +124,14 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 		// rest of the injection still applies.
 		memory := ""
 		mapText := ""
+		missesText := ""
 		depFlag := ""
 		if !state.nativeRestoreFor(in.SessionID) {
 			memory = sessionmem.LoadRecent(in.Cwd)
 			if cfg.Mode.Codemap == "on" && in.Cwd != "" {
 				mapText = codemap.Text(in.Cwd)
+				state.reloadOutcomes()
+				missesText = lessonsMissesText(state, in.Cwd)
 			}
 			// Flag already-present vulnerable dependencies once per session
 			// (its own log row + config gate inside). Skipped on
@@ -156,6 +159,16 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 				Action: "inject-codemap", Reason: "codebase map", BytesAfter: len(mapText),
 			})
 			parts = append(parts, mapText)
+		}
+		if missesText != "" {
+			// Rides the same mode.codemap switch and log discipline as
+			// mapText immediately above -- deliberately not a new config
+			// knob (docs/PRD-lessons.md §7's "Injection risk" call).
+			state.log(logstore.Record{
+				TS: nowRFC3339(), SessionID: in.SessionID, Surface: "UserPromptSubmit",
+				Action: "inject-lessons", Reason: "recent coder misses", BytesAfter: len(missesText),
+			})
+			parts = append(parts, missesText)
 		}
 		if depFlag != "" {
 			parts = append(parts, depFlag)
@@ -423,14 +436,14 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 				out.HookSpecificOutput.UpdatedInput = updated
 				out.HookSpecificOutput.PermissionDecision = hookio.PermissionAllow
 				out.HookSpecificOutput.PermissionDecisionReason = reason
-				state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "enforce", Reason: decision.Reason})
+				state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "enforce", Reason: decision.Reason, Model: decision.Model})
 				return out
 			}
 		}
 	}
 
 	out.HookSpecificOutput.AdditionalContext = reason
-	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "advise", Reason: decision.Reason})
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "advise", Reason: decision.Reason, Model: decision.Model})
 	return out
 }
 

@@ -24,6 +24,12 @@ type Record struct {
 	Reason         string `json:"reason,omitempty"`
 	BytesBeforeEst int    `json:"bytes_before_est,omitempty"`
 	BytesAfter     int    `json:"bytes_after,omitempty"`
+	// Model is the routing decision's target model id, set only on
+	// Surface=="PreToolUse/Agent" Action=="advise"/"enforce" rows. Added
+	// after those two log sites already existed (decide.go's
+	// decideAgentRouting) -- old rows simply deserialize with Model=="",
+	// no migration needed.
+	Model string `json:"model,omitempty"`
 }
 
 const maxSizeBytes = 10 * 1024 * 1024
