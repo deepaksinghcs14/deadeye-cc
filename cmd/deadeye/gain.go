@@ -113,7 +113,7 @@ func renderGain(logPath string) {
 	fmt.Println(cDim("  No per-repo savings % is shown: the unbuilt version of your code was"))
 	fmt.Println(cDim("  never written, so there is no baseline to subtract from."))
 	fmt.Println("  This repo:  " + cValue("/deadeye-debt") + cDim("  (shortcuts you deferred)"))
-	fmt.Println("              " + cValue("/deadeye-review --repo") + cDim(" (what's still cuttable)"))
+	fmt.Println("              " + cValue("/deadeye-review --repo") + cDim(" (what's still cuttable, or risky)"))
 	fmt.Println("  Full detail: " + cValue("/deadeye-stats savings"))
 }
 

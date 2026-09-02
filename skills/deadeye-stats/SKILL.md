@@ -41,7 +41,7 @@ exactly when presenting any view:
 - Estimates and measurements are labeled differently in the output; keep
   that distinction.
 - For per-repo reality, point at `/deadeye-debt` (shortcuts actually taken)
-  and `/deadeye-review --repo` (what's still cuttable).
+  and `/deadeye-review --repo` (what's still cuttable, or risky).
 
 **savings (`deadeye audit`)**
 - Decisions per surface and per action are counts from the log.

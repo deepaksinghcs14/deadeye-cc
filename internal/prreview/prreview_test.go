@@ -26,11 +26,62 @@ func TestSkillMatchesRuleset(t *testing.T) {
 	}
 }
 
+// TestReviewSkillMatchesRuleset mirrors TestSkillMatchesRuleset for the
+// working-diff/whole-repo rubric: skills/deadeye-review/SKILL.md must carry
+// SelfBody() verbatim, or Claude Code and every other host diverge.
+func TestReviewSkillMatchesRuleset(t *testing.T) {
+	b, err := os.ReadFile("../../skills/deadeye-review/SKILL.md")
+	if err != nil {
+		t.Fatalf("skills/deadeye-review/SKILL.md missing: %v", err)
+	}
+	parts := strings.SplitN(string(b), "\n---\n\n", 2)
+	if len(parts) < 2 {
+		t.Fatal("SKILL.md must have frontmatter delimited by ---")
+	}
+	if parts[1] != SelfBody() {
+		t.Error("skills/deadeye-review/SKILL.md body drifted from internal/prreview/review.md -- regenerate one from the other")
+	}
+}
+
+// TestSelfBodyHasNoGitHub: SelfBody() must stay usable with no GitHub PR in
+// sight -- a working-diff or whole-repo review has no `gh` context to
+// resolve, no other reviewers' comments to dedup against, and nothing to
+// post.
+func TestSelfBodyHasNoGitHub(t *testing.T) {
+	for _, must_not := range []string{"gh pr", "--post", "Posting back to the PR", "CodeRabbit"} {
+		if strings.Contains(SelfBody(), must_not) {
+			t.Errorf("SelfBody() contains %q -- PR-only content leaked into the self-review rubric", must_not)
+		}
+	}
+}
+
+// TestBodiesShareLenses pins "identical to pr-review": every tag across all
+// four lenses must appear in both Body() and SelfBody(), or the two rubrics
+// have drifted apart -- exactly the bug this widening exists to prevent.
+func TestBodiesShareLenses(t *testing.T) {
+	tags := []string{
+		"delete:", "stdlib:", "native:", "yagni:", "shrink:",
+		"logic:", "nil:", "race:", "bound:", "contract:", "leak:", "break:", "untested:", "a11y:",
+		"alloc:", "nplus1:", "complexity:", "blocking:", "copy:",
+		"inject:", "secret:", "authz:", "crypto:", "expose:", "dep:", "dos:",
+	}
+	for _, tag := range tags {
+		inPR := strings.Contains(Body(), tag)
+		inSelf := strings.Contains(SelfBody(), tag)
+		if !inPR || !inSelf {
+			t.Errorf("tag %q: in Body()=%v, in SelfBody()=%v -- both rubrics must carry every tag", tag, inPR, inSelf)
+		}
+	}
+}
+
 // TestMarkerPresent: the sentinel init/uninstall grep for must actually be in
 // the rubric, or the never-clobber guard silently never matches.
 func TestMarkerPresent(t *testing.T) {
 	if !strings.Contains(Body(), Marker) {
 		t.Errorf("rubric missing Marker %q -- init/uninstall guards would never match", Marker)
+	}
+	if !strings.Contains(SelfBody(), SelfMarker) {
+		t.Errorf("self-review rubric missing SelfMarker %q -- init/uninstall guards would never match", SelfMarker)
 	}
 }
 
@@ -40,6 +91,9 @@ func TestMarkerPresent(t *testing.T) {
 func TestNoTripleSingleQuote(t *testing.T) {
 	if strings.Contains(Body(), "'''") {
 		t.Error("rubric contains ''' -- would break the Gemini command's TOML literal string")
+	}
+	if strings.Contains(SelfBody(), "'''") {
+		t.Error("self-review rubric contains ''' -- would break the Gemini command's TOML literal string")
 	}
 }
 
@@ -59,6 +113,19 @@ func TestFitsWindsurfCap(t *testing.T) {
 	for _, must := range []string{"## The four lenses", "## Verify before reporting", "inject:", "logic:"} {
 		if !strings.Contains(WindsurfBody(), must) {
 			t.Errorf("WindsurfBody() is missing %q -- over-trimmed", must)
+		}
+	}
+}
+
+// TestSelfFitsWindsurfCap mirrors TestFitsWindsurfCap for the self-review
+// rubric.
+func TestSelfFitsWindsurfCap(t *testing.T) {
+	if n := len([]rune(SelfWindsurfBody())); n > 11700 {
+		t.Errorf("Windsurf self-review rubric is %d chars -- trim it; the rendered workflow must stay under 12000", n)
+	}
+	for _, must := range []string{"## The four lenses", "inject:", "logic:"} {
+		if !strings.Contains(SelfWindsurfBody(), must) {
+			t.Errorf("SelfWindsurfBody() is missing %q -- over-trimmed", must)
 		}
 	}
 }
@@ -110,5 +177,30 @@ func TestWindsurfDropsSuggestedFixes(t *testing.T) {
 	}
 	if strings.Contains(WindsurfBody(), "## Copy for AI") {
 		t.Error("WindsurfBody() carries the Copy for AI section -- there's no char budget left to keep it")
+	}
+}
+
+// TestSelfWindsurfDropsSections mirrors the WindsurfDrops* tests above for
+// SelfBody(): Rigor, Learning loop, and Suggested fixes/Copy for AI are cut
+// for the same reasons; the whole-repo `--repo` section is cut too, as the
+// single largest section and the least useful on a workflow surface with no
+// persistent CLI access.
+func TestSelfWindsurfDropsSections(t *testing.T) {
+	cases := []struct {
+		name   string
+		marker string
+	}{
+		{"Rigor", "Sweep every instance."},
+		{"whole-repo mode", "Scope cheaply"},
+		{"Learning loop", "deadeye lessons priority"},
+		{"Suggested fixes", "concrete and mechanical"},
+	}
+	for _, c := range cases {
+		if !strings.Contains(SelfBody(), c.marker) {
+			t.Fatalf("test fixture stale: %q no longer in SelfBody() -- update this test alongside the %s section", c.marker, c.name)
+		}
+		if strings.Contains(SelfWindsurfBody(), c.marker) {
+			t.Errorf("SelfWindsurfBody() carries the %s section -- there's no char budget left to keep it", c.name)
+		}
 	}
 }

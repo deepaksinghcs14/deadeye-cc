@@ -186,7 +186,8 @@ func runInit(args []string) {
 			fmt.Fprintln(os.Stderr, "deadeye init codex:", err)
 			os.Exit(1)
 		}
-		installPRCommand("codex")
+		installCommand(prCmd, "codex")
+		installCommand(reviewCmd, "codex")
 		fmt.Println(cDim("Remove any time with: deadeye uninstall codex"))
 		return
 	}
@@ -228,7 +229,8 @@ func runInit(args []string) {
 	}
 	fmt.Println(cGood("Registered/updated") + " deadeye for events: " + strings.Join(changed, ", "))
 	fmt.Println(cDim("Codex will ask you to trust these hooks on first run -- that prompt is Codex's, not deadeye's."))
-	installPRCommand("codex")
+	installCommand(prCmd, "codex")
+	installCommand(reviewCmd, "codex")
 	fmt.Println(cDim("Remove any time with: deadeye uninstall codex"))
 }
 
@@ -371,7 +373,8 @@ func runUninstallCodex() {
 
 func removeCodexSidecars() {
 	os.Remove(codexScriptPath())
-	removePRCommand("codex")
+	removeCommand(prCmd, "codex")
+	removeCommand(reviewCmd, "codex")
 }
 
 // codexRegistered reports whether any of our entries exist in codex's

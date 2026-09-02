@@ -78,7 +78,8 @@ func runInitRules(host string, args []string) {
 		os.Exit(1)
 	}
 	fmt.Println(cGood("Wrote") + " " + path)
-	installPRCommand(host)
+	installCommand(prCmd, host)
+	installCommand(reviewCmd, host)
 	fmt.Println(cDim("Remove any time with: deadeye uninstall " + host))
 }
 
@@ -117,6 +118,7 @@ func runUninstallRules(host string) {
 		fmt.Fprintln(os.Stderr, "deadeye uninstall "+host+":", err)
 		os.Exit(1)
 	}
-	removePRCommand(host)
+	removeCommand(prCmd, host)
+	removeCommand(reviewCmd, host)
 	fmt.Println(cGood("Removed") + " " + path)
 }

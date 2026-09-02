@@ -234,7 +234,7 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-stats [savings\|context]` | Decision-log reports: measured-impact scoreboard (default), token-savings, per-session context bytes — ends with a link to the full visual report |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
-| `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
+| `/deadeye-review [--repo]` | Four-lens self-review (over-engineering, correctness, performance, security) of the working diff, or the whole repo with `--repo` — the same rubric `/deadeye-pr` runs, before a PR exists |
 | `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, exposure, deps, DoS |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. Findings with a mechanical fix get a code snippet (a GitHub suggestion block when posted), plus a closing paste-ready block for a coding agent. On Codex, invoke the installed skill as `$deadeye-pr`. Huge PRs fan out to parallel subagents where the host supports them. |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |

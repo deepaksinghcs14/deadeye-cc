@@ -32,7 +32,7 @@ Present this reference card, formatted cleanly:
 | `/deadeye-stats [savings\|context]` | Decision-log reports: measured impact (default), token savings, per-session context breakdown |
 | `/deadeye-coder [level]` | Switch/report the coder persona level |
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
-| `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
+| `/deadeye-review [--repo]` | Four-lens self-review of the working diff, or the whole repo with `--repo` -- the pre-PR version of `/deadeye-pr` |
 | `/deadeye-guard` | Security review of the current diff -- injection, secrets, authz, crypto, exposure, deps, DoS |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses -- over-engineering, correctness, performance, security |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |

@@ -132,14 +132,16 @@ func runInitGemini(args []string) {
 	}
 	fmt.Println(cGood("Wrote") + " the extension. Install it into Gemini with:")
 	fmt.Println("  " + cValue("gemini extensions install --path "+geminiExtensionDir()))
-	installPRCommand("gemini")
+	installCommand(prCmd, "gemini")
+	installCommand(reviewCmd, "gemini")
 	fmt.Println(cDim("Remove with: deadeye uninstall gemini  (then: gemini extensions uninstall deadeye)"))
 }
 
 // runUninstallGemini removes the deadeye Gemini extension scaffold. It does
 // not run Gemini's own uninstall -- it tells the user to.
 func runUninstallGemini() {
-	removePRCommand("gemini")
+	removeCommand(prCmd, "gemini")
+	removeCommand(reviewCmd, "gemini")
 	removed := false
 	for _, p := range []string{geminiExtensionDir(), geminiScriptPath()} {
 		if err := os.RemoveAll(p); err == nil {

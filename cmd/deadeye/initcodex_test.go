@@ -46,7 +46,7 @@ func TestInitAndUninstallCodex(t *testing.T) {
 	if !strings.Contains(string(sb), "--host codex") {
 		t.Error("adapter script missing --host codex")
 	}
-	skillPath, _ := prCommandPath("codex", "", home)
+	skillPath, _ := commandPath(prCmd, "codex", "", home)
 	skill, err := os.ReadFile(skillPath)
 	if err != nil {
 		t.Fatalf("codex PR-review skill not written: %v", err)
@@ -134,7 +134,7 @@ func TestUninstallCodexRemovesSidecarsWithoutHooksFile(t *testing.T) {
 	if err := writeCodexAdapter(codexScriptPath()); err != nil {
 		t.Fatal(err)
 	}
-	skillPath, err := writePRCommand("codex")
+	skillPath, err := writeCommand(prCmd, "codex")
 	if err != nil {
 		t.Fatal(err)
 	}

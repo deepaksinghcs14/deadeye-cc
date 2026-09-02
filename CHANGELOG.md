@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.39.0
+
+**`/deadeye-review` runs all four lenses now, not just over-engineering --
+the local self-review tool.** It carries the exact same rubric `/deadeye-pr`
+runs on a GitHub PR (over-engineering, correctness, performance, security --
+same tags, same proof discipline, same suggested-fix snippets and Copy-for-AI
+block), scoped instead to your working diff by default or the whole repo
+with `--repo`. Catch a `race:`, a `nil:`, or an `inject:` before you push,
+not after a PR is open and a bot beat you to it. `/deadeye-guard` is
+unchanged -- still the separate, deeper security-only pass.
+
+- The two rubrics now share their lens content from a single source
+  (`internal/prreview/lenses.md`, `fixes.md`) instead of hand-duplicating
+  tag tables across skills, so they structurally can't drift apart --
+  pinned by a new test that checks every tag exists in both.
+- The learning loop widens with it: a confirmed finding records
+  `deadeye lessons record coder-miss <lens>:<tag>` using its real lens
+  (previously hardcoded to `over-engineering`), and `--repo` mode's grep-first
+  scan now also hunts for correctness/perf/security shapes, not just
+  over-engineering ones.
+- `/deadeye-review` now installs on all five hosts via `deadeye init`
+  (Codex, Gemini, Cursor, Windsurf, Claude Code), same treatment as
+  `/deadeye-pr`.
+
 ## 0.38.1
 
 **Fix a real-first-run bug in `deadeye report`, caught live.** A repo with

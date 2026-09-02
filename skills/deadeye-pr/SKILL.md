@@ -9,12 +9,11 @@ argument-hint: "[<PR number or URL>] [--post]"
 # Deadeye PR Review
 
 One shot over a whole pull request: four lenses, one pass, tagged findings.
-This is broader than `/deadeye-review` (lean lens only) and `/deadeye-guard`
-(security only) on purpose — a PR wants correctness and performance judged
-too. It reuses those two skills' exact tag rubrics and adds two more, and
-keeps the same terse one-line-per-finding discipline. Correctness- and
-performance-heavy PRs can still be escalated to the host's own deep reviewer;
-this is the fast, on-demand, deadeye-flavored pass.
+`/deadeye-review` runs this exact four-lens rubric locally against your
+working diff or the whole repo — this adds what a PR needs on top:
+resolving a real PR via `gh`, checking what other reviewers already said,
+huge-PR fan-out, and an opt-in post back to GitHub. `/deadeye-guard` stays
+the dedicated deep-security pass this lens is drawn from.
 
 ## Scope
 
@@ -105,15 +104,15 @@ linter firing rules:
   attacker reaches, not just the tag. "The raw user URL reaches `http.Get`, so
   `target=http://169.254.169.254/` walks to your cloud metadata" lands;
   "unvalidated input" does not.
-- The path is required — a PR spans files. If a sibling path shares the bug,
-  name it in the same breath.
+- The path is required — a diff can span files. If a sibling path shares the
+  bug, name it in the same breath.
 - `proof:` is required (see "Verify before reporting"). For `inject`/`authz`/
   `logic`/`race`, the proof IS a reproduction: the concrete input and the sink
   it reaches.
 - Append `(confirmed)` when a tool or test backs the finding; otherwise it
   reads as `likely`. Direct, not rude — you're helping a peer ship.
 
-### Over-engineering (lean lens — from `/deadeye-review`)
+### Over-engineering
 
 - `delete:` — code that shouldn't exist at all (speculative, dead, duplicated)
 - `stdlib:` — reinvents what the standard library, or a dependency already in the project, ships
@@ -155,7 +154,7 @@ Rank by likelihood of actually firing. Footer: `<N> correctness risks.` or
 Only flag what a realistic input size makes matter — a triple loop over three
 config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 
-### Security (from `/deadeye-guard`)
+### Security
 
 - `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a URL fetch (SSRF), a raw-HTML/DOM sink (XSS), or a deserializer
 - `secret:` — a credential literal, or a secret handled where it can leak (logs, errors, client output)
@@ -289,14 +288,6 @@ needs a human decision. Same proof discipline as everywhere else in this
 rubric: never fabricate a plausible-looking snippet for a fix you're not
 sure of.
 
-When posting (see "Posting back to the PR" below), that snippet becomes the
-comment's fix content as a `` ```suggestion `` block instead of a plain
-fenced one, anchored to the exact lines the diff shows — GitHub renders a
-one-click "Apply suggestion" button, the fastest path from finding to fix.
-A suggestion block can only replace lines already in the diff; if the fix
-reaches outside them, post the plain snippet and prose fix instead — GitHub
-rejects a suggestion that doesn't fit the anchored range.
-
 ## Copy for AI
 
 After the tally, print one more block: every finding that survived,
@@ -312,6 +303,13 @@ when nothing survived verification — an empty task list helps no one.
 Default is print-only — nothing is sent anywhere. Post the review to GitHub
 ONLY when the user passes `--post` or explicitly asks:
 
+- A suggested-fix snippet (see "Suggested fixes" above) becomes the comment's
+  fix content as a `` ```suggestion `` block instead of a plain fenced one,
+  anchored to the exact lines the diff shows — GitHub renders a
+  one-click "Apply suggestion" button, the fastest path from finding to fix.
+  A suggestion block can only replace lines already in the diff; if the fix
+  reaches outside them, post the plain snippet and prose fix instead —
+  GitHub rejects a suggestion that doesn't fit the anchored range.
 - Show the exact comment body first and get an explicit yes — posting is
   outward-facing and public on the PR.
 - **Redact any secret value** a `secret:`/`expose:` finding surfaced before it

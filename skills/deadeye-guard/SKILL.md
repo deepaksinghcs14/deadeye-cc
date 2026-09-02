@@ -6,21 +6,23 @@ license: MIT
 
 # Deadeye Guard
 
-Review ONLY the changed code for security exposures. Nothing else: lean-
-lens over-engineering is `/deadeye-review`'s job, not this one.
+Review ONLY the changed code for security exposures. Nothing else: the
+other three lenses (`/deadeye-review`) and lean-lens over-engineering
+specifically are not this skill's job.
 
-This is the deep pass behind coder mode's live Edit/Write advisory: the
-advisory is a fast regex reminder on the text just written; this skill
-reads around the hunk, verifies before reporting, and runs real dependency
-auditors where they're installed.
+This is the deep, dedicated security pass: deeper than the security lens
+`/deadeye-review`/`/deadeye-pr` run alongside their other lenses, and the
+one that reads around the hunk, verifies before reporting, and runs real
+dependency auditors where they're installed. It's also the pass behind
+coder mode's live Edit/Write advisory: that advisory is a fast regex
+reminder on the text just written; this skill does the deep read.
 
 ## Scope
 
 Get the diff with `git diff` (or `git diff --staged` if the user says
 staged, or `git diff <ref>` for a named base). Read the changed hunks plus
-enough surrounding context to judge a trust boundary — more than
-`/deadeye-review` needs, since "is this input actually validated" often
-requires seeing the caller.
+enough surrounding context to judge a trust boundary — "is this input
+actually validated" often requires seeing the caller.
 
 - Empty diff (nothing changed or staged): say so plainly and stop — do
   not substitute a different scope.
