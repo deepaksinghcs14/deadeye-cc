@@ -203,6 +203,66 @@ one honest line so coverage stays clear —
 `N findings already raised by existing reviewers — skipped` — whether you're
 posting or just printing.
 
+## Learning loop (repo-scoped priority)
+
+Before finalizing, run `deadeye lessons priority` (best-effort — if
+`deadeye` isn't on PATH, retry once with `~/.deadeye/bin/deadeye`; if that
+also fails, review normally). It prints this repo's recent signal, if any:
+
+- **Recent coder misses** — scrutinize those lens/tags harder; a shape that
+  slipped through before is worth a second look.
+- **Recently disputed findings** — need stronger `proof:` before reporting
+  that lens/tag again. Never skip it outright: one dismissal doesn't retire
+  a whole tag, it only raises the bar for the next one.
+
+When the user disputes a finding you reported ("that's not a bug",
+"already handled", "won't fix"), record it so the next review on this repo
+weighs that lens/tag accordingly:
+
+```bash
+deadeye lessons record review-false-positive <lens>:<tag>
+```
+
+using the lens the finding came from (`over-engineering`, `correctness`,
+`performance`, or `security`) and its tag without the trailing colon —
+e.g. a disputed `race:` finding → `deadeye lessons record review-false-positive correctness:race`.
+
+**Catch what you missed.** Among the other reviewers' comments you already
+fetched above (for dedup), some may be a real, concrete finding you did NOT
+report yourself — a human or another bot catching something your own pass
+missed. For each one that reads like a genuine bug or exposure, not a style
+preference, a question, or unrelated feedback: verify it the same way you'd
+verify your own finding — trace it in the actual diff, don't just trust the
+claim (a review comment is a claim, not a work order). If it holds up and
+you didn't already report it, record it under the lens/tag it belongs to:
+
+```bash
+deadeye lessons record external-miss <lens>:<tag>
+```
+
+## Activity tracking (for the report)
+
+Separately from the learning loop above, `deadeye report` builds a local
+status page from raw review activity — how many PRs got reviewed, how many
+findings, how many actually posted. Same best-effort contract as every
+other write-back here (if `deadeye` isn't on PATH, retry once with
+`~/.deadeye/bin/deadeye`; if that also fails, keep going — this never gates
+the review):
+
+- **Once per run, always**, regardless of what you find:
+  `deadeye report record reviewed`
+- **Once per finding that survives to the final report** (never a raw
+  candidate, never one already raised by another reviewer):
+  `deadeye report record finding <lens>:<severity>` — the lens
+  (`over-engineering`, `correctness`, `performance`, `security`) and the
+  finding's severity word (`critical`, `high`, `medium`, `nit`, matching its
+  glyph), e.g. `deadeye report record finding security:critical`.
+- **Once per finding dropped in the "Don't repeat" pass above**:
+  `deadeye report record skipped`
+- **Once per finding actually included in a `--post`ed review** (see
+  "Posting back to the PR" below) — only after the post succeeds, never for
+  a print-only run: `deadeye report record posted`
+
 ## Output
 
 Lead with a one-line header, then the four lens sections, then a verdict:
@@ -217,6 +277,35 @@ survived verification, exactly: `Clean — nothing survived verification.
 Ship it.`
 
 Findings are a LIST. Do not apply or push any code change unless asked.
+
+## Suggested fixes
+
+For each finding whose fix is concrete and mechanical — not a judgment call
+("which auth policy is correct," "what should this business rule be") —
+add the replacement as a fenced code block right after the finding line:
+minimal, just the changed lines plus a line or two of context, language-tagged.
+Skip the snippet and keep the prose `Fix:` alone when the right fix genuinely
+needs a human decision. Same proof discipline as everywhere else in this
+rubric: never fabricate a plausible-looking snippet for a fix you're not
+sure of.
+
+When posting (see "Posting back to the PR" below), that snippet becomes the
+comment's fix content as a `` ```suggestion `` block instead of a plain
+fenced one, anchored to the exact lines the diff shows — GitHub renders a
+one-click "Apply suggestion" button, the fastest path from finding to fix.
+A suggestion block can only replace lines already in the diff; if the fix
+reaches outside them, post the plain snippet and prose fix instead — GitHub
+rejects a suggestion that doesn't fit the anchored range.
+
+## Copy for AI
+
+After the tally, print one more block: every finding that survived,
+worst-severity first, as a self-contained task list a coding agent could
+run directly from — no PR context needed, just this block pasted into a
+prompt. One entry per finding: `path:line — <tag>: <what>. Fix: <the
+snippet if you have one, else the prose fix>.` Wrap the whole list in a
+single fenced block so it copies in one motion. Skip this section entirely
+when nothing survived verification — an empty task list helps no one.
 
 ## Posting back to the PR (opt-in only)
 

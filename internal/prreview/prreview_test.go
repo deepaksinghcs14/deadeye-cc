@@ -79,3 +79,36 @@ func TestWindsurfDropsRigor(t *testing.T) {
 		t.Error("WindsurfBody() carries the Rigor section -- if that's now intentional, update prreview.go's doc comments and README's Windsurf caveat too")
 	}
 }
+
+// TestWindsurfDropsLearningLoop pins the "Learning loop" trim the same way
+// TestWindsurfDropsRigor pins Rigor: the section calls a `deadeye` CLI
+// Windsurf has no guaranteed binary for, so it's cut there (present in
+// Body(), absent from WindsurfBody()) rather than eating into the ~18-char
+// headroom TestFitsWindsurfCap enforces.
+func TestWindsurfDropsLearningLoop(t *testing.T) {
+	const marker = "deadeye lessons priority"
+	if !strings.Contains(Body(), marker) {
+		t.Fatalf("test fixture stale: %q no longer in Body() -- update this test alongside the Learning loop section", marker)
+	}
+	if strings.Contains(WindsurfBody(), marker) {
+		t.Error("WindsurfBody() carries the Learning loop section -- it calls a deadeye CLI Windsurf has no guaranteed binary for, and there's no char budget left to keep it")
+	}
+}
+
+// TestWindsurfDropsSuggestedFixes pins the "Suggested fixes"/"Copy for AI"
+// trim the same way as Rigor and Learning loop: GitHub suggestion blocks
+// and the deadeye-report loop are flagship-only conveniences, cut for
+// Windsurf's char budget rather than eating the ~18-char headroom
+// TestFitsWindsurfCap enforces.
+func TestWindsurfDropsSuggestedFixes(t *testing.T) {
+	const marker = "one-click \"Apply suggestion\" button"
+	if !strings.Contains(Body(), marker) {
+		t.Fatalf("test fixture stale: %q no longer in Body() -- update this test alongside the Suggested fixes section", marker)
+	}
+	if strings.Contains(WindsurfBody(), marker) {
+		t.Error("WindsurfBody() carries the Suggested fixes section -- there's no char budget left to keep it")
+	}
+	if strings.Contains(WindsurfBody(), "## Copy for AI") {
+		t.Error("WindsurfBody() carries the Copy for AI section -- there's no char budget left to keep it")
+	}
+}

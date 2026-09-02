@@ -24,12 +24,16 @@ func Body() string { return body }
 
 // WindsurfBody returns the rubric trimmed to fit Windsurf's hard 12000-char
 // workflow cap. Every other host gets the full Body(); Windsurf (experimental,
-// no hook contract) drops TWO sections to fit: the "Rigor -- where reviews
-// miss" habits (the largest single section) and the opt-in "Posting back to
+// no hook contract) drops FOUR sections to fit: the "Rigor -- where reviews
+// miss" habits (the largest single section), the "Learning loop" section,
+// "Suggested fixes"/"Copy for AI" (all three call a `deadeye` CLI or lean on
+// `gh`'s suggestion rendering Windsurf has no guaranteed binary/UI for, so
+// they have nothing to read there anyway), and the opt-in "Posting back to
 // the PR" section (the least relevant there, reduced to a one-line pointer).
 // This lets the flagship rubric grow without the weakest host capping the
 // best reviewer -- Windsurf still gets the four lenses and the
-// verify-before-reporting/proof discipline, just not the Rigor upgrade.
+// verify-before-reporting/proof discipline, just not the Rigor upgrade, the
+// cross-session learning loop, or the fix-acceleration extras.
 func WindsurfBody() string {
 	b := body
 	// Drop the flagship-only "Rigor" section (the base rubric -- lenses,
@@ -38,6 +42,22 @@ func WindsurfBody() string {
 	// do not).
 	if s := strings.Index(b, "## Rigor"); s >= 0 {
 		if e := strings.Index(b[s:], "## The four lenses"); e >= 0 {
+			b = b[:s] + b[s+e:]
+		}
+	}
+	// Drop "Learning loop" -- it's a `deadeye` CLI call Windsurf has no
+	// guaranteed binary to run, same reasoning as the Rigor cut above.
+	if s := strings.Index(b, "## Learning loop"); s >= 0 {
+		if e := strings.Index(b[s:], "## Output"); e >= 0 {
+			b = b[:s] + b[s+e:]
+		}
+	}
+	// Drop "Suggested fixes" and "Copy for AI" -- same reasoning: GitHub
+	// suggestion blocks and the deadeye-report loop above are both
+	// flagship-only conveniences, not core review correctness. Windsurf
+	// still posts findings, just without the one-click-apply snippet.
+	if s := strings.Index(b, "## Suggested fixes"); s >= 0 {
+		if e := strings.Index(b[s:], "## Posting back to the PR"); e >= 0 {
 			b = b[:s] + b[s+e:]
 		}
 	}
