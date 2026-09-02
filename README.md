@@ -231,17 +231,18 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-status` | Modes, coder level, kill switches, model list, daemon health |
 | `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without doing anything |
 | `/deadeye-config` | View or change any setting from chat, or interactively with `deadeye config` |
-| `/deadeye-stats [savings\|context]` | Decision-log reports: measured-impact scoreboard (default), token-savings, per-session context bytes |
+| `/deadeye-stats [savings\|context]` | Decision-log reports: measured-impact scoreboard (default), token-savings, per-session context bytes — ends with a link to the full visual report |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
 | `/deadeye-review [--repo]` | Over-engineering review of the working diff, or the whole repo with `--repo` |
 | `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, exposure, deps, DoS |
-| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. On Codex, invoke the installed skill as `$deadeye-pr`. Huge PRs fan out to parallel subagents where the host supports them. |
+| `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. Findings with a mechanical fix get a code snippet (a GitHub suggestion block when posted), plus a closing paste-ready block for a coding agent. On Codex, invoke the installed skill as `$deadeye-pr`. Huge PRs fan out to parallel subagents where the host supports them. |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye update` | Update the managed binary (sha256-verified, atomic) — for Codex-only installs |
 | `deadeye config` | Interactive settings picker in your terminal (or `config get/set <key>`) |
-| `deadeye lessons [reset]` | Show or clear the escalation-learning history behind the downshift threshold |
+| `deadeye lessons [reset [--surface <s>]]` | Show or clear the learning-loop history (routing escalations, coder misses, PR-review disputes), grouped by surface |
+| `deadeye report` | Generate `~/.deadeye/report.html`, a self-contained visual status page, and print its path |
 | `deadeye uninstall --purge` | Remove the binary, its background process, and all local state |
 | `deadeye uninstall <host>` | Remove what `deadeye init <host>` wrote, for `codex`, `gemini`, `cursor`, or `windsurf` |
 
@@ -263,6 +264,26 @@ Deliberate shortcuts get a `deadeye:` comment naming the ceiling and upgrade
 trigger, which `/deadeye-debt` collects into a ledger. Safety is never cut:
 input validation, error handling, security, and accessibility hold at every
 level. [See it per-level on the site →](https://deepaksinghcs14.github.io/deadeye-cc/#layers)
+
+## Learning loop
+
+Three surfaces now feed the same local store (`~/.deadeye/outcomes.jsonl`),
+scoped per repo, decaying over 30 days, never silencing a check outright —
+only ever raising the bar:
+
+- **Routing**: an explicit model escalation raises the downshift threshold
+  for that task shape (unchanged from earlier releases).
+- **Coder mode**: when `/deadeye-guard` or `/deadeye-review` confirms a
+  finding in code coder mode just wrote, the next session gets a one-line
+  "recent misses in this repo" reminder. `/deadeye-pr` catching something
+  from another reviewer that its own pass missed feeds the same reminder.
+- **PR review**: a finding you dispute makes `/deadeye-pr` need stronger
+  proof before reporting that lens again on this repo — `deadeye lessons
+  priority` shows the live signal, and `deadeye lessons`/`reset --surface
+  <s>` inspects or clears it per surface.
+
+`deadeye report` visualizes all three, including a trend chart for the
+repo's most-recurring coder-mode miss.
 
 ## Development
 

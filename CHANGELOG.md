@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.38.0
+
+**Cross-surface learning loop, a local status report, and PR-review fix
+acceleration.** `internal/lessons` generalizes past routing-only escalations
+into a shared signal all three review surfaces read and write:
+
+- `/deadeye-guard` and `/deadeye-review` record a `coder-miss` when they
+  confirm a finding in code coder mode wrote this session; coder mode's
+  SessionStart injection gains a capped, 30-day-decaying "recent misses in
+  this repo" reminder built from it.
+- `/deadeye-pr` records an `external-miss` when another reviewer catches
+  something its own pass didn't, and `review-false-positive` when the user
+  disputes a finding — both feed a new `deadeye lessons priority` pass that
+  weighs findings without ever silencing a lens outright.
+- `deadeye lessons` groups outcomes by surface; `reset --surface <s>` clears
+  one surface at a time.
+- **`deadeye report`** generates a self-contained `~/.deadeye/report.html`
+  from the decision log and outcomes store — measured/estimated context
+  savings, the routing model mix, all three learning-loop surfaces
+  (including a real trend chart for the repo's most-recurring coder-surface
+  shape), and PR-review activity. `deadeye gain`/`/deadeye-stats` prints the
+  link as its last line. Routing decisions now log which model they went to.
+- **`/deadeye-pr`** adds a fenced code snippet to mechanical findings, and
+  renders it as a GitHub suggestion block (one-click apply) in posted
+  reviews. A closing "Copy for AI" block lists every surviving finding as a
+  single paste-ready task list for a coding agent.
+- All of the above are Claude Code/Codex/Gemini/Cursor only — Windsurf's
+  12000-char workflow cap has no headroom left, so it keeps the core
+  four-lens review without the learning loop, activity tracking, or the two
+  new fix-acceleration sections.
+
 ## 0.37.0
 
 **Review-surface audit: sinks, lenses, severity, PR mechanics.** A pass over
