@@ -49,12 +49,12 @@ Preconditions and graceful degradation:
 
 ## Verify before reporting
 
-Before claiming a check is MISSING — a sanitizer, an authz guard, input
-validation, a nil-check — grep for it OUTSIDE the diff: middleware, a
-decorator, a base class, a router `Use()` call, a caller that already
-guards. An unguarded-looking handler whose auth lives one file over is a
-false positive, and one wrong finding erodes trust in all of them. Report
-only what you confirmed.
+Before claiming a check is MISSING — a sanitizer, an authz guard, a
+nil-check — grep OUTSIDE the diff AND follow the value into the callee: a
+base class, a caller that guards, or the deeper function
+it's handed to — the real guard often lives one call down. An `authz`/bypass
+claim needs a concrete input that reaches the sink, or drop it; one wrong
+finding erodes trust in all of them.
 
 **Every finding carries its proof.** Append a `proof:` clause naming the
 concrete thing in THIS repo that makes the finding true — the caller you

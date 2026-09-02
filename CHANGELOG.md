@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.35.0
+
+**PR review -- precision sharpening ("Verify before reporting").** The section now
+tells the reviewer to follow the value INTO THE CALLEE before calling a check
+missing -- the real guard often lives one call down, not at the handler -- and to
+require a concrete input that reaches the sink for any `authz`/bypass claim, or drop
+it. This targets a real failure mode: on a hard authz PR the prior rubric produced
+two unprovable over-claims (a "bypassable" guard whose authoritative check actually
+lived in the callee, and an unsubstantiated status bug). A controlled same-pairs A/B
+confirmed the change is recall-neutral (9/17 vs 10/17, within cold-review sampling
+noise) and eliminated both false positives -- the callee-trace surfaced a
+source-grounded finding in the callee instead. Net rubric size unchanged.
+
 ## 0.34.0
 
 **PR review -- weak-class lenses, held-out A/B.** The `/deadeye-pr` "Rigor"
