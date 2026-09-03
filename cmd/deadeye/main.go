@@ -26,7 +26,8 @@ func main() {
 	case "config":
 		runConfig(os.Args[2:])
 	case "route":
-		runRoute(strings.Join(os.Args[2:], " "))
+		subagentType, rest := extractFlag(os.Args[2:], "--subagent-type=")
+		runRoute(strings.Join(rest, " "), subagentType)
 	case "audit":
 		runAudit()
 	case "gain":
@@ -70,4 +71,18 @@ func argsFrom(i int) []string {
 		return nil
 	}
 	return os.Args[i:]
+}
+
+// extractFlag pulls the first "prefix<value>" token out of args (e.g.
+// "--subagent-type=Explore"), returning the value and the remaining args
+// with that token removed. Absent -- the common case -- returns "" and args
+// unchanged.
+func extractFlag(args []string, prefix string) (string, []string) {
+	for i, a := range args {
+		if strings.HasPrefix(a, prefix) {
+			rest := append(append([]string{}, args[:i]...), args[i+1:]...)
+			return strings.TrimPrefix(a, prefix), rest
+		}
+	}
+	return "", args
 }

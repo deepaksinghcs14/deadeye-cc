@@ -23,7 +23,13 @@ import (
 // bounded, cached, and fail-open -- any error leaves the heuristic decision
 // untouched. Off by default (it breaks the zero-network promise).
 
-const judgeTimeout = 6 * time.Second
+// judgeTimeout bounds the `claude -p` subprocess. Measured live: a bare,
+// standalone `claude -p --model haiku` cold start took 5.6s on ordinary
+// hardware -- a 6s budget left near-zero margin and silently fell back to
+// the heuristic decision (fail-open) on 3 of 4 real test calls. 15s gives
+// real headroom without turning the judge into a meaningfully slow blocker
+// on a PreToolUse hook.
+const judgeTimeout = 15 * time.Second
 
 const judgePrompt = `You are a model-routing classifier for a coding agent. Read the subtask below and reply with ONLY a single digit and nothing else:
 0 = mechanical work (small edits, search, lookups, formatting, classification, boilerplate)

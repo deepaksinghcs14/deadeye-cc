@@ -34,18 +34,22 @@ func newScope(prompt, cwd string) signals.Scope {
 	return signals.Scope{Prompt: prompt, Files: scopedFiles(cwd), Repo: repo}
 }
 
-// runRoute backs `deadeye route [task description]` / /deadeye-route: a
-// dry run of the kernel against either the given description or the
-// current working tree's modified/staged files, printing the full
-// Decision and each provider's Evidence -- trust requires explainability
-// (PLAN.md §6).
-func runRoute(taskDescription string) {
+// runRoute backs `deadeye route [--subagent-type=<type>] [task description]`
+// / /deadeye-route: a dry run of the kernel against either the given
+// description or the current working tree's modified/staged files,
+// printing the full Decision and each provider's Evidence -- trust requires
+// explainability (PLAN.md §6). subagentType mirrors the real Agent call's
+// subagent_type (see decideAgentRouting) so the dry run can never show a
+// different outcome than a real call would get once that field matters to
+// a signal (signals.SubagentKind).
+func runRoute(taskDescription, subagentType string) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Println("deadeye route:", err)
 		return
 	}
 	scope := newScope(taskDescription, cwd)
+	scope.SubagentType = subagentType
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
 	evidence := signals.AssessAll(ctx, scope, signals.Builtins())

@@ -36,7 +36,7 @@ const veryHighComplexity = 0.9
 //   - unsureCeilingTier (sonnet) is the default when evidence is thin,
 //     untrusted, or just below the confidence bar. This fires for MOST
 //     subagent spawns (a description-only prompt against a clean tree
-//     leaves three of four signals with nothing to assess), so paying opus
+//     leaves three of five signals with nothing to assess), so paying opus
 //     for it -- the old behavior -- was where the money leaked. Sonnet is a
 //     capable middle: conservative enough for an unknown task, far cheaper
 //     than opus. INV-1 ("when unsure, go bigger than the evidence alone

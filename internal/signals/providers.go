@@ -1,11 +1,13 @@
 package signals
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -232,6 +234,13 @@ func hasAdjacentTest(repo, path string) bool {
 		filepath.Join(dir, stem+".test"+ext),
 		filepath.Join(dir, "test_"+stem+ext),
 		filepath.Join(dir, stem+"_spec"+ext),
+		// Python's separate tests/ directory, same-level and one level up
+		// (covers both pkg/tests/test_x.py and tests/test_x.py next to pkg/).
+		filepath.Join(dir, "tests", "test_"+stem+ext),
+		filepath.Join(filepath.Dir(dir), "tests", "test_"+stem+ext),
+		// JS/TS's __tests__ directory convention.
+		filepath.Join(dir, "__tests__", stem+".test"+ext),
+		filepath.Join(dir, "__tests__", stem+".spec"+ext),
 	}
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {
@@ -239,4 +248,245 @@ func hasAdjacentTest(repo, path string) bool {
 		}
 	}
 	return false
+}
+
+// TaskSpecificity checks whether the PROMPT ITSELF references something
+// real, not just how the ambient repo looks -- the gap the other three
+// providers leave. filescope/gitchurn/testpresence all read repo state
+// (files already touched, recent churn, adjacent tests); none of them
+// notice whether the delegated task actually names a file. Verified live:
+// "fix it" and a fully file-and-line-anchored bug report routed identically
+// against the same quiet, tested, low-churn file -- nothing was measuring
+// whether the CALLER did the work of scoping the task. This closes that gap
+// by contributing CONFIDENCE, not complexity: a vague delegation shouldn't
+// be trusted with a downshift regardless of how safe the repo looks, and
+// kernel.Decide's existing min-confidence gate (any single low-confidence
+// item blocks downshift) already enforces that with no kernel change needed.
+type TaskSpecificity struct{}
+
+func (TaskSpecificity) Name() string { return "taskspecificity" }
+
+// pathToken matches a filename or path shape, with an optional captured
+// ":<line>" anchor, with surrounding sentence punctuation stripped by the
+// caller before matching -- e.g. "auth/login.go:42" or "login.go".
+var pathToken = regexp.MustCompile(`^([\w][\w/-]*\.[A-Za-z0-9]{1,8})(:\d+)?$`)
+
+// backtickIdent matches a code identifier cited the way this codebase's own
+// rubrics cite one (e.g. the review rubric's “ `race:` “ tags) -- used to
+// verify a prompt names something that actually exists IN the cited file,
+// not just a file that exists somewhere in the repo.
+var backtickIdent = regexp.MustCompile("`([A-Za-z_][A-Za-z0-9_]*)`")
+
+// proseExt is deliberately small: files whose CONTENT is prose about the
+// code rather than code itself. Citing one of these is a real, common
+// pattern for genuine context ("per the design doc...") and an equally
+// common gaming pattern (naming any real file to borrow its trust for an
+// unrelated change) -- the two are indistinguishable without a stronger
+// check. Citing a source file by name needs no such check: "Rename x to
+// count in a.go" is already specific.
+var proseExt = map[string]bool{
+	".md": true, ".markdown": true, ".txt": true,
+	".rst": true, ".adoc": true, ".rtf": true,
+}
+
+// vaguePhrases is TaskSpecificity's own short, fixed list -- mirrors
+// PromptShape's vagueWords in spirit but targets whole delegation-shaped
+// phrases ("fix it") rather than single words, since a single vague WORD
+// inside an otherwise file-anchored task shouldn't retroactively erase the
+// anchor.
+var vaguePhrases = []string{
+	"fix it", "handle it", "handle this", "fix this",
+	"make it work", "sort it out", "take care of it",
+}
+
+func (TaskSpecificity) Assess(ctx context.Context, s Scope) (Evidence, error) {
+	prompt := strings.TrimSpace(s.Prompt)
+	if prompt == "" {
+		return Evidence{}, fmt.Errorf("taskspecificity: no prompt to assess")
+	}
+
+	tracked := trackedFileSet(ctx, s.Repo)
+	var idents []string
+	for _, m := range backtickIdent.FindAllStringSubmatch(prompt, -1) {
+		idents = append(idents, m[1])
+	}
+
+	// A REAL file citation isn't enough on its own for a PROSE file --
+	// verified live: naming a real tracked README.md, cited purely for
+	// context, earned full trust for a change that actually touched a
+	// completely different, security-sensitive source file. A source-code
+	// citation (any extension not in proseExt) keeps the simple original
+	// bar -- "Rename x to count in a.go" is genuinely specific without a
+	// line number, and demanding one for every citation broke that real,
+	// common case. A prose-file citation additionally requires either a
+	// line number (someone actually looked at the file) or a backtick-
+	// quoted identifier verified to exist in that file's own content --
+	// weakAnchor (a real prose file, cited with neither) is real but
+	// unverified relevance, capped at the same trust as no anchor at all.
+	strongAnchor, weakAnchor := false, false
+	for _, tok := range strings.Fields(prompt) {
+		tok = strings.Trim(tok, `,;:!?)("'`+"`")
+		m := pathToken.FindStringSubmatch(tok)
+		if m == nil {
+			continue
+		}
+		path, hasLine := m[1], m[2] != ""
+		if !trackedFileMatches(tracked, path) {
+			continue
+		}
+		weakAnchor = true
+		if !proseExt[strings.ToLower(filepath.Ext(path))] || hasLine || fileContainsAny(s.Repo, path, idents) {
+			strongAnchor = true
+		}
+	}
+
+	wordCount := len(strings.Fields(prompt))
+	lower := strings.ToLower(prompt)
+	vague := false
+	for _, phrase := range vaguePhrases {
+		if strings.Contains(lower, phrase) {
+			vague = true
+			break
+		}
+	}
+
+	var confidence float64
+	switch {
+	case strongAnchor:
+		// A verified, existing repo file, cited with a line number or a
+		// symbol confirmed to actually live in that file -- a fact, same
+		// footing as filescope/gitchurn's own file-count/commit-count
+		// facts, not a guess.
+		confidence = 0.85
+	case vague || wordCount < 6:
+		// No verified-relevant anchor, and either an explicit vague phrase
+		// or too short to plausibly contain one -- "fix it" is 2 words.
+		// The weakest reading, deliberately capped low so it reliably
+		// blocks downshift on its own, the same way PromptShape caps a
+		// fuzzy keyword match at 0.35.
+		confidence = 0.2
+	default:
+		// Real-but-unverified (weakAnchor: a real file named with no line
+		// or matching symbol -- could be relevant, could just be
+		// context-dropping), no anchor shape at all, or a fake/misspelled
+		// path. Distinctly less trusted than a verified anchor, but not
+		// punished as hard as genuine vagueness -- a legitimate "create a
+		// new X" task can't cite a file that doesn't exist yet, and
+		// shouldn't be treated the same as "fix it".
+		confidence = 0.5
+	}
+
+	return Evidence{
+		Provider:   "taskspecificity",
+		Complexity: 0, // this signal has no opinion on difficulty, only on how much to trust delegating it cheaply
+		Confidence: confidence,
+		Facts:      map[string]any{"word_count": wordCount, "strong_anchor": strongAnchor, "weak_anchor": weakAnchor},
+	}, nil
+}
+
+// fileContainsAny reports whether repo-resolved path's content contains any
+// of idents as a literal substring -- a cheap, bounded, no-LLM way to
+// confirm a backtick-quoted identifier in the PROMPT actually appears in
+// the FILE it's cited alongside, not just anywhere in the repo. Any read
+// failure (path traversal outside repo, huge/binary file the OS can't open
+// cheaply, race with a concurrent delete) degrades to "can't verify" rather
+// than blocking the whole assessment.
+func fileContainsAny(repo, path string, idents []string) bool {
+	if len(idents) == 0 {
+		return false
+	}
+	full := path
+	if !filepath.IsAbs(full) && repo != "" {
+		full = filepath.Join(repo, full)
+	}
+	content, err := os.ReadFile(full)
+	if err != nil {
+		return false
+	}
+	for _, id := range idents {
+		if bytes.Contains(content, []byte(id)) {
+			return true
+		}
+	}
+	return false
+}
+
+// trackedFileSet lists every file git tracks in repo, bounded by ctx like
+// every other git call site. Empty repo, a non-git directory, or any git
+// error all degrade to an empty set -- TaskSpecificity still scores on
+// wording alone, it just can't verify a path shape as real.
+func trackedFileSet(ctx context.Context, repo string) map[string]bool {
+	set := map[string]bool{}
+	if repo == "" {
+		return set
+	}
+	cmd := exec.CommandContext(ctx, "git", "ls-files")
+	cmd.Dir = repo
+	out, err := cmd.Output()
+	if err != nil {
+		return set
+	}
+	for _, f := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if f != "" {
+			set[f] = true
+		}
+	}
+	return set
+}
+
+// trackedFileMatches reports whether path is a real tracked file: an exact
+// match, or -- for a bare filename with no directory component -- the
+// unique tracked file with that basename. A basename that matches more than
+// one tracked file is ambiguous and does not count as anchored; the caller
+// would need to disambiguate with a directory the way a real bug report
+// naturally would.
+func trackedFileMatches(tracked map[string]bool, path string) bool {
+	if tracked[path] {
+		return true
+	}
+	if strings.Contains(path, "/") {
+		return false
+	}
+	matches := 0
+	for f := range tracked {
+		if filepath.Base(f) == path {
+			matches++
+			if matches > 1 {
+				return false
+			}
+		}
+	}
+	return matches == 1
+}
+
+// SubagentKind reads the one piece of information the Agent tool call
+// itself carries about the subtask's risk that nothing else here looks at:
+// its subagent_type. Only "Explore" is recognized -- Claude Code's built-in
+// read-only search agent (no Edit/Write tool access), a genuinely verified
+// fact about what it CAN do, not a guess about what it's likely to do.
+// Every other value, including "general-purpose" and any custom
+// user-defined agent name, carries no information deadeye can verify, so it
+// contributes nothing -- same honest "skip when we can't actually assess"
+// contract every other provider here follows, rather than pattern-matching
+// on arbitrary type names.
+type SubagentKind struct{}
+
+func (SubagentKind) Name() string { return "subagentkind" }
+
+// QuietSkip marks this as a bonus signal (see signals.quietSkipper): not
+// being "Explore" is the normal case for most subagent calls, not a
+// genuine information gap, so its absence must not count toward
+// AssessAll's skip penalty.
+func (SubagentKind) QuietSkip() bool { return true }
+
+func (SubagentKind) Assess(_ context.Context, s Scope) (Evidence, error) {
+	if s.SubagentType != "Explore" {
+		return Evidence{}, fmt.Errorf("subagentkind: %q carries no verified risk information", s.SubagentType)
+	}
+	return Evidence{
+		Provider:   "subagentkind",
+		Complexity: 0.1, // read-only: it can misreport, but it can't break code
+		Confidence: 0.85,
+		Facts:      map[string]any{"subagent_type": s.SubagentType},
+	}, nil
 }

@@ -96,6 +96,46 @@ func TestOneDisagreeingSignalBlocksDownshift(t *testing.T) {
 	}
 }
 
+// TestVagueTaskBlocksDownshiftEvenOnAQuietRepo is the regression test for a
+// real live bug found while testing routing directly: "fix it" and a fully
+// file-and-line-anchored bug report, spawned against the identical quiet,
+// low-churn, tested file, routed IDENTICALLY to the cheap tier -- nothing
+// was checking whether the delegated task itself was well-scoped, only
+// whether the repo around it looked safe. This is the evidence set a real
+// vague delegation against a favorable repo produces: filescope/gitchurn/
+// testpresence all agree it's safe (mirroring TestAllAgreeingLowComplexity-
+// Downshifts below), but taskspecificity reads the prompt as vague. One
+// low-confidence signal must still block downshift -- the whole point of
+// adding a signal that measures the prompt itself, not just repo state.
+func TestVagueTaskBlocksDownshiftEvenOnAQuietRepo(t *testing.T) {
+	cat := testCatalog()
+	quietRepoAgrees := []signals.Evidence{
+		{Complexity: 0.15, Confidence: 0.85}, // filescope: one file
+		{Complexity: 0.3, Confidence: 0.82},  // gitchurn: low churn
+		{Complexity: 0.1, Confidence: 0.8},   // testpresence: adjacent test exists
+	}
+	vague := append(append([]signals.Evidence{}, quietRepoAgrees...),
+		signals.Evidence{Complexity: 0, Confidence: 0.2}, // taskspecificity: "fix it"
+	)
+	d := Decide(vague, cat, 0.8)
+	ceiling := Decide(nil, cat, 0.8)
+	if d != ceiling {
+		t.Errorf("vague task against a quiet repo downshifted: got %+v, want ceiling %+v -- a favorable repo must not launder a vague delegation into a trusted downshift", d, ceiling)
+	}
+
+	// Same repo evidence, but taskspecificity now reads the prompt as
+	// anchored (a real file:line reference) -- this MUST downshift, proving
+	// the block above is genuinely about the vague signal, not some other
+	// change.
+	anchored := append(append([]signals.Evidence{}, quietRepoAgrees...),
+		signals.Evidence{Complexity: 0, Confidence: 0.85}, // taskspecificity: anchored
+	)
+	d2 := Decide(anchored, cat, 0.8)
+	if d2 == ceiling {
+		t.Errorf("anchored task against the same quiet repo did not downshift: got %+v", d2)
+	}
+}
+
 // TestComplexityGapReportsRealConfidence is the regression test for a bug
 // where complexity in the gap above the last band's threshold (0.75) and
 // below veryHighComplexity (0.9) fell through to the generic zero-evidence

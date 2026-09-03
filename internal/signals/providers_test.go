@@ -211,6 +211,42 @@ func TestTestPresenceResolvesRelativePathsAgainstRepoNotProcessCwd(t *testing.T)
 	}
 }
 
+// TestHasAdjacentTestFindsPolyglotConventions is the regression test for
+// hasAdjacentTest only recognizing Go's same-directory suffix convention --
+// a Python or JS/TS repo using the standard separate test-directory layout
+// previously read as "no test coverage" even with real tests present.
+func TestHasAdjacentTestFindsPolyglotConventions(t *testing.T) {
+	dir := t.TempDir()
+
+	// Python: pkg/tests/test_x.py, sibling of pkg/x.py.
+	if err := os.MkdirAll(filepath.Join(dir, "pkg", "tests"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pkg", "x.py"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "pkg", "tests", "test_x.py"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !hasAdjacentTest(dir, filepath.Join(dir, "pkg", "x.py")) {
+		t.Error("Python's pkg/tests/test_x.py convention should count as an adjacent test")
+	}
+
+	// JS/TS: components/__tests__/Button.test.js
+	if err := os.MkdirAll(filepath.Join(dir, "components", "__tests__"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "components", "Button.js"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "components", "__tests__", "Button.test.js"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !hasAdjacentTest(dir, filepath.Join(dir, "components", "Button.js")) {
+		t.Error("JS/TS's __tests__/Button.test.js convention should count as an adjacent test")
+	}
+}
+
 // TestSkippedProvidersBecomeUnknownEvidence is the regression test for
 // C1: an empty scope means every builtin provider errors (nothing to
 // assess). Rather than degrading to zero evidence (which the kernel
@@ -228,7 +264,227 @@ func TestSkippedProvidersBecomeUnknownEvidence(t *testing.T) {
 		t.Errorf("evidence = %+v, want Provider=unknown Confidence=0", got[0])
 	}
 	skipped, _ := got[0].Facts["skipped"].([]string)
-	if len(skipped) != len(Builtins()) {
-		t.Errorf("skipped = %v, want all %d builtins named", skipped, len(Builtins()))
+	// SubagentKind is a quiet skipper (see quietSkipper): its absence is
+	// the normal case, not a genuine gap, so it must NOT be named here --
+	// every other builtin errors on a truly empty scope and IS named.
+	want := len(Builtins()) - 1
+	if len(skipped) != want {
+		t.Errorf("skipped = %v (%d), want %d builtins named (all but the quiet SubagentKind)", skipped, len(skipped), want)
+	}
+	for _, name := range skipped {
+		if name == "subagentkind" {
+			t.Error("subagentkind is a quiet skipper and must not appear in the skipped list")
+		}
+	}
+}
+
+// TestTaskSpecificityVagueGetsLowConfidence is the regression test for the
+// live bug this signal exists to fix: "fix it" carries no anchor and no
+// length, so it must land in the weakest confidence band regardless of how
+// the repo around it looks.
+func TestTaskSpecificityVagueGetsLowConfidence(t *testing.T) {
+	got, err := TaskSpecificity{}.Assess(context.Background(), Scope{Prompt: "fix it"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.2 {
+		t.Errorf("confidence = %v, want 0.2 for a vague, unanchored, short prompt", got.Confidence)
+	}
+}
+
+func TestTaskSpecificityAnchoredFileGetsHighConfidence(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := initTestRepo(t)
+	if err := os.MkdirAll(filepath.Join(dir, "auth"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "auth", "login.go"), []byte("package auth\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", "auth/login.go")
+	runGit(t, dir, "commit", "-q", "-m", "add login.go")
+
+	got, err := TaskSpecificity{}.Assess(context.Background(), Scope{
+		Repo:   dir,
+		Prompt: "In auth/login.go:42, the expiry check uses > instead of >=, fix the off-by-one.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.85 {
+		t.Errorf("confidence = %v, want 0.85 for a prompt citing a real, verified, tracked file", got.Confidence)
+	}
+	if strong, _ := got.Facts["strong_anchor"].(bool); !strong {
+		t.Errorf("strong_anchor = %v, want true", got.Facts["strong_anchor"])
+	}
+}
+
+// TestTaskSpecificityFakePathIsNotAnchored proves the signal verifies
+// existence, not just shape: a plausible-looking but nonexistent path must
+// not earn the same trust as a real one.
+func TestTaskSpecificityFakePathIsNotAnchored(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := initTestRepo(t)
+	got, err := TaskSpecificity{}.Assess(context.Background(), Scope{
+		Repo:   dir,
+		Prompt: "In auth/nonexistent_file.go, fix the token expiry check please.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence == 0.85 {
+		t.Error("a path shaped like a real file but not tracked by git must not read as anchored")
+	}
+}
+
+// TestTaskSpecificityDescriptiveButUnanchoredIsNotPunishedAsVague proves a
+// legitimate "create a new X" task -- which cannot cite a file that doesn't
+// exist yet -- lands in the middle band, not the harshest one reserved for
+// genuine vagueness.
+func TestTaskSpecificityDescriptiveButUnanchoredIsNotPunishedAsVague(t *testing.T) {
+	got, err := TaskSpecificity{}.Assess(context.Background(), Scope{
+		Prompt: "Add a new REST endpoint that returns a paginated list of orders for a given user id",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.5 {
+		t.Errorf("confidence = %v, want 0.5 for a descriptive, unanchored, non-vague prompt", got.Confidence)
+	}
+}
+
+func TestTaskSpecificityErrorsOnEmptyPrompt(t *testing.T) {
+	if _, err := (TaskSpecificity{}).Assess(context.Background(), Scope{}); err == nil {
+		t.Fatal("expected error for an empty prompt")
+	}
+}
+
+// TestTaskSpecificityRealButIrrelevantFileIsNotStrongAnchor is the
+// regression test for a real live gaming case: naming ANY real tracked
+// file (here README.md, cited for context but unrelated to the actual
+// change) previously earned the same 0.85 trust as a genuinely anchored
+// bug report. A bare citation with no line number and no identifier
+// verified inside that file must land in the weaker band instead.
+func TestTaskSpecificityRealButIrrelevantFileIsNotStrongAnchor(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := initTestRepo(t)
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("# notes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", "README.md")
+	runGit(t, dir, "commit", "-q", "-m", "add README")
+
+	got, err := TaskSpecificity{}.Assess(context.Background(), Scope{
+		Repo:   dir,
+		Prompt: "the notes in README.md say to swap the hashing function here for something faster",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence == 0.85 {
+		t.Error("citing a real but irrelevant file with no line number or verified symbol must not earn full anchor trust")
+	}
+	if weak, _ := got.Facts["weak_anchor"].(bool); !weak {
+		t.Error("weak_anchor should be true -- a real file WAS cited, just not verifiably relevant")
+	}
+}
+
+// TestTaskSpecificityBacktickIdentifierVerifiesAgainstFileContent proves
+// the other route to a strong anchor: no line number, but a backtick-quoted
+// identifier that's confirmed to actually appear in the cited file.
+// TestTaskSpecificitySourceFileNeedsNoLineNumber is the regression test for
+// an over-tightening this signal briefly had: requiring a line number or
+// verified symbol for EVERY citation broke a real, common case --
+// "Rename the variable x to count in a.go" is genuinely specific about a
+// SOURCE file without needing a line number. Only prose-file citations
+// (proseExt) are held to the stricter bar; source files keep the original,
+// simpler one.
+func TestTaskSpecificitySourceFileNeedsNoLineNumber(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := initTestRepo(t)
+	if err := os.WriteFile(filepath.Join(dir, "a.go"), []byte("package p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", "a.go")
+	runGit(t, dir, "commit", "-q", "-m", "add a.go")
+
+	got, err := TaskSpecificity{}.Assess(context.Background(), Scope{
+		Repo:   dir,
+		Prompt: "Rename the variable x to count in a.go",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.85 {
+		t.Errorf("confidence = %v, want 0.85 -- a plain source-file citation needs no line number", got.Confidence)
+	}
+}
+
+// TestTaskSpecificityBacktickIdentifierVerifiesAgainstFileContent covers
+// the stricter bar that DOES apply to prose citations (proseExt): a
+// backtick-quoted identifier confirmed to actually appear in the cited
+// file's content earns full trust; one that doesn't appear does not, even
+// though a real file and SOME backtick identifier are both present.
+func TestTaskSpecificityBacktickIdentifierVerifiesAgainstFileContent(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := initTestRepo(t)
+	if err := os.WriteFile(filepath.Join(dir, "DESIGN.md"), []byte("# Design\n\nThe computeChecksum step runs last.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", "DESIGN.md")
+	runGit(t, dir, "commit", "-q", "-m", "add design doc")
+
+	got, err := TaskSpecificity{}.Assess(context.Background(), Scope{
+		Repo:   dir,
+		Prompt: "Per DESIGN.md, the `computeChecksum` step needs to run before validation, not after.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.85 {
+		t.Errorf("confidence = %v, want 0.85 -- computeChecksum is verified present in the cited prose file", got.Confidence)
+	}
+
+	got2, err := TaskSpecificity{}.Assess(context.Background(), Scope{
+		Repo:   dir,
+		Prompt: "Per DESIGN.md, the `TotallyMadeUpSymbol` step needs to run before validation, not after.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got2.Confidence == 0.85 {
+		t.Error("a backtick identifier that does NOT appear in the cited prose file must not verify as a strong anchor")
+	}
+}
+
+func TestSubagentKindRecognizesExplore(t *testing.T) {
+	got, err := SubagentKind{}.Assess(context.Background(), Scope{SubagentType: "Explore"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.85 || got.Complexity != 0.1 {
+		t.Errorf("Explore = %+v, want Complexity=0.1 Confidence=0.85", got)
+	}
+}
+
+// TestSubagentKindSkipsUnknownTypes covers both "general-purpose" (a real
+// Claude Code built-in, but not one whose tool access deadeye has verified
+// as low-risk) and a custom user-defined agent name -- neither carries
+// information this signal can honestly assess.
+func TestSubagentKindSkipsUnknownTypes(t *testing.T) {
+	for _, st := range []string{"", "general-purpose", "my-custom-reviewer"} {
+		if _, err := (SubagentKind{}).Assess(context.Background(), Scope{SubagentType: st}); err == nil {
+			t.Errorf("SubagentType=%q: expected skip (error), got a decision", st)
+		}
 	}
 }

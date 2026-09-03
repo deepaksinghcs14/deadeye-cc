@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.40.0
+
+**Two new routing signals, and a real reliability fix for the AI judge.**
+Live-testing the routing kernel surfaced that it had zero sensitivity to
+whether a delegated subagent task was actually well-scoped -- `"fix it"`
+and a fully file-and-line-anchored bug report routed identically. Fixed
+with a new signal, `taskspecificity`, that reads the prompt itself instead
+of only the surrounding repo state:
+
+- Blocks downshift on a vague, unanchored delegation, even against an
+  otherwise-quiet, well-tested repo.
+- Verifies a cited file actually exists (via `git ls-files`) rather than
+  trusting anything path-shaped.
+- Closes a gaming gap found while hardening this: citing any real file
+  (e.g. a README, for context) previously earned the same trust as citing
+  the actual file being changed. A prose-file citation (`.md`, `.txt`, ...)
+  now additionally needs a line number or a backtick-quoted identifier
+  verified against that file's real content; a plain source-file citation
+  ("rename x in a.go") keeps the simpler original bar.
+- `testpresence` now also recognizes Python's `tests/` and JS/TS's
+  `__tests__/` directory conventions, not just Go's same-directory suffix
+  style -- those ecosystems previously read as "no test coverage" even with
+  real tests present.
+
+A second new signal, `subagentkind`, recognizes Claude Code's built-in
+`Explore` subagent type (verified read-only, no Edit/Write) as low-risk.
+Adding it surfaced a real architectural bug of its own: since `Explore` is
+rare, this signal skips almost always, and the existing "any skip blocks
+downshift" rule would have made nearly every real routing decision
+permanently distrust itself. Fixed with an opt-in `quietSkipper` interface
+so a bonus signal's routine absence no longer counts as a trust gap the way
+a genuine one (e.g. an empty working tree) does.
+
+The opt-in AI routing judge (`mode.routing_judge`) had its timeout bumped
+6s &rarr; 15s: a bare, standalone `claude -p --model haiku` cold start
+measured 5.6s on ordinary hardware, so the old budget left near-zero margin
+and silently fell back to the heuristic decision on the majority of real
+calls.
+
 ## 0.39.0
 
 **`/deadeye-review` runs all four lenses now, not just over-engineering --

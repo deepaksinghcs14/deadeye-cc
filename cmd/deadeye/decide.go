@@ -386,6 +386,7 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	_ = json.Unmarshal(in.ToolInput, &ai)
 
 	scope := newScope(ai.Description+" "+ai.Prompt, in.Cwd)
+	scope.SubagentType = ai.SubagentType
 	// Bounded like every other git call site (route.go's gitTimeout): the
 	// churn provider shells to git, and a stalled network mount or held
 	// .git/index.lock must fail open into "unknown" evidence, not hang the

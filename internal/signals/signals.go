@@ -8,10 +8,11 @@ import "context"
 
 // Scope is what a provider assesses.
 type Scope struct {
-	Prompt      string
-	Files       []string
-	Repo        string
-	SessionMode string
+	Prompt       string
+	Files        []string
+	Repo         string
+	SessionMode  string
+	SubagentType string // the Agent tool's subagent_type, when known
 }
 
 // Evidence is one provider's estimate. Facts is free-form -- providers
@@ -31,10 +32,27 @@ type Signal interface {
 	Assess(ctx context.Context, s Scope) (Evidence, error)
 }
 
+// quietSkipper is an optional extension a Signal can implement to mark
+// itself as a BONUS signal, not a core one: a skip is the NORMAL outcome
+// for it (e.g. SubagentKind only ever fires for one specific subagent_type
+// value -- everything else, including the common "general-purpose", skips
+// by design, not because information is missing). AssessAll's skip penalty
+// below exists to catch a genuine information GAP (filescope/gitchurn/
+// testpresence going quiet on a clean tree); folding a bonus signal's
+// routine, expected absence into that same penalty would mean nearly every
+// real decision permanently hits the zero-confidence floor and can never
+// downshift -- caught live: adding SubagentKind to Builtins() without this
+// broke TestDownshiftIsReachableThroughRealProviders, a well-tested,
+// single-file, freshly-committed task that should never have stopped
+// downshifting.
+type quietSkipper interface {
+	QuietSkip() bool
+}
+
 // AssessAll runs every provider and collects whatever succeeds, degrading
 // per PLAN.md §3.1. A skipped provider is recorded as an explicit
 // zero-confidence "unknown" Evidence item rather than silently dropped --
-// caught live: on a clean working tree, three of the four builtins error
+// caught live: on a clean working tree, three of the five builtins error
 // out (nothing to assess), leaving only promptshape's evidence. The
 // kernel's own empty-evidence check only catches a wholly EMPTY set, not
 // "only the weakest signal had anything to say" -- so a vague-sounding but
@@ -52,6 +70,9 @@ func AssessAll(ctx context.Context, s Scope, providers []Signal) []Evidence {
 	for _, p := range providers {
 		e, err := p.Assess(ctx, s)
 		if err != nil {
+			if qs, ok := p.(quietSkipper); ok && qs.QuietSkip() {
+				continue // a bonus signal had nothing extra to add -- not a gap
+			}
 			skipped = append(skipped, p.Name())
 			continue
 		}
@@ -75,5 +96,7 @@ func Builtins() []Signal {
 		FileScope{},
 		GitChurn{},
 		TestPresence{},
+		TaskSpecificity{},
+		SubagentKind{},
 	}
 }

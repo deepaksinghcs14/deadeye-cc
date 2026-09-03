@@ -57,7 +57,7 @@ where deadeye actually did something.
 ## How it works
 
 ```
-1. Look      Cheap, deterministic signals: files touched, recent git activity, whether tests exist nearby, how the request reads
+1. Look      Cheap, deterministic signals: files touched, recent git activity, whether tests exist nearby, how the request reads, whether the task itself names something real, and whether it's a read-only subagent
 2. Decide    The cheapest (model, effort) that should still clear the bar for this task
 3. Apply     Rewrites the subagent's model, trims noisy command output, asks before risky multi-file edits
 4. Learn     If you manually pick a bigger model than it recommended, it gets more cautious for that kind of task next time
