@@ -13,6 +13,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"go/format"
 	"os"
@@ -90,4 +91,50 @@ var builtin = Catalog{
 		os.Exit(1)
 	}
 	fmt.Println("wrote internal/catalog/catalog_gen.go")
+
+	if err := writeHostedCatalog(ranked); err != nil {
+		fmt.Fprintln(os.Stderr, "gen-catalog: hosted json:", err)
+		os.Exit(1)
+	}
+	fmt.Println("wrote docs/site/catalog.json")
+}
+
+// hostedModel/hostedCatalog mirror internal/catalog.Model/Catalog's JSON
+// shape exactly (kept as a local copy, not an import, since this file is
+// //go:build ignore and runs outside the module's normal build).
+type hostedModel struct {
+	ID          string  `json:"model_id"`
+	Family      string  `json:"family"`
+	InputPrice  float64 `json:"input_price"`
+	OutputPrice float64 `json:"output_price"`
+	Tier        int     `json:"tier"`
+	Role        string  `json:"role,omitempty"`
+}
+
+type hostedCatalog struct {
+	Models  []hostedModel `json:"models"`
+	BuiltAt string        `json:"built_at"`
+	Source  string        `json:"source"`
+}
+
+// writeHostedCatalog publishes docs/site/catalog.json -- the file
+// cmd/deadeye/catalogcheck.go's background refresh fetches from GitHub
+// Pages. Pretty-printed deliberately: this file is meant to be hand-edited
+// directly for a fast model/price change (edit, commit, push -- no
+// release), so it should read like a table, not a minified blob. A hand
+// edit here must be brought back into the seed above before the next
+// `go run` clobbers it.
+func writeHostedCatalog(ranked []seedModel) error {
+	hc := hostedCatalog{BuiltAt: builtAt, Source: "hosted"}
+	for tier, m := range ranked {
+		hc.Models = append(hc.Models, hostedModel{
+			ID: m.id, Family: m.family, InputPrice: m.inputPrice, OutputPrice: m.outputPrice,
+			Tier: tier, Role: m.role,
+		})
+	}
+	b, err := json.MarshalIndent(hc, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile("docs/site/catalog.json", append(b, '\n'), 0o644)
 }

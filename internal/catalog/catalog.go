@@ -36,11 +36,16 @@ const (
 type Catalog struct {
 	Models  []Model `json:"models"`
 	BuiltAt string  `json:"built_at"`
-	Source  string  `json:"source"` // "builtin" | "override"
+	Source  string  `json:"source"` // "builtin" | "override" | "remote"
 }
 
-// Load returns ~/.deadeye/catalog.json if present and non-empty, else the
-// compiled-in table. No network call is made.
+// Load returns, in order: ~/.deadeye/catalog.json (a user's explicit
+// override, any shape they wrote -- never validated beyond "has models",
+// per INV-5 fail-open), else ~/.deadeye/catalog-cache.json (the
+// background-refreshed hosted copy, only if it passes Valid() and isn't
+// older than the compiled-in table), else the compiled-in table. No
+// network call is made here -- the cache file is written by
+// cmd/deadeye's catalogcheck.go, never by Load itself.
 func Load() Catalog {
 	if b, err := os.ReadFile(meta.CatalogOverridePath()); err == nil {
 		var c Catalog
@@ -49,7 +54,58 @@ func Load() Catalog {
 			return c
 		}
 	}
+	if b, err := os.ReadFile(meta.CatalogCachePath()); err == nil {
+		var c Catalog
+		if json.Unmarshal(b, &c) == nil && c.Valid() && c.BuiltAt >= builtin.BuiltAt {
+			c.Source = "remote"
+			return c
+		}
+	}
 	return builtin
+}
+
+// Valid reports whether a fetched catalog is safe to route on. Applied
+// only to the remote cache (Load's override path stays deliberately
+// lenient) -- a bad publish must degrade to the builtin, never half-apply.
+func (c Catalog) Valid() bool {
+	if len(c.Models) < 2 {
+		return false
+	}
+	seenTier := make(map[int]bool, len(c.Models))
+	seenRole := make(map[string]bool, 2)
+	hasTierZero := false
+	for _, m := range c.Models {
+		if m.ID == "" || m.Family == "" {
+			return false
+		}
+		if m.InputPrice <= 0 || m.OutputPrice <= 0 {
+			return false
+		}
+		if m.Tier < 0 || seenTier[m.Tier] {
+			return false
+		}
+		seenTier[m.Tier] = true
+		hasTierZero = hasTierZero || m.Tier == 0
+		switch m.Role {
+		case "":
+		case RoleUnsureCeiling, RoleHighCeiling:
+			if seenRole[m.Role] {
+				return false
+			}
+			seenRole[m.Role] = true
+		default:
+			return false
+		}
+	}
+	if !hasTierZero {
+		return false
+	}
+	unsure, hasUnsure := c.modelWithRole(RoleUnsureCeiling)
+	high, hasHigh := c.modelWithRole(RoleHighCeiling)
+	if hasUnsure && hasHigh && high.Tier < unsure.Tier {
+		return false
+	}
+	return true
 }
 
 // TierFor returns a model's tier by id, and whether it was found.

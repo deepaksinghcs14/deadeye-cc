@@ -1,0 +1,36 @@
+{
+  "models": [
+    {
+      "model_id": "claude-haiku-4-5-20251001",
+      "family": "haiku",
+      "input_price": 1,
+      "output_price": 5,
+      "tier": 0
+    },
+    {
+      "model_id": "claude-sonnet-5",
+      "family": "sonnet",
+      "input_price": 2,
+      "output_price": 10,
+      "tier": 1,
+      "role": "unsure_ceiling"
+    },
+    {
+      "model_id": "claude-opus-5",
+      "family": "opus",
+      "input_price": 5,
+      "output_price": 25,
+      "tier": 2,
+      "role": "high_ceiling"
+    },
+    {
+      "model_id": "claude-fable-5",
+      "family": "fable",
+      "input_price": 10,
+      "output_price": 50,
+      "tier": 3
+    }
+  ],
+  "built_at": "2026-08-02",
+  "source": "hosted"
+}

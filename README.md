@@ -312,20 +312,35 @@ make build   # ./bin/deadeye
 
 `scripts/gen-catalog.go` regenerates the compiled-in model/pricing table
 after editing its seed prices — a release-time step, since there's no
-reachable pricing API at runtime.
+reachable pricing API at runtime. It also writes `docs/site/catalog.json`,
+a hosted copy every install refreshes in the background (`mode.catalog_check`,
+~24h, read-only, toggle with `deadeye config set mode.catalog_check off`)
+and prefers over the compiled-in table
+when it's present and well-formed. That file can also be hand-edited
+directly and pushed — no release needed to roll out a new model or price,
+though the seed table should be brought back in sync before the next
+`go run` overwrites it.
 
 ## FAQ
 
 **Does it phone home?**
-No. Everything it remembers lives in one file at `~/.deadeye/`. No hosted
-service, no API keys, no telemetry.
+No telemetry, no API keys, nothing about your code or prompts ever leaves
+your machine. Everything it remembers lives in one file at `~/.deadeye/`.
+It does make a small number of unauthenticated, read-only GETs in the
+background, each with its own off switch: a release-tag check
+(`mode.update_check`), an OSV.dev advisory lookup for flagged dependencies
+(`coder.security_osv`), and a refresh of the hosted model/pricing catalog
+(`mode.catalog_check`, see Development above). None ever block a hook response, and
+none ever send your code, prompts, or any identifying data.
 
 **Why not just ask an LLM which model to use?**
-Four cheap, predictable signals — files touched, recent git activity,
-whether tests exist nearby, how the request reads — are enough to make a
+Six cheap, predictable signals — files touched, recent git activity,
+whether tests exist nearby, how the request reads, whether it names
+something real, whether it's a read-only subagent — are enough to make a
 reasonable call, and they're free to check. Asking an LLM would spend tokens
-to figure out how to save tokens, and add the network dependency this tool
-is built to avoid.
+to figure out how to save tokens, and add a network dependency to the
+routing decision itself. (An opt-in `mode.routing_judge` exists for when
+you want that anyway.)
 
 **Will it make Claude dumber?**
 That's the exact failure mode it's built to avoid. When it isn't confident,

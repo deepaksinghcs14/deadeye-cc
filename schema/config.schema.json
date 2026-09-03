@@ -61,6 +61,12 @@
           "enum": ["off", "on"],
           "default": "off",
           "description": "OPT-IN. When the cheap signals can't confidently place a subtask, classify its complexity with a real model call (shells to `claude -p`, haiku -- reuses your Claude login, no API key) instead of defaulting to the sonnet tier. Cached, bounded, fail-open. Breaks the zero-network default, so off unless you turn it on."
+        },
+        "catalog_check": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "on",
+          "description": "Background refresh of the hosted model/pricing catalog (a static JSON file on the project's GitHub Pages site), so a new model or price change reaches routing without a plugin release. Read-only GET, no request body. Cached ~24h, never blocks the hook response, and only ever takes effect if the fetched catalog is well-formed -- a bad or unreachable fetch always falls back to the compiled-in table, never breaks routing. A local ~/.deadeye/catalog.json override always wins over the hosted copy. off disables the fetch entirely."
         }
       }
     },

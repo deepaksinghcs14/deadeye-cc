@@ -556,7 +556,7 @@ FAIL</div>
   <p class="eyebrow">Why deadeye</p>
   <h2>What sets it apart</h2>
   <p class="lede">Most tools optimize after the fact, guess at the savings, or ship your code to a server. deadeye does none of that.</p>
-  <div class="usp"><div class="usp-card"><span class="usp-stat">79.6–99.5%</span><b>smaller command output</b><p>Verbose test/build/install output is trimmed before it enters context — measured on real runs, not averaged: 485 bytes → 99, a 202-line passing suite → 55.</p></div><div class="usp-card"><span class="usp-stat">86.0%</span><b>lighter subagents</b><p>The coder persona a subagent inherits dropped from 7,666 to 1,073 bytes per spawn — measured, on every spawn.</p></div><div class="usp-card"><span class="usp-stat">100%</span><b>measured, never estimated</b><p>Every figure is a real row in <code>decisions.jsonl</code> — and 95% of events (the quiet no-ops) aren't logged at all. No invented savings for code never written.</p></div><div class="usp-card"><span class="usp-stat">0</span><b>bytes leave your machine</b><p>No phone-home, no API keys, no telemetry. All state lives in one file under <code>~/.deadeye/</code>.</p></div><div class="usp-card"><span class="usp-stat">6 signals</span><b>decided before the spend</b><p>Model, effort, and context are fit <em>ahead</em> of the call from six cheap signals — no extra LLM call, no keyword-matching, reasoning always visible.</p></div><div class="usp-card"><span class="usp-stat">Fail-open</span><b>never blocks, never overrides</b><p>If anything inside it errors, your call passes through untouched. It advises on your main session — it never seizes your settings or your model.</p></div></div>
+  <div class="usp"><div class="usp-card"><span class="usp-stat">79.6–99.5%</span><b>smaller command output</b><p>Verbose test/build/install output is trimmed before it enters context — measured on real runs, not averaged: 485 bytes → 99, a 202-line passing suite → 55.</p></div><div class="usp-card"><span class="usp-stat">86.0%</span><b>lighter subagents</b><p>The coder persona a subagent inherits dropped from 7,666 to 1,073 bytes per spawn — measured, on every spawn.</p></div><div class="usp-card"><span class="usp-stat">100%</span><b>measured, never estimated</b><p>Every figure is a real row in <code>decisions.jsonl</code> — and 95% of events (the quiet no-ops) aren't logged at all. No invented savings for code never written.</p></div><div class="usp-card"><span class="usp-stat">0</span><b>data leaves your machine</b><p>No telemetry, no API keys, no code or prompts sent anywhere. All state lives in one file under <code>~/.deadeye/</code>. A few background reads (release check, catalog refresh) are unauthenticated GETs, each with its own off switch.</p></div><div class="usp-card"><span class="usp-stat">6 signals</span><b>decided before the spend</b><p>Model, effort, and context are fit <em>ahead</em> of the call from six cheap signals — no extra LLM call, no keyword-matching, reasoning always visible.</p></div><div class="usp-card"><span class="usp-stat">Fail-open</span><b>never blocks, never overrides</b><p>If anything inside it errors, your call passes through untouched. It advises on your main session — it never seizes your settings or your model.</p></div></div>
   <div class="bench-strip reveal">
     <span class="bench-lead">We didn't just claim it — we measured it.</span>
     <a class="bench-nudge" href="benchmark.html" aria-label="See the routing-savings benchmark">
@@ -947,9 +947,13 @@ Cross-check these figures against /usage's plugin attribution.</div>
 
     <div class="faq">
       <details open><summary>Does it phone home?</summary>
-        <p>No. Everything it remembers lives in one file on your own machine,
-        at <code>~/.deadeye/</code>. No hosted service, no API keys, no
-        telemetry.</p></details>
+        <p>No telemetry, no API keys, nothing about your code or prompts ever
+        leaves your machine. Everything it remembers lives in one file at
+        <code>~/.deadeye/</code>. It does make a few unauthenticated,
+        read-only GETs in the background — a release-tag check, an OSV.dev
+        advisory lookup for flagged dependencies, and a refresh of the
+        hosted model/pricing catalog — each with its own config off switch,
+        none blocking a hook response, none sending anything back.</p></details>
       <details><summary>Will it make Claude dumber?</summary>
         <p>That's exactly the failure mode it's built to avoid. When it isn't
         confident about a task, it defaults to the more capable option —
