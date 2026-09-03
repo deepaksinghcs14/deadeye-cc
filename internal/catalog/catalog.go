@@ -20,8 +20,18 @@ type Model struct {
 	Family      string  `json:"family"`
 	InputPrice  float64 `json:"input_price"`
 	OutputPrice float64 `json:"output_price"`
-	Tier        int     `json:"tier"` // 0 = cheapest, ascending
+	Tier        int     `json:"tier"`           // 0 = cheapest, ascending
+	Role        string  `json:"role,omitempty"` // "" | RoleUnsureCeiling | RoleHighCeiling
 }
+
+// The two roles the kernel's ceilings resolve by preference, over raw tier
+// numbers -- see UnsureCeiling/HighCeiling. At most one model should carry
+// each; TestBuiltinHasExactlyOneOfEachCeilingRole guards the compiled-in
+// table.
+const (
+	RoleUnsureCeiling = "unsure_ceiling"
+	RoleHighCeiling   = "high_ceiling"
+)
 
 type Catalog struct {
 	Models  []Model `json:"models"`
@@ -88,4 +98,56 @@ func (c Catalog) Cheapest() (Model, bool) {
 		}
 	}
 	return cheapest, true
+}
+
+// UnsureCeiling and HighCeiling resolve the model each of the kernel's two
+// ceilings should route to: the catalog's explicit role tag if present --
+// the forward-compatible path, since promoting a new model to either role
+// is then a data edit, not a kernel.go code change -- else the historical
+// fixed tier number (1 and 2 respectively) this kernel has always used.
+// The fallback matters: it means a catalog written before Role existed
+// (any pre-existing ~/.deadeye/catalog.json override, or a hand-built test
+// catalog with plain Tier ints) resolves identically to today, unchanged.
+//
+// The fallback is deliberately NOT "the catalog's most expensive tier" --
+// that was a real bug (kernel.go's own history: thin evidence once routed
+// to the priciest model simply for being priciest). A ceiling is either a
+// human's explicit role tag, or a fixed number known in advance to be
+// reasonable -- never inferred from "whatever the catalog happens to rank
+// highest today."
+func (c Catalog) UnsureCeiling() (Model, bool) {
+	if m, ok := c.modelWithRole(RoleUnsureCeiling); ok {
+		return m, true
+	}
+	return c.modelAtOrBelowTier(1)
+}
+
+func (c Catalog) HighCeiling() (Model, bool) {
+	if m, ok := c.modelWithRole(RoleHighCeiling); ok {
+		return m, true
+	}
+	return c.modelAtOrBelowTier(2)
+}
+
+func (c Catalog) modelWithRole(role string) (Model, bool) {
+	for _, m := range c.Models {
+		if m.Role == role {
+			return m, true
+		}
+	}
+	return Model{}, false
+}
+
+// modelAtOrBelowTier returns the highest-tier model at or under maxTier --
+// the pre-Role ceiling-selection scan, kept verbatim as the fallback.
+func (c Catalog) modelAtOrBelowTier(maxTier int) (Model, bool) {
+	best := -1
+	var bestModel Model
+	for _, m := range c.Models {
+		if m.Tier <= maxTier && m.Tier > best {
+			best = m.Tier
+			bestModel = m
+		}
+	}
+	return bestModel, best != -1
 }

@@ -75,7 +75,7 @@ func applyRoutingJudge(cfg config.Config, decision kernel.Decision, cat catalog.
 	if !ok {
 		return decision
 	}
-	m, ok := cat.ModelAtTier(tier)
+	m, ok := judgeTierToModel(cat, tier)
 	if !ok {
 		return decision
 	}
@@ -88,6 +88,31 @@ func applyRoutingJudge(cfg config.Config, decision kernel.Decision, cat catalog.
 	decision.Confidence = 1
 	decision.Unsure = false
 	return decision
+}
+
+// judgeTierToModel resolves the judge's 0/1/2 qualitative bucket
+// (mechanical/standard/hard -- see judgePrompt) to a concrete model the
+// same way kernel.Decide's own ceilings do: tier 0 is always the
+// catalog's cheapest model; 1 and 2 go through UnsureCeiling/HighCeiling
+// (an explicit role tag if the catalog has one, else the historical tier
+// 1/2 fallback). Sharing this resolution with the kernel means the judge
+// and the deterministic path can never disagree about what "the capable
+// middle" or "the high ceiling" concretely means in this catalog -- the
+// judge's own vocabulary stays exactly 3-way regardless of how many tiers
+// the catalog actually has; it's a qualitative judgment, not a tier count.
+func judgeTierToModel(cat catalog.Catalog, tier int) (string, bool) {
+	switch tier {
+	case 0:
+		m, ok := cat.Cheapest()
+		return m.ID, ok
+	case 1:
+		m, ok := cat.UnsureCeiling()
+		return m.ID, ok
+	case 2:
+		m, ok := cat.HighCeiling()
+		return m.ID, ok
+	}
+	return "", false
 }
 
 // judgeTierClaude runs the classification through `claude -p`. DEADEYE_JUDGE=1

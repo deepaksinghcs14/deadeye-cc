@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.41.0
+
+**The routing kernel's two ceilings are catalog-driven now, not hardcoded
+tier numbers.** Confirmed live: `claude-fable-5` sat in the catalog fully
+resolvable by name, but was structurally unreachable by both the
+deterministic kernel and the AI judge -- `highCeilingTier = 2` and the
+judge's own 0/1/2 classifier both hard-capped there. Any future model that
+deserved to be the new ceiling needed a kernel.go code change, not a
+catalog edit -- the same staleness problem as the price table, one layer
+deeper.
+
+Fixed with two named roles a catalog can tag a model with --
+`unsure_ceiling` and `high_ceiling` -- resolved by `catalog.Catalog`'s new
+`UnsureCeiling()`/`HighCeiling()`, which both the kernel and the AI judge
+now share. A role tag is the preferred path (promoting a model to a
+ceiling becomes a data edit); a catalog with no roles set at all -- every
+existing `~/.deadeye/catalog.json` override -- falls back to the exact
+historical tier 1/2 numbering, unchanged. The entire pre-existing
+`kernel_test.go` suite needed zero modifications to keep passing, which is
+the point: nothing about today's behavior changed unless a catalog
+explicitly opts in.
+
+The original bug this hardcoding fixed (thin evidence once routed to the
+priciest tier simply for being priciest) stays fixed either way -- an
+un-roled catalog still can't reach the top tier by accident. What's new is
+that it now *can*, on purpose, when a human says so in the data. Verified
+live: promoting `fable-5` to `high_ceiling` via a plain JSON edit made it
+correctly reachable for genuinely high-complexity evidence, with zero code
+changes.
+
 ## 0.40.0
 
 **Two new routing signals, and a real reliability fix for the AI judge.**

@@ -3,6 +3,8 @@ package main
 import (
 	"sync/atomic"
 	"testing"
+
+	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 )
 
 func TestParseTier(t *testing.T) {
@@ -45,5 +47,48 @@ func TestJudgeCacheHitsOnce(t *testing.T) {
 	}
 	if n := atomic.LoadInt32(&calls); n != 1 {
 		t.Errorf("judgeFunc called %d times, want 1 (second should be cached)", n)
+	}
+}
+
+// TestJudgeTierToModelUsesRoles: the judge's tier 1/2 resolve through the
+// same UnsureCeiling/HighCeiling role lookup the kernel itself uses, not a
+// raw tier-number lookup -- proving the judge and the deterministic path
+// can never disagree about what "capable middle" / "high ceiling" means
+// in a catalog with roles tagged at unusual tier numbers.
+func TestJudgeTierToModelUsesRoles(t *testing.T) {
+	cat := catalog.Catalog{Models: []catalog.Model{
+		{ID: "cheap", Tier: 0},
+		{ID: "mid", Tier: 4, Role: catalog.RoleUnsureCeiling},
+		{ID: "top", Tier: 9, Role: catalog.RoleHighCeiling},
+	}}
+	cases := []struct {
+		tier int
+		want string
+	}{{0, "cheap"}, {1, "mid"}, {2, "top"}}
+	for _, c := range cases {
+		if m, ok := judgeTierToModel(cat, c.tier); !ok || m != c.want {
+			t.Errorf("judgeTierToModel(tier=%d) = (%q,%v), want (%q,true)", c.tier, m, ok, c.want)
+		}
+	}
+	if _, ok := judgeTierToModel(cat, 3); ok {
+		t.Error("judgeTierToModel(3) should fail -- the judge's vocabulary is only 0/1/2")
+	}
+}
+
+// TestJudgeTierToModelFallsBackWithoutRoles: an un-roled catalog (any
+// existing ~/.deadeye/catalog.json override) resolves through the
+// historical tier 1/2 fallback, same as before this existed.
+func TestJudgeTierToModelFallsBackWithoutRoles(t *testing.T) {
+	cat := catalog.Catalog{Models: []catalog.Model{
+		{ID: "cheap", Tier: 0}, {ID: "mid", Tier: 1}, {ID: "top", Tier: 2},
+	}}
+	cases := []struct {
+		tier int
+		want string
+	}{{0, "cheap"}, {1, "mid"}, {2, "top"}}
+	for _, c := range cases {
+		if m, ok := judgeTierToModel(cat, c.tier); !ok || m != c.want {
+			t.Errorf("judgeTierToModel(tier=%d) = (%q,%v), want (%q,true)", c.tier, m, ok, c.want)
+		}
 	}
 }

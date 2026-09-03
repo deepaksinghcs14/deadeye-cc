@@ -23,14 +23,24 @@ import (
 type seedModel struct {
 	id, family              string
 	inputPrice, outputPrice float64
+	role                    string // "" | "unsure_ceiling" | "high_ceiling" -- see catalog.Role*
 }
 
 // Seed prices, USD per million tokens. Update these, not catalog_gen.go.
+//
+// role marks which model the kernel's two ceilings resolve to (see
+// catalog.Catalog.UnsureCeiling/HighCeiling) -- exactly one model should
+// carry "unsure_ceiling" and one "high_ceiling"
+// (TestBuiltinHasExactlyOneOfEachCeilingRole guards this). fable stays
+// un-roled deliberately: it's not reachable by automatic routing, on
+// purpose, the same real-world outcome as before Role existed -- now an
+// explicit choice here instead of an emergent side effect of a tier
+// number hardcoded in kernel.go.
 var seed = []seedModel{
-	{"claude-haiku-4-5-20251001", "haiku", 1, 5},
-	{"claude-sonnet-5", "sonnet", 2, 10},
-	{"claude-opus-5", "opus", 5, 25},
-	{"claude-fable-5", "fable", 10, 50},
+	{"claude-haiku-4-5-20251001", "haiku", 1, 5, ""},
+	{"claude-sonnet-5", "sonnet", 2, 10, "unsure_ceiling"},
+	{"claude-opus-5", "opus", 5, 25, "high_ceiling"},
+	{"claude-fable-5", "fable", 10, 50, ""},
 }
 
 const builtAt = "2026-08-02" // date the seed prices above were fetched
@@ -60,6 +70,11 @@ var builtin = Catalog{
 `, sourceURL, builtAt, builtAt)
 
 	for tier, m := range ranked {
+		if m.role != "" {
+			fmt.Fprintf(&b, "\t\t{ID: %q, Family: %q, InputPrice: %v, OutputPrice: %v, Tier: %d, Role: %q},\n",
+				m.id, m.family, m.inputPrice, m.outputPrice, tier, m.role)
+			continue
+		}
 		fmt.Fprintf(&b, "\t\t{ID: %q, Family: %q, InputPrice: %v, OutputPrice: %v, Tier: %d},\n",
 			m.id, m.family, m.inputPrice, m.outputPrice, tier)
 	}

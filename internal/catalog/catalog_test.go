@@ -29,6 +29,65 @@ func TestCheapestIsTierZero(t *testing.T) {
 	}
 }
 
+// TestBuiltinHasExactlyOneOfEachCeilingRole guards the compiled-in table
+// against a future seed-table edit silently dropping or duplicating a
+// role -- UnsureCeiling/HighCeiling only look at the FIRST match, so a
+// second model quietly carrying the same role would become unreachable
+// dead weight with no error, the same footgun a duplicate tier number is.
+func TestBuiltinHasExactlyOneOfEachCeilingRole(t *testing.T) {
+	for _, role := range []string{RoleUnsureCeiling, RoleHighCeiling} {
+		n := 0
+		for _, m := range builtin.Models {
+			if m.Role == role {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Errorf("builtin has %d models with role %q, want exactly 1", n, role)
+		}
+	}
+}
+
+func TestUnsureCeilingPrefersRoleOverFallbackTier(t *testing.T) {
+	cat := Catalog{Models: []Model{
+		{ID: "cheap", Tier: 0},
+		{ID: "fallback-mid", Tier: 1},
+		{ID: "actual-mid", Tier: 4, Role: RoleUnsureCeiling},
+	}}
+	m, ok := cat.UnsureCeiling()
+	if !ok || m.ID != "actual-mid" {
+		t.Errorf("UnsureCeiling() = (%+v, %v), want the role-tagged model at tier 4, not the tier-1 fallback", m, ok)
+	}
+}
+
+func TestHighCeilingPrefersRoleOverFallbackTier(t *testing.T) {
+	cat := Catalog{Models: []Model{
+		{ID: "cheap", Tier: 0},
+		{ID: "fallback-top", Tier: 2},
+		{ID: "actual-top", Tier: 9, Role: RoleHighCeiling},
+	}}
+	m, ok := cat.HighCeiling()
+	if !ok || m.ID != "actual-top" {
+		t.Errorf("HighCeiling() = (%+v, %v), want the role-tagged model at tier 9, not the tier-2 fallback", m, ok)
+	}
+}
+
+// TestCeilingsFallBackWhenNoRolePresent is the compatibility guarantee:
+// a catalog with no Role field set anywhere (any ~/.deadeye/catalog.json
+// override written before Role existed) resolves ceilings exactly as
+// before -- tier 1 for unsure, tier 2 for high.
+func TestCeilingsFallBackWhenNoRolePresent(t *testing.T) {
+	cat := Catalog{Models: []Model{
+		{ID: "cheap", Tier: 0}, {ID: "mid", Tier: 1}, {ID: "top", Tier: 2}, {ID: "priciest", Tier: 3},
+	}}
+	if m, ok := cat.UnsureCeiling(); !ok || m.ID != "mid" {
+		t.Errorf("UnsureCeiling() = (%+v, %v), want the tier-1 fallback %q", m, ok, "mid")
+	}
+	if m, ok := cat.HighCeiling(); !ok || m.ID != "top" {
+		t.Errorf("HighCeiling() = (%+v, %v), want the tier-2 fallback %q", m, ok, "top")
+	}
+}
+
 func TestFamilyForMatchesEveryModel(t *testing.T) {
 	for _, m := range builtin.Models {
 		got, ok := builtin.FamilyFor(m.ID)

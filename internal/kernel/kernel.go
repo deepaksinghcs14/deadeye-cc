@@ -33,23 +33,32 @@ const veryHighComplexity = 0.9
 // Two ceilings, because "we don't know" and "we know it's hard" are
 // different situations that shouldn't cost the same:
 //
-//   - unsureCeilingTier (sonnet) is the default when evidence is thin,
-//     untrusted, or just below the confidence bar. This fires for MOST
-//     subagent spawns (a description-only prompt against a clean tree
+//   - the unsure ceiling (sonnet, by default) is the default when evidence
+//     is thin, untrusted, or just below the confidence bar. This fires for
+//     MOST subagent spawns (a description-only prompt against a clean tree
 //     leaves three of five signals with nothing to assess), so paying opus
 //     for it -- the old behavior -- was where the money leaked. Sonnet is a
 //     capable middle: conservative enough for an unknown task, far cheaper
 //     than opus. INV-1 ("when unsure, go bigger than the evidence alone
 //     justifies") still holds -- it just goes to a sane middle, not the
 //     priciest model on the shelf.
-//   - highCeilingTier (opus) is reserved for evidence that genuinely reads
-//     HARD: a very-high-complexity signal (>= veryHighComplexity, upshifted
-//     to xhigh) or a confident reading in the 0.75-0.9 band. Capped at tier
-//     2 so it never routes to whatever happens to be the catalog's priciest
-//     tier (verified live: thin evidence once routed to fable-5 at 2x opus
-//     simply for being most expensive).
-const unsureCeilingTier = 1
-const highCeilingTier = 2
+//   - the high ceiling (opus, by default) is reserved for evidence that
+//     genuinely reads HARD: a very-high-complexity signal (>=
+//     veryHighComplexity, upshifted to xhigh) or a confident reading in the
+//     0.75-0.9 band.
+//
+// Both are resolved via catalog.Catalog.UnsureCeiling/HighCeiling: an
+// explicit role tag on the catalog if present (the forward-compatible
+// path -- promoting a new model to either role is then a data edit, not a
+// kernel.go change), else the historical fixed tier numbers below, kept as
+// the fallback so a catalog with no role tags (any pre-existing
+// ~/.deadeye/catalog.json override, or this package's own un-roled test
+// catalogs) resolves identically to before this existed. The fallback is
+// deliberately a FIXED number, never "the catalog's most expensive tier"
+// -- that was a real bug (thin evidence once routed to fable-5, at 2x
+// opus, simply for being priciest). The fixed fallback tiers themselves
+// (1 and 2) live in catalog.go, next to the rest of the resolution logic
+// they belong to -- not duplicated here.
 
 // Grid search, not sequential choice (PLAN.md §3.2): conceptually this
 // enumerates (tier, effort) cells, estimates cost from catalog pricing,
@@ -87,7 +96,12 @@ var bands = []struct {
 // downshift-*supporting* item from an otherwise-agreeing set never makes
 // the result cheaper.
 func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold float64) Decision {
-	ceiling := ceilingDecision(cat, "default: no evidence, or evidence insufficient to downshift -- a capable middle (sonnet-tier), not the priciest model", 0, "high", unsureCeilingTier)
+	// Resolved once, up front: every ceilingDecision call site below reuses
+	// these instead of re-resolving per branch.
+	unsureCeiling, unsureOK := cat.UnsureCeiling()
+	highCeiling, highOK := cat.HighCeiling()
+
+	ceiling := ceilingDecision(cat, "default: no evidence, or evidence insufficient to downshift -- a capable middle (sonnet-tier), not the priciest model", 0, "high", unsureCeiling, unsureOK)
 	ceiling.Unsure = true
 
 	if len(evidence) == 0 {
@@ -105,7 +119,7 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 		// kernel whose whole design (INV-1) is "when it doesn't know, it
 		// goes big". Untrustworthy evidence forces the ceiling outright.
 		if math.IsNaN(e.Complexity) || math.IsNaN(e.Confidence) {
-			d := ceilingDecision(cat, "NaN evidence value, cannot be trusted -- default (sonnet-tier)", 0, "high", unsureCeilingTier)
+			d := ceilingDecision(cat, "NaN evidence value, cannot be trusted -- default (sonnet-tier)", 0, "high", unsureCeiling, unsureOK)
 			d.Unsure = true
 			return d
 		}
@@ -122,7 +136,7 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 		// default ceiling's effort, to xhigh -- distinct from "we don't
 		// know" (which stays at "high"). Upshifting is always free
 		// (INV-1): no confidence threshold gates this branch.
-		return ceilingDecision(cat, "evidence indicates very high complexity -- upshifted, no confidence threshold required", minConfidence, "xhigh", highCeilingTier)
+		return ceilingDecision(cat, "evidence indicates very high complexity -- upshifted, no confidence threshold required", minConfidence, "xhigh", highCeiling, highOK)
 	}
 	// A NaN downshiftThreshold must block downshift, not disable the gate:
 	// `minConfidence < NaN` is always false, so without this guard a NaN
@@ -142,7 +156,7 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 				// fallthrough below was fixed to stop making: report the
 				// real minConfidence and an accurate reason, not the
 				// generic zero-evidence `ceiling`.
-				return ceilingDecision(cat, "no model at the tier this band requires -- catalog gap", minConfidence, "high", highCeilingTier)
+				return ceilingDecision(cat, "no model at the tier this band requires -- catalog gap", minConfidence, "high", highCeiling, highOK)
 			}
 			return Decision{
 				Model:      model,
@@ -162,30 +176,25 @@ func Decide(evidence []signals.Evidence, cat catalog.Catalog, downshiftThreshold
 	// prints both fields straight from this Decision).
 	// Confident, but in the 0.75-0.9 band: genuinely complex, so it earns the
 	// high ceiling (opus), distinct from the thin-evidence sonnet default above.
-	return ceilingDecision(cat, "evidence complexity too high to downshift -- genuinely complex", minConfidence, "high", highCeilingTier)
+	return ceilingDecision(cat, "evidence complexity too high to downshift -- genuinely complex", minConfidence, "high", highCeiling, highOK)
 }
 
-func ceilingDecision(cat catalog.Catalog, reason string, confidence float64, effort string, maxTier int) Decision {
-	model := ""
-	best := -1
-	for _, m := range cat.Models {
-		if m.Tier <= maxTier && m.Tier > best {
-			best = m.Tier
-			model = m.ID
-		}
-	}
-	if best == -1 {
-		// No model at or under ceilingTier -- a catalog override with only
-		// higher tiers, say. Fall back to the catalog's own highest tier
-		// rather than returning an empty model id.
-		for _, m := range cat.Models {
-			if m.Tier > best {
-				best = m.Tier
-				model = m.ID
+// ceilingDecision builds a Decision around m, the ceiling model
+// UnsureCeiling/HighCeiling already resolved (role tag, or the historical
+// fallback tier). If resolution found nothing at all (ok=false -- e.g. a
+// catalog override missing every fallback tier), falls back to the
+// catalog's own highest tier rather than returning an empty model id.
+func ceilingDecision(cat catalog.Catalog, reason string, confidence float64, effort string, m catalog.Model, ok bool) Decision {
+	if !ok {
+		best := -1
+		for _, cm := range cat.Models {
+			if cm.Tier > best {
+				best = cm.Tier
+				m = cm
 			}
 		}
 	}
-	return Decision{Model: model, Effort: effort, Reason: reason, Confidence: confidence}
+	return Decision{Model: m.ID, Effort: effort, Reason: reason, Confidence: confidence}
 }
 
 func modelAtTier(cat catalog.Catalog, tier int) (string, bool) {

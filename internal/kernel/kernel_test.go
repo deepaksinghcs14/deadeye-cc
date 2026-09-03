@@ -219,6 +219,47 @@ func TestCeilingsCapBelowTheMostExpensiveTier(t *testing.T) {
 	}
 }
 
+// TestExplicitRoleReachesThePriciestTierOnPurpose is the deliberate
+// opposite of TestCeilingsCapBelowTheMostExpensiveTier, proving the two
+// don't conflict: an UN-roled catalog still never accidentally reaches the
+// priciest tier (that test, unmodified, still passes), but a catalog that
+// explicitly tags its priciest tier "high_ceiling" now CAN reach it -- a
+// human said so in the data, the kernel didn't default there on its own.
+func TestExplicitRoleReachesThePriciestTierOnPurpose(t *testing.T) {
+	cat := catalog.Catalog{Models: []catalog.Model{
+		{ID: "haiku-like", Tier: 0},
+		{ID: "sonnet-like", Tier: 1, Role: catalog.RoleUnsureCeiling},
+		{ID: "opus-like", Tier: 2},
+		{ID: "priciest", Tier: 3, Role: catalog.RoleHighCeiling},
+	}}
+	if d := Decide([]signals.Evidence{{Complexity: 0.95, Confidence: 0.9}}, cat, 0.8); d.Model != "priciest" {
+		t.Errorf("high-complexity ceiling with an explicit role = %q, want %q (the role-tagged tier 3)", d.Model, "priciest")
+	}
+	// The unsure default is untouched by the high_ceiling tag -- still the
+	// role-tagged tier 1, not the priciest.
+	if d := Decide(nil, cat, 0.8); d.Model != "sonnet-like" {
+		t.Errorf("unsure default = %q, want %q (the role-tagged tier 1)", d.Model, "sonnet-like")
+	}
+}
+
+// TestRoleWorksAtUnusualTierNumbers directly answers "can this go beyond
+// tier 2": a sparse catalog with roles on non-adjacent, unusual tier
+// numbers (3 and 7, with gaps and no tier 0/1/2 at all) still resolves
+// correctly through the role lookup -- proving the ceiling no longer
+// depends on any particular tier NUMBER, only on which model is tagged.
+func TestRoleWorksAtUnusualTierNumbers(t *testing.T) {
+	cat := catalog.Catalog{Models: []catalog.Model{
+		{ID: "mid-ish", Tier: 3, Role: catalog.RoleUnsureCeiling},
+		{ID: "top-ish", Tier: 7, Role: catalog.RoleHighCeiling},
+	}}
+	if d := Decide(nil, cat, 0.8); d.Model != "mid-ish" {
+		t.Errorf("unsure default = %q, want %q (role-tagged, tier 3)", d.Model, "mid-ish")
+	}
+	if d := Decide([]signals.Evidence{{Complexity: 0.95, Confidence: 0.9}}, cat, 0.8); d.Model != "top-ish" {
+		t.Errorf("high-complexity ceiling = %q, want %q (role-tagged, tier 7)", d.Model, "top-ish")
+	}
+}
+
 // TestCeilingFallsBackWhenNoModelAtOrUnderCeilingTier covers a catalog
 // override with nothing at or below ceilingTier -- must not return an
 // empty model id.
