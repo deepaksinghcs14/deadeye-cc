@@ -1,6 +1,6 @@
 ---
 name: deadeye-guard
-description: Security review of the current diff -- injection, secrets, authz, crypto, exposure, DoS, and vulnerable dependencies.
+description: Security review of the current diff -- full OWASP-mapped coverage (Top 10:2025, API Security Top 10 2023, LLM Top 10:2025), injection through auth, config, and vulnerable dependencies.
 license: MIT
 ---
 
@@ -122,15 +122,31 @@ breaks prod), 🟠 `high` (must fix before merge), 🟡 `medium` (should fix),
 ⚪ `nit` (optional). The path is required — a diff can span files; name a
 sibling path in the same breath if it shares the bug.
 
-Seven tags, use exactly these:
+Twenty tags, use exactly these -- every OWASP Top 10:2025, API Security
+Top 10 2023, and LLM Top 10:2025 category maps to one (full mapping and
+rationale: `internal/vapt/owasp.md`, the same taxonomy `/deadeye-vapt`
+runs whole-service):
 
-- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a URL fetch (SSRF), a raw-HTML/DOM sink (XSS), or a deserializer
+- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a raw-HTML/DOM sink (XSS), or a deserializer
 - `secret:` — a credential literal, or a secret handled somewhere it can leak (logs, error messages, client-visible output)
 - `authz:` — a decision or resource access with no confirmed permission check
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, a non-CSPRNG for a token, TLS verification disabled)
-- `expose:` — sensitive data returned/logged beyond what the caller needs
+- `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL response path (an error path leaking a trace is `exceptions:`, not this)
 - `dep:` — a vulnerable or superseded dependency, from the pass above
 - `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first
+- `ssrf:` — an attacker-controlled URL reaching a fetch: cloud metadata, internal network, a webhook or redirect-follow target
+- `authn:` — absent/weak authentication: unverified JWT signature, `alg:none`, no expiry, session fixation, a weak reset/OTP flow
+- `bizlogic:` — a business flow with no abuse control: TOCTOU on a balance/inventory value, a negative/overflow quantity, a skippable workflow step
+- `massassign:` — a request body bound straight to a model, letting a client set `role`/`is_admin`/`balance`/`verified`
+- `validation:` — absent/weak boundary validation: no schema, type confusion, unbounded size, a missing allow-list
+- `ratelimit:` — no throttle/quota on login, OTP, reset, signup, or an expensive query — the ABSENCE of a limit, not the allocation shape (that's `dos:`)
+- `config:` — misconfiguration: permissive CORS, missing security headers, insecure cookie flags, debug mode left on, default credentials
+- `integrity:` — an unsigned/unverified update or plugin load, a CI/CD pipeline trusting unreviewed input, subdomain takeover — the SUPPLY-CHAIN/trust dimension; a deserializer that executes attacker-controlled code is `inject:`, not this
+- `logging:` — an auth failure or privileged action with no audit trail
+- `inventory:` — an undocumented or deprecated endpoint still routable (a live `/v1/` beside a `/v2/`, an orphaned route)
+- `thirdparty:` — a third-party API response trusted without validation, or an unvalidated redirect to a partner service
+- `exceptions:` — a mishandled exceptional condition: an uncaught exception leaking a stack trace or internal state, a caught error that fails open on a security-relevant path — the ERROR-path counterpart to `expose:`
+- `llm:` — only when the diff touches an LLM/agent surface: prompt injection, system-prompt leakage, excessive agency, unbounded token/cost consumption
 
 Rank by exploitability (reachable from untrusted input first). End with
 `<C> critical, <H> high, <M> medium, <N> nits, <A> accepted` (accepted = the

@@ -64,12 +64,36 @@ func TestBodiesShareLenses(t *testing.T) {
 		"logic:", "nil:", "race:", "bound:", "contract:", "leak:", "break:", "untested:", "a11y:",
 		"alloc:", "nplus1:", "complexity:", "blocking:", "copy:",
 		"inject:", "secret:", "authz:", "crypto:", "expose:", "dep:", "dos:",
+		"ssrf:", "authn:", "bizlogic:", "massassign:", "validation:", "ratelimit:",
+		"config:", "integrity:", "logging:", "inventory:", "thirdparty:", "exceptions:", "llm:",
 	}
 	for _, tag := range tags {
 		inPR := strings.Contains(Body(), tag)
 		inSelf := strings.Contains(SelfBody(), tag)
 		if !inPR || !inSelf {
 			t.Errorf("tag %q: in Body()=%v, in SelfBody()=%v -- both rubrics must carry every tag", tag, inPR, inSelf)
+		}
+	}
+}
+
+// TestPentestTagDisambiguation pins the overlap fixes applied when the
+// Security lens grew from 7 to 20 tags -- the vapt acceptance test found
+// exactly this ambiguity (inject/integrity on deserialization, expose/
+// exceptions on stack traces) after the fact; here it's pinned from the
+// start so a future edit can't silently reintroduce it.
+func TestPentestTagDisambiguation(t *testing.T) {
+	for _, b := range []string{Body(), SelfBody()} {
+		if strings.Contains(b, "a URL fetch (SSRF)") {
+			t.Error("inject: still carries the SSRF parenthetical -- ssrf: is now a first-class tag, the split wasn't applied")
+		}
+		if !strings.Contains(b, "not this") {
+			t.Error("integrity: is missing its disambiguation clause pointing deserialization-that-executes-code at inject: instead")
+		}
+		if !strings.Contains(b, "ERROR-path counterpart") {
+			t.Error("exceptions: is missing its disambiguation clause distinguishing it from expose:'s normal-path scope")
+		}
+		if !strings.Contains(b, "not the allocation shape") {
+			t.Error("ratelimit: is missing its disambiguation clause distinguishing it from dos:'s allocation shape")
 		}
 	}
 }
@@ -180,6 +204,28 @@ func TestWindsurfDropsSuggestedFixes(t *testing.T) {
 	}
 }
 
+// TestWindsurfDropsPentestTags pins the 13-tag pentest-tags trim the same
+// way as Rigor/Learning loop/Suggested fixes: the block is large enough
+// (~1000 chars) to blow the char cap on its own, and the original 7-tag
+// Security lens is fully functional without it -- present in Body(),
+// absent from WindsurfBody().
+func TestWindsurfDropsPentestTags(t *testing.T) {
+	const marker = "ssrf:"
+	if !strings.Contains(Body(), marker) {
+		t.Fatalf("test fixture stale: %q no longer in Body() -- update this test alongside the pentest-tags block", marker)
+	}
+	if strings.Contains(WindsurfBody(), marker) {
+		t.Error("WindsurfBody() carries the pentest-tags block -- there's no char budget left to keep it")
+	}
+	// The original 7 must survive the cut -- Windsurf keeps a fully
+	// functional Security lens, just the pre-widening one.
+	for _, tag := range []string{"inject:", "secret:", "authz:", "crypto:", "expose:", "dep:", "dos:"} {
+		if !strings.Contains(WindsurfBody(), tag) {
+			t.Errorf("WindsurfBody() is missing original Security tag %q -- over-trimmed", tag)
+		}
+	}
+}
+
 // TestSelfWindsurfDropsSections mirrors the WindsurfDrops* tests above for
 // SelfBody(): Rigor, Learning loop, and Suggested fixes/Copy for AI are cut
 // for the same reasons; the whole-repo `--repo` section is cut too, as the
@@ -192,6 +238,7 @@ func TestSelfWindsurfDropsSections(t *testing.T) {
 	}{
 		{"Rigor", "Sweep every instance."},
 		{"whole-repo mode", "Scope cheaply"},
+		{"pentest tags", "ssrf:"},
 		{"Learning loop", "deadeye lessons priority"},
 		{"Suggested fixes", "concrete and mechanical"},
 	}
@@ -201,6 +248,11 @@ func TestSelfWindsurfDropsSections(t *testing.T) {
 		}
 		if strings.Contains(SelfWindsurfBody(), c.marker) {
 			t.Errorf("SelfWindsurfBody() carries the %s section -- there's no char budget left to keep it", c.name)
+		}
+	}
+	for _, tag := range []string{"inject:", "secret:", "authz:", "crypto:", "expose:", "dep:", "dos:"} {
+		if !strings.Contains(SelfWindsurfBody(), tag) {
+			t.Errorf("SelfWindsurfBody() is missing original Security tag %q -- over-trimmed", tag)
 		}
 	}
 }

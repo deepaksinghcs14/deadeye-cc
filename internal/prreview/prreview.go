@@ -80,19 +80,24 @@ func cutSection(s, from, to string) string {
 
 // WindsurfBody returns the rubric trimmed to fit Windsurf's hard 12000-char
 // workflow cap. Every other host gets the full Body(); Windsurf (experimental,
-// no hook contract) drops FOUR sections to fit: the "Rigor -- where reviews
-// miss" habits (the largest single section), the "Learning loop" section,
-// "Suggested fixes"/"Copy for AI" (all three call a `deadeye` CLI or lean on
-// `gh`'s suggestion rendering Windsurf has no guaranteed binary/UI for, so
-// they have nothing to read there anyway), and the opt-in "Posting back to
-// the PR" section (the least relevant there, reduced to a one-line pointer).
-// This lets the flagship rubric grow without the weakest host capping the
-// best reviewer -- Windsurf still gets the four lenses and the
-// verify-before-reporting/proof discipline, just not the Rigor upgrade, the
-// cross-session learning loop, or the fix-acceleration extras.
+// no hook contract) drops FIVE things to fit: the "Rigor -- where reviews
+// miss" habits (the largest single section), the 13 pentest tags added to
+// the Security lens (`<!-- pentest-tags -->`...`<!-- /pentest-tags -->` in
+// lenses.md -- the original 7-tag Security lens is still fully functional
+// without them, same as it shipped before that widening), the "Learning
+// loop" section, "Suggested fixes"/"Copy for AI" (all three call a `deadeye`
+// CLI or lean on `gh`'s suggestion rendering Windsurf has no guaranteed
+// binary/UI for, so they have nothing to read there anyway), and the opt-in
+// "Posting back to the PR" section (the least relevant there, reduced to a
+// one-line pointer). This lets the flagship rubric grow without the weakest
+// host capping the best reviewer -- Windsurf still gets the four lenses and
+// the verify-before-reporting/proof discipline, just not the Rigor upgrade,
+// the full pentest tag set, the cross-session learning loop, or the
+// fix-acceleration extras.
 func WindsurfBody() string {
 	b := body
 	b = cutSection(b, "## Rigor", "## The four lenses")
+	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "## Learning loop", "## Output")
 	b = cutSection(b, "## Suggested fixes", "## Posting back to the PR")
 	// Drop the opt-in "Posting back to the PR" section, leave a one-line pointer.
@@ -105,13 +110,14 @@ func WindsurfBody() string {
 
 // SelfWindsurfBody is WindsurfBody's counterpart for SelfBody(): drops
 // Rigor, the whole-repo `--repo` mode (the single largest section and the
-// least useful on a workflow surface with no persistent CLI access),
-// Learning loop, and Suggested fixes/Copy for AI -- same reasoning as
-// WindsurfBody, no posting section to trim here since self-review never
-// posts anywhere.
+// least useful on a workflow surface with no persistent CLI access), the
+// same 13 pentest tags, Learning loop, and Suggested fixes/Copy for AI --
+// same reasoning as WindsurfBody, no posting section to trim here since
+// self-review never posts anywhere.
 func SelfWindsurfBody() string {
 	b := selfBody
 	b = cutSection(b, "## Rigor", "## The four lenses")
+	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "## Whole-repo mode", "## Learning loop")
 	b = cutSection(b, "## Learning loop", "## Output")
 	b = cutSection(b, "## Suggested fixes", "## Boundaries")

@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.45.0
+
+**The Security lens is OWASP-complete now, everywhere it appears.**
+`/deadeye-vapt` (0.44.0) gave the whole repo full OWASP Top 10:2025 / API
+Security Top 10 2023 / LLM Top 10:2025 coverage, but `/deadeye-pr` and
+`/deadeye-review`'s own Security lens still ran the original 7-tag set
+from before vapt existed -- a PR introducing a fresh IDOR, an unverified
+JWT, wildcard CORS, or a deprecated route still live got a full four-lens
+pass and none of it fired. Fixed: the shared lens
+(`internal/prreview/lenses.md`, one edit point for both commands) grows
+from 7 tags to 20 -- `ssrf` (split out of `inject`'s old SSRF footnote),
+`authn`, `bizlogic`, `massassign`, `validation`, `ratelimit` (split
+cleanly from `dos` -- absence-of-a-limit vs. the allocation shape),
+`config`, `integrity`, `logging`, `inventory`, `thirdparty`, `exceptions`,
+and `llm` (gated to diffs that actually touch an LLM/agent surface).
+`/deadeye-guard`, the separate dedicated security-only pass, gets the
+same 20 tags by hand (it has no canonical shared source, same as before
+this release) -- it was about to claim to be the *deeper* security pass
+while carrying *fewer* tags than the general four-lens review, which
+would have been a glaring, immediately-visible gap.
+
+Report shape stays exactly what it was -- a fast diff-scoped one-liner
+per finding (`<glyph> path:line — <tag>: what. Fix: fix. proof: proof.`),
+not vapt's heavier `owasp:`/`link:`/mandatory-coverage-matrix block. Tag
+*vocabulary* grew; report *shape* didn't -- the whole point of `/deadeye-
+pr`/`/deadeye-review` staying fast stays intact.
+
+Two tag pairs got the same disambiguation the vapt acceptance test
+surfaced last release, applied preemptively this time instead of
+discovered after shipping: `integrity:` explicitly excludes
+deserialization-that-executes-code (that's `inject:`), and `expose:`
+explicitly excludes exception-path leaks (that's `exceptions:`).
+
+Windsurf's 12000-char workflow cap meant something had to give: the 13
+new tags are wrapped in an invisible `<!-- pentest-tags -->` marker pair
+in `lenses.md` and cut for Windsurf specifically (same `cutSection`
+mechanism vapt's own Windsurf trim uses) -- Windsurf keeps the original,
+fully-functional 7-tag Security lens; every other host (Claude Code,
+Codex, Gemini, Cursor) gets all 20.
+
+**Verified live:** an independent agent read the actual updated skill
+and ran it against a real staged diff (a Flask app growing a login route
+that decodes a JWT with `verify=False`, a new unauthenticated
+`/v1/users/<uid>` route, and a global CORS handler pairing
+`Access-Control-Allow-Origin: *` with `Access-Control-Allow-Credentials:
+true`). `config:` fired on the CORS pair, `authn:` fired and was ranked
+the one critical, `ratelimit:` fired on the unthrottled login route --
+and `inventory:` correctly did NOT fire on the new `/v1/` route, because
+that tag's own definition requires evidence of a live deprecated version
+next to a current one, which a single-file diff with no `/v2/`
+counterpart doesn't have; the reviewer used `authz:` instead (no
+ownership check, the finding it could actually prove) rather than
+stretch a tag past its proof. No false positives, correct severity
+ranking, and the report stayed the fast one-liner shape -- no `owasp:`,
+no `link:`, no coverage matrix leaked in from vapt's heavier format.
+
 ## 0.44.0
 
 **New: `/deadeye-vapt` -- a whole-service pen-test/VAPT pass.**
