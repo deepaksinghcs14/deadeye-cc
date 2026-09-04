@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.43.0
+
+**The AI routing judge is on by default now, on sonnet instead of haiku,
+with a 30s timeout.** Rating the routing algorithm against this repo's own
+decision log (172 real routing decisions) found two real gaps: 74% land
+on the sonnet "unsure" default and only 1 ever downshifted, largely
+because `promptshape`'s complexity keyword list treated ordinary
+engineering verbs the same as genuine vagueness; and the AI judge that
+could actually resolve an "unsure" case with a real classification was
+off by default, so the 74% mostly just stayed unsure.
+
+Fixed both. `promptshape`'s word list now splits into
+`strongComplexityWords` (architecture, redesign, scalability,
+concurrency, race condition, "across the codebase", ...) -- structural
+claims that are hard to size from text alone, keeping the full
+complexity-and-confidence penalty -- and `mildComplexityWords` (refactor,
+migrate, migration, rewrite) -- ordinary verbs used for one-line changes
+as often as genuine rewrites, which still nudge the complexity score but
+no longer alone crater confidence and block downshift. Live-verified: a
+well-scoped "refactor" task with clean signals now correctly downshifts;
+genuinely vague or architectural prompts still correctly stay at the
+ceiling.
+
+`mode.routing_judge` is now on by default, accepting the tradeoff this
+breaks (a real network call and up to 30s of latency on an unsure,
+uncached task, in exchange for a real classification instead of a blind
+default) -- `off` restores the old zero-network heuristic-only behavior.
+Switched the judge's model from haiku to sonnet: haiku's classifications
+weren't reliable enough to run unattended in production, which would have
+meant confidently routing on wrong judgments most of the time. Raised the
+timeout from 15s to 30s to give sonnet's longer cold start real headroom.
+Live-verified against the real `claude -p` path: a "wire up the billing
+reconciliation workflow end to end" prompt correctly classified as tier 2
+(routed to opus), a plain variable rename correctly classified as tier 0
+(routed to haiku), both within the new timeout.
+
 ## 0.42.0
 
 **The model catalog is hosted now, so a new model or price change no

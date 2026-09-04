@@ -147,7 +147,7 @@ func Default() Config {
 			WorkflowHint: "on",
 			Codemap:      "on",
 			UpdateCheck:  "on",
-			RoutingJudge: "off", // opt-in: the LLM judge calls claude -p, breaking zero-network by default
+			RoutingJudge: "on", // the LLM judge calls claude -p (sonnet) on unsure cases -- deliberately trades zero-network for accuracy; off restores pure heuristics
 			CatalogCheck: "on",
 		},
 		DownshiftThreshold:    0.8,

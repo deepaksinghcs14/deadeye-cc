@@ -324,23 +324,30 @@ though the seed table should be brought back in sync before the next
 ## FAQ
 
 **Does it phone home?**
-No telemetry, no API keys, nothing about your code or prompts ever leaves
-your machine. Everything it remembers lives in one file at `~/.deadeye/`.
-It does make a small number of unauthenticated, read-only GETs in the
-background, each with its own off switch: a release-tag check
-(`mode.update_check`), an OSV.dev advisory lookup for flagged dependencies
-(`coder.security_osv`), and a refresh of the hosted model/pricing catalog
-(`mode.catalog_check`, see Development above). None ever block a hook response, and
-none ever send your code, prompts, or any identifying data.
+No telemetry, no API keys, no third-party service. Everything it remembers
+lives in one file at `~/.deadeye/`. Two things leave your machine, both
+through *your own* Claude login, never a deadeye-run service: the AI
+routing judge (`mode.routing_judge`, on by default) sends an ambiguous
+subtask's description — never your code — to `claude -p` to classify it,
+only when the free signals below can't confidently place it themselves;
+cached per task, fails open on any error, and is the one thing here that
+blocks a hook response (up to 30s, on an uncached unsure task). Turn it
+off for the old zero-network default. Separately, three small background
+checks each send nothing of yours and never block a response: a
+release-tag check (`mode.update_check`), an OSV.dev advisory lookup for
+flagged dependencies (`coder.security_osv`), and a refresh of the hosted
+model/pricing catalog (`mode.catalog_check`, see Development above).
 
 **Why not just ask an LLM which model to use?**
-Six cheap, predictable signals — files touched, recent git activity,
-whether tests exist nearby, how the request reads, whether it names
-something real, whether it's a read-only subagent — are enough to make a
-reasonable call, and they're free to check. Asking an LLM would spend tokens
-to figure out how to save tokens, and add a network dependency to the
-routing decision itself. (An opt-in `mode.routing_judge` exists for when
-you want that anyway.)
+For most tasks it doesn't have to: six cheap, predictable signals — files
+touched, recent git activity, whether tests exist nearby, how the request
+reads, whether it names something real, whether it's a read-only subagent —
+are enough to make a confident, free call. When they're not — genuinely
+ambiguous tasks, which is most of what actually reaches "unsure" in
+practice — `mode.routing_judge` is on by default specifically to answer
+that case with a real classification instead of defaulting the whole
+bucket to the sonnet tier. Turn it off to keep the zero-network default
+and take the heuristic's conservative default instead.
 
 **Will it make Claude dumber?**
 That's the exact failure mode it's built to avoid. When it isn't confident,

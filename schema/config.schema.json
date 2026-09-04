@@ -59,8 +59,8 @@
         "routing_judge": {
           "type": "string",
           "enum": ["off", "on"],
-          "default": "off",
-          "description": "OPT-IN. When the cheap signals can't confidently place a subtask, classify its complexity with a real model call (shells to `claude -p`, haiku -- reuses your Claude login, no API key) instead of defaulting to the sonnet tier. Cached, bounded, fail-open. Breaks the zero-network default, so off unless you turn it on."
+          "default": "on",
+          "description": "When the cheap signals can't confidently place a subtask (the majority of real routing decisions), classify its complexity with a real model call (shells to `claude -p`, sonnet -- reuses your Claude login, no API key) instead of defaulting to the sonnet tier outright. Cached per task, fail-open on any error. A deliberate trade of the zero-network default for accuracy on genuinely ambiguous cases: this blocks the routing decision for up to 30s on an unsure, uncached task. off restores pure heuristics with no network call."
         },
         "catalog_check": {
           "type": "string",

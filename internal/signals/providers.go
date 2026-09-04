@@ -18,10 +18,30 @@ type PromptShape struct{}
 
 func (PromptShape) Name() string { return "promptshape" }
 
-var complexityWords = []string{
-	"architecture", "redesign", "tradeoff", "trade-off", "refactor",
-	"migrate", "migration", "rewrite", "scalability", "concurrency",
-	"race condition", "across the codebase", "every file", "all files",
+// strongComplexityWords are structural/scope claims that are hard to
+// verify from text alone -- a prompt saying "architecture" or "across the
+// codebase" is very likely genuinely broad, and a text claim like that
+// can't be sized precisely either way. Firing lowers confidence as well
+// as raising complexity, the same treatment as vagueWords below: both are
+// "this estimate is a guess."
+var strongComplexityWords = []string{
+	"architecture", "redesign", "tradeoff", "trade-off", "scalability",
+	"concurrency", "race condition", "across the codebase", "every file", "all files",
+}
+
+// mildComplexityWords are ordinary engineering verbs used just as often
+// for a one-line change ("refactor this function", "migrate this
+// constant") as for a genuine rewrite -- recalibrated after real
+// production data (172 live routing decisions on this repo) showed a
+// single mention of one of these words used to crater confidence to the
+// same floor as an actually vague prompt, which blocked downshift for
+// nearly anything that used ordinary refactoring vocabulary: only 1 of
+// the 172 ever downshifted. These still nudge the complexity score up,
+// but -- unlike strongComplexityWords and vagueWords -- don't alone force
+// low confidence; the other signals (file scope, task specificity, test
+// presence) get to decide whether THIS refactor is actually small.
+var mildComplexityWords = []string{
+	"refactor", "migrate", "migration", "rewrite",
 }
 
 var vagueWords = []string{
@@ -34,17 +54,25 @@ func (PromptShape) Assess(_ context.Context, s Scope) (Evidence, error) {
 		return Evidence{}, fmt.Errorf("promptshape: no prompt to assess")
 	}
 
-	// fuzzyMatch tracks whether a complexity/vague WORD fired -- that's
-	// the genuinely uncertain part (translating scattered keyword hits
-	// into a numeric magnitude is a guess). Question-mark count and word
-	// count are objective, exactly countable facts, not guesses, so they
-	// contribute to the complexity score without affecting confidence.
+	// fuzzyMatch tracks whether a STRONG complexity or vague word fired --
+	// that's the genuinely uncertain part (translating scattered keyword
+	// hits into a numeric magnitude is a guess). mildComplexityWords
+	// deliberately does NOT set it: an ordinary verb like "refactor" is
+	// common evidence for the complexity score, not evidence the estimate
+	// itself is unreliable. Question-mark count and word count are
+	// objective, exactly countable facts, not guesses, so they contribute
+	// to the complexity score without affecting confidence either.
 	score := 0.0
 	fuzzyMatch := false
-	for _, w := range complexityWords {
+	for _, w := range strongComplexityWords {
 		if strings.Contains(prompt, w) {
 			score += 0.15
 			fuzzyMatch = true
+		}
+	}
+	for _, w := range mildComplexityWords {
+		if strings.Contains(prompt, w) {
+			score += 0.1
 		}
 	}
 	for _, w := range vagueWords {
@@ -63,11 +91,15 @@ func (PromptShape) Assess(_ context.Context, s Scope) (Evidence, error) {
 	}
 
 	// Confidence is about trust in THIS estimate, not in the provider
-	// overall: no fuzzy keyword match is a fairly reliable negative result
-	// (0.85); once one fires, confidence drops to 0.35, capped as the
-	// plan's weakest signal. A high complexity reading still forces the
-	// ceiling via kernel.Decide's free-upshift path regardless of
-	// confidence, so the cap costs nothing there.
+	// overall: no strong/vague keyword match is a fairly reliable negative
+	// result (0.85); once one fires, confidence drops to 0.35, capped as
+	// the plan's weakest signal. A mildComplexityWords-only match (a plain
+	// "refactor"/"migrate"/"rewrite", nothing structural or vague) stays
+	// at 0.85 -- it still raises the complexity score above, but doesn't
+	// alone veto downshift; see mildComplexityWords' doc comment. A high
+	// complexity reading still forces the ceiling via kernel.Decide's
+	// free-upshift path regardless of confidence, so the cap costs nothing
+	// there.
 	//
 	// This split matters and had two real bugs on the way to it: a flat
 	// low confidence made downshifting UNREACHABLE for every real prompt

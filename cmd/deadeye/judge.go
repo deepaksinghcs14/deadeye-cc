@@ -15,21 +15,27 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 )
 
-// The optional AI routing judge (mode.routing_judge=on). When the cheap
-// signals can't confidently place a subtask (kernel.Decision.Unsure), this
-// classifies its complexity into a tier with a real model call -- more
+// The AI routing judge (mode.routing_judge, on by default). When the cheap
+// signals can't confidently place a subtask (kernel.Decision.Unsure -- the
+// majority of real routing decisions, per this repo's own decision log),
+// this classifies its complexity into a tier with a real model call -- more
 // accurate than keyword heuristics on exactly the ambiguous cases. It shells
-// to `claude -p` (haiku), reusing the user's Claude login: no API key. It is
-// bounded, cached, and fail-open -- any error leaves the heuristic decision
-// untouched. Off by default (it breaks the zero-network promise).
+// to `claude -p` (sonnet -- haiku's classifications were unreliable enough on
+// real ambiguous tasks that a judge run in production would be judging
+// wrong more often than the heuristic it's meant to improve on), reusing
+// the user's Claude login: no API key. It is bounded, cached, and
+// fail-open -- any error leaves the heuristic decision untouched. This is a
+// deliberate trade of the zero-network default for accuracy on the
+// genuinely ambiguous cases; off switches back to pure heuristics.
 
-// judgeTimeout bounds the `claude -p` subprocess. Measured live: a bare,
-// standalone `claude -p --model haiku` cold start took 5.6s on ordinary
-// hardware -- a 6s budget left near-zero margin and silently fell back to
-// the heuristic decision (fail-open) on 3 of 4 real test calls. 15s gives
-// real headroom without turning the judge into a meaningfully slow blocker
-// on a PreToolUse hook.
-const judgeTimeout = 15 * time.Second
+// judgeTimeout bounds the `claude -p` subprocess. Measured live against
+// haiku, a bare, standalone `claude -p --model haiku` cold start took 5.6s
+// on ordinary hardware -- a 6s budget left near-zero margin and silently
+// fell back to the heuristic decision (fail-open) on 3 of 4 real test
+// calls. Sonnet's cold start runs longer than haiku's; 30s gives real
+// headroom so the now-default judge doesn't fail open more often than it
+// actually answers.
+const judgeTimeout = 30 * time.Second
 
 const judgePrompt = `You are a model-routing classifier for a coding agent. Read the subtask below and reply with ONLY a single digit and nothing else:
 0 = mechanical work (small edits, search, lookups, formatting, classification, boilerplate)
@@ -124,7 +130,7 @@ func judgeTierClaude(task string) (int, bool) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), judgeTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "claude", "-p", judgePrompt+task, "--model", "haiku")
+	cmd := exec.CommandContext(ctx, "claude", "-p", judgePrompt+task, "--model", "sonnet")
 	cmd.Env = append(os.Environ(), "DEADEYE_JUDGE=1")
 	out, err := cmd.Output()
 	if err != nil {

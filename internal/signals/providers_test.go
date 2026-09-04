@@ -43,13 +43,54 @@ func TestPromptShapeQuestionMarkAloneStaysHighConfidence(t *testing.T) {
 	}
 }
 
-func TestPromptShapeKeywordMatchLowersConfidence(t *testing.T) {
-	got, err := PromptShape{}.Assess(context.Background(), Scope{Prompt: "Please refactor this module"})
+// TestPromptShapeStrongKeywordLowersConfidence: a structural/scope claim
+// (architecture, scalability, ...) is hard to size from text alone, so it
+// gets the same low-confidence treatment as genuine vagueness.
+func TestPromptShapeStrongKeywordLowersConfidence(t *testing.T) {
+	got, err := PromptShape{}.Assess(context.Background(), Scope{Prompt: "Please redesign this module's architecture"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.Confidence != 0.35 {
-		t.Errorf("confidence = %v, want 0.35 once a complexity keyword (refactor) fires", got.Confidence)
+		t.Errorf("confidence = %v, want 0.35 once a strong complexity keyword (redesign/architecture) fires", got.Confidence)
+	}
+}
+
+// TestPromptShapeMildKeywordDoesNotLowerConfidence is the regression test
+// for the recalibration: "refactor"/"migrate"/"rewrite" are ordinary
+// verbs used for one-line changes as often as genuine rewrites. Real
+// production data (172 live routing decisions on this repo) showed a
+// single mention of one of these words used to crater confidence to the
+// same floor as an actually vague prompt -- only 1 of the 172 ever
+// downshifted. They should still nudge the complexity score, just not
+// alone veto downshift.
+func TestPromptShapeMildKeywordDoesNotLowerConfidence(t *testing.T) {
+	got, err := PromptShape{}.Assess(context.Background(), Scope{Prompt: "Please refactor this module"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Confidence != 0.85 {
+		t.Errorf("confidence = %v, want 0.85 -- a mild keyword alone must not crater confidence", got.Confidence)
+	}
+	if got.Complexity <= 0 {
+		t.Error("a mild keyword should still raise the complexity score, just not drop confidence")
+	}
+}
+
+// TestPromptShapeMildKeywordWeighsLessThanStrong locks in the two tiers'
+// relative weight, so a future edit can't silently collapse them back to
+// one list.
+func TestPromptShapeMildKeywordWeighsLessThanStrong(t *testing.T) {
+	mild, err := PromptShape{}.Assess(context.Background(), Scope{Prompt: "refactor this"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	strong, err := PromptShape{}.Assess(context.Background(), Scope{Prompt: "redesign this"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mild.Complexity >= strong.Complexity {
+		t.Errorf("mild keyword complexity %v should be less than strong keyword complexity %v", mild.Complexity, strong.Complexity)
 	}
 }
 

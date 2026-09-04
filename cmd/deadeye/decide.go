@@ -398,7 +398,7 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, state.outcomesSnapshot(), shape, time.Now())
 	decision := kernel.Decide(evidence, state.cat, threshold)
 
-	// Optional AI judge (opt-in): only when the cheap signals couldn't
+	// AI judge (on by default): only when the cheap signals couldn't
 	// confidently place the task, and only when the caller left model unset
 	// -- an explicit caller-chosen model is never second-guessed. A real
 	// model call is more accurate on these ambiguous cases than the keyword
