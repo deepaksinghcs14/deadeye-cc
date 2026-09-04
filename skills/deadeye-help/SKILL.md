@@ -34,6 +34,7 @@ Present this reference card, formatted cleanly:
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
 | `/deadeye-review [--repo]` | Four-lens self-review of the working diff, or the whole repo with `--repo` -- the pre-PR version of `/deadeye-pr` |
 | `/deadeye-guard` | Security review of the current diff -- injection, secrets, authz, crypto, exposure, deps, DoS |
+| `/deadeye-vapt` | Whole-service pen-test/VAPT pass -- full OWASP Top 10:2025/API Security Top 10 2023/LLM Top 10:2025 coverage |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses -- over-engineering, correctness, performance, security |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
 | `/deadeye-help` | This card |

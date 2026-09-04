@@ -45,6 +45,31 @@ func TestScanFires(t *testing.T) {
 		{"secret-literal-pem", "config.go", "secret-literal", "-----BEGIN RSA PRIVATE KEY-----"},
 		{"secret-literal-field", "config.py", "secret-literal", `password = "hunter2fake"`},
 		{"weak-crypto-near-secret", "auth.go", "weak-crypto", "hash := md5.Sum([]byte(password))"},
+
+		{"jwt-unverified-verify-false", "auth.py", "jwt-unverified", `payload = jwt.decode(token, verify=False)`},
+		{"jwt-unverified-alg-none", "auth.py", "jwt-unverified", `jwt.decode(token, algorithms=["none"])`},
+		{"jwt-unverified-parse-unverified", "auth.go", "jwt-unverified", `claims, _, _ := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})`},
+		{"insecure-deser-pickle", "views.py", "insecure-deser", `data = pickle.loads(user_input)`},
+		{"insecure-deser-yaml", "views.py", "insecure-deser", `cfg = yaml.load(stream)`},
+		{"insecure-deser-unserialize", "views.php", "insecure-deser", `$obj = unserialize($_GET['data']);`},
+		{"cors-wildcard", "server.js", "cors-wildcard", "res.header(\"Access-Control-Allow-Origin\", \"*\");\nres.header(\"Access-Control-Allow-Credentials\", \"true\");"},
+		{"cookie-insecure-httponly", "server.js", "cookie-insecure", `res.cookie("session", id, { httpOnly: false });`},
+		{"cookie-insecure-samesite-none", "server.js", "cookie-insecure", `res.cookie("session", id, { sameSite: "none" });`},
+		{"weak-random-token-go", "auth.go", "weak-random-token", `resetToken := fmt.Sprintf("%d", rand.Intn(999999))`},
+		{"weak-random-token-js", "auth.js", "weak-random-token", `const sessionId = Math.random().toString(36);`},
+		{"debug-on-flask", "app.py", "debug-on", `app.run(debug=True)`},
+		{"debug-on-rails", "environment.rb", "debug-on", `consider_all_requests_local = true`},
+		{"ssti-fstring", "views.py", "ssti", `return render_template_string(f"Hello {name}")`},
+		{"xxe-no-guard", "Parser.java", "xxe", `DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();`},
+		{"xxe-libxml-noent", "parse.php", "xxe", `$doc->loadXML($xml, LIBXML_NOENT);`},
+		{"open-redirect-flask", "views.py", "open-redirect", `return redirect(request.args.get("next"))`},
+		{"open-redirect-go", "handlers.go", "open-redirect", `http.Redirect(w, r, r.URL.Query().Get("next"), 302)`},
+		{"nosql-inject-spread", "db.js", "nosql-inject", `db.users.find({...req.body});`},
+		{"nosql-inject-where", "db.js", "nosql-inject", `db.users.find({ $where: "this.name == '" + name + "'" });`},
+		{"csrf-off-django", "views.py", "csrf-off", "@csrf_exempt\ndef view(request):\n    pass"},
+		{"zip-slip-no-filter", "extract.py", "zip-slip", `tar.extractall(path=dest)`},
+		{"graphql-introspection", "schema.js", "graphql-introspection", `const schema = new GraphQLSchema({ introspection: true });`},
+		{"host-header-trust", "handlers.go", "host-header-trust", `resetURL := "https://" + r.Host + "/reset"`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -118,6 +143,11 @@ func TestScanDoesNotFire(t *testing.T) {
 		{"js-scp-helper-is-not-child_process", "deploy.js", `scp.exec(cmd + arg);`},
 		{"js-gcp-client-is-not-child_process", "deploy.js", `gcp.exec(cmd + arg);`},
 		{"tls-off-unrelated-verify-flag", "signup.py", `email_verify = False`},
+		{"zip-slip-with-filter", "extract.py", `tar.extractall(path=dest, filter="data")`},
+		{"insecure-deser-yaml-safe-loader", "views.py", `cfg = yaml.load(stream, Loader=yaml.SafeLoader)`},
+		{"xxe-with-doctype-guard", "Parser.java", "DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();\ndbf.setFeature(\"disallow-doctype-decl\", true);"},
+		{"doc-md-skips-every-rule", "README.md", "TLS verification off, session.verify = False, InsecureSkipVerify: true"},
+		{"doc-txt-skips-every-rule", "notes.txt", `password = "hunter2fake"`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -126,6 +156,19 @@ func TestScanDoesNotFire(t *testing.T) {
 				t.Errorf("Scan(%q, %q) = %v, want no findings", c.path, c.body, got)
 			}
 		})
+	}
+}
+
+// TestJWTUnverifiedRequiresJWTContext: a bare `verify=False` (the requests
+// library's TLS flag) must not also fire jwt-unverified -- only tls-off,
+// which has no context requirement, should fire on that shape alone.
+func TestJWTUnverifiedRequiresJWTContext(t *testing.T) {
+	got := Scan("client.py", `requests.get(url, verify=False)`, nil)
+	if hasRule(got, "jwt-unverified") {
+		t.Errorf("Scan(...) = %v, want jwt-unverified to NOT fire with no jwt context nearby", got)
+	}
+	if !hasRule(got, "tls-off") {
+		t.Errorf("Scan(...) = %v, want tls-off to still fire", got)
 	}
 }
 

@@ -163,8 +163,8 @@ and writes them only after you confirm
 trimming, the coder persona, the plan gate, `/deadeye-mute`, and the full
 decision log; not Claude-style model routing. Older Codex builds may need
 `[features] hooks = true` in the Codex config. Init also installs the
-`$deadeye-pr` and `$deadeye-review` user skills. Remove with
-`deadeye uninstall codex`.
+`$deadeye-pr`, `$deadeye-review`, and `$deadeye-vapt` user skills. Remove
+with `deadeye uninstall codex`.
 
 ### Gemini CLI (experimental — context-injection tier)
 
@@ -190,13 +190,15 @@ what deadeye wrote. For the full engine, use Claude Code or Codex.
 
 ### Review commands on every host (experimental)
 
-`deadeye init <host>` also installs both four-lens review commands —
-`/deadeye-pr` (a GitHub PR) and `/deadeye-review` (the working diff, or
-`--repo`) — in that host's native format: a Codex user skill, a Gemini TOML
-command, a Cursor skill, a Windsurf workflow. Windsurf's 12000-char workflow
-cap drops the "Rigor" habits section and the learning loop/fix-acceleration
-extras to fit; every other host gets the rubric in full. Experimental until
-live-verified.
+`deadeye init <host>` also installs all three on-demand review commands —
+`/deadeye-pr` (a GitHub PR), `/deadeye-review` (the working diff, or
+`--repo`), and `/deadeye-vapt` (a whole-service pen-test/VAPT pass) — in
+that host's native format: a Codex user skill, a Gemini TOML command, a
+Cursor skill, a Windsurf workflow. Windsurf's 12000-char workflow cap
+drops the "Rigor" habits section and the learning loop/fix-acceleration
+extras (and, for `/deadeye-vapt`, the OWASP id-mapping reference tables —
+the tags and method still carry the full pass) to fit; every other host
+gets the rubric in full. Experimental until live-verified.
 
 ### From source
 
@@ -254,6 +256,7 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
 | `/deadeye-review [--repo]` | Four-lens self-review (over-engineering, correctness, performance, security) of the working diff, or the whole repo with `--repo` — the same rubric `/deadeye-pr` runs, before a PR exists |
 | `/deadeye-guard` | Security review of the current diff — injection, secrets, authz, crypto, exposure, deps, DoS |
+| `/deadeye-vapt` | Whole-service pen-test/VAPT pass — complete OWASP Top 10:2025, API Security Top 10 2023, and LLM Top 10:2025 coverage, ranked worst-first, every finding linked to its source |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. Findings with a mechanical fix get a code snippet (a GitHub suggestion block when posted), plus a closing paste-ready block for a coding agent. On Codex, invoke the installed skill as `$deadeye-pr`. Huge PRs fan out to parallel subagents where the host supports them. |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
@@ -298,7 +301,10 @@ only ever raising the bar:
 - **PR review**: a finding you dispute makes `/deadeye-pr` need stronger
   proof before reporting that lens again on this repo — `deadeye lessons
   priority` shows the live signal, and `deadeye lessons`/`reset --surface
-  <s>` inspects or clears it per surface.
+  <s>` inspects or clears it per surface. `/deadeye-vapt` shares the same
+  `security:` lens, so a disputed finding there raises the bar for
+  `/deadeye-guard`/`/deadeye-review`'s security tags too, and back —
+  one learning signal, not a separate ledger per skill.
 
 `deadeye report` visualizes all three, including a trend chart for the
 repo's most-recurring coder-mode miss.

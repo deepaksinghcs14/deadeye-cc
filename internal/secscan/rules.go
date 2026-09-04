@@ -215,6 +215,178 @@ var jsExts = []string{".js", ".jsx", ".ts", ".tsx"}
 var pyExts = []string{".py"}
 var javaExts = []string{".java"}
 var rustExts = []string{".rs"}
+var rbExts = []string{".rb"}
+var phpExts = []string{".php"}
+
+// serviceExts is the broad "backend service code" set shared by the
+// pen-test rules below whose shape (a CORS header, a cookie flag, a weak
+// RNG call) isn't tied to one language's syntax the way SQL/shell
+// injection idioms are.
+var serviceExts = []string{".go", ".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".rb", ".php", ".rs"}
+
+// docExts are documentation formats Scan never fires on, regardless of a
+// rule's own Exts. Every rule in this file targets executable code; a
+// rule with Exts nil (fires in any file) still matches prose describing
+// the exact vulnerability it detects -- this package's own rubric
+// markdown tripped tls-off on the sentence "TLS verification off" while
+// this feature was being written, live proof of the false positive.
+var docExts = map[string]bool{".md": true, ".txt": true, ".rst": true}
+
+// Combined ext sets reused by more than one pen-test rule below.
+var (
+	pyJsGoExts    = []string{".py", ".js", ".jsx", ".ts", ".tsx", ".go"}
+	pyRbJsExts    = []string{".py", ".rb", ".js", ".jsx", ".ts", ".tsx"}
+	pyRbPhpExts   = []string{".py", ".rb", ".php"}
+	javaPyPhpExts = []string{".java", ".py", ".php"}
+	pyGoJavaExts  = []string{".py", ".go", ".java"}
+	jsPyExts      = []string{".js", ".jsx", ".ts", ".tsx", ".py"}
+)
+
+// -- pen-test / service-level idiom rules ---------------------------------
+// The subset of internal/vapt's ruleset a regex can catch on added text
+// alone at near-zero false-positive rate; every other tag there needs
+// call-graph context and stays /deadeye-vapt's job.
+
+var (
+	jwtAlgNoneRe         = regexp.MustCompile(`(?i)algorithms\s*[:=]\s*\[\s*['"]none['"]|["']alg["']?\s*:\s*["']none["']`)
+	jwtVerifySigFalseRe  = regexp.MustCompile(`(?i)"verify_signature"\s*:\s*False`)
+	jwtParseUnverifiedRe = regexp.MustCompile(`\bParseUnverified\(`)
+	jwtVerifyFalseCallRe = regexp.MustCompile(`(?i)\bverify\s*=\s*False\b`)
+	jwtContextRe         = regexp.MustCompile(`(?i)\bjwt\b`)
+)
+
+func matchJWTUnverified(added string) bool {
+	if jwtAlgNoneRe.MatchString(added) || jwtVerifySigFalseRe.MatchString(added) || jwtParseUnverifiedRe.MatchString(added) {
+		return true
+	}
+	return linesNear(added, jwtVerifyFalseCallRe, jwtContextRe, 2)
+}
+
+var (
+	pickleLoadsRe  = regexp.MustCompile(`\bpickle\.loads?\(`)
+	yamlLoadCallRe = regexp.MustCompile(`\byaml\.load\(([^)]*)\)`)
+	marshalLoadRe  = regexp.MustCompile(`\bMarshal\.load\(`)
+	unserializeRe  = regexp.MustCompile(`\bunserialize\(`)
+)
+
+func matchInsecureDeser(added string) bool {
+	if pickleLoadsRe.MatchString(added) || marshalLoadRe.MatchString(added) || unserializeRe.MatchString(added) {
+		return true
+	}
+	for _, m := range yamlLoadCallRe.FindAllStringSubmatch(added, -1) {
+		if !strings.Contains(m[1], "SafeLoader") {
+			return true
+		}
+	}
+	return false
+}
+
+var (
+	acaoWildcardRe    = regexp.MustCompile(`(?i)access-control-allow-origin['"]?\s*[,:=]\s*['"]?\*|\borigin\s*:\s*true\b`)
+	credentialsTrueRe = regexp.MustCompile(`(?i)access-control-allow-credentials['"]?\s*[,:=]\s*['"]?true|\bcredentials\s*:\s*true\b`)
+)
+
+func matchCORSWildcard(added string) bool {
+	return linesNear(added, acaoWildcardRe, credentialsTrueRe, 3)
+}
+
+var (
+	httpOnlyFalseRe     = regexp.MustCompile(`(?i)httponly\s*[:=]\s*false`)
+	cookieSecureFalseRe = regexp.MustCompile(`(?i)\bsecure\s*[:=]\s*false\b`)
+	sameSiteNoneLineRe  = regexp.MustCompile(`(?i)samesite\s*[:=]\s*['"]?none['"]?`)
+	secureWordRe        = regexp.MustCompile(`(?i)\bsecure\b`)
+)
+
+func matchCookieInsecure(added string) bool {
+	if httpOnlyFalseRe.MatchString(added) || cookieSecureFalseRe.MatchString(added) {
+		return true
+	}
+	for _, line := range strings.Split(added, "\n") {
+		if sameSiteNoneLineRe.MatchString(line) && !secureWordRe.MatchString(line) {
+			return true
+		}
+	}
+	return false
+}
+
+var (
+	weakRandCallRe = regexp.MustCompile(`\bmath/rand\b|Math\.random\(\)|\brandom\.(?:random|randint)\(|(?:^|[^.\w])rand\(\)|\brand\.(?:Intn|Int31|Int63|Float64)\(`)
+	// No trailing \b: real identifiers are camelCase (resetToken,
+	// sessionId, authToken) with no word boundary between the marker word
+	// and what follows it, so a trailing \b would silently never match them.
+	tokenContextRe = regexp.MustCompile(`(?i)\b(?:token|session|nonce|otp|reset|password)`)
+)
+
+func matchWeakRandomToken(added string) bool {
+	return linesNear(added, weakRandCallRe, tokenContextRe, 3)
+}
+
+var debugOnRe = regexp.MustCompile(`(?i)\bdebug\s*=\s*True\b|app\.debug\s*=\s*true|consider_all_requests_local\s*=\s*true`)
+
+var sstiSinkRe = regexp.MustCompile(`\b(?:render_template_string|Template|from_string)\(\s*(?:f["']|[a-zA-Z_][\w.]*\s*\+)`)
+
+var (
+	xxeFactoryRe         = regexp.MustCompile(`\b(?:DocumentBuilderFactory|SAXParserFactory)\b`)
+	disallowDoctypeRe    = regexp.MustCompile(`disallow-doctype-decl`)
+	xmlResolveEntitiesRe = regexp.MustCompile(`XMLParser\(\s*[^)]*resolve_entities\s*=\s*True`)
+	libxmlNoentRe        = regexp.MustCompile(`LIBXML_NOENT`)
+)
+
+func matchXXE(added string) bool {
+	if xxeFactoryRe.MatchString(added) && !disallowDoctypeRe.MatchString(added) {
+		return true
+	}
+	return xmlResolveEntitiesRe.MatchString(added) || libxmlNoentRe.MatchString(added)
+}
+
+// redirectTaintRe's source can be any positional arg (Flask/Express put it
+// first; Go's http.Redirect(w, r, url, code) puts it third), so this checks
+// proximity to a redirect call rather than requiring it right after "(".
+var (
+	redirectCallRe  = regexp.MustCompile(`(?i)\bredirect\(`)
+	redirectTaintRe = regexp.MustCompile(`request\.args|req\.query|r\.URL\.Query\(\)\.Get`)
+)
+
+func matchOpenRedirect(added string) bool {
+	return linesNear(added, redirectCallRe, redirectTaintRe, 1)
+}
+
+var (
+	nosqlWhereRe      = regexp.MustCompile(`\$where\s*:\s*[^,}\n]*(?:\+|\$\{)`)
+	nosqlBodySpreadRe = regexp.MustCompile(`\{\s*\.\.\.(?:req\.body|req\.query)\s*\}`)
+	nosqlPyUnpackRe   = regexp.MustCompile(`\.find\(\s*\*\*\s*request\.(?:json|args|form)`)
+)
+
+func matchNoSQLInject(added string) bool {
+	return nosqlWhereRe.MatchString(added) || nosqlBodySpreadRe.MatchString(added) || nosqlPyUnpackRe.MatchString(added)
+}
+
+var csrfOffRe = regexp.MustCompile(`(?i)@csrf_exempt|\bcsrf\s*:\s*false\b|CSRF_ENABLED\s*=\s*False|csrfProtection\s*:\s*false`)
+
+var (
+	extractallCallRe = regexp.MustCompile(`\.extractall\(([^)]*)\)`)
+	joinEntryNameRe  = regexp.MustCompile(`(?:filepath\.Join|os\.path\.join|Paths\.get)\(\s*[^)]*\.(?:Name\(\)|getName\(\))`)
+)
+
+func matchZipSlip(added string) bool {
+	for _, m := range extractallCallRe.FindAllStringSubmatch(added, -1) {
+		if !strings.Contains(m[1], "filter=") {
+			return true
+		}
+	}
+	return joinEntryNameRe.MatchString(added)
+}
+
+var graphqlIntrospectionRe = regexp.MustCompile(`(?i)\bintrospection\s*:\s*true\b|\bgraphiql\s*:\s*true\b|\bplayground\s*:\s*true\b`)
+
+var (
+	hostHeaderReadRe = regexp.MustCompile(`\brequest\.headers\.host\b|\breq\.headers\.host\b|\br\.Host\b`)
+	urlBuildMarkerRe = regexp.MustCompile("https?://|fmt\\.Sprintf|f[\"']|\\.format\\(|\\+\\s*[\"']")
+)
+
+func matchHostHeaderTrust(added string) bool {
+	return linesNear(added, hostHeaderReadRe, urlBuildMarkerRe, 2)
+}
 
 // Rules is the checked-in table. Order doesn't matter -- Scan runs every
 // row and dedupes by Name.
@@ -256,6 +428,21 @@ var Rules = []Rule{
 	{Name: "html-inject", Exts: jsExts, Advice: "raw HTML sink with a variable -- use textContent, or sanitize before innerHTML", Match: jsHTMLInjectRe.MatchString},
 
 	{Name: "java-deser", Exts: javaExts, Advice: "unsafe deserialization sink -- validate the class allowlist, or avoid native (de)serialization for untrusted input", Match: javaDeserRe.MatchString},
+
+	{Name: "jwt-unverified", Exts: pyJsGoExts, Advice: "JWT signature verification disabled -- never trust a token you didn't verify; enable signature + algorithm checks", Match: matchJWTUnverified},
+	{Name: "insecure-deser", Exts: pyRbPhpExts, Advice: "unsafe deserializer on untrusted input -- pickle/yaml.load/Marshal/unserialize can execute arbitrary code; use json or a safe loader", Match: matchInsecureDeser},
+	{Name: "cors-wildcard", Exts: serviceExts, Advice: "wildcard CORS origin next to credentials=true -- browsers block this combo for a reason; pin an explicit origin allowlist", Match: matchCORSWildcard},
+	{Name: "cookie-insecure", Exts: serviceExts, Advice: "cookie flag disabled (HttpOnly/Secure/SameSite) -- session cookies need all three against XSS theft and CSRF", Match: matchCookieInsecure},
+	{Name: "weak-random-token", Exts: serviceExts, Advice: "non-cryptographic RNG near a token/session/reset value -- use crypto/rand, secrets, or SecureRandom instead", Match: matchWeakRandomToken},
+	{Name: "debug-on", Exts: pyRbJsExts, Advice: "debug mode left on -- stack traces and internal state leak to any client that triggers an error; off before it ships", Match: debugOnRe.MatchString},
+	{Name: "ssti", Exts: jsPyExts, Advice: "template built from an f-string/concatenation -- an attacker-controlled value here is template injection, not just XSS", Match: sstiSinkRe.MatchString},
+	{Name: "xxe", Exts: javaPyPhpExts, Advice: "XML parser accepts external entities -- disable DOCTYPE/entity resolution or an attacker reads local files via XXE", Match: matchXXE},
+	{Name: "open-redirect", Exts: pyJsGoExts, Advice: "redirect target taken straight from a query param -- validate against an allowlist or a relative-path check first", Match: matchOpenRedirect},
+	{Name: "nosql-inject", Exts: jsPyExts, Advice: "request body/query spread straight into a query filter -- an attacker can inject operators ($where, $ne); whitelist fields instead", Match: matchNoSQLInject},
+	{Name: "csrf-off", Exts: pyRbJsExts, Advice: "CSRF protection explicitly disabled -- state-changing requests need it unless this route is provably safe", Match: csrfOffRe.MatchString},
+	{Name: "zip-slip", Exts: pyGoJavaExts, Advice: "archive extraction with no path containment check -- a crafted entry name (../../etc/passwd) writes outside the destination", Match: matchZipSlip},
+	{Name: "graphql-introspection", Exts: pyJsGoExts, Advice: "GraphQL introspection/playground left on -- hands an attacker your whole schema; gate it behind a dev-only flag", Match: graphqlIntrospectionRe.MatchString},
+	{Name: "host-header-trust", Exts: pyJsGoExts, Advice: "Host header used to build a URL/link/token -- it's attacker-controlled; use a configured base URL instead", Match: matchHostHeaderTrust},
 }
 
 // Scan returns findings for path's ADDED text (never the whole file).
@@ -265,6 +452,9 @@ var Rules = []Rule{
 // anything daemon-shaped.
 func Scan(path, added string, disabled map[string]bool) []Finding {
 	ext := strings.ToLower(filepath.Ext(path))
+	if docExts[ext] {
+		return nil
+	}
 	var out []Finding
 	seen := map[string]bool{}
 	for _, r := range Rules {

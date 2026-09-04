@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/prreview"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/vapt"
 )
 
 // The on-demand review commands/skills, rendered into each non-Claude host's
@@ -85,6 +86,34 @@ var reviewCmd = hostCmd{
 		return ""
 	},
 }
+
+var vaptCmd = hostCmd{
+	name:         "deadeye-vapt",
+	desc:         "deadeye VAPT -- whole-service pen-test pass, complete OWASP Top 10:2025/API Security Top 10 2023/LLM Top 10:2025 coverage (experimental)",
+	marker:       vapt.Marker,
+	body:         vapt.Body,
+	windsurfBody: vapt.WindsurfBody,
+	kind:         "VAPT",
+	trigger:      "/deadeye-vapt -- experimental",
+	leadLine: func(host string) string {
+		switch host {
+		case "codex":
+			return "Target: this whole repository as a service -- not a diff, not a single file.\n\n"
+		case "gemini":
+			return "Target: this whole repository as a service -- not a diff, not a single file. Args: {{args}} (unused).\n\n"
+		case "cursor", "windsurf":
+			return "Target: this whole repository as a service -- not a diff, not a single file.\n\n"
+		}
+		return ""
+	},
+}
+
+// hostCmds is every on-demand review/pen-test command rendered into each
+// non-Claude host's native surface. installCommand/removeCommand loop over
+// this instead of calling each command by name, so adding a fourth command
+// (this file already went pr, review, vapt) never means touching every
+// init<host>.go call site again.
+var hostCmds = []hostCmd{prCmd, reviewCmd, vaptCmd}
 
 // commandPath returns cmd's command file for host, or ok=false for an
 // unknown host. cwd is the project root (project-local hosts); home is the

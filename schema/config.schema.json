@@ -91,7 +91,7 @@
           "type": "array",
           "items": { "type": "string" },
           "default": [],
-          "description": "Rule/advisory names to disable individually: test-filter, build-filter, log-tail, diff-cap, lint-filter, install-filter, logs-tail, cat-large, history-cap, tf-plan-cap, kubectl-yaml-cap, npm-ls-cap, find-cap, tree-cap, du-cap, pkg-list-cap -- plus the non-Bash advisories grep-limit, read-advice, repeat-command, bash-retry, repeat-webfetch, mcp-oversize, large-paste, delegate-explore, and compact-timing -- plus the coder-mode security rules secret-literal, weak-crypto, tls-off, sql-concat, shell-interp, eval-dynamic, html-inject, java-deser, dep-check (or a specific dep:<ecosystem>:<name>), and dep-flag (the session-start scan of existing manifests)."
+          "description": "Rule/advisory names to disable individually: test-filter, build-filter, log-tail, diff-cap, lint-filter, install-filter, logs-tail, cat-large, history-cap, tf-plan-cap, kubectl-yaml-cap, npm-ls-cap, find-cap, tree-cap, du-cap, pkg-list-cap -- plus the non-Bash advisories grep-limit, read-advice, repeat-command, bash-retry, repeat-webfetch, mcp-oversize, large-paste, delegate-explore, and compact-timing -- plus the coder-mode security rules secret-literal, weak-crypto, tls-off, sql-concat, shell-interp, eval-dynamic, html-inject, java-deser, jwt-unverified, insecure-deser, cors-wildcard, cookie-insecure, weak-random-token, debug-on, ssti, xxe, open-redirect, nosql-inject, csrf-off, zip-slip, graphql-introspection, host-header-trust, dep-check (or a specific dep:<ecosystem>:<name>), and dep-flag (the session-start scan of existing manifests)."
         }
       }
     },

@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.44.0
+
+**New: `/deadeye-vapt` -- a whole-service pen-test/VAPT pass.**
+`/deadeye-guard` and `/deadeye-review` catch what a diff changed; neither
+answers what a pen-test report answers -- what is this service's real
+attack surface, and what can an attacker already reach through it. The
+new skill runs an attack-surface inventory first (every route, its auth
+middleware, every API version still live), then finds and verifies
+findings against it, closing with a mandatory per-category coverage
+matrix so no OWASP category can go silently unchecked.
+
+Full coverage, nothing dropped: all ten of OWASP Top 10:2025 (the
+current edition -- verified live against owasp.org, not carried over
+from 2021), all ten of OWASP API Security Top 10 2023 (still the current
+edition; no 2025 release exists despite the general Top 10's refresh --
+verified directly against OWASP's own project page rather than assumed),
+and all ten of the OWASP Top 10 for LLM Applications 2025 when the
+service has an LLM/agent surface. Eighteen tags carry the mapping
+(`authz`, `authn`, `bizlogic`, `inject`, `ssrf`, `massassign`, `expose`,
+`validation`, `ratelimit`, `crypto`, `config`, `dep`, `integrity`,
+`logging`, `inventory`, `thirdparty`, `llm`, and the new `exceptions` for
+2025's new "Mishandling of Exceptional Conditions" category), plus a
+`link:` field on every finding citing the real OWASP URL for whichever
+taxonomy it maps to -- never a fabricated deep link. Static and
+source-only by design: no traffic sent, no exploit run, and the output
+says so every time.
+
+`internal/secscan`'s live Edit/Write advisory grows fourteen new rules
+for the subset of that ruleset a regex can catch on added text alone at
+near-zero false-positive rate: `jwt-unverified`, `insecure-deser`,
+`cors-wildcard`, `cookie-insecure`, `weak-random-token`, `debug-on`,
+`ssti`, `xxe`, `open-redirect`, `nosql-inject`, `csrf-off`, `zip-slip`,
+`graphql-introspection`, `host-header-trust` -- 18 rule names, 32
+regexes total on the PreToolUse path (up from 18/8), still comfortably
+inside the fixture latency budget. Fixed a real false positive found
+live while writing this feature: `tls-off`'s regex fired on the word
+"verify=False" sitting in *prose* inside this very rubric's own markdown
+-- `Scan` now skips documentation extensions (`.md`, `.txt`, `.rst`)
+outright, closing a gap that predates this release.
+
+`/deadeye-vapt` installs on every host `deadeye init` already reaches
+(Codex skill, Gemini TOML command, Cursor skill, Windsurf workflow),
+riding the same `hostCmd` recipe `/deadeye-pr` and `/deadeye-review`
+already use -- the three install/remove call sites across
+`initcodex.go`/`initgemini.go`/`initrules.go` now loop over a
+`hostCmds` list instead of naming each command by hand, so a fourth
+command in the future won't mean touching all eight call sites again.
+
+**Verified live:** a fresh agent, with no prior context on this feature,
+ran the actual skill against a deliberately vulnerable throwaway Flask
+app and against this repo. Against the vulnerable app it produced the
+attack-surface table first, found all six planted issues (an IDOR, an
+unverified JWT, unsafe pickle deserialization, wildcard CORS paired with
+credentials, an open redirect, a stack trace returned to the client) plus
+four more real ones a plant list didn't even name (debug mode on, a live
+deprecated `/v1/` route, no rate limit on login, no auth audit trail),
+and closed with a complete 18-line coverage matrix -- no category
+silently missing. Against this repo (no HTTP routes) it correctly said so
+and stopped, inventing nothing. That same run surfaced two rubric gaps --
+two tag pairs (`inject`/`integrity` on deserialization, `expose`/
+`exceptions` on stack traces) had no disambiguation rule, and the
+dependency-coverage line didn't distinguish "no manifest exists" from
+"couldn't examine one that does" -- both fixed in this release before
+shipping, not left for the next report to rediscover.
+
 ## 0.43.0
 
 **The AI routing judge is on by default now, on sonnet instead of haiku,
