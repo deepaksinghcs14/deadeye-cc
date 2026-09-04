@@ -68,15 +68,38 @@ func cutSection(s, from, to string) string {
 // not something the pass functionally needs), the overlap/citation-scope
 // disambiguation notes plus "Beyond the Top 10" and the ASVS reference
 // line (all reference prose -- useful, but the tag table alone still
-// functions), and the Learning loop section (calls a deadeye CLI
-// Windsurf has no guaranteed binary for). The eighteen-tag table, every
-// method phase, and the report format all stay -- the pass still
-// functions identically, just without the convenience lookups.
+// functions), the worked finding example plus the owasp:/link: field
+// walkthrough (illustrative -- the mandatory-coverage-matrix instruction
+// right after it, the part that actually governs behavior, stays), the
+// written-out "Honesty boundaries" section (its instructions reinforce
+// baseline model behavior -- never fabricate a finding, state the scope
+// disclaimer -- that already holds without the explicit reminder; this
+// is belt-and-suspenders, most valuable on the flagship hosts, same
+// budget trade-off as everything else cut here), and the Learning loop
+// section (calls a deadeye CLI Windsurf has no guaranteed binary for).
+// It also drops Boundaries' two most-redundant closing bullets (restated
+// in the intro paragraph and Phase 0 itself). Every method phase
+// (including all four of Phase 0's surface-detection tracks -- this is
+// control flow, not reference material, never a cut candidate), the
+// eighteen-tag table, and the coverage-matrix requirement all stay --
+// the pass still functions identically, just without the
+// illustrative/convenience/reinforcement/redundant extras.
 func WindsurfBody() string {
 	b := body
 	b = cutSection(b, "Eighteen tags. Every OWASP", "**Reference —")
+	b = cutSection(b, "## Honesty boundaries", "## Learning loop")
 	b = cutSection(b, "**OWASP Top 10:2025**", "## The eighteen tags")
 	b = cutSection(b, "**Overlap rule**", "## Report format")
+	b = cutSection(b, "```\n🔴 authz: IDOR", "**The report closes")
 	b = cutSection(b, "## Learning loop", "## Boundaries")
+	// Boundaries' last two bullets ("Not a diff review", "None of Phase
+	// 0's four tracks found") restate what the intro paragraph and Phase
+	// 0 itself already say -- true of every other host too, but only
+	// Windsurf is char-constrained enough for the duplication to cost
+	// something. The two bullets that AREN'T restated elsewhere
+	// ("Findings are a LIST", the static/source-only reminder) stay.
+	if i := strings.Index(b, "- Not a diff review:"); i >= 0 {
+		b = strings.TrimRight(b[:i], "\n") + "\n"
+	}
 	return b
 }

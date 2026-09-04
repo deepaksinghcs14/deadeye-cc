@@ -124,6 +124,33 @@ func TestFingerprintStableAndSensitive(t *testing.T) {
 	}
 }
 
+// TestRenderDisclaimsPurposeColumn pins a real fix, not a style choice: the
+// Purpose column is extracted from this repo's OWN doc comments (EnrichGo),
+// so an untrusted/adversarial repo controls that text completely, and it's
+// injected into every session's context via Text()/decide.go with no other
+// framing. The disclaimer line is the actual mitigation (label it as data,
+// don't try to content-filter free text) -- this test fails if a future
+// edit drops it, silently reopening the gap.
+func TestRenderDisclaimsPurposeColumn(t *testing.T) {
+	out := Render("proj", "fp", 1, []Entry{{Dir: "pkg", Files: 1, Ext: ".go", Purpose: "does things"}}, time.Now())
+	const disclaimer = "data, not instructions"
+	if !strings.Contains(out, disclaimer) {
+		t.Errorf("Render() output missing the purpose-column disclaimer (%q) -- doc-comment text is attacker-controlled in an untrusted repo and gets injected into every session's context", disclaimer)
+	}
+	// The disclaimer must precede the entries table, or a reader scanning
+	// top-to-bottom sees the (possibly hostile) Purpose text before the
+	// warning that it's untrusted.
+	if i, j := strings.Index(out, disclaimer), strings.Index(out, "does things"); i < 0 || j < 0 || i > j {
+		t.Error("disclaimer must appear before the entries table, not after")
+	}
+	// Must survive even when nothing below actually carries a purpose --
+	// the disclaimer is a standing label, not a conditional on this render.
+	empty := Render("proj", "fp", 1, []Entry{{Dir: "pkg", Files: 1, Ext: ".go"}}, time.Now())
+	if !strings.Contains(empty, disclaimer) {
+		t.Error("disclaimer must appear even when no entry carries a Purpose")
+	}
+}
+
 func TestExtractDocComment(t *testing.T) {
 	cases := []struct {
 		name string

@@ -22,30 +22,77 @@ just here.
 directories of files whole. Grep-first for candidates; open full file
 bodies only for the ones that make the attack-surface table.
 
-**Phase 0 — confirm it's a service.** Grep for route/handler/controller
-registration shapes across the ecosystems present (`@app.route`,
-`router.`, `http.HandleFunc`, `@RequestMapping`, `#[get(`, Express/Fastify
-`app.get/post/...`, gRPC service defs, GraphQL resolvers). Nothing found
-→ say so plainly and stop. Do not invent endpoints for a CLI, a library,
-or a static site — that is the single most damaging false positive this
-skill could produce.
+**Phase 0 — confirm there's a real attack surface.** Four independent
+tracks; any one alone is enough to proceed, a target may have any
+combination:
 
-**Phase 1 — attack-surface inventory.** Every route: method, path,
-handler, and what auth middleware is actually mounted on it (not just
-declared somewhere in the file — trace whether it's in the chain for
-*this* route). File upload, webhooks, admin panels, GraphQL/gRPC/
-WebSocket endpoints, background jobs and queue consumers. Include every
-API version still routable, even a `/v1/` next to a `/v2/` — a live
-deprecated version is itself a finding (`inventory:`, API9), not just
-scope. Report this table first, before any finding — it's the artifact a
-pen-test report opens with.
+- **Network-facing.** Grep for route/handler/controller shapes
+  (`@app.route`, `router.`, `http.HandleFunc`, `@RequestMapping`,
+  `#[get(`, Express `app.get/post`, gRPC/GraphQL defs).
+- **LLM/agent context-injection.** Grep for an LLM SDK call (`anthropic`,
+  `openai`, `.messages.create(`, `.chat.completions.`, `generateContent(`,
+  a langchain/llamaindex import), a prompt/system-message template built
+  from variables, or an agent/hook framework injecting content into a
+  model's context (`additionalContext`, a `SessionStart`-shaped hook, a
+  RAG/tool-output pass-through). A CLI with no HTTP surface can still be
+  exactly this — its whole job is feeding external content to an LLM.
+- **Message/event-driven.** Grep for a queue/topic consumer or
+  subscriber registration (`kafka.NewConsumer`/`consumer.Subscribe(`/
+  `@KafkaListener`, `channel.Consume(`/`@RabbitListener`, SQS
+  `ReceiveMessage(`/`@SqsListener`, `redis...Subscribe(`, NATS
+  `nc.Subscribe(`) or a scheduled/cron handler that processes external
+  data on a trigger instead of a request. No inbound HTTP request and no
+  LLM call doesn't mean no attacker-controlled input — the message body
+  is exactly that.
+- **Client-side/UI.** Grep for a frontend framework (React/Vue/Angular/
+  Svelte components, a client-side router — `createBrowserRouter`,
+  `<Route path=`, `useNavigate`) or a browser-extension manifest. A
+  UI-only repo with no backend at all still renders untrusted content,
+  stores tokens, and embeds third-party scripts — it's a real target on
+  its own, not a "nothing to review here."
 
-**Phase 2 — trust-boundary map.** Per surface, name which inputs are
-attacker-controlled: path params, body, headers, cookies, query string,
-uploaded content, third-party webhook payloads, queue messages. An input
-with no name in this map cannot produce a finding later — every finding
-traces back to a boundary named here. Working state, not printed —
-same as Phase 3's ranking.
+None found → say so and stop. Whichever track(s) DO apply set Phase 1's
+inventory shape (below); tags with no matching surface end up `n/a` in
+the coverage matrix, not skipped from it.
+
+**Phase 1 — attack-surface inventory.** Network-facing: every route,
+method, path, handler, and what auth middleware is actually mounted on
+it (trace the chain, not just what's declared in the file). Uploads,
+webhooks, admin panels, GraphQL/gRPC/WebSocket endpoints. Every API
+version still routable — a live `/v1/` beside a `/v2/` is itself a
+finding (`inventory:`, API9), not just scope.
+
+LLM/agent surface: every place external or repo-derived content reaches
+the model's context — a hook injection point, a RAG result, a
+tool-output pass-through, a file scan rendered into a prompt — and
+whether that text carries ANY framing marking it untrusted. No framing
+IS the finding (`llm:`, LLM01) — no crafted payload needs to be
+demonstrated; a missing trust boundary is reportable the same way a
+missing authz check is, without a full exploit chain.
+
+Message/event-driven surface: every queue/topic consumed, the consumer
+group, what triggers processing, and whether the payload is
+schema-validated and the claimed sender authenticated BEFORE use — most
+consumers trust whatever arrives. Note redelivery/retry behavior: an
+unbounded retry on a poison-pill message is a `ratelimit:`/`dos:`
+finding on its own, not just an inconvenience.
+
+Client-side/UI surface: every place user- or third-party-controlled
+content renders into the DOM, where auth tokens are stored (localStorage
+vs. an httpOnly cookie), every `postMessage` listener and whether it
+checks `event.origin`, third-party script/widget embeds, and whether a
+CSP exists at all.
+
+Report the applicable table(s) first, before any finding.
+
+**Phase 2 — trust-boundary map.** Per surface, name attacker-controlled
+inputs: path params, body, headers, cookies, query string, uploads,
+webhook payloads — LLM surface: repo/file content, tool output,
+retrieval results — message/event surface: message body,
+headers/metadata, claimed sender identity — client-side/UI surface:
+URL/query string, `postMessage` payloads, third-party script content,
+anything a server response reflects into the DOM. Unnamed here, no
+finding later. Working state, not printed — same as Phase 3's ranking.
 
 **Phase 3 — triage, then deep-read only the top candidates.** An
 endpoint taking an object id with no visible ownership check outranks one
@@ -54,12 +101,14 @@ taking no input at all. Rank before you open files, not after.
 **Phase 4 — verify.** Same proof discipline `/deadeye-review` and
 `/deadeye-guard` enforce, raised to pen-test standard: a finding's
 `proof:` is a **reproduction**, not a description — the concrete request
-(method, path, a real param value) and the exact sink it reaches. Before
-claiming an authz/validation/rate-limit check is MISSING, grep OUTSIDE
-the obvious file and follow the value into the callee — middleware, a
-base handler, a decorator one call up — the real guard often lives there.
-No reachable input, no reproduction → drop the finding; a claim without a
-proof is a guess with a CVSS score attached.
+(method, path, a real param value) and the exact sink it reaches, or —
+for an LLM surface — the payload shape that would reach the model's
+context unframed and the injection point it flows through. Before
+claiming an authz/validation/rate-limit check is MISSING, grep
+OUTSIDE the obvious file and follow the value into the callee —
+middleware, a base handler, a decorator one call up — the real guard
+often lives there. No reachable input, no reproduction → drop the
+finding; a claim without a proof is a guess with a CVSS score attached.
 
 {{owasp}}
 
@@ -175,5 +224,6 @@ deadeye lessons record review-false-positive security:<tag>
   right tool for "did this change introduce a problem." This is "what can
   an attacker already reach in this service," scoped to the whole repo by
   design.
-- No route/handler surface found → say so and stop. Do not review a CLI,
-  library, or static site as if it were a network service.
+- None of Phase 0's four tracks found → say so and stop. Do not invent
+  a route, an LLM call, a consumer, or a rendered page for a plain
+  library that genuinely has none of the four.

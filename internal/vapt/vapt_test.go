@@ -139,6 +139,166 @@ func TestNoLiveTrafficClaim(t *testing.T) {
 	}
 }
 
+// TestPhase0FourIndependentTracks pins the real fix behind widening
+// Phase 0: a target with zero HTTP routes but a real LLM/agent
+// context-injection, message/event-driven, or client-side/UI surface
+// must not be waved off as "not a service" -- that was the actual gap
+// this session's own dogfood run against deadeye-cc found (a
+// doc-comment-derived string injected into every session's context with
+// no untrusted-content framing), then generalized to the other surface
+// shapes a network-route-only gate would also miss: queue/topic
+// consumers, and UI-only repos with no backend at all.
+func TestPhase0FourIndependentTracks(t *testing.T) {
+	for _, must := range []string{
+		"Four independent",
+		"LLM/agent context-injection",
+		"A CLI with no HTTP surface can still be",
+		"Message/event-driven",
+		"Client-side/UI",
+		"None found → say so and stop",
+	} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- Phase 0's four independent surface tracks regressed", must)
+		}
+	}
+}
+
+// TestNoFramingIsItselfAFinding pins the other half of the same fix: an
+// LLM-surface finding doesn't need a demonstrated exploit payload to be
+// reportable -- an extraction/injection pipeline with no stated
+// data/instruction boundary is the finding by itself, the same way a
+// missing authz check is reportable without a working exploit chain.
+// Dropping this would silently raise the bar back to "prove it's been
+// exploited," which no static, source-only pass can ever do.
+func TestNoFramingIsItselfAFinding(t *testing.T) {
+	const must = "No framing\nIS the finding"
+	if !strings.Contains(Body(), must) {
+		t.Error("rubric no longer states that a missing trust-boundary label is reportable on its own, without a demonstrated exploit")
+	}
+}
+
+// TestAuthnAuthzOverlapDisambiguated pins the third overlap pair the
+// message/event-driven acceptance test found live: "sender not
+// authenticated before a privilege decision" is genuinely ambiguous
+// between authn: and authz: without a stated rule, the same shape as the
+// inject:/integrity: and expose:/exceptions: pairs already fixed. A
+// future edit that drops this rule reopens exactly the ambiguity the
+// acceptance test surfaced.
+func TestAuthnAuthzOverlapDisambiguated(t *testing.T) {
+	for _, must := range []string{
+		"three pairs above share a mechanism",
+		"the exploitable defect is the untrusted decision",
+	} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the authn:/authz: overlap rule regressed", must)
+		}
+	}
+}
+
+// TestCitationScopeIsAccurate pins the citation-scope fix: the old text
+// claimed only four tags were API-only, which was wrong on inspection --
+// six tags are API-only, six are Top-10:2025-only, and validation: has
+// no dedicated row in ANY table. A live acceptance test hit this
+// inaccuracy directly (several tags it needed to cite had no row in the
+// table the old text implied they should). This test checks the
+// corrected claim is actually present, not just that citation-scope
+// text exists at all.
+func TestCitationScopeIsAccurate(t *testing.T) {
+	for _, must := range []string{
+		"don't assume every tag dual-cites",
+		"have a Top 10:2025 row only",
+		"have an API\nSecurity row only",
+		"has no dedicated row anywhere in any of the three tables",
+	} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the citation-scope accuracy fix regressed", must)
+		}
+	}
+}
+
+// TestWindsurfKeepsAllFourTracks guards every Windsurf cut this rubric
+// makes against ever creeping into Phase 0/1/2 -- that's control flow
+// the pass depends on, never a trim candidate the way an illustrative
+// example or a reference table is. All four surface-detection tracks
+// must survive on the one host with a hard character budget, not just
+// the flagship hosts.
+func TestWindsurfKeepsAllFourTracks(t *testing.T) {
+	for _, must := range []string{
+		"Network-facing", "LLM/agent context-injection", "Message/event-driven",
+		"Client-side/UI", "Phase 0", "Phase 1", "Phase 2",
+	} {
+		if !strings.Contains(WindsurfBody(), must) {
+			t.Errorf("WindsurfBody() lost %q -- Phase 0/1/2 must never be cut for Windsurf, only reference/illustrative material", must)
+		}
+	}
+}
+
+// TestBoundariesMatchesFourTracks catches the exact drift this session
+// introduced and caught by hand: Phase 0 widened from "route/handler
+// surface" to four independent tracks, but the closing "## Boundaries"
+// section still said "No route/handler surface found... Do not review a
+// CLI, library, or static site" -- directly contradicting the new
+// LLM-only and client-side/UI tracks a few paragraphs earlier. A rubric
+// that contradicts itself is worse than one that's merely incomplete.
+func TestBoundariesMatchesFourTracks(t *testing.T) {
+	if strings.Contains(Body(), "No route/handler surface found") {
+		t.Error(`Boundaries still says "No route/handler surface found" -- stale, contradicts the four-track Phase 0`)
+	}
+	if !strings.Contains(Body(), "None of Phase 0's four tracks found") {
+		t.Error("Boundaries' closing bullet no longer matches Phase 0's four tracks")
+	}
+}
+
+// TestMessageDrivenTrackHasRealSubstance guards the message/event-driven
+// track against becoming a label with no content: it must actually name
+// what to inventory (queue, consumer group, trigger, payload validation)
+// and the concrete finding a poison-pill/unbounded-retry message
+// produces, not just a Phase 0 detection bullet with nothing in Phase 1
+// to back it.
+func TestMessageDrivenTrackHasRealSubstance(t *testing.T) {
+	for _, must := range []string{
+		"the consumer", "schema-validated", "claimed sender authenticated",
+		"poison-pill", "ratelimit:", "dos:",
+	} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the message/event-driven track's Phase 1 substance regressed", must)
+		}
+	}
+}
+
+// TestClientSideTrackHasRealSubstance mirrors the message-driven test for
+// the client-side/UI track: postMessage origin checks, token storage
+// location, and third-party embeds are the concrete things that make
+// this track more than a label.
+func TestClientSideTrackHasRealSubstance(t *testing.T) {
+	for _, must := range []string{
+		"postMessage", "event.origin", "localStorage", "httpOnly cookie",
+		"third-party script", "CSP",
+	} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the client-side/UI track's Phase 1 substance regressed", must)
+		}
+	}
+}
+
+// TestWindsurfDropsWorkedExample pins the newest Windsurf trim: the
+// fenced finding example plus its owasp:/link: walkthrough is
+// illustrative, cut for budget, while the mandatory-coverage-matrix
+// instruction right after it -- the part that actually governs behavior
+// -- must survive.
+func TestWindsurfDropsWorkedExample(t *testing.T) {
+	const example = "IDOR on GET /api/orders/{id}"
+	if !strings.Contains(Body(), example) {
+		t.Fatalf("test fixture stale: %q no longer in Body() -- update this test alongside the Report format example", example)
+	}
+	if strings.Contains(WindsurfBody(), example) {
+		t.Error("WindsurfBody() carries the worked finding example -- there's no char budget left to keep it")
+	}
+	if !strings.Contains(WindsurfBody(), "mandatory coverage matrix") {
+		t.Error("WindsurfBody() lost the mandatory-coverage-matrix instruction -- that governs behavior, it must survive the example cut")
+	}
+}
+
 // TestSectionHeadingsUnique guards cutSection's contract: each heading
 // cutSection targets must appear exactly once, or a cut silently binds to
 // the wrong occurrence.

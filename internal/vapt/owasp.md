@@ -84,22 +84,34 @@ which is `ratelimit:` (unbounded token/cost consumption).
 | `llm:` | prompt injection, system-prompt leakage, improper output handling, excessive agency, embedding/vector weaknesses, model/data poisoning, misinformation, unbounded consumption |
 | `exceptions:` | mishandled exceptional conditions — an uncaught exception leaking a stack trace or internal state (the ERROR-path counterpart to `expose:`'s normal-path over-sharing), a caught error that fails open on a security-relevant path, a logic error in error-recovery code, a resource left in an inconsistent state after a partial failure |
 
-**Overlap rule** — two pairs above share a mechanism at a glance; tag by
-the more specific one and never split one finding across two matrix
+**Overlap rule** — three pairs above share a mechanism at a glance; tag
+by the more specific one and never split one finding across two matrix
 lines: a deserializer that executes attacker-controlled code is
 `inject:` (not `integrity:`, which owns the supply-chain/trust dimension
 — an unsigned update, a poisoned CI input, a takeover); an exception path
 that leaks a trace or internal state is `exceptions:` (not `expose:`,
 which owns normal-path over-sharing — a response returning more fields
-than the caller needs). If the finding also touches the other tag's
-dimension, name it once in `proof:` rather than duplicating the finding.
+than the caller needs); a privilege decision that trusts a self-declared
+identity or role with no server-side check is `authz:` (not `authn:` —
+the exploitable defect is the untrusted decision, and it exists even in
+a system with solid identity proof elsewhere). Report `authn:` as its
+own separate finding only when missing identity verification is
+independently exploitable on its own path; otherwise name it once in
+`proof:` alongside the `authz:` finding it enables, same as the other
+two pairs — never split one finding across two matrix lines.
 
-**Citation scope** — most tags map to both a Top 10:2025 category and an
-API Security category, so `link:` cites both per the report-format rule
-above. Four tags are API-only by design (no Top 10:2025 counterpart
-exists for their category): `massassign:`, `ratelimit:`, `inventory:`,
-`thirdparty:`. Cite only the API Security link for these — there is
-nothing to dual-cite.
+**Citation scope** — don't assume every tag dual-cites; cite whichever
+table above actually carries a row for it. `authz:`, `authn:`,
+`bizlogic:`, and `config:` have a real row in BOTH tables — cite both.
+`dep:`, `crypto:`, `inject:`, `integrity:`, `logging:`, and
+`exceptions:` have a Top 10:2025 row only. `ssrf:`, `massassign:`,
+`expose:`, `ratelimit:`, `inventory:`, and `thirdparty:` have an API
+Security row only (`ssrf:` is credited inside A01:2025's own entry
+above, not a dedicated `ssrf:` row — cite API7 alone, not A01). `llm:`
+always cites the LLM table regardless of the other two. `validation:`
+has no dedicated row anywhere in any of the three tables — cite the Top
+10:2025 link generically and name the ASVS chapter (V5, below) in
+`fix:` instead of forcing a citation that doesn't exist.
 
 **Beyond the Top 10** — classic pen-test findings with no standalone
 Top-10 slot fold into the tags above rather than get dropped: CSRF and
