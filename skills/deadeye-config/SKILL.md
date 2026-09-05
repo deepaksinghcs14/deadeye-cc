@@ -38,6 +38,7 @@ Keys and allowed values (authoritative -- never invent others):
 | `mode.codemap` | off · on |
 | `mode.update_check` | off · on |
 | `mode.routing_judge` | off · on |
+| `mode.catalog_check` | off · on |
 | `coder.default_level` | off · spotter · marksman · sniper |
 | `coder.security` | off · advise · ask |
 | `coder.security_osv` | true · false |

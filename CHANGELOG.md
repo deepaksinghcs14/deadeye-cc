@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.52.0
+
+**Overnight regression pass, round 5** (`/loop`, unattended): cross-checked
+`schema/config.schema.json` against the real `Config` struct field-for-field,
+and the skills/commands that hadn't had a fresh session review yet
+(`deadeye-coder`, `deadeye-config`, `deadeye-debt`, `deadeye-help`,
+`explore`, and the three `commands/*.md` wrappers). Two real drift
+issues, both documentation/schema vs. code, neither exploitable or
+crashing:
+
+- The schema documented a top-level `tiers.override` property ("normally
+  set via `~/.deadeye/catalog.json` instead") that `Config` has never
+  actually modeled -- `internal/config/config.go`'s own comment already
+  explains why (`internal/catalog.Load()` reads `~/.deadeye/catalog.json`
+  directly; a second pointer to the same file in `config.json` would
+  just be a second source of truth for one fact). A user following the
+  schema's own suggestion and setting `tiers.override` in `config.json`
+  got silent no-op, not an error. Deleted the property -- the deliberate
+  non-modeling was already correct, only the schema was stale.
+- `skills/deadeye-config/SKILL.md`'s "authoritative -- never invent
+  others" key table was missing `mode.catalog_check`, a real tunable
+  live in `Config`, the schema, and `configcmd.go`'s tunables registry
+  right alongside every other `mode.*` row that WAS listed. Asking
+  deadeye-config to turn off the hosted catalog refresh had no key for
+  the skill to map that request to. Added the row.
+
 ## 0.51.0
 
 **Overnight regression pass, round 4** (`/loop`, unattended): the

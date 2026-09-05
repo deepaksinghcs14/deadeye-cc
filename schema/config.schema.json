@@ -141,17 +141,6 @@
         }
       }
     },
-    "tiers": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "override": {
-          "type": ["string", "null"],
-          "default": null,
-          "description": "Path to a catalog override; normally set via ~/.deadeye/catalog.json instead."
-        }
-      }
-    },
     "security": {
       "type": "object",
       "additionalProperties": false,
