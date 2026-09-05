@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.50.0
+
+**Overnight regression pass, round 3** (`/loop`, unattended): the
+routing core (`internal/kernel`, `internal/signals`, `internal/catalog`
+— the six signal providers, the tier-selection grid search, role-based
+ceiling resolution) and the shell hook scripts (`hooks/*.sh`,
+`deadeye-hook.ps1`) both came back clean on a fresh, dedicated read —
+61 kernel/signals/catalog tests all passing, no silent-wrong-tier path,
+no unquoted-expansion or injection surface in any hook script. Two nits
+in the benchmark harness, neither touching production code:
+
+- `benchmarks/routing/summarize.py` computed `tasks` with an expensive
+  `.index()`-in-sort-key expression, then immediately overwrote it on
+  the very next line with the simple version actually used — dead code,
+  deleted, along with the now-unused `collections` import it needed.
+- `benchmarks/routing/README.md`'s task-set table still named four
+  tasks (`m2-abs`, `s1-parsetier`, `h1-merge`, `h2-lru`) that don't
+  exist in `benchmarks/routing/tasks/` — stale from an earlier pilot
+  shape. Corrected to the real 6-task set (1 mechanical, 2 standard, 3
+  hard) with accurate descriptions read from each task's actual prompt.
+
 ## 0.49.0
 
 **Overnight regression pass, round 2** (`/loop`, unattended): a fresh

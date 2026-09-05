@@ -37,13 +37,13 @@ For every task × tier (`haiku`, `sonnet`, `opus`):
 oracle deadeye's router approximates) and compares the routed total to the
 all-opus baseline.
 
-## Task set (pilot: 6 tasks, 2 per band)
+## Task set (pilot: 6 tasks — 1 mechanical, 2 standard, 3 hard)
 
 | Band | Task | What it probes |
 |---|---|---|
-| mechanical | `m1-clamp`, `m2-abs` | trivial pure functions — should pass on every tier (so opus is waste) |
-| standard | `s1-parsetier`, `s2-csv` | case/whitespace edges; a quote-aware CSV split — where a weak tier starts to slip |
-| hard | `h1-merge`, `h2-lru` | interval merge with adjacency/unsorted; a concurrent LRU under `-race` — where reasoning separates tiers |
+| mechanical | `m1-clamp` | a trivial pure function — should pass on every tier (so opus is waste) |
+| standard | `s2-wordwrap`, `s3-csv` | rune-vs-byte width counting and whitespace collapsing; a quote-aware RFC4180 CSV split with escaped quotes — where a weak tier starts to slip |
+| hard | `h4-semver`, `h5-expr`, `h6-counter` | full SemVer 2.0.0 precedence rules; a recursive-descent arithmetic expression evaluator; a concurrency-safe counter that must pass `-race` — where reasoning separates tiers |
 
 Tasks are self-contained by design so grading is robust; they can be swapped for
 repo-specific ones in a larger run.

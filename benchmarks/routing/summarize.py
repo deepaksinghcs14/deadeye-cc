@@ -7,14 +7,13 @@ to a tier that fails means a re-run on a stronger model, which is a cost, not a
 saving. So "routed cost" uses, per task, the CHEAPEST tier that passed (the
 oracle deadeye's router aims to approximate); baseline is everything on opus.
 """
-import json, os, collections
+import json, os
 
 HERE = os.path.dirname(__file__)
 rows = [json.loads(l) for l in open(os.path.join(HERE, "results/results.jsonl")) if l.strip()]
 
 TIERS = ["haiku", "sonnet", "opus"]
 by = {(r["task"], r["tier"]): r for r in rows}
-tasks = sorted({r["task"] for r in rows}, key=lambda t: (rows[[r["task"] for r in rows].index(t)]["tier_idx"], t))
 tasks = sorted({r["task"] for r in rows})
 band = {r["task"]: r["band"] for r in rows}
 
