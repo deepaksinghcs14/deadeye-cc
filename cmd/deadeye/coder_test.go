@@ -544,7 +544,7 @@ func TestCodexHostBehavior(t *testing.T) {
 	}
 
 	// Codex injection: no Agent-tool tier table, no ultracode hint.
-	text := inject.Build(state.cat, "", true, "codex")
+	text := inject.Build(state.cat, "", true, true, "codex")
 	if strings.Contains(text, "Agent tool") || strings.Contains(text, "tier 0") {
 		t.Errorf("codex injection leaked Claude-only guidance: %q", text)
 	}

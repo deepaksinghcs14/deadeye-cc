@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.47.0
+
+**Fixed the AI judge: on by default since v0.43.0, structurally unable to
+ever fire against deadeye's own primary integration.** Asked for a rating
+of the whole plugin, real production data (this machine's own decision
+log, 177 real `Agent`-routing calls over a month) turned up something the
+unit tests never would: zero of them show the judge firing, even the 5
+that happened after v0.43.0 shipped. Root cause, confirmed by tracing the
+actual code path rather than guessing: `applyRoutingJudge`
+(`cmd/deadeye/decide.go`) only runs when the caller left `model` unset
+(`ai.Model == ""`) -- a deliberate gate, protecting a real fix (an
+explicit `model:"opus"` choice was once misread as a phantom escalation).
+But deadeye's own injected session guidance (`internal/inject.Build`)
+unconditionally told every calling agent to "ALWAYS set the Agent tool's
+`model` explicitly" -- which meant `ai.Model` was never empty for a
+caller following deadeye's own advice, which meant the judge's one
+trigger condition could never be met. Not a subprocess bug, not a
+config bug -- the coaching text was closing the judge's only door.
+
+Fixed at the root: the coaching text now carves out the actual unsure
+case -- "genuinely can't tell which tier fits? leave model unset --
+deadeye's judge classifies it with a real model call instead of you
+guessing" -- gated on `routing_judge` actually being on, so a judge-off
+config never makes a promise nothing will keep. `decide.go`'s
+regression-preventing gate is untouched; this is a one-sentence,
+config-aware addition to `inject.Build`, not a rewrite.
+
+Verified live, not just unit-tested: temporarily installed the fixed
+build as this machine's own managed daemon binary, killed the running
+daemon so a fresh one picked up the fix, and sent two real
+`PreToolUse/Agent` requests with `model` left unset. Both came back
+correctly judge-classified and logged: "investigate why the payment
+reconciliation job occasionally double-charges under concurrent
+retries" -> tier 2 -> `claude-opus-5`; "fix a typo in the README" ->
+tier 0 -> `claude-haiku-4-5-20251001`. Real subprocess call, real
+classification, real log entry -- then the test binary was removed and
+the original managed binary restored before this release, so nothing
+about the live daemon changed except through the normal update path.
+
 ## 0.46.0
 
 **Fixed a real gap `/deadeye-vapt` found in deadeye itself: prompt

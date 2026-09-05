@@ -138,7 +138,7 @@ func TestUserPromptSubmitComposesCodemapAfterGuidance(t *testing.T) {
 	if !strings.Contains(got, "Codebase map:") {
 		t.Errorf("codemap text missing from the composed injection:\n%s", got)
 	}
-	guidance := inject.Build(state.cat, "", cfg.Mode.Effort != "off", "")
+	guidance := inject.Build(state.cat, "", cfg.Mode.Effort != "off", cfg.Mode.RoutingJudge == "on", "")
 	if !strings.Contains(got, guidance) {
 		t.Error("guidance block is not byte-identical to inject.Build's output -- codemap leaked into Build?")
 	}

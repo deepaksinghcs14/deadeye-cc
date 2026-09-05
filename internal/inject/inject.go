@@ -23,11 +23,23 @@ func EstimateTokens(s string) int { return (len(s) + 3) / 4 }
 // Build composes the injection for the given host. Reduced hosts (Codex,
 // Gemini) get no Agent-tool tier table, no effort line, and no workflow
 // line -- none of those surfaces exist there; the hygiene rules stay.
-func Build(cat catalog.Catalog, sessionMemory string, includeEffort bool, host string) string {
+// judgeOn gates the "leave it unset" carve-out below: telling a caller
+// deadeye's judge will classify an unset model would be a false promise
+// when routing_judge is off (unset would just fall through to the Agent
+// tool's own default, no informed recommendation at all) -- the
+// unconditional "ALWAYS set explicitly" this replaced was itself the bug:
+// it left the judge (on by default since v0.43.0) structurally unable to
+// ever fire against a caller that follows deadeye's own coaching, since
+// applyRoutingJudge only runs when the caller left model unset.
+func Build(cat catalog.Catalog, sessionMemory string, includeEffort, judgeOn bool, host string) string {
 	var b strings.Builder
 	b.WriteString("deadeye guidance for this session:\n")
 	if hosts.HasSubagentSurface(host) {
-		b.WriteString("- Model tiers -- ALWAYS set the Agent tool's `model` explicitly (leaving it unset defaults costlier than most subtasks need). Pick the cheapest that fits: tier 0 (haiku) for mechanical edits, search, lookups, formatting, and classification; tier 1 (sonnet) for standard multi-file coding -- MOST subtasks land here; the top tier (opus) ONLY for deep architecture, tricky debugging, or security-critical work. Reserve the top tier.\n")
+		b.WriteString("- Model tiers -- set the Agent tool's `model` explicitly when the tier is clear (leaving it unset defaults costlier than most subtasks need). Pick the cheapest that fits: tier 0 (haiku) for mechanical edits, search, lookups, formatting, and classification; tier 1 (sonnet) for standard multi-file coding -- MOST subtasks land here; the top tier (opus) ONLY for deep architecture, tricky debugging, or security-critical work. Reserve the top tier.")
+		if judgeOn {
+			b.WriteString(" Genuinely can't tell which tier fits? Leave model unset -- deadeye's judge classifies it with a real model call instead of you guessing.")
+		}
+		b.WriteString("\n")
 		for _, m := range cat.Models {
 			fmt.Fprintf(&b, "  tier %d: %s\n", m.Tier, m.ID)
 		}

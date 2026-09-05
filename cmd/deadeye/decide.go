@@ -139,7 +139,7 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 			// would just repeat.
 			depFlag, _ = decideDependencyFlag(in.Cwd, cfg, state)
 		}
-		text := inject.Build(state.cat, memory, cfg.Mode.Effort != "off", host)
+		text := inject.Build(state.cat, memory, cfg.Mode.Effort != "off", cfg.Mode.RoutingJudge == "on", host)
 		tokens := inject.EstimateTokens(text)
 		reason := "session guidance injection"
 		if tokens > cfg.InjectionBudgetTokens {
