@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.51.0
+
+**Overnight regression pass, round 4** (`/loop`, unattended): the
+remaining internal/ packages with no dedicated review yet this session
+(`lessons`, `sessionmem`, `logstore`, `report`, `coder`, `hookio`,
+`hosts`, `gitutil`, `preprocess`) came back clean -- no leaks, no
+unsynchronized shared state, no unbounded growth. CI workflow hygiene
+did not: every release tonight (v0.47.0 through v0.50.0) printed a
+"Node.js 20 is deprecated" notice and a "Restore cache failed" warning
+on every single step, and both had real, fixable causes rather than
+being pure noise.
+
+`actions/checkout@v4`, `actions/setup-go@v5`, `actions/deploy-pages@v4`,
+and `goreleaser/goreleaser-action@v6` all still declare `using: node20`
+in their own `action.yml` -- confirmed directly against each action's
+manifest at the pinned ref, not assumed. Bumped all four to their
+current major (`v7`, `v7`, `v5`, `v7` respectively), all `node24`-native,
+each pin resolved to a real commit SHA and cross-verified through two
+independent GitHub API paths before use -- a fabricated or unverified
+SHA here would be exactly the kind of supply-chain risk this pass exists
+to catch. `setup-go@v6` carries a genuine breaking change (`GOTOOLCHAIN=
+local`, stricter toolchain resolution) -- checked it doesn't bite this
+repo specifically (`go-version-file: go.mod` already installs exactly
+what `go.mod` declares, so there's no version mismatch for the stricter
+mode to reject) before trusting it, using this same loop's own CI
+history as evidence: the `govulncheck` job -- the most toolchain-
+sensitive step in either workflow -- has passed on a fresh install every
+single push tonight.
+
+`setup-go`'s `cache: true` default was also the direct cause of the
+"Restore cache failed" warning: this repo has zero third-party
+dependencies and no `go.sum`, so there is nothing to key a cache on --
+every run paid a doomed restore attempt for a feature that could never
+do anything here. Both `setup-go` steps now set `cache: false`.
+
 ## 0.50.0
 
 **Overnight regression pass, round 3** (`/loop`, unattended): the
