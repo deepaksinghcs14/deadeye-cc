@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.53.0
+
+**Overnight regression pass, round 6 (final)** (`/loop`, unattended):
+`skills/deadeye-stats/SKILL.md` and the root docs (`CONTRIBUTING.md`,
+`CODE_OF_CONDUCT.md`, `THIRD-PARTY.md`) came back clean against the real
+CLI commands and build tooling they describe. One real finding in
+`testdata/payloads/codex/`: `TestCodexHostBehavior`'s own doc comment
+claimed to be "driven by the real captured payloads from
+testdata/payloads/codex," but only 1 of its 6 fixtures was actually
+read -- three of its four host-conditional checks used hand-built
+literals instead.
+
+Wired `pretooluse_apply_patch.json` into the apply_patch check, a clean
+semantic match for the existing assertion. The other three orphaned
+fixtures (`pretooluse.json`, `posttooluse.json`, `stop.json`,
+`userpromptsubmit.json`) turned out to be captured artifacts from an
+unrelated ad-hoc live-verification session (session-token/nonce probing
+content, not shaped for this test's actual assertions) with no
+correspondence to any check in the current suite and no other test or
+doc referencing them -- deleted rather than forced into assertions they
+weren't designed for. Reworded the test's doc comment to state precisely
+which two checks use real captured payloads and why the other two don't
+(PostCompact has no captured shape at all; the real userpromptsubmit.json
+tests something unrelated to what that check verifies).
+
+This closes six consecutive substantive review passes covering the
+entire repository -- every Go package, every shell script, every CI
+workflow, the config schema, every skill and command file, the
+benchmark harness, and the test fixtures -- with a clean result on this
+final pass. Ending the loop here.
+
 ## 0.52.0
 
 **Overnight regression pass, round 5** (`/loop`, unattended): cross-checked

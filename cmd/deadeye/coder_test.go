@@ -505,8 +505,14 @@ func TestCodexHookScriptCanary(t *testing.T) {
 	}
 }
 
-// TestCodexHostBehavior: the four host-conditional paths, driven by the
-// real captured payloads from testdata/payloads/codex.
+// TestCodexHostBehavior: the four host-conditional paths. SessionStart and
+// apply_patch are driven by real captured Codex payloads
+// (testdata/payloads/codex) -- PostCompact and UserPromptSubmit use
+// synthetic inputs since no captured fixture matches what those two
+// assertions specifically need (PostCompact has no captured shape at all;
+// the captured userpromptsubmit.json's prompt tests something unrelated --
+// session-token/nonce probing -- not the workflow-hint suppression this
+// check verifies).
 func TestCodexHostBehavior(t *testing.T) {
 	state := coderTestState(t)
 	cfg := config.Default()
@@ -537,9 +543,15 @@ func TestCodexHostBehavior(t *testing.T) {
 	}
 
 	// apply_patch triggers the Edit/Write path (clears repeat marker).
-	state.noteBashCommand("s1", "go test ./...", "")
-	decidePreToolUse(hookio.Input{SessionID: "s1", ToolName: "apply_patch", ToolInput: []byte(`{"command":"*** Begin Patch"}`)}, cfg, state)
-	if repeat, _ := state.noteBashCommand("s1", "go test ./...", ""); repeat {
+	patchPayload, err := os.ReadFile("../../testdata/payloads/codex/pretooluse_apply_patch.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var patchIn hookio.Input
+	json.Unmarshal(patchPayload, &patchIn)
+	state.noteBashCommand(patchIn.SessionID, "go test ./...", "")
+	decidePreToolUse(patchIn, cfg, state)
+	if repeat, _ := state.noteBashCommand(patchIn.SessionID, "go test ./...", ""); repeat {
 		t.Error("apply_patch should clear the repeat-command marker like Edit/Write")
 	}
 
