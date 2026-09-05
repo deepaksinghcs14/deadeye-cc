@@ -614,8 +614,9 @@ FAIL</div>
         cheapest model. When deadeye can't tell how big a change is, it defaults
         to a capable middle (sonnet-tier), reserving the top tier for genuinely
         hard work — picking cheaper always needs real evidence above a confidence
-        bar. Optionally, an on-demand AI judge (<code>claude -p</code>, no API
-        key) classifies the truly ambiguous cases for a sharper call.</p>
+        bar. An AI judge (<code>claude -p</code>, no API key, on by default
+        — one config flag to turn off) classifies the truly ambiguous cases
+        for a sharper call.</p>
     </div>
     <div>
       <ul class="rules">
@@ -666,7 +667,7 @@ FAIL</div>
         <tr><td class="axis">PR review</td><td class="desc">deadeye-pr runs a whole PR through four lenses — over-engineering, correctness, performance, security — as terse tagged findings, each carrying its proof and confirmed against the repo's own tools and tests. Severity-ranked; prints locally, opt-in <code>--post</code> for inline per-line comments — mechanical fixes get a code snippet, rendered as a one-click GitHub suggestion when posted, plus a closing paste-ready block for a coding agent. Findings the review misses that another reviewer catches, and any you dispute, bias the next review on this repo. Huge PRs fan out to parallel subagents — each spawned at the cheapest model tier its cluster needs, the top tier reserved for risky surfaces — so nothing is truncated and the review stays cheap.</td><td class="mode"><span class="pill soft">four lenses</span></td></tr>
         <tr><td class="axis">Plan mode</td><td class="desc">Native plan mode exists but nothing triggers it — deadeye's gate notices a risky multi-file edit coming and nudges into it.</td><td class="mode"><span class="pill soft">triggers</span></td></tr>
         <tr><td class="axis">Output truncation</td><td class="desc">Native truncation is size-based at 30K chars. deadeye rewrites commands before they run so only failure context enters at all — and stacks under the native cap.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
-        <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations — with an opt-in AI judge (<code>claude -p</code>, no API key) for the genuinely ambiguous cases.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
+        <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations — with an AI judge (<code>claude -p</code>, no API key, on by default) for the genuinely ambiguous cases.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
         <tr><td class="axis">Coding persona</td><td class="desc">No native equivalent — coder mode is deadeye's own ground.</td><td class="mode"><span class="pill">unique</span></td></tr>
         <tr><td class="axis">Other hosts</td><td class="desc">Experimental: the same daemon serves OpenAI's Codex through its hooks — output trimming, coder persona, plan gate, decision log — via <code>deadeye init codex</code>. Gemini CLI gets the coder persona and session guidance now (<code>init gemini</code>); its tool-level engine waits on live schema verification. Cursor and Windsurf have no hook contract, so they get the coder persona alone as a rules file (<code>init cursor</code> / <code>init windsurf</code>). And all three on-demand review commands — <code>/deadeye-pr</code>, <code>/deadeye-review</code>, and <code>/deadeye-vapt</code> — install on all four via <code>init</code> in each host's native command format, experimental until live-verified.</td><td class="mode"><span class="pill soft">five hosts</span></td></tr>
       </tbody>

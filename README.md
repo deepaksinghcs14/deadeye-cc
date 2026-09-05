@@ -66,8 +66,8 @@ where deadeye actually did something.
 The rule behind all four: **when unsure, a capable middle — not the priciest.**
 Thin or shaky evidence defaults to the sonnet tier, reserving opus for genuinely
 high-complexity work; picking cheaper needs real evidence above a confidence bar.
-Optionally, an AI judge (`claude -p`, no API key) classifies the ambiguous cases
-for a sharper call.
+An AI judge (`claude -p`, no API key, on by default — one config flag to
+turn off) classifies the ambiguous cases for a sharper call.
 Every decision is printable: run `/deadeye-route` to see the full reasoning,
 never a black box. deadeye advises by default and never touches your
 `settings.json`; if anything inside it errors, your call passes through

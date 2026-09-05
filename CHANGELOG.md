@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.49.0
+
+**Overnight regression pass, round 2** (`/loop`, unattended): a fresh
+`cmd/deadeye/` audit (64 files — daemon lifecycle, the unix socket, the
+AI judge subprocess, all four real outbound network call sites, the
+`hostCmd` cross-host wiring) came back clean, nothing survived
+verification. A parallel doc/release consistency check against all five
+releases that shipped in the last day found real drift: `docs/site/
+index.html` called the AI judge "optional"/"opt-in" in two places
+(the routing explainer, the subagent-models comparison row) while
+correctly saying "on by default" elsewhere on the same page --
+`internal/config/config.go` has set `RoutingJudge: "on"` since v0.43.0.
+A reader hitting the stale phrasing first would believe a feature that
+sends task descriptions over the network never runs without them
+opting in. Fixed both, plus a third instance in README.md the scoped
+check hadn't covered, found on a follow-up sweep. CHANGELOG.md's own
+historical entries mentioning the judge from before v0.43.0 are left
+alone -- those are point-in-time records, not living documentation.
+
 ## 0.48.0
 
 **Overnight regression pass** (`/loop`, unattended): a fresh whole-repo
