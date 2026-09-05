@@ -148,6 +148,7 @@ func TestScanDoesNotFire(t *testing.T) {
 		{"xxe-with-doctype-guard", "Parser.java", "DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();\ndbf.setFeature(\"disallow-doctype-decl\", true);"},
 		{"doc-md-skips-every-rule", "README.md", "TLS verification off, session.verify = False, InsecureSkipVerify: true"},
 		{"doc-txt-skips-every-rule", "notes.txt", `password = "hunter2fake"`},
+		{"cookie-insecure-secure-on-nearby-line", "server.js", "res.cookie(\"session\", id, {\n  sameSite: \"none\",\n  secure: true,\n  httpOnly: true,\n});"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

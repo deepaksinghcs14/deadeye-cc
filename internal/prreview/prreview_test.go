@@ -2,6 +2,7 @@ package prreview
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -255,4 +256,40 @@ func TestSelfWindsurfDropsSections(t *testing.T) {
 			t.Errorf("SelfWindsurfBody() is missing original Security tag %q -- over-trimmed", tag)
 		}
 	}
+}
+
+// TestSectionHeadingsUnique guards cutSection's contract for Body() and
+// SelfBody(): both WindsurfBody() and SelfWindsurfBody() chain multiple
+// cutSection calls keyed on prose/heading substrings, and each target must
+// appear exactly once or a cut silently binds to the wrong occurrence.
+// internal/vapt (written the same session as the 7->20 tag Security lens
+// widening below) already carries this exact test; this package uses the
+// identical cutSection helper with MORE cut sites (9 across both bodies,
+// including the non-heading `<!-- pentest-tags -->`/`**A guard is only as
+// good` markers `lenses.md`'s Security section widening introduced) and had
+// no equivalent guard -- found live by /deadeye-review, no active bug today
+// but exactly the kind of silent-drift risk this pins down before a future
+// edit to lenses.md (the most actively growing file in this package)
+// accidentally introduces a second occurrence of one of these markers.
+func TestSectionHeadingsUnique(t *testing.T) {
+	headingRe := regexp.MustCompile(`(?m)^##[^#].*$`)
+	nonHeadingMarkers := []string{"<!-- pentest-tags -->", "**A guard is only as good"}
+	check := func(t *testing.T, name, body string) {
+		seen := map[string]int{}
+		for _, h := range headingRe.FindAllString(body, -1) {
+			seen[h]++
+		}
+		for _, m := range nonHeadingMarkers {
+			if n := strings.Count(body, m); n > 0 {
+				seen[m] = n
+			}
+		}
+		for marker, n := range seen {
+			if n > 1 {
+				t.Errorf("%s: marker %q appears %d times -- cutSection targeting it would bind to the wrong occurrence", name, marker, n)
+			}
+		}
+	}
+	check(t, "Body()", Body())
+	check(t, "SelfBody()", SelfBody())
 }

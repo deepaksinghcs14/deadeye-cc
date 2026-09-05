@@ -297,12 +297,35 @@ var (
 	secureWordRe        = regexp.MustCompile(`(?i)\bsecure\b`)
 )
 
+// matchCookieInsecure's SameSite=None branch checks a +/-3 line window, not
+// just the one line -- an idiomatic multi-line cookie-options object
+// (`{ sameSite: "none",\n  secure: true,\n  httpOnly: true }`) false-fired
+// same-line-only, since `secure: true` sits one line down (found live by
+// /deadeye-review, confirmed with a real repro).
 func matchCookieInsecure(added string) bool {
 	if httpOnlyFalseRe.MatchString(added) || cookieSecureFalseRe.MatchString(added) {
 		return true
 	}
-	for _, line := range strings.Split(added, "\n") {
-		if sameSiteNoneLineRe.MatchString(line) && !secureWordRe.MatchString(line) {
+	lines := strings.Split(added, "\n")
+	for i, line := range lines {
+		if !sameSiteNoneLineRe.MatchString(line) {
+			continue
+		}
+		lo, hi := i-3, i+3
+		if lo < 0 {
+			lo = 0
+		}
+		if hi >= len(lines) {
+			hi = len(lines) - 1
+		}
+		secured := false
+		for j := lo; j <= hi; j++ {
+			if secureWordRe.MatchString(lines[j]) {
+				secured = true
+				break
+			}
+		}
+		if !secured {
 			return true
 		}
 	}

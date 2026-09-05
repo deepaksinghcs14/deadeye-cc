@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.48.0
+
+**Overnight regression pass** (`/loop`, unattended): a fresh whole-repo
+four-lens self-review, dispatched to re-audit everything that landed in
+the last day (`internal/vapt`, the widened `internal/prreview` security
+lens, the judge fix, the codemap disclaimer, 14 new `internal/secscan`
+rules) as a whole rather than file-by-file, found two real, live-proven
+issues -- both fixed here.
+
+- **`cookie-insecure` false-positived on idiomatic multi-line cookie
+  option objects.** The `SameSite=None` check only looked for `secure`
+  on the exact same line, so `{ sameSite: "none",\n secure: true,\n
+  httpOnly: true }` -- correct, safe code, just formatted across three
+  lines -- fired the advisory anyway. `matchCookieInsecure`
+  (`internal/secscan/rules.go`) now checks a +/-3 line window, the same
+  proximity pattern every other context-sensitive rule in this file
+  already uses (`weak-crypto`, `weak-random-token`), instead of being
+  the one rule that required same-line. Confirmed with a live repro
+  before and after the fix, and pinned with a new regression case.
+- **`internal/prreview` had no regression test for its own `cutSection`
+  fragility**, despite `internal/vapt` -- built the same session, using
+  the identical helper -- already carrying exactly this guard
+  (`TestSectionHeadingsUnique`). `prreview.go`'s `WindsurfBody()`/
+  `SelfWindsurfBody()` chain 9 cutSection calls across both bodies, and
+  `lenses.md` (the file most actively growing right now) is exactly the
+  prose most likely to accidentally introduce a second occurrence of one
+  of those marker strings on a future edit -- which would make a cut
+  silently bind to the wrong span with nothing to catch it. No active
+  bug today (all 9 markers currently unique, verified) -- ported the
+  test now, before it's needed instead of after.
+
 ## 0.47.0
 
 **Fixed the AI judge: on by default since v0.43.0, structurally unable to
