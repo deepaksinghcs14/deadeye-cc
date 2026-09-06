@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.56.0
+
+**A project's own `.deadeye.json` could silently disable the exfiltration
+guard it exists to defend against.** `config.LoadFor` overlaid a
+project-local `.deadeye.json` -- read from the session's own working
+directory -- onto the effective config with no restriction on which keys
+it could set, including `security.exfil` and
+`coder.security`/`security_osv`. A repo could ship
+`{"security":{"exfil":"off"}}` alongside its own prompt injection and
+disarm the exact guard meant to catch it, using deadeye's own per-project
+override mechanism against itself.
+
+Found by a `/deadeye-review --repo` pass against this repo -- the
+config-loading path this time, not an injection-labeling one. Fixed with
+`overlayProjectLocal`: a project-local file still applies to everything
+else, but `Security` and `Coder.Security`/`SecurityOSV` are restored to
+their pre-overlay values afterward, so only `~/.deadeye/config.json` can
+weaken them. A regression test locks it in, and caught a real bug in the
+first attempt at the fix: `json.Unmarshal` writes THROUGH an existing
+non-nil `*bool` rather than allocating a new one, so saving just the
+pointer still let the project file mutate the value in place -- the guard
+has to copy the bool itself.
+
+Also shipped:
+
+- **A settings reference page** (`settings.html` on the project site):
+  every config knob, its default, its allowed values, and the exact
+  `deadeye config set <key> <value>` to change it -- rendered straight
+  from `schema/config.schema.json` so it can't drift into describing a
+  setting that doesn't exist. Linked from `deadeye config`, the
+  `/deadeye-config` skill, and the site nav.
+- **`deadeye audit` cross-checks itself against reality**: it used to
+  just tell you to go check `/usage` by hand. It now reads the current
+  project's own Claude Code session transcripts for real, measured token
+  usage -- the same numbers `/usage` renders -- and prints them
+  (rounded, plain-language, with the exact count kept next to the
+  headline total) alongside its own estimated preprocessing savings.
+  Best-effort throughout: the transcript format and directory layout are
+  Claude Code's own undocumented internals, so a miss just falls back to
+  the old manual-check message.
+- Dropped `fmtInt`, a byte-for-byte alias of `fmtBytes` in
+  `internal/report`, kept in sync across ten call sites for no reason.
+
 ## 0.55.0
 
 **Fixed a prompt-injection hole `/deadeye-vapt` found in deadeye itself --

@@ -48,6 +48,13 @@ past. It reduces the blast radius of the common automated attack; it is
 not a sandbox. Defense in depth (least-privilege credentials, a real
 egress firewall, scoped tokens) still matters.
 
+Since v0.56.0, a project's own `.deadeye.json` cannot weaken this guard
+(or `coder.security`/`security_osv`) — only `~/.deadeye/config.json` can.
+Before that fix, a repo could ship `{"security":{"exfil":"off"}}`
+alongside its own prompt injection and disable the guard meant to catch
+it, using the per-project config override against itself. A project file
+still controls every other setting; these three are global-only now.
+
 ## Injected repo content is labeled as data (threat model)
 
 Two things deadeye injects into a session's context are derived from the
