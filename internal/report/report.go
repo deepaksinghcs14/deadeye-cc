@@ -204,13 +204,13 @@ func Build(logs []logstore.Record, outcomes []lessons.Outcome, repo string, cat 
 	}
 
 	d.Kpis = []Kpi{
-		{Label: "Decisions logged", Value: fmtInt(len(logs))},
+		{Label: "Decisions logged", Value: fmtBytes(len(logs))},
 		{Label: "Bytes filtered (measured)", Value: fmtBytes(measuredBytes), Sub: fmt.Sprintf("%d rewrites also estimated", rewrites)},
-		{Label: "Routing decisions", Value: fmtInt(routingCount)},
+		{Label: "Routing decisions", Value: fmtBytes(routingCount)},
 	}
 	if pr := buildPRStats(logs); pr != nil {
 		d.PR = pr
-		d.Kpis = append(d.Kpis, Kpi{Label: "PRs reviewed", Value: fmtInt(pr.Reviewed)})
+		d.Kpis = append(d.Kpis, Kpi{Label: "PRs reviewed", Value: fmtBytes(pr.Reviewed)})
 	} else {
 		d.Kpis = append(d.Kpis, Kpi{Label: "PRs reviewed", Value: "0", Sub: "run /deadeye-pr to start tracking"})
 	}
@@ -229,13 +229,13 @@ func Build(logs []logstore.Record, outcomes []lessons.Outcome, repo string, cat 
 	d.HygieneBars = buildRuleBars(perRuleMeasured)
 
 	if exfilAsk > 0 {
-		d.SecurityRows = append(d.SecurityRows, Kpi{Label: "Exfil guard -- asked", Value: fmtInt(exfilAsk)})
+		d.SecurityRows = append(d.SecurityRows, Kpi{Label: "Exfil guard -- asked", Value: fmtBytes(exfilAsk)})
 	}
 	if vulnAsk > 0 {
-		d.SecurityRows = append(d.SecurityRows, Kpi{Label: "Vulnerable dependency flagged", Value: fmtInt(vulnAsk)})
+		d.SecurityRows = append(d.SecurityRows, Kpi{Label: "Vulnerable dependency flagged", Value: fmtBytes(vulnAsk)})
 	}
 	if coderInjects > 0 {
-		d.SecurityRows = append(d.SecurityRows, Kpi{Label: "Coder mode session injections", Value: fmtInt(coderInjects)})
+		d.SecurityRows = append(d.SecurityRows, Kpi{Label: "Coder mode session injections", Value: fmtBytes(coderInjects)})
 	}
 
 	d.Surfaces = buildSurfaceCards(outcomes, repo, now)
@@ -270,7 +270,7 @@ func buildFamilyBars(counts map[string]int) ([]Bar, int) {
 		n := counts[family]
 		bars = append(bars, Bar{
 			Label:   strings.ToUpper(family[:1]) + family[1:],
-			Value:   fmtInt(n),
+			Value:   fmtBytes(n),
 			Percent: percentOf(n, max),
 			Color:   categoricalColors[i],
 		})
@@ -421,8 +421,8 @@ func buildTrendChart(outcomes []lessons.Outcome, repo string, now time.Time) *Tr
 
 	chart := &TrendChart{
 		Shape:    shape,
-		MaxLabel: fmtInt(maxVal),
-		MidLabel: fmtInt(maxVal / 2),
+		MaxLabel: fmtBytes(maxVal),
+		MidLabel: fmtBytes(maxVal / 2),
 		MidY:     valueToY(maxVal / 2),
 	}
 	var line strings.Builder
@@ -517,7 +517,7 @@ func buildPRStats(logs []logstore.Record) *PRStats {
 		if n == 0 {
 			continue
 		}
-		stats.ByLens = append(stats.ByLens, Bar{Label: lensTitle(lens), Value: fmtInt(n), Percent: percentOf(n, lensMax)})
+		stats.ByLens = append(stats.ByLens, Bar{Label: lensTitle(lens), Value: fmtBytes(n), Percent: percentOf(n, lensMax)})
 	}
 
 	sevMax := 0
@@ -531,7 +531,7 @@ func buildPRStats(logs []logstore.Record) *PRStats {
 		if n == 0 {
 			continue
 		}
-		stats.BySeverity = append(stats.BySeverity, Bar{Label: strings.ToUpper(sev[:1]) + sev[1:], Value: fmtInt(n), Percent: percentOf(n, sevMax), Color: sev})
+		stats.BySeverity = append(stats.BySeverity, Bar{Label: strings.ToUpper(sev[:1]) + sev[1:], Value: fmtBytes(n), Percent: percentOf(n, sevMax), Color: sev})
 	}
 
 	return &stats
@@ -586,8 +586,6 @@ func pluralES(n int) string {
 	}
 	return "es"
 }
-
-func fmtInt(n int) string { return fmtBytes(n) }
 
 func fmtBytes(n int) string {
 	s := fmt.Sprintf("%d", n)
