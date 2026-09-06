@@ -93,6 +93,9 @@ section{padding:44px 0;border-top:1px solid var(--line);}
 .field-head .default b{color:var(--mute);font-weight:600;}
 .field-values{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--brass);
   margin-bottom:9px;letter-spacing:.01em;}
+.field-set{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mute-dim);
+  margin:0 0 9px;}
+.field-set code{color:var(--bone);white-space:nowrap;}
 .field-desc{font-size:14.5px;color:var(--mute);margin:0;line-height:1.6;}
 .field-desc b{color:var(--bone);font-weight:600;}
 
@@ -170,6 +173,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">mode.routing</span><span class="default">default: <b>advise</b></span></div>
         <div class="field-values">off · advise · enforce</div>
+        <p class="field-set">Set: <code>deadeye config set mode.routing enforce</code></p>
         <p class="field-desc">Subagent model routing. Fits each subtask to the cheapest model
           tier that can still do it, based on cheap signals (prompt shape, file scope, git
           churn, test presence, task specificity) plus the AI routing judge on ambiguous
@@ -179,6 +183,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">mode.effort</span><span class="default">default: <b>advise</b></span></div>
         <div class="field-values">off · advise</div>
+        <p class="field-set">Set: <code>deadeye config set mode.effort advise</code></p>
         <p class="field-desc">Effort-level guidance (low/medium/high/xhigh) alongside the
           routing decision. Advisory only — the Agent tool has no effort parameter to
           enforce, so there's no <code>enforce</code> mode here.</p>
@@ -186,6 +191,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">mode.preprocess</span><span class="default">default: <b>on</b></span></div>
         <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mode.preprocess off</code></p>
         <p class="field-desc">Context hygiene: Bash-output rewrite rules and unbounded-dump
           advisories (test/build/lint/install/log output, diffs, history, <code>find</code>/
           <code>tree</code>/<code>du</code>/package-list caps), the duplicate-Read /
@@ -198,6 +204,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">mode.plan_gate</span><span class="default">default: <b>soft</b></span></div>
         <div class="field-values">off · soft · hard</div>
+        <p class="field-set">Set: <code>deadeye config set mode.plan_gate hard</code></p>
         <p class="field-desc">Plan-first gate before multi-file edits. <code>soft</code>
           nudges; <code>hard</code> blocks an Edit/Write past the file-count trigger
           (<a href="#plan-gate">plan_gate.min_files</a>) until a plan exists.</p>
@@ -205,12 +212,14 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">mode.workflow_hint</span><span class="default">default: <b>on</b></span></div>
         <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mode.workflow_hint off</code></p>
         <p class="field-desc">One-line workflow-authoring suggestion when a task shape looks
           like it would benefit from the Workflow tool.</p>
       </li>
       <li class="field">
         <div class="field-head"><span class="key">mode.codemap</span><span class="default">default: <b>on</b></span></div>
         <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mode.codemap off</code></p>
         <p class="field-desc">Cross-session codebase map: a directory/package skeleton
           rebuilt when the tracked-file list changes, plus accumulated touch-frequency and
           exploration notes, injected once per session. <code>off</code> disables both the
@@ -219,6 +228,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">mode.update_check</span><span class="default">default: <b>on</b></span></div>
         <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mode.update_check off</code></p>
         <p class="field-desc">Once-per-session background check for a newer deadeye release;
           when one is out, the agent asks (once per version) whether to update via
           <code>/plugin update</code>. Cached ~24h, never blocks the hook response.</p>
@@ -226,6 +236,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">mode.routing_judge</span><span class="default">default: <b>on</b></span></div>
         <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mode.routing_judge off</code></p>
         <p class="field-desc">When the cheap signals can't confidently place a subtask (the
           majority of real routing decisions), classify its complexity with a real model call
           — shells to <code>claude -p</code> (sonnet), reusing your Claude login, no API key —
@@ -237,6 +248,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">mode.catalog_check</span><span class="default">default: <b>on</b></span></div>
         <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mode.catalog_check off</code></p>
         <p class="field-desc">Background refresh of the hosted model/pricing catalog (a
           static JSON file on this site), so a new model or price change reaches routing
           without a plugin release. Read-only GET, no request body. Cached ~24h, never blocks
@@ -258,6 +270,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">coder.default_level</span><span class="default">default: <b>marksman</b></span></div>
         <div class="field-values">off · spotter · marksman · sniper</div>
+        <p class="field-set">Set: <code>deadeye config set coder.default_level sniper</code></p>
         <p class="field-desc">Coder-mode intensity new sessions start at. <b>spotter</b> flags
           the leaner alternative but builds what's asked; <b>marksman</b> enforces the
           lean-first ladder (default); <b>sniper</b> is maximum minimalism and challenges the
@@ -267,6 +280,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">coder.subagent_matcher</span><span class="default">default: <b>"" (all)</b></span></div>
         <div class="field-values">regex, free-form</div>
+        <p class="field-set">Set: <code>deadeye config set coder.subagent_matcher '^review-.*'</code></p>
         <p class="field-desc">Optional regex on <code>agent_type</code> scoping which
           subagents receive the coder ruleset. Empty matches every subagent. A regex that
           fails to compile fails open (injects anyway).</p>
@@ -274,6 +288,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">coder.injection_budget_tokens</span><span class="default">default: <b>2000</b></span></div>
         <div class="field-values">integer ≥ 0</div>
+        <p class="field-set">Set: <code>deadeye config set coder.injection_budget_tokens 3000</code></p>
         <p class="field-desc">Logged ceiling for the coder ruleset injection — separate from
           the top-level 400-token advisory budget, since the persona is an explicit opt-in
           and byte-stable per level.</p>
@@ -281,6 +296,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">coder.security</span><span class="default">default: <b>advise</b></span></div>
         <div class="field-values">off · advise · ask</div>
+        <p class="field-set">Set: <code>deadeye config set coder.security ask</code></p>
         <p class="field-desc">Live security advisory on Edit/Write: SQL/shell/eval injection
           shapes, TLS-off, hardcoded secrets and provider tokens, weak crypto, and
           vulnerable/superseded dependencies in a manifest. <code>ask</code> additionally
@@ -292,6 +308,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">coder.security_osv</span><span class="default">default: <b>true</b></span></div>
         <div class="field-values">true · false</div>
+        <p class="field-set">Set: <code>deadeye config set coder.security_osv false</code></p>
         <p class="field-desc">Whether the dependency check may consult OSV.dev — package
           name and version only, never file paths or code — via a background cache refresh.
           <code>false</code> keeps the check fully offline; the bundled superseded-package
@@ -315,6 +332,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">security.exfil</span><span class="default">default: <b>ask</b></span></div>
         <div class="field-values">off · advise · ask</div>
+        <p class="field-set">Set: <code>deadeye config set security.exfil advise</code></p>
         <p class="field-desc">On a match: <code>ask</code> escalates to a permission prompt
           the model can't answer for itself (a prompt-injected instruction can't approve it);
           <code>advise</code> emits a one-line nudge; <code>off</code> disables the guard.
@@ -324,6 +342,9 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">security.sensitive_paths</span><span class="default">default: <b>[]</b></span></div>
         <div class="field-values">array of glob strings</div>
+        <p class="field-set">Not settable via <code>deadeye config set</code> — hand-edit the
+          <code>"security": {"sensitive_paths": [...]}</code> array in
+          <code>~/.deadeye/config.json</code> directly.</p>
         <p class="field-desc">Extra glob patterns treated as sensitive credential paths,
           additive to the built-in table (<code>~/.ssh</code> private keys,
           <code>~/.aws/credentials</code>, <code>.env</code>,
@@ -341,6 +362,7 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">plan_gate.min_files</span><span class="default">default: <b>2</b></span></div>
         <div class="field-values">integer ≥ 1</div>
+        <p class="field-set">Set: <code>deadeye config set plan_gate.min_files 3</code></p>
         <p class="field-desc">Working-tree modified/staged file count at which the gate's
           multi-file trigger fires — see <a href="#mode"><code>mode.plan_gate</code></a> for
           what happens once it does.</p>
@@ -355,12 +377,14 @@ footer a{color:var(--brass);}
       <li class="field">
         <div class="field-head"><span class="key">downshift_threshold</span><span class="default">default: <b>0.8</b></span></div>
         <div class="field-values">number, 0–1</div>
+        <p class="field-set">Set: <code>deadeye config set downshift_threshold 0.6</code></p>
         <p class="field-desc">Minimum kernel confidence required to lower model tier or
           effort. Upshifting (to a more capable tier) is always free and never gated by this.</p>
       </li>
       <li class="field">
         <div class="field-head"><span class="key">injection_budget_tokens</span><span class="default">default: <b>400</b></span></div>
         <div class="field-values">integer ≥ 0</div>
+        <p class="field-set">Set: <code>deadeye config set injection_budget_tokens 600</code></p>
         <p class="field-desc">Ceiling on the total SessionStart advisory injection — every
           mode advisory combined, not counting the separate coder-persona budget
           (<a href="#coder"><code>coder.injection_budget_tokens</code></a>).</p>
