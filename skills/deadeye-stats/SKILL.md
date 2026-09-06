@@ -48,8 +48,15 @@ exactly when presenting any view:
 - Preprocessing rewrite figures are per-rule **estimates** (a typical-case
   constant — PreToolUse runs before the command does, so the real output
   size isn't known yet). Present them as estimates, not measurements.
-- Suggest cross-checking against `/usage`'s plugin attribution — that's
-  ground truth for actual token spend.
+- The trailing "Real Claude Code usage" block is **measured**, not
+  estimated — read straight from this project's own Claude Code session
+  transcripts (the same numbers `/usage` renders), not from deadeye's
+  decision log. Keep its scope caveat when relaying it: it's scoped to the
+  CURRENT PROJECT, while every other figure in this report is global
+  across every project deadeye has ever run in on this machine — a real
+  number on a different scope, not a direct reconciliation. If it's
+  missing (best-effort: Claude Code's transcript format/layout is
+  undocumented), fall back to suggesting a manual `/usage` check.
 
 **context (`deadeye context`)**
 - "Injected by deadeye" figures are real byte measurements taken at
