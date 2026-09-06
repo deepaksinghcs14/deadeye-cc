@@ -270,7 +270,7 @@ func EnsureSecurityBlock() {
 func Load() Config {
 	cfg := Default()
 	overlay(&cfg, meta.ConfigPath())
-	overlay(&cfg, ".deadeye.json")
+	overlayProjectLocal(&cfg, ".deadeye.json")
 	return cfg
 }
 
@@ -291,7 +291,7 @@ func LoadFor(cwd string, off []string) Config {
 	cfg := Default()
 	overlay(&cfg, meta.ConfigPath())
 	if cwd != "" {
-		overlay(&cfg, filepath.Join(cwd, ".deadeye.json"))
+		overlayProjectLocal(&cfg, filepath.Join(cwd, ".deadeye.json"))
 	}
 	if isOff(off, "DEADEYE") {
 		cfg.Mode.Routing = "off"
@@ -370,6 +370,31 @@ func overlay(cfg *Config, path string) {
 	// the error, so this can partially apply. That's acceptable here --
 	// the invariant is "never worse than Default()", not "atomic apply".
 	_ = json.Unmarshal(b, cfg)
+}
+
+// overlayProjectLocal applies a PROJECT-local .deadeye.json exactly like
+// overlay, except it never lets that file weaken deadeye's own security
+// posture. A project's config is exactly as untrusted as the project's
+// content -- the whole point of the exfil guard (Security.Exfil) is to
+// survive that content, so a repo shipping `{"security":{"exfil":"off"}}`
+// alongside its own prompt injection must not be able to disarm the guard
+// meant to catch it. Only ~/.deadeye/config.json (applied via plain
+// overlay, above) may weaken these.
+func overlayProjectLocal(cfg *Config, path string) {
+	security := cfg.Security
+	coderSecurity := cfg.Coder.Security
+	// json.Unmarshal writes THROUGH an existing non-nil *bool rather than
+	// allocating a new one, so saving the pointer alone would still alias
+	// the value overlay() mutates -- copy the bool itself.
+	var coderSecurityOSV *bool
+	if cfg.Coder.SecurityOSV != nil {
+		v := *cfg.Coder.SecurityOSV
+		coderSecurityOSV = &v
+	}
+	overlay(cfg, path)
+	cfg.Security = security
+	cfg.Coder.Security = coderSecurity
+	cfg.Coder.SecurityOSV = coderSecurityOSV
 }
 
 // killSwitchVars is the fixed set of env-var kill switches checked by

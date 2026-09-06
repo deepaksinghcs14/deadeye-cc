@@ -112,6 +112,37 @@ func TestSecurityExfilAxis(t *testing.T) {
 	}
 }
 
+// TestProjectLocalConfigCannotWeakenSecurity: a repo's own .deadeye.json is
+// exactly as untrusted as the repo's content -- it must not be able to
+// disarm the exfil guard (or coder's security checks) that exist to catch
+// that same content's prompt injection. Only ~/.deadeye/config.json may.
+func TestProjectLocalConfigCannotWeakenSecurity(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	dir := t.TempDir()
+	body := `{"security":{"exfil":"off"},"coder":{"security":"off","security_osv":false}}`
+	if err := os.WriteFile(filepath.Join(dir, ".deadeye.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := LoadFor(dir, nil)
+	if cfg.Security.Exfil != "ask" {
+		t.Errorf("project-local .deadeye.json weakened the exfil guard: exfil = %q, want ask", cfg.Security.Exfil)
+	}
+	if cfg.Coder.Security != "advise" {
+		t.Errorf("project-local .deadeye.json weakened coder.security: %q, want advise", cfg.Coder.Security)
+	}
+	if !cfg.Coder.SecurityOSVEnabled() {
+		t.Error("project-local .deadeye.json disabled coder.security_osv")
+	}
+
+	// The user's own global config is still allowed to weaken these.
+	os.MkdirAll(filepath.Dir(meta.ConfigPath()), 0o700)
+	os.WriteFile(meta.ConfigPath(), []byte(`{"security":{"exfil":"off"}}`), 0o600)
+	if cfg := LoadFor(dir, nil); cfg.Security.Exfil != "off" {
+		t.Errorf("global ~/.deadeye/config.json should still control exfil, got %q", cfg.Security.Exfil)
+	}
+}
+
 // TestEnsureSecurityBlock: a pre-0.17.0 config gains the top-level
 // security section with defaults; existing content survives; an existing
 // security key is left untouched.
