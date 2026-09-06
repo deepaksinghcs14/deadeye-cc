@@ -53,47 +53,106 @@ repo-specific ones in a larger run.
 ```sh
 ./run.sh            # full sweep -> results/results.jsonl
 ./run.sh m1-clamp   # single task, all tiers (append; good for validation)
+./router.sh         # what deadeye's router picks -> results/router.jsonl
+./judge-probe.sh    # guards the judge against collapsing to one tier
 python3 summarize.py  # -> results/summary.md
 ```
 
 Requires `claude` on PATH, `go`, and `python3`. Each run spends real tokens.
 
-## Pilot findings (6 tasks, single trial per tier)
+## Two arms, and why the second one exists
+
+`run.sh` measures each **tier**: what it costs and whether it passes. From that,
+`summarize.py` derives the **oracle** — perfect hindsight, the cheapest tier that
+actually passed. That is a *ceiling*: it says what routing is worth to someone
+who already knows the answer, not what deadeye achieves.
+
+`router.sh` closes that gap. It asks the real router (`deadeye route` — the same
+`kernel.Decide` path a live Agent call takes, plus the AI judge on unsure cases)
+what it would pick, without hindsight, then joins that against the per-tier grid
+to report **agreement with the oracle** and **realized savings**. A wrong-cheap
+route is charged the re-run on the next tier up, so a bad guess costs money here
+rather than quietly scoring as a saving.
+
+Quote the **realized** number for "what does deadeye save." The oracle is the
+target it's aiming at.
+
+It builds the binary from the current tree rather than using an installed one —
+a stale `~/.deadeye/bin/deadeye` would silently measure an old router. Three
+trials per task by default (`TRIALS=n` to change): `claude -p` exposes no
+temperature or seed control, so a single sample can hide a judge that answers
+the same prompt differently between runs.
+
+`judge-probe.sh` is the counterweight to both. All six benchmark tasks are
+self-contained, fully-specified work that *should* route to tier 0 — which
+makes this set blind to the one failure mode that would ace it: a judge
+collapsed to "always 0". The probe feeds in work that must **not** come back
+tier 0 (a cross-file refactor, an under-specified integration, subtle
+debugging, security-critical work, an architecture decision) and fails if any
+of them route down. Run it after any change to the judge prompt; a
+recalibration that buys a better benchmark number by giving up discrimination
+gets caught there, not in production.
+
+## Findings (6 tasks × 3 tiers, re-run 2026-09-06; router arm 5 trials/task)
 
 See `results/summary.md` for the generated tables. What the numbers actually say:
 
 - **Over-provisioning is expensive.** For the *same* task, done correctly (hidden
-  test passed), opus billed **3.4-9.1x** haiku (median ~6x) and sonnet ~4-5.5x
+  test passed), opus billed **3.3–10.0x** haiku (median ~5.7x) and sonnet 2.0–6.6x
   haiku. That ratio is a per-task measured fact, independent of task mix.
 - **Well-scoped subtasks rarely need the top tier.** 5 of 6 tasks — including
   SemVer precedence with the numeric-vs-lexical trap and a concurrent counter
   under `-race` — passed on **haiku**. Subagent work is usually well-scoped, so
   this is the common case, and downshifting it is nearly free in quality.
-- **The frontier is real.** `h5-expr` (a full recursive expression evaluator with
-  precedence, unary minus, and error handling) failed on haiku and sonnet, and
-  opus was borderline — it failed one trial and passed on re-run. This is exactly
-  the task routing must send *up*; the roll-up keeps it on opus and claims no
-  saving for it.
-- **Illustrative roll-up:** oracle routing (cheapest tier that passed) cut model
-  cost **~63%** vs all-opus on this set — driven by downshifting the 5 well-scoped
-  tasks while keeping the frontier task on opus. Treat this % as illustrative:
-  it depends on the task mix and on single-trial noise. The **cost ratio** above
-  is the robust, mix-independent claim.
+- **The frontier is real.** `h5-expr` (a recursive expression evaluator with
+  precedence, unary minus, and error handling) failed on **all three tiers, in
+  both full sweeps**. The hidden test was re-validated against an independently
+  written correct implementation and passes, so those are genuine model failures,
+  not a broken fixture. An earlier note claimed opus passed it on a manual
+  re-run; two sweeps have since contradicted that, and it has been retired.
+- **The oracle is not the product.** Oracle routing (perfect hindsight, cheapest
+  tier that passed) cut model cost **66%** vs all-opus here. deadeye's actual
+  router captures **48%** — 74% of the available ceiling, agreeing with the oracle
+  on 5 of 6 tasks. Quote the realized number; the oracle is the target.
+- **Recalibrating the judge was worth ~19 points.** The first router measurement
+  scored 29% realized / 2-of-6 agreement, and flapped between tiers on 4 of 6
+  tasks across trials. The cause was the judge prompt, not model noise: it called
+  tier 1 "most real tasks" (a standing prior toward sonnet) and defined tier 0 by
+  edit size, leaving no home for "write one self-contained function from a
+  complete spec". It was grading difficulty by how advanced the *topic* sounded —
+  sending SemVer precedence and a race-safe counter to sonnet while haiku passed
+  both. Rewriting it around scope-and-specification took the router to 48%
+  realized, 5-of-6 agreement, and the same tier on 5/5 trials for every task.
 
-**Known limits of the pilot:** single trial per (task, tier) is noisy at the
-frontier (see `h5-expr`); tasks are small and self-contained, so they under-count
-the tier gap that shows up on large, context-heavy, multi-file real work; and the
-% is mix-dependent. Multi-trial pass-rates and larger tasks are the next rigor
-step.
+**Known limits:** 6 tasks is a small set and the % is mix-dependent — the cost
+*ratio* is the robust claim. Tasks are small and self-contained, so they
+under-count the tier gap on large, context-heavy, multi-file real work. The
+judge has no temperature or seed control, so per-run stability must be
+re-measured rather than assumed, and the 5/5 stability above is one sample.
+
+**The 48% is tuned and graded on the same set — read it as optimistic.** The
+judge prompt was rewritten *after* this benchmark showed haiku passing SemVer
+and the concurrent counter, then scored on those same six tasks. Two things
+survive that objection, and they're what the claim actually rests on: the fix
+was directional rather than fitted (judge scope and specification instead of
+subject matter — no task-specific wording went into the prompt), and
+`judge-probe.sh` is held out from this set, so a classifier that bought score
+by routing everything down would fail it. Neither makes 48% an unbiased
+estimate. A fresh, unseen task set is the next rigor step, and the number
+should be expected to come in lower there.
 
 ## Honesty boundaries (load-bearing)
 
 - Tokens and dollars are **measured**, never estimated.
 - Every tier's pass/fail is reported, including failures.
 - No saving is claimed on a task the cheaper tier failed.
-- The headline % is the **oracle ceiling** (perfect tier choice). deadeye's
-  cheap-signal router approximates it; the gap between router and oracle is a
-  separate measurement, not folded into this number.
+- The oracle % is a **ceiling** (perfect hindsight), never quoted as the
+  product's result. `router.sh` measures what the real router achieves, and a
+  wrong-cheap route is charged the re-run on the next tier up — a bad guess
+  costs money in this arm rather than quietly scoring as a saving.
+- The judge is recalibrated against **measured ground truth**, never tuned until
+  the number looks good. `judge-probe.sh` exists so a recalibration can't buy
+  benchmark score by giving up discrimination.
 - Claude Code's cache-heavy system-prompt cost is present in every run and is
   similar across tiers, so it *dilutes* the headline %. The model-priced delta
   is the real lever; a subagent-heavy real workload sees a larger effect than

@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.54.0
+
+**Recalibrated the AI routing judge against measured ground truth, and built
+the arm that measures it.** The routing benchmark could say what perfect
+routing is worth (the oracle: cheapest tier that actually passed) but never
+what deadeye's own router achieves. New `benchmarks/routing/router.sh` closes
+that gap -- it asks the real router what it would pick, without hindsight, and
+`summarize.py` joins that against the per-tier cost/pass grid to report
+agreement and **realized** savings, charging a wrong-cheap route the re-run on
+the next tier up.
+
+The first measurement was unflattering and worth having: **29% realized against
+a 66% ceiling, agreeing with the oracle on 2 of 6 tasks**, and flapping between
+tiers on 4 of 6 across repeat trials. The cause was the judge prompt, not model
+noise -- it described tier 1 as "most real tasks" (a standing prior toward
+sonnet) and defined tier 0 by edit size ("small edits, boilerplate"), leaving
+no home for "write one self-contained function from a complete spec". So it
+graded difficulty by how advanced the *topic* sounded: SemVer precedence went
+to sonnet 5/5 and a race-safe concurrent counter 4/5, while haiku passed both
+against the hidden test.
+
+Rewritten around **scope and specification** rather than subject matter, with
+the tie-break scoped to the 0/1 boundary where the over-provisioning was
+measured -- the 1/2 boundary is left alone, since guessing low on
+security-critical or architectural work is the expensive direction to be wrong
+in. Result: **48% realized (74% of the ceiling), 5-of-6 agreement, and the same
+tier on 5/5 trials for every task.**
+
+New `benchmarks/routing/judge-probe.sh` guards the obvious way to cheat that
+number. All six benchmark tasks are self-contained work that should route to
+tier 0, so the set is blind to a judge collapsed to "always 0" -- the probe
+feeds in a cross-file refactor, an under-specified integration, subtle
+debugging, security-critical work, and an architecture decision, and fails if
+any route down. All 7 pass on the new prompt.
+
+**Read 48% as optimistic:** the prompt was rewritten after this benchmark
+showed haiku passing SemVer and the counter, then scored on those same six
+tasks -- tuned and graded on one set. What survives the objection is that the
+fix was directional rather than fitted (no task-specific wording went into the
+prompt) and that the probe suite is held out from the benchmark. A fresh,
+unseen task set is the next rigor step, and the number should be expected to
+come in lower there. Both the site and `benchmarks/routing/README.md` say so.
+
+Also fixed while re-running the sweep:
+
+- `run.sh` and `check.sh` were committed non-executable, so the README's own
+  documented `./run.sh` failed from a fresh clone.
+- Two claims in the generated summary were retired as false: that `h5-expr`
+  "passed on a manual re-run" (two full sweeps have now failed it on all three
+  tiers -- and the hidden test was re-validated against an independently
+  written correct implementation, so those are genuine model failures, not a
+  broken fixture), and that trial-to-trial instability was the judge
+  fail-opening to the heuristic (it fired on 30/30 calls with zero fail-opens;
+  the classifier itself was varying).
+
 ## 0.53.0
 
 **Overnight regression pass, round 6 (final)** (`/loop`, unattended):

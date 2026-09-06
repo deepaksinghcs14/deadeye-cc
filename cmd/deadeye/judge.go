@@ -37,10 +37,28 @@ import (
 // actually answers.
 const judgeTimeout = 30 * time.Second
 
-const judgePrompt = `You are a model-routing classifier for a coding agent. Read the subtask below and reply with ONLY a single digit and nothing else:
-0 = mechanical work (small edits, search, lookups, formatting, classification, boilerplate)
-1 = standard multi-file coding (most real tasks)
-2 = deep architecture, tricky/subtle debugging, or security-critical work
+// judgePrompt is calibrated against benchmarks/routing's measured ground
+// truth, not intuition. Two defects in the original wording showed up there:
+// it said tier 1 was "most real tasks" (an explicit prior that pushed
+// everything to sonnet), and it described tier 0 by EDIT SIZE ("small edits,
+// boilerplate"), which left no home for "write one self-contained function
+// from a complete spec". So the judge graded difficulty by how advanced the
+// topic sounded -- routing SemVer precedence and a race-safe concurrent
+// counter to sonnet 5/5 and 4/5, when haiku passed both against a hidden
+// test. Scope and specification predict tier far better than subject matter;
+// the tie-break is scoped to the 0/1 boundary, where over-provisioning was
+// measured, and deliberately leaves the 1/2 boundary alone -- guessing low on
+// security-critical or architectural work is the expensive direction to be
+// wrong in.
+const judgePrompt = `You are a model-routing classifier for a coding agent. Read the subtask below and reply with ONLY a single digit and nothing else.
+
+Judge by SCOPE and SPECIFICATION, not by how advanced the topic sounds. A self-contained, fully-specified piece of work is tier 0 even when the algorithm is fiddly -- parsing, precedence rules, and concurrency primitives are routine when the spec is complete.
+
+0 = one self-contained, clearly specified unit of work: a single function, file, or package written from a complete spec; a mechanical edit; search; lookup; formatting; classification. Fiddly-but-specified belongs here.
+1 = work that spans or modifies existing code, or whose requirements must be inferred: multi-file changes, editing unfamiliar code, integrating with an existing system, an under-specified ask.
+2 = deep architecture decisions, subtle or tricky debugging, or security-critical work where a wrong answer is expensive.
+
+If torn between 0 and 1, choose 0.
 Subtask: `
 
 // judgeFunc is the classifier, a package var so tests stub it without a real

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>deadeye — benchmarks</title>
-<meta name="description" content="Measured, not asserted: routing bills 3–9× less for identical correct output, and cold PR review catches 61% of held-out bugs at 97% precision — graded against each project's own fix.">
+<meta name="description" content="Measured, not asserted: routing bills 3–10× less for identical correct output, and cold PR review catches 61% of held-out bugs at 97% precision — graded against each project's own fix.">
 <meta property="og:title" content="deadeye — benchmarks">
-<meta property="og:description" content="Routing bills 3–9× less for identical correct output; cold PR review catches 61% of held-out bugs at 97% precision. Measured and graded, not asserted.">
+<meta property="og:description" content="Routing bills 3–10× less for identical correct output; cold PR review catches 61% of held-out bugs at 97% precision. Measured and graded, not asserted.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://deepaksinghcs14.github.io/deadeye-cc/benchmark.html">
 <meta name="twitter:card" content="summary_large_image">
@@ -238,16 +238,17 @@ footer a{color:var(--brass);}
         it. We measured what that's worth — in real billed dollars, graded by a test the model never saw.</p>
 
       <div class="board reveal">
-        <div class="cell"><div class="big">3–9×</div>
-          <div class="lbl">what opus billed over haiku for <b>identical, correct</b> output (median ~6×)</div></div>
+        <div class="cell"><div class="big">3–10×</div>
+          <div class="lbl">what opus billed over haiku for <b>identical, correct</b> output (median ~5.7×)</div></div>
         <div class="cell"><div class="big">5<span style="color:var(--mute);font-size:.6em"> / </span>6</div>
           <div class="lbl">well-scoped tasks <b>passed on the cheapest tier</b> — downshift nearly free</div></div>
-        <div class="cell"><div class="big" data-count="63" data-suffix="%" data-prefix="~">~63%</div>
-          <div class="lbl">model-cost cut vs all-opus <b>(oracle routing)</b> on this set</div></div>
+        <div class="cell"><div class="big" data-count="48" data-suffix="%">48%</div>
+          <div class="lbl">model-cost cut <b>the router actually achieved</b> — 74% of the oracle ceiling</div></div>
         <div class="cell"><div class="big" data-count="100" data-suffix="%">100%</div>
           <div class="lbl">measured, <b>hidden-test graded</b> — no estimated numbers</div></div>
       </div>
-      <p class="hero-note reveal in">18 runs · 6 tasks × 3 tiers (haiku · sonnet · opus) · real <code>total_cost_usd</code></p>
+      <p class="hero-note reveal in">18 runs · 6 tasks × 3 tiers (haiku · sonnet · opus) · real <code>total_cost_usd</code> ·
+        router arm re-measured over 5 trials/task</p>
     </div>
   </header>
 
@@ -256,14 +257,14 @@ footer a{color:var(--brass);}
     <h2>The proof — over-provisioning has a price</h2>
     <h3 class="reveal">Same task, done correctly: how many × more opus billed than haiku</h3>
     <div class="bars reveal" style="margin-top:22px">
-      <div class="brow"><span class="lbl">counter</span><div class="track"><div class="fill" data-w="100" style="--w:100%"></div></div><span class="x">9.1×</span></div>
-      <div class="brow"><span class="lbl">wordwrap</span><div class="track"><div class="fill" data-w="78" style="--w:78%"></div></div><span class="x">7.1×</span></div>
-      <div class="brow"><span class="lbl">clamp</span><div class="track"><div class="fill" data-w="67" style="--w:67%"></div></div><span class="x">6.1×</span></div>
-      <div class="brow"><span class="lbl">semver</span><div class="track"><div class="fill" data-w="53" style="--w:53%"></div></div><span class="x">4.8×</span></div>
-      <div class="brow"><span class="lbl">csv</span><div class="track"><div class="fill" data-w="37" style="--w:37%"></div></div><span class="x">3.4×</span></div>
+      <div class="brow"><span class="lbl">semver</span><div class="track"><div class="fill" data-w="100" style="--w:100%"></div></div><span class="x">10.0×</span></div>
+      <div class="brow"><span class="lbl">wordwrap</span><div class="track"><div class="fill" data-w="66" style="--w:66%"></div></div><span class="x">6.6×</span></div>
+      <div class="brow"><span class="lbl">csv</span><div class="track"><div class="fill" data-w="47" style="--w:47%"></div></div><span class="x">4.7×</span></div>
+      <div class="brow"><span class="lbl">clamp</span><div class="track"><div class="fill" data-w="33" style="--w:33%"></div></div><span class="x">3.3×</span></div>
     </div>
     <p class="barcap">Bar = opus ÷ haiku billed cost, for output <b>both</b> tiers got correct. Per-task and
-      mix-independent — the robust claim. (sonnet ran ~4–5.5× haiku.)</p>
+      mix-independent — the robust claim. (sonnet ran 2.0–6.6× haiku.) Only tasks both tiers passed appear
+      here; <code>counter</code> is absent because opus <em>failed</em> it this sweep — see below.</p>
   </section>
 
   <!-- ============ THE PROOF : pass/fail grid ============ -->
@@ -273,18 +274,20 @@ footer a{color:var(--brass);}
       <table>
         <thead><tr><th>Task</th><th>Band</th><th>haiku</th><th>sonnet</th><th>opus</th><th>Cheapest that passed</th></tr></thead>
         <tbody>
-          <tr><td class="t">clamp</td><td class="t">mech</td><td class="c">$0.026<span class="chip p">PASS</span></td><td class="c">$0.110<span class="chip p">PASS</span></td><td class="c">$0.160<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
-          <tr><td class="t">wordwrap</td><td class="t">std</td><td class="c">$0.046<span class="chip p">PASS</span></td><td class="c">$0.230<span class="chip p">PASS</span></td><td class="c">$0.331<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
-          <tr><td class="t">csv</td><td class="t">std</td><td class="c">$0.060<span class="chip p">PASS</span></td><td class="c">$0.329<span class="chip p">PASS</span></td><td class="c">$0.204<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
-          <tr><td class="t">semver</td><td class="t">hard</td><td class="c">$0.055<span class="chip p">PASS</span></td><td class="c">$0.279<span class="chip p">PASS</span></td><td class="c">$0.265<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
-          <tr class="frontier"><td class="t">expr-eval</td><td class="t">hard</td><td class="c">$0.050<span class="chip f">FAIL</span></td><td class="c">$0.294<span class="chip f">FAIL</span></td><td class="c">$0.407<span class="chip f">FAIL*</span></td><td class="c">opus</td></tr>
-          <tr><td class="t">counter</td><td class="t">hard</td><td class="c">$0.034<span class="chip p">PASS</span></td><td class="c">$0.186<span class="chip p">PASS</span></td><td class="c">$0.311<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr><td class="t">clamp</td><td class="t">mech</td><td class="c">$0.035<span class="chip p">PASS</span></td><td class="c">$0.070<span class="chip p">PASS</span></td><td class="c">$0.118<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr><td class="t">wordwrap</td><td class="t">std</td><td class="c">$0.042<span class="chip p">PASS</span></td><td class="c">$0.132<span class="chip p">PASS</span></td><td class="c">$0.279<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr><td class="t">csv</td><td class="t">std</td><td class="c">$0.067<span class="chip p">PASS</span></td><td class="c">$0.142<span class="chip p">PASS</span></td><td class="c">$0.314<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr><td class="t">semver</td><td class="t">hard</td><td class="c">$0.044<span class="chip p">PASS</span></td><td class="c">$0.166<span class="chip p">PASS</span></td><td class="c">$0.441<span class="chip p">PASS</span></td><td class="c">haiku</td></tr>
+          <tr class="frontier"><td class="t">expr-eval</td><td class="t">hard</td><td class="c">$0.058<span class="chip f">FAIL</span></td><td class="c">$0.253<span class="chip f">FAIL</span></td><td class="c">$0.392<span class="chip f">FAIL</span></td><td class="c">none</td></tr>
+          <tr><td class="t">counter</td><td class="t">hard</td><td class="c">$0.038<span class="chip p">PASS</span></td><td class="c">$0.251<span class="chip p">PASS</span></td><td class="c">$0.251<span class="chip f">FAIL</span></td><td class="c">haiku</td></tr>
         </tbody>
       </table>
     </div>
     <p class="barcap"><b>5 of 6 well-scoped tasks passed on haiku</b> — including SemVer precedence and a
-      concurrent counter under <code>-race</code>. The one that didn't (<code>expr-eval</code>) is the case
-      routing sends <em>up</em> — more on that below.</p>
+      concurrent counter under <code>-race</code>. Note <code>counter</code>: haiku and sonnet passed and
+      <b>opus failed</b> — a reminder that a single trial is one sample, and that paying more is not the same
+      as being right. The task no tier cleared (<code>expr-eval</code>) is the route-<em>up</em> case — more
+      on that below.</p>
   </section>
 
   <!-- ============ HOW WE MEASURED IT ============ -->
@@ -332,24 +335,84 @@ footer a{color:var(--brass);}
   <section>
     <h2>The frontier — why one task earns opus</h2>
     <div class="callout reveal">
-      <h3>expr-eval sits at the model's capability edge</h3>
+      <h3>expr-eval sits past the capability edge — on every tier</h3>
       <p>The recursive expression evaluator (operator precedence, unary minus, error handling) failed on
-        <span class="k">haiku</span> and <span class="k">sonnet</span>, and opus was <span class="k">borderline</span>
-        — it failed one trial and <b>passed on re-run</b> (the <code>*</code>). This is exactly the task routing
-        must send <em>up</em>. The roll-up keeps it on opus and claims <b>no</b> saving for it.</p>
-      <p style="margin-bottom:0">The whole thesis in one row: <b>route the easy common case down, keep the hard
-        frontier case up.</b></p>
+        <span class="k">all three tiers</span>, in <b>both</b> full sweeps. An earlier single-trial note here
+        claimed opus passed it on a manual re-run; two sweeps have since contradicted that, so the claim is
+        <b>retired</b> rather than repeated.</p>
+      <p>Before blaming the models, we checked the grader: the hidden test was re-validated against an
+        independently written correct implementation and <b>passes</b>. So these are genuine one-shot model
+        failures, not a broken fixture.</p>
+      <p style="margin-bottom:0">It earns no saving in either arm — nothing to downshift to. The honest read
+        is narrower than the original framing: this task marks where <em>one-shot</em> generation runs out on
+        every tier we tested, not where opus starts winning.</p>
+    </div>
+  </section>
+
+  <!-- ============ THE ROUTER ARM ============ -->
+  <section>
+    <span class="method-flag reveal">The number that actually matters</span>
+    <h2 style="margin-top:8px">The oracle is a ceiling. What does the router hit?</h2>
+    <div class="prose reveal">
+      <p>Everything above measures <span class="k">tiers</span> — what each costs, what each can do. From that
+        you can compute the <span class="k">oracle</span>: perfect hindsight, always picking the cheapest tier
+        that turned out to pass. On this set that's a <b>66%</b> cut vs all-opus.</p>
+      <p>But nobody ships with hindsight. The question that decides whether routing is worth anything is what
+        deadeye's <em>own</em> router picks, cold, from the task description alone — so we measured that too,
+        and charged every wrong-cheap route the cost of the re-run on the next tier up. A bad guess loses money
+        here; it doesn't quietly score as a saving.</p>
+    </div>
+    <div class="board reveal" style="margin-top:24px">
+      <div class="cell"><div class="big">5<span style="color:var(--mute);font-size:.6em"> / </span>6</div>
+        <div class="lbl">tasks where the router picked <b>the same tier the oracle would</b></div></div>
+      <div class="cell"><div class="big">48%</div>
+        <div class="lbl">cost cut <b>actually realized</b>, re-runs charged — vs the 66% ceiling</div></div>
+      <div class="cell"><div class="big">74%</div>
+        <div class="lbl">of the available ceiling <b>captured</b> by the real router</div></div>
+      <div class="cell"><div class="big">5<span style="color:var(--mute);font-size:.6em"> / </span>5</div>
+        <div class="lbl">trials picking the <b>same tier</b> on every task — no flapping</div></div>
+    </div>
+    <p class="barcap">The gap between 48% and 66% is the router's remaining error, and it's one task:
+      <code>expr-eval</code>, which nothing passes, so any route pays the full ladder.</p>
+
+    <div class="reveal" style="margin-top:24px;padding:16px 20px;border:1px solid var(--line);border-left:2px solid var(--brass);border-radius:var(--radius);background:var(--slate);">
+      <span class="method-flag">What the first measurement found · v0.54.0</span>
+      <p style="margin:6px 0 0;font-size:14px;line-height:1.6;color:var(--mute);">The first time we ran this arm it
+        scored <b style="color:var(--bone);">29%</b>, agreed with the oracle on <b style="color:var(--bone);">2 of 6</b>
+        tasks, and picked different tiers for the same prompt across repeat trials on four of them. The cause wasn't
+        model noise — it was our own classifier prompt. It called tier 1 "most real tasks" (a standing thumb on the
+        scale toward the middle tier) and defined the cheap tier by <em>edit size</em>, leaving nowhere to put
+        "write one self-contained function from a complete spec." So it graded difficulty by how advanced the
+        <em>topic</em> sounded: SemVer precedence and a race-safe concurrent counter both got sent up, while haiku
+        passed both against the hidden test. Rewritten around <b style="color:var(--bone);">scope and
+        specification</b> instead of subject matter — with the tie-break deliberately scoped to the cheap end,
+        since guessing low on security or architecture is the expensive direction to be wrong in — it went to 48%,
+        5-of-6, and stable across every trial. A <code>judge-probe.sh</code> suite now guards the obvious way to
+        fake that number: a classifier collapsed to "always cheapest" would ace this benchmark, so seven probes
+        (cross-file refactor, under-specified integration, subtle debugging, security, architecture) fail the build
+        if anything routes down that shouldn't.</p>
     </div>
   </section>
 
   <section>
     <h2>The honest caveats — written into the benchmark</h2>
     <ul class="caveats reveal">
-      <li><b>The ~63% roll-up is illustrative, not the headline.</b> Oracle routing (cheapest tier that passed)
-        cut cost ~63% vs all-opus on this set — but it depends on the task mix. Lead with the 3–9×
-        <em>ratio</em>, which doesn't.</li>
-      <li><b>Single trial per (task, tier) is noisy</b> near the frontier — see expr-eval. Multi-trial
+      <li><b>Both percentages depend on the task mix.</b> The 66% oracle ceiling and the 48% the router
+        realized are specific to these six tasks. Lead with the 3–10× <em>ratio</em>, which doesn't move with
+        the mix.</li>
+      <li><b>Single trial per (task, tier) is noisy.</b> This sweep is the proof: <code>counter</code> passed
+        on haiku and sonnet but <b>failed on opus</b>, and it passed on all three last time. Multi-trial
         pass-rates are the next rigor step.</li>
+      <li><b>The router's stability is one sample, not a guarantee.</b> Five trials per task all agreed after
+        the recalibration — but <code>claude -p</code> exposes no temperature or seed control, so this has to
+        be re-measured after any change to the classifier, never assumed.</li>
+      <li><b>The 48% is measured on the set the classifier was corrected against.</b> The prompt was rewritten
+        after this benchmark showed haiku passing SemVer and the concurrent counter — then scored on those same
+        six tasks. That's tuning and grading on one set, so read 48% as optimistic. What survives the objection
+        is narrower and still worth something: the <em>direction</em> of the fix was principled rather than
+        fitted (judge scope and specification, not subject matter), and the seven-probe discrimination suite is
+        held out from the benchmark — it fails if the classifier buys a better score by routing everything down.
+        A fresh, unseen task set is the honest next test.</li>
       <li><b>Small self-contained tasks under-count the tier gap.</b> Large, context-heavy real work is where
         cheaper tiers slip more — so this is a floor on the value of routing up, not a ceiling.</li>
       <li><b>Cache-heavy system-prompt cost is in every run</b> and similar across tiers, so it
