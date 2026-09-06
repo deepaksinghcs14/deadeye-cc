@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>deadeye — settings reference</title>
+<meta name="description" content="Every deadeye config knob, what it does, its default, and its allowed values -- generated from the same schema deadeye config validates against.">
+<meta property="og:title" content="deadeye — settings reference">
+<meta property="og:description" content="Every deadeye config knob, what it does, its default, and its allowed values.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://deepaksinghcs14.github.io/deadeye-cc/settings.html">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14181C; --slate:#1B2127; --raised:#232B32; --line:#2E383F;
+  --bone:#ECE6D8; --mute:#8B959C; --mute-dim:#5B646B;
+  --brass:#C89A46; --brass-dim:#8A6A2E; --brass-glow:rgba(200,154,70,.14);
+  --rust:#B15C46; --verd:#7BA090; --radius:3px;
+  --glow:rgba(200,154,70,.20);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --ink:#F3EFE4; --slate:#FFFFFF; --raised:#FBF9F2; --line:#DCD4C0;
+    --bone:#20241F; --mute:#6B6255; --mute-dim:#9A9284;
+    --brass:#9A6B1E; --brass-dim:#B9924A; --brass-glow:rgba(154,107,30,.10);
+    --rust:#A2432D; --verd:#3F7A63; --glow:rgba(154,107,30,.14);
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#14181C; --slate:#1B2127; --raised:#232B32; --line:#2E383F;
+  --bone:#ECE6D8; --mute:#8B959C; --mute-dim:#5B646B;
+  --brass:#C89A46; --brass-dim:#8A6A2E; --brass-glow:rgba(200,154,70,.14);
+  --rust:#B15C46; --verd:#7BA090; --glow:rgba(200,154,70,.20);
+}
+:root[data-theme="light"]{
+  --ink:#F3EFE4; --slate:#FFFFFF; --raised:#FBF9F2; --line:#DCD4C0;
+  --bone:#20241F; --mute:#6B6255; --mute-dim:#9A9284;
+  --brass:#9A6B1E; --brass-dim:#B9924A; --brass-glow:rgba(154,107,30,.10);
+  --rust:#A2432D; --verd:#3F7A63; --glow:rgba(154,107,30,.14);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ink);color:var(--bone);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px;}
+a{color:var(--brass);}
+code{font-family:"IBM Plex Mono",monospace;background:var(--brass-glow);padding:1px 5px;
+  border-radius:2px;font-size:.9em;}
+
+.nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0;
+  font-family:"IBM Plex Mono",monospace;font-size:13px;}
+.nav .brand{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:20px;
+  letter-spacing:.02em;color:var(--bone);text-decoration:none;}
+.nav .brand .dot{color:var(--brass);}
+.nav a{color:var(--mute);text-decoration:none;margin-left:22px;}
+.nav a:hover{color:var(--bone);}
+.nav .back{color:var(--brass);}
+
+.eyebrow{display:inline-flex;align-items:center;gap:10px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--brass);font-weight:600;}
+.eyebrow::before{content:"";width:18px;height:1px;background:var(--brass-dim);}
+
+h1{font-family:"Saira Condensed",sans-serif;font-weight:700;line-height:.98;
+  font-size:clamp(36px,6vw,60px);letter-spacing:-.015em;margin:22px 0 16px;text-wrap:balance;}
+h1 .em{color:var(--brass);}
+h2{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--mute-dim);margin:0 0 6px;}
+h3.section-title{font-family:"Saira Condensed",sans-serif;font-weight:700;font-size:23px;margin:0 0 18px;
+  letter-spacing:.01em;}
+.lede{font-size:clamp(16px,2vw,19px);color:var(--mute);margin:0 0 8px;max-width:62ch;}
+p{margin:0 0 16px;}
+
+section{padding:44px 0;border-top:1px solid var(--line);}
+.prose{max-width:66ch;color:var(--mute);}
+
+/* ---------- field list ---------- */
+.field-list{list-style:none;margin:0 0 8px;padding:0;border:1px solid var(--line);
+  border-radius:var(--radius);overflow:hidden;background:var(--slate);}
+.field{padding:18px 22px;border-top:1px solid var(--line);}
+.field:first-child{border-top:0;}
+.field-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px;}
+.field-head .key{font-family:"IBM Plex Mono",monospace;font-size:14.5px;font-weight:600;
+  color:var(--bone);background:var(--brass-glow);padding:2px 9px;border-radius:2px;}
+.field-head .default{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--mute-dim);
+  letter-spacing:.02em;}
+.field-head .default b{color:var(--mute);font-weight:600;}
+.field-values{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--brass);
+  margin-bottom:9px;letter-spacing:.01em;}
+.field-desc{font-size:14.5px;color:var(--mute);margin:0;line-height:1.6;}
+.field-desc b{color:var(--bone);font-weight:600;}
+
+.taglist{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none;}
+.taglist li{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--mute);
+  background:var(--raised);border:1px solid var(--line);border-radius:20px;padding:3px 10px;}
+
+.callout{background:linear-gradient(180deg,var(--raised),var(--slate));border:1px solid var(--line);
+  border-left:3px solid var(--brass);border-radius:var(--radius);padding:20px 24px;margin-bottom:10px;}
+.callout code{white-space:nowrap;}
+.callout p:last-child{margin-bottom:0;}
+
+.scroll{overflow-x:auto;}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px;}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);}
+thead th{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--mute-dim);font-weight:600;}
+td.t{font-family:"IBM Plex Mono",monospace;color:var(--bone);white-space:nowrap;}
+
+.toc{display:flex;flex-wrap:wrap;gap:8px 18px;font-family:"IBM Plex Mono",monospace;font-size:13px;
+  margin-top:18px;}
+.toc a{color:var(--mute);}
+.toc a:hover{color:var(--brass);}
+
+footer{padding:34px 0 84px;color:var(--mute-dim);font-family:"IBM Plex Mono",monospace;font-size:12.5px;}
+footer a{color:var(--brass);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav">
+    <a class="brand" href="index.html">deadeye<span class="dot">.</span></a>
+    <div>
+      <a class="back" href="index.html">← home</a>
+      <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/schema/config.schema.json" target="_blank" rel="noopener">schema source</a>
+    </div>
+  </nav>
+
+  <header>
+    <span class="eyebrow">settings reference</span>
+    <h1>Every knob. <span class="em">What it actually does.</span></h1>
+    <p class="lede">Every key in <code>~/.deadeye/config.json</code> (or a project's own
+      <code>.deadeye.json</code>), what it controls, its default, and its allowed values.
+      This page is a rendering of <code>schema/config.schema.json</code> — the same file
+      <code>deadeye config set</code> validates against — so it can't drift into describing
+      settings that don't exist.</p>
+
+    <div class="callout" style="margin-top:22px">
+      <p>Change any of these from chat with <b>/deadeye-config</b>, or directly:</p>
+      <p style="margin-bottom:0"><code>deadeye config list</code> — every key, current value, allowed values.<br>
+      <code>deadeye config get &lt;key&gt;</code> — one key's effective value.<br>
+      <code>deadeye config set &lt;key&gt; &lt;value&gt;</code> — validates and writes
+      <code>~/.deadeye/config.json</code>, preserving every other setting.</p>
+    </div>
+
+    <nav class="toc">
+      <a href="#mode">Mode</a>
+      <a href="#coder">Coder</a>
+      <a href="#security">Security</a>
+      <a href="#plan-gate">Plan gate</a>
+      <a href="#global">Global tunables</a>
+      <a href="#preprocess">Preprocess rules</a>
+    </nav>
+  </header>
+
+  <section id="mode">
+    <h2>mode.*</h2>
+    <h3 class="section-title">Behavior axes</h3>
+    <p class="prose">Each axis is independent — turning one off doesn't touch the others.
+      Most default to <code>on</code>/<code>advise</code>; nothing here needs the network
+      except <code>routing_judge</code> and <code>catalog_check</code>, both fail-open and
+      bounded.</p>
+
+    <ul class="field-list">
+      <li class="field">
+        <div class="field-head"><span class="key">mode.routing</span><span class="default">default: <b>advise</b></span></div>
+        <div class="field-values">off · advise · enforce</div>
+        <p class="field-desc">Subagent model routing. Fits each subtask to the cheapest model
+          tier that can still do it, based on cheap signals (prompt shape, file scope, git
+          churn, test presence, task specificity) plus the AI routing judge on ambiguous
+          cases. <code>advise</code> suggests the tier; <code>enforce</code> sets it on the
+          Agent call.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.effort</span><span class="default">default: <b>advise</b></span></div>
+        <div class="field-values">off · advise</div>
+        <p class="field-desc">Effort-level guidance (low/medium/high/xhigh) alongside the
+          routing decision. Advisory only — the Agent tool has no effort parameter to
+          enforce, so there's no <code>enforce</code> mode here.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.preprocess</span><span class="default">default: <b>on</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-desc">Context hygiene: Bash-output rewrite rules and unbounded-dump
+          advisories (test/build/lint/install/log output, diffs, history, <code>find</code>/
+          <code>tree</code>/<code>du</code>/package-list caps), the duplicate-Read /
+          large-Read / repeat-command / content-mode-Grep-without-<code>head_limit</code>
+          advisories, repeat-WebFetch / oversized-MCP-response / flag-escalation-retry /
+          large-paste / long-exploration-streak / compact-timing advisories, the subagent
+          brevity note, and response-size observation logging. Individual rules can be
+          turned off one at a time — see <a href="#preprocess">Preprocess rules</a> below.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.plan_gate</span><span class="default">default: <b>soft</b></span></div>
+        <div class="field-values">off · soft · hard</div>
+        <p class="field-desc">Plan-first gate before multi-file edits. <code>soft</code>
+          nudges; <code>hard</code> blocks an Edit/Write past the file-count trigger
+          (<a href="#plan-gate">plan_gate.min_files</a>) until a plan exists.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.workflow_hint</span><span class="default">default: <b>on</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-desc">One-line workflow-authoring suggestion when a task shape looks
+          like it would benefit from the Workflow tool.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.codemap</span><span class="default">default: <b>on</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-desc">Cross-session codebase map: a directory/package skeleton
+          rebuilt when the tracked-file list changes, plus accumulated touch-frequency and
+          exploration notes, injected once per session. <code>off</code> disables both the
+          SessionEnd writes and the injection.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.update_check</span><span class="default">default: <b>on</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-desc">Once-per-session background check for a newer deadeye release;
+          when one is out, the agent asks (once per version) whether to update via
+          <code>/plugin update</code>. Cached ~24h, never blocks the hook response.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.routing_judge</span><span class="default">default: <b>on</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-desc">When the cheap signals can't confidently place a subtask (the
+          majority of real routing decisions), classify its complexity with a real model call
+          — shells to <code>claude -p</code> (sonnet), reusing your Claude login, no API key —
+          instead of defaulting to the sonnet tier outright. Cached per task, fail-open on any
+          error. A deliberate trade of the zero-network default for accuracy on genuinely
+          ambiguous cases: this can block the routing decision for up to 30s on an unsure,
+          uncached task. <code>off</code> restores pure heuristics with no network call.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.catalog_check</span><span class="default">default: <b>on</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-desc">Background refresh of the hosted model/pricing catalog (a
+          static JSON file on this site), so a new model or price change reaches routing
+          without a plugin release. Read-only GET, no request body. Cached ~24h, never blocks
+          the hook response, and only takes effect if the fetched catalog is well-formed — a
+          bad or unreachable fetch always falls back to the compiled-in table. A local
+          <code>~/.deadeye/catalog.json</code> override always wins over the hosted copy.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="coder">
+    <h2>coder.*</h2>
+    <h3 class="section-title">The lean-coding persona</h3>
+    <p class="prose">Injected into coding sessions and matching subagents. <code>security</code>
+      and <code>security_osv</code> are independent of the persona level since 0.17.0 —
+      turning the persona off no longer silences the security lens.</p>
+
+    <ul class="field-list">
+      <li class="field">
+        <div class="field-head"><span class="key">coder.default_level</span><span class="default">default: <b>marksman</b></span></div>
+        <div class="field-values">off · spotter · marksman · sniper</div>
+        <p class="field-desc">Coder-mode intensity new sessions start at. <b>spotter</b> flags
+          the leaner alternative but builds what's asked; <b>marksman</b> enforces the
+          lean-first ladder (default); <b>sniper</b> is maximum minimalism and challenges the
+          requirement itself. Switch mid-session with <code>/deadeye-coder &lt;level&gt;</code>
+          — that changes only the live session, not this default.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">coder.subagent_matcher</span><span class="default">default: <b>"" (all)</b></span></div>
+        <div class="field-values">regex, free-form</div>
+        <p class="field-desc">Optional regex on <code>agent_type</code> scoping which
+          subagents receive the coder ruleset. Empty matches every subagent. A regex that
+          fails to compile fails open (injects anyway).</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">coder.injection_budget_tokens</span><span class="default">default: <b>2000</b></span></div>
+        <div class="field-values">integer ≥ 0</div>
+        <p class="field-desc">Logged ceiling for the coder ruleset injection — separate from
+          the top-level 400-token advisory budget, since the persona is an explicit opt-in
+          and byte-stable per level.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">coder.security</span><span class="default">default: <b>advise</b></span></div>
+        <div class="field-values">off · advise · ask</div>
+        <p class="field-desc">Live security advisory on Edit/Write: SQL/shell/eval injection
+          shapes, TLS-off, hardcoded secrets and provider tokens, weak crypto, and
+          vulnerable/superseded dependencies in a manifest. <code>ask</code> additionally
+          escalates a manifest edit that <b>adds</b> a dependency with a confirmed OSV
+          advisory to a permission prompt (injection/secret/crypto findings stay
+          <code>advise</code>). Also disabled by <code>/deadeye-mute</code> or the
+          <code>DEADEYE=off</code> / <code>DEADEYE_CODER=off</code> env kill switches.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">coder.security_osv</span><span class="default">default: <b>true</b></span></div>
+        <div class="field-values">true · false</div>
+        <p class="field-desc">Whether the dependency check may consult OSV.dev — package
+          name and version only, never file paths or code — via a background cache refresh.
+          <code>false</code> keeps the check fully offline; the bundled superseded-package
+          table still works.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="security">
+    <h2>security.*</h2>
+    <h3 class="section-title">The exfiltration guard</h3>
+    <p class="prose">Watches <code>PreToolUse</code> on Read and Bash for a credential file
+      being read or shipped out — the classic first step of prompt-injection-driven secret
+      egress. A top-level axis, independent of the coder persona: not disabled by
+      <code>DEADEYE_CODER=off</code>, only by <code>DEADEYE=off</code>. A project's own
+      <code>.deadeye.json</code> cannot weaken this axis — only
+      <code>~/.deadeye/config.json</code> can, so a hostile repo can't ship the guard's own
+      off-switch alongside its prompt injection.</p>
+
+    <ul class="field-list">
+      <li class="field">
+        <div class="field-head"><span class="key">security.exfil</span><span class="default">default: <b>ask</b></span></div>
+        <div class="field-values">off · advise · ask</div>
+        <p class="field-desc">On a match: <code>ask</code> escalates to a permission prompt
+          the model can't answer for itself (a prompt-injected instruction can't approve it);
+          <code>advise</code> emits a one-line nudge; <code>off</code> disables the guard.
+          Default <code>ask</code> — credential-file access is rare enough that
+          interruptions should be too.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">security.sensitive_paths</span><span class="default">default: <b>[]</b></span></div>
+        <div class="field-values">array of glob strings</div>
+        <p class="field-desc">Extra glob patterns treated as sensitive credential paths,
+          additive to the built-in table (<code>~/.ssh</code> private keys,
+          <code>~/.aws/credentials</code>, <code>.env</code>,
+          <code>~/.claude/.credentials.json</code>, <code>~/.netrc</code>,
+          <code>~/.kube/config</code>, and more). Matched with <code>filepath.Match</code>
+          against the full path and basename.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="plan-gate">
+    <h2>plan_gate.*</h2>
+    <h3 class="section-title">Multi-file gate trigger</h3>
+    <ul class="field-list">
+      <li class="field">
+        <div class="field-head"><span class="key">plan_gate.min_files</span><span class="default">default: <b>2</b></span></div>
+        <div class="field-values">integer ≥ 1</div>
+        <p class="field-desc">Working-tree modified/staged file count at which the gate's
+          multi-file trigger fires — see <a href="#mode"><code>mode.plan_gate</code></a> for
+          what happens once it does.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="global">
+    <h2>Top-level</h2>
+    <h3 class="section-title">Global tunables</h3>
+    <ul class="field-list">
+      <li class="field">
+        <div class="field-head"><span class="key">downshift_threshold</span><span class="default">default: <b>0.8</b></span></div>
+        <div class="field-values">number, 0–1</div>
+        <p class="field-desc">Minimum kernel confidence required to lower model tier or
+          effort. Upshifting (to a more capable tier) is always free and never gated by this.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">injection_budget_tokens</span><span class="default">default: <b>400</b></span></div>
+        <div class="field-values">integer ≥ 0</div>
+        <p class="field-desc">Ceiling on the total SessionStart advisory injection — every
+          mode advisory combined, not counting the separate coder-persona budget
+          (<a href="#coder"><code>coder.injection_budget_tokens</code></a>).</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="preprocess">
+    <h2>preprocess.disabled_rules</h2>
+    <h3 class="section-title">Turn off individual rules</h3>
+    <p class="prose">An array of rule/advisory names to disable one at a time, without
+      turning off all of <a href="#mode"><code>mode.preprocess</code></a>. Default: empty
+      (every rule active). Example: <code>deadeye config set preprocess.disabled_rules
+      test-filter,log-tail</code> is not supported by the picker — hand-edit the array in
+      <code>~/.deadeye/config.json</code> instead, since a comma-split flag is more
+      surprising than helpful for a list.</p>
+
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Group</th><th>Rule names</th></tr></thead>
+      <tbody>
+        <tr><td class="t">Bash output caps</td><td>test-filter, build-filter, log-tail, diff-cap, lint-filter, install-filter, logs-tail, cat-large, history-cap, tf-plan-cap, kubectl-yaml-cap, npm-ls-cap, find-cap, tree-cap, du-cap, pkg-list-cap</td></tr>
+        <tr><td class="t">Advisories</td><td>grep-limit, read-advice, repeat-command, bash-retry, repeat-webfetch, mcp-oversize, large-paste, delegate-explore, compact-timing</td></tr>
+        <tr><td class="t">Coder security rules</td><td>secret-literal, weak-crypto, tls-off, sql-concat, shell-interp, eval-dynamic, html-inject, java-deser, jwt-unverified, insecure-deser, cors-wildcard, cookie-insecure, weak-random-token, debug-on, ssti, xxe, open-redirect, nosql-inject, csrf-off, zip-slip, graphql-introspection, host-header-trust</td></tr>
+        <tr><td class="t">Dependency checks</td><td>dep-check (or a specific <code>dep:&lt;ecosystem&gt;:&lt;name&gt;</code>), dep-flag (the session-start scan of existing manifests)</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <footer>
+    Generated from <code>schema/config.schema.json</code> — if this page and the schema ever
+    disagree, the schema wins. ·
+    <a href="https://github.com/deepaksinghcs14/deadeye-cc" target="_blank" rel="noopener">deadeye on GitHub →</a>
+  </footer>
+</div>
+</body>
+</html>

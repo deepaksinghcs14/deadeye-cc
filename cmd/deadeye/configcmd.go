@@ -12,6 +12,10 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
 
+// settingsSiteURL documents every knob's effect in full -- this file only
+// has room for the key, default, and allowed values.
+const settingsSiteURL = "https://deepaksinghcs14.github.io/deadeye-cc/settings.html"
+
 // tunable is one config key the picker and validator know about. key is the
 // dotted path, which is also its JSON location (mode.routing -> {mode:{routing}}).
 // allowed lists enum values ("" kind=string/int/bool/number means free-form,
@@ -91,6 +95,7 @@ func runConfig(args []string) {
 			}
 			fmt.Printf("  %-30s %-12s %s\n", t.key, cValue(currentValue(t.key)), cDim(allowed))
 		}
+		fmt.Println(cDim("\n  full explanation of every knob: " + settingsSiteURL))
 	default:
 		fmt.Fprintln(os.Stderr, "usage: deadeye config [get <key> | set <key> <value> | list]  (no args: interactive)")
 		os.Exit(2)
@@ -169,6 +174,7 @@ func configSet(key, value string) error {
 func runConfigPicker() {
 	in := bufio.NewReader(os.Stdin)
 	fmt.Println(cHead(meta.Name) + " " + cDim("· settings") + cDim("   type a number · q to quit"))
+	fmt.Println(cDim("  full explanation of every knob: " + settingsSiteURL))
 	fmt.Println()
 	for {
 		for i, t := range tunables {

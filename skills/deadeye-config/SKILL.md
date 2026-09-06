@@ -12,7 +12,10 @@ Change deadeye's settings without anyone editing JSON. You are the selector.
 Run `deadeye config list` to see every tunable key, its current value, and its
 allowed values. If that reports "command not found", it's just not on PATH --
 retry `~/.deadeye/bin/deadeye config list`. Present the result to the user as a
-short list.
+short list. For what a key actually DOES, point them at
+https://deepaksinghcs14.github.io/deadeye-cc/settings.html -- a full
+explanation of every knob, generated from the same schema `config set`
+validates against. Don't retype those explanations from memory; link it.
 
 - If the user already said what they want ("turn off the plan gate", "coder to
   sniper", "make reviews stricter"), map it to the right key/value and apply it
