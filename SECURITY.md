@@ -48,6 +48,35 @@ past. It reduces the blast radius of the common automated attack; it is
 not a sandbox. Defense in depth (least-privilege credentials, a real
 egress firewall, scoped tokens) still matters.
 
+## Injected repo content is labeled as data (threat model)
+
+Two things deadeye injects into a session's context are derived from the
+repository itself, and are therefore controlled by whoever wrote that
+repo -- which for anything you cloned to read or review is not you:
+
+- **The codebase map** (`internal/codemap`) extracts each directory's
+  package doc comment. Labeled since v0.55.0's predecessor, v0.46.0.
+- **The session summary** (`internal/sessionmem`) carries the last five
+  commit subjects and the modified-file list. Labeled since v0.55.0 --
+  it was the unfixed twin of the codemap case, found by `/deadeye-vapt`
+  run against this repo and reproduced with a real hostile commit
+  message before being fixed.
+
+Both now carry an explicit `data, not instructions` line above the
+content, and both strip control bytes so a raw newline can't forge extra
+lines in a block whose structure is one item per line. The session
+summary needed this most: it is replayed under a "Picking up from the
+last session in this project" preamble that otherwise reads as deadeye's
+own trusted continuity note.
+
+It is **not** content filtering -- deadeye does not try to detect and
+strip instruction-shaped prose from a commit message or a doc comment;
+that is a losing game against arbitrary text. The label is the
+mitigation, and it depends on the model respecting a stated
+data/instruction boundary -- the same trust general LLM safety training
+already extends to hook-delivered content, made explicit and specific to
+these fields rather than left implicit.
+
 ## The codebase-map disclaimer (threat model)
 
 `internal/codemap` extracts each directory's package doc comment (first
