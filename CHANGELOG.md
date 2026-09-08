@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.58.1
+
+Two stated-vs-actual bugs in deadeye's own rubric text, the same class of
+issue: a flag or a "default" claim documented as sufficient, contradicted
+by an instruction elsewhere in the same document that re-gates on
+something the flag was supposed to already cover.
+
+- **`/deadeye-pr --post` didn't actually post directly.** The rubric
+  named `--post` the explicit, one-time authorization to post a review to
+  GitHub, then a separate instruction still required "get an explicit
+  yes" before posting anyway — a redundant confirmation defeating the
+  flag's whole point. Fixed: `--post` (or an explicit ask) IS the
+  authorization now; the comment body still prints as part of normal
+  output, but nothing waits on a second yes.
+- **`/deadeye-vapt`'s Workflow fan-out and its ask-when-ambiguous gate
+  were structurally incompatible.** "How this runs" put Phase 0 inside
+  the Workflow fan-out; the "scope is ambiguous → ask" gate lives in
+  Phase 0. A Workflow runs to completion in the background with no pause
+  point to ask from mid-script, so as written the gate had no way to
+  ever actually fire. Fixed: Phase 0 and the ambiguity gate now run
+  first, sequentially, as normal interactive turns -- cheap greps, no
+  fan-out needed -- and the Workflow only starts once scope is settled,
+  covering Phase 1 onward.
+
+Found by asking deliberately: after fixing the first one, swept every
+other deadeye skill/rubric file for the same bug class before calling it
+done. Nothing else turned up.
+
 ## 0.58.0
 
 **`/deadeye-vapt`'s tag list was quietly narrower than `/deadeye-guard`'s.**
