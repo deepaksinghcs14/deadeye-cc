@@ -16,22 +16,28 @@ half of a VAPT: a whitebox read that reasons like an attacker with the
 code in hand, not the network half. Say this plainly in the output, not
 just here.
 
-**How this runs.** On Claude Code, load the `workflow-authoring` skill and
-run this as a Workflow: Phase 0/1 (the four surface tracks below) fan out
-in parallel, then Phase 3/4 (triage + verify) fan out one agent per
-tag-family, each grounded in the Phase 2 trust-boundary map printed below
-— then one integration pass over every returned finding before the report
-(Phase 5) is generated. This is the default, not an opt-in — a whole-service
-pass is already the heaviest, least-frequent command here, and it spends
-meaningfully more tokens than a single-agent pass to get meaningfully more
-coverage; say so if asked why. Every other host has no Workflow tool —
-run every phase below as one agent there, same as always.
+**How this runs.** Phase 0 (the four surface tracks below) and the
+ambiguous-scope gate run first, sequentially, as normal interactive turns
+— Phase 0 is a handful of greps, no fan-out needed, and the ambiguity
+gate needs a live turn to actually ask from (a Workflow runs to
+completion in the background with no pause point to ask mid-script).
+Once scope is settled, on Claude Code, load the `workflow-authoring`
+skill and run the rest as a Workflow: Phase 1 (attack-surface inventory)
+fans out across whichever surface tracks Phase 0 confirmed, then Phase
+3/4 (triage + verify) fan out one agent per tag-family, each grounded in
+the Phase 2 trust-boundary map printed below — then one integration pass
+over every returned finding before the report (Phase 5) is generated.
+This is the default, not an opt-in — a whole-service pass is already the
+heaviest, least-frequent command here, and it spends meaningfully more
+tokens than a single-agent pass to get meaningfully more coverage; say so
+if asked why. Every other host has no Workflow tool — run every phase
+below as one agent there, same as always.
 
 **Set each agent's tier explicitly in the script** — a Workflow's `agent()`
 calls run outside deadeye's own routing advisory (that only watches the
 interactive `Agent` tool, not a script's internal calls), so an untiered
 script silently inherits the session's own model for every agent, tiering
-nothing. Phase 0/1 detection is grep-driven pattern matching: the cheapest
+nothing. Phase 1 inventory is grep-driven pattern matching: the cheapest
 tier that fits. Phase 3/4 verification needs real judgment: floor each
 tag-family agent at tier 1 (sonnet), reserving the top tier for a family
 touching a risky surface (authn/authz/crypto/inject/llm). Run the closing
