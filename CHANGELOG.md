@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.58.0
+
+**`/deadeye-vapt`'s tag list was quietly narrower than `/deadeye-guard`'s.**
+Both draw from the same shared taxonomy, but VAPT's 18 tags were missing
+`secret:` and `dos:` — two tags guard has always had. Added both, mapped
+into the existing OWASP tables (`secret:` shares A04:2025 Cryptographic
+Failures with `crypto:`; `dos:` shares API4 Unrestricted Resource
+Consumption with `ratelimit:`), so VAPT's 20 tags are now a strict
+superset of guard's: anything guard can flag in a diff, VAPT can flag
+across the whole repo. Trimmed a handful of verbose tag descriptions to
+keep Windsurf's char-capped rendering under budget with the two new rows
+added. Also hardened a test along the way — `TestCitationScopeIsAccurate`
+was pinned to a literal line-wrap in its expected string, which silently
+broke earlier this same release cycle when a routine rewrap moved it;
+it now compares against whitespace-collapsed prose instead.
+
+**A Workflow script's `agent()` calls were invisible to deadeye's own
+routing advisory.** Verified live: a VAPT Workflow fan-out with no
+explicit tiering in its script ran every agent on opus. The reason:
+`decideAgentRouting` only ever watches `PreToolUse` on the interactive
+`Agent` tool — a Workflow script's internal `agent()` calls execute in a
+background-orchestrated context that never fires that hook, so an
+untiered call silently inherits the session's own model instead of being
+judge-classified the way an untiered standalone `Agent` call is.
+
+Added `decideWorkflowTiering`, on the same `mode.routing` axis (no new
+config knob): it reads the Workflow tool's own `script` field straight out
+of `PreToolUse`'s `tool_input` and statically scans every `agent(` call
+site for a `model:` key or a `...` spread (treated as tiered even though
+the scan can't see the spread's own definition — flagging it would be a
+false positive on a legitimate shared-options pattern). Any call site with
+neither gets one `AdditionalContext` nudge naming the count, deduped per
+session by a hash of the script text. Pure advisory, never a block —
+consistent with never triggering a workflow, only ever suggesting one.
+
 ## 0.57.0
 
 **`/deadeye-vapt` was 100% static rubric prose with zero orchestration
