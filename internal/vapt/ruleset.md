@@ -16,6 +16,17 @@ half of a VAPT: a whitebox read that reasons like an attacker with the
 code in hand, not the network half. Say this plainly in the output, not
 just here.
 
+**How this runs.** On Claude Code, load the `workflow-authoring` skill and
+run this as a Workflow: Phase 0/1 (the four surface tracks below) fan out
+in parallel, then Phase 3/4 (triage + verify) fan out one agent per
+tag-family, each grounded in the Phase 2 trust-boundary map printed below
+— then one integration pass over every returned finding before the report
+(Phase 5) is generated. This is the default, not an opt-in — a whole-service
+pass is already the heaviest, least-frequent command here, and it spends
+meaningfully more tokens than a single-agent pass to get meaningfully more
+coverage; say so if asked why. Every other host has no Workflow tool —
+run every phase below as one agent there, same as always.
+
 ## Scope
 
 `git ls-files` (or `find -maxdepth` outside a git repo) — never read
@@ -55,6 +66,15 @@ None found → say so and stop. Whichever track(s) DO apply set Phase 1's
 inventory shape (below); tags with no matching surface end up `n/a` in
 the coverage matrix, not skipped from it.
 
+**Scope is ambiguous → ask, don't guess.** Phase 0 turning up multiple
+independently-deployed services (a monorepo — separate top-level dirs,
+each with its own entrypoint/manifest), vendored/generated code mixed
+with first-party surface, or a client SDK for a service defined
+elsewhere → name what was found and ask which service(s) to scope to
+before Phase 1. Flattening several into one surface produces a coverage
+matrix that LOOKS complete and isn't — a real decision point, not
+another `not reached` line.
+
 **Phase 1 — attack-surface inventory.** Network-facing: every route,
 method, path, handler, and what auth middleware is actually mounted on
 it (trace the chain, not just what's declared in the file). Uploads,
@@ -92,7 +112,12 @@ retrieval results — message/event surface: message body,
 headers/metadata, claimed sender identity — client-side/UI surface:
 URL/query string, `postMessage` payloads, third-party script content,
 anything a server response reflects into the DOM. Unnamed here, no
-finding later. Working state, not printed — same as Phase 3's ranking.
+finding later. **Print this as a "Trust-boundary map" section, before
+findings** — name each input source's file:line. Unlike Phase 3's ranking
+(genuinely working state — a scratch list nobody needs to audit), this is
+the one artifact that makes cross-file flow tracing checkable instead of
+a claim: Phase 4's verification and every fanned-out Workflow agent cite
+it directly instead of re-deriving it from scratch each time.
 
 **Phase 3 — triage, then deep-read only the top candidates.** An
 endpoint taking an object id with no visible ownership check outranks one
@@ -109,6 +134,8 @@ OUTSIDE the obvious file and follow the value into the callee —
 middleware, a base handler, a decorator one call up — the real guard
 often lives there. No reachable input, no reproduction → drop the
 finding; a claim without a proof is a guess with a CVSS score attached.
+A multi-hop proof must cite every hop's file:line, not just entry and
+sink.
 
 {{owasp}}
 
@@ -166,6 +193,32 @@ findings and print exactly:
 
 — still followed by the full coverage matrix; "clean" is a per-category
 verdict, not a reason to omit the matrix.
+
+## Report generation
+
+Once the findings and coverage matrix above are final, generate a
+shareable report: build the JSON shape `deadeye vapt` expects (one
+object per finding — severity, tag, title, endpoint, owasp ids, link,
+attack, proof, fix — plus the coverage rows, the tally, and the Phase 1/2
+text printed above) and run:
+
+```bash
+deadeye vapt --in=- <<'JSON'
+{...}
+JSON
+```
+
+This writes `vapt-reports/vapt-<timestamp>.html` in the scanned repo — a
+print-optimized report; open it and use the browser's Print → Save as PDF
+for a shareable copy, no separate tool needed. If `vapt-reports/` isn't
+already in `.gitignore`, suggest adding it — a findings report is
+sensitive, like any other security artifact.
+
+This step is purely additive. `deadeye vapt` missing or failing
+(not on PATH, bad JSON) never blocks or invalidates anything above — the
+findings printed to chat are the deliverable regardless; note the report
+generation failed and move on, same fail-open discipline the dependency
+auditor step already follows.
 
 ## Honesty boundaries (load-bearing)
 

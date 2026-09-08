@@ -12,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|config|route|audit|gain|context|lessons|report|init|capture|uninstall|version> [args]")
+		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|config|route|audit|gain|context|lessons|report|vapt|init|capture|uninstall|version> [args]")
 		os.Exit(2)
 	}
 
@@ -46,6 +46,8 @@ func main() {
 		runUpdate()
 	case "notes-append":
 		runNotesAppend(argOr(2, ""))
+	case "vapt":
+		runVapt(os.Args[2:])
 	case "uninstall":
 		runUninstall(os.Args[2:])
 	case "version":

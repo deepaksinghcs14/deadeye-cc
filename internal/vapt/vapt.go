@@ -84,9 +84,26 @@ func cutSection(s, from, to string) string {
 // eighteen-tag table, and the coverage-matrix requirement all stay --
 // the pass still functions identically, just without the
 // illustrative/convenience/reinforcement/redundant extras.
+//
+// Three more go for reasons in the same spirit: "How this runs" describes
+// the Claude-Code-only Workflow fan-out (nothing to do on a host with no
+// Workflow tool), "Report generation" calls `deadeye vapt` (nothing to
+// call on a host with no guaranteed binary on PATH, same reasoning as
+// Learning Loop above), and the "scope is ambiguous -> ask" escalation
+// (an experimental host with no hook contract is the least reliable place
+// to depend on an interactive back-and-forth landing correctly -- unlike
+// Phase 0's four tracks, this is a conditional escalation, not the
+// pass's core control flow, so it degrades to best-effort scoping here
+// rather than blocking). Every phase still runs single-agent as before;
+// only the plumbing and interactivity unavailable on this host are
+// dropped.
 func WindsurfBody() string {
 	b := body
+	b = cutSection(b, "**How this runs.**", "## Scope")
+	b = cutSection(b, "**Scope is ambiguous", "\n\n**Phase 1 —")
+	b = cutSection(b, "Unlike Phase 3's ranking", "\n\n**Phase 3 — triage")
 	b = cutSection(b, "Eighteen tags. Every OWASP", "**Reference —")
+	b = cutSection(b, "## Report generation", "## Honesty boundaries")
 	b = cutSection(b, "## Honesty boundaries", "## Learning loop")
 	b = cutSection(b, "**OWASP Top 10:2025**", "## The eighteen tags")
 	b = cutSection(b, "**Overlap rule**", "## Report format")

@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>deadeye VAPT report -- {{.Repo}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#eef0f2; --page:#e6e9ec; --surface:#f7f8f9; --surface-raised:#ffffff;
+    --ink:#1b2027; --ink-secondary:#454c56; --muted:#6b7280; --faint:#8d94a0;
+    --hairline:rgba(27,32,39,.11); --hairline-strong:rgba(27,32,39,.22);
+    --accent:#96702f; --accent-ink:#fff8ec;
+    --good:#3f6b3a; --critical:#93342b; --high:#a15d22; --medium:#8f7519; --nit:#6b7280;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#14171c; --page:#0f1216; --surface:#1a1e24; --surface-raised:#1e232a;
+      --ink:#eceae3; --ink-secondary:#c2c7ce; --muted:#8b93a1; --faint:#5c6572;
+      --hairline:rgba(236,234,227,.10); --hairline-strong:rgba(236,234,227,.20);
+      --accent:#c9a15f; --accent-ink:#23180a;
+      --good:#84a578; --critical:#cf8079; --high:#d99a55; --medium:#d4b64a; --nit:#8b93a1;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#14171c; --page:#0f1216; --surface:#1a1e24; --surface-raised:#1e232a;
+    --ink:#eceae3; --ink-secondary:#c2c7ce; --muted:#8b93a1; --faint:#5c6572;
+    --hairline:rgba(236,234,227,.10); --hairline-strong:rgba(236,234,227,.20);
+    --accent:#c9a15f; --accent-ink:#23180a;
+    --good:#84a578; --critical:#cf8079; --high:#d99a55; --medium:#d4b64a; --nit:#8b93a1;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html{color-scheme:light dark}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{text-wrap:balance;margin:0}
+  p{margin:0}
+  a{color:var(--accent)}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace}
+  .shell{max-width:900px;margin:0 auto;padding:0 24px 80px}
+  .masthead{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:28px 4px 4px}
+  .brand{font-weight:700;font-size:19px;letter-spacing:-.005em}
+  .brand .dot{color:var(--accent)}
+  .subtitle{font-size:13px;color:var(--muted);margin-top:2px}
+  .scopebar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 4px 20px;border-bottom:1px solid var(--hairline);margin-bottom:22px;font-size:13.5px;color:var(--muted)}
+  .scopebar .repo{color:var(--ink);font-weight:600}
+  .disclaimer{font-size:12.5px;color:var(--faint);max-width:60ch;margin:0 4px 26px;line-height:1.55;padding:12px 14px;border:1px solid var(--hairline);border-radius:8px;background:var(--surface)}
+  .tally{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--hairline);border:1px solid var(--hairline);border-radius:10px;overflow:hidden;margin:0 0 26px}
+  .tally-cell{background:var(--surface);padding:14px 16px}
+  .tally-cell .n{font-weight:700;font-size:24px;letter-spacing:-.02em}
+  .tally-cell .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-top:2px}
+  .tally-cell.critical .n{color:var(--critical)}
+  .tally-cell.high .n{color:var(--high)}
+  .tally-cell.medium .n{color:var(--medium)}
+  .tally-cell.nit .n{color:var(--nit)}
+  .clean{padding:20px 22px;border:1px solid var(--hairline);border-radius:10px;background:var(--surface);color:var(--good);font-weight:600;margin-bottom:26px}
+  .section{margin-bottom:30px}
+  .section h2{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+  .raw{white-space:pre-wrap;font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.6;background:var(--surface);border:1px solid var(--hairline);border-radius:8px;padding:16px 18px;color:var(--ink-secondary)}
+  .finding{border:1px solid var(--hairline);border-left:3px solid var(--muted);border-radius:8px;padding:16px 18px;margin-bottom:12px;background:var(--surface-raised);break-inside:avoid;page-break-inside:avoid}
+  .finding.critical{border-left-color:var(--critical)}
+  .finding.high{border-left-color:var(--high)}
+  .finding.medium{border-left-color:var(--medium)}
+  .finding.nit{border-left-color:var(--nit)}
+  .finding-title{font-weight:700;font-size:14.5px;margin-bottom:10px}
+  .finding-title .sev{text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;font-weight:700;margin-right:8px}
+  .finding.critical .sev{color:var(--critical)}
+  .finding.high .sev{color:var(--high)}
+  .finding.medium .sev{color:var(--medium)}
+  .finding.nit .sev{color:var(--nit)}
+  .field{display:grid;grid-template-columns:80px 1fr;gap:10px;font-size:12.5px;padding:5px 0;border-top:1px solid var(--hairline)}
+  .field:first-of-type{border-top:none}
+  .field .k{color:var(--faint);text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;padding-top:2px}
+  .field .v{color:var(--ink-secondary);white-space:pre-wrap;line-height:1.55}
+  .field .v.mono{color:var(--ink)}
+  .fixcode{margin-top:8px;background:var(--ground);border:1px solid var(--hairline);border-radius:6px;padding:10px 12px;font-size:12px;overflow-x:auto}
+  table.coverage{width:100%;border-collapse:collapse;font-size:13px}
+  table.coverage th,table.coverage td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--hairline)}
+  table.coverage th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:600}
+  .state{font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:2px 8px;border-radius:20px;border:1px solid var(--hairline-strong)}
+  .state.findings{color:var(--high);border-color:var(--high)}
+  .state.clean{color:var(--good);border-color:var(--good)}
+  .state.n-a{color:var(--faint)}
+  .state.not-reached{color:var(--critical);border-color:var(--critical)}
+  .omitted{font-size:12px;color:var(--faint);margin-top:10px}
+  .footline{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 4px 0;font-size:12px;color:var(--faint);border-top:1px solid var(--hairline);margin-top:10px}
+  .print-hint{font-size:12px;color:var(--muted);margin:0 4px 20px}
+  .print-hint .cmd{font-family:'IBM Plex Mono',monospace;background:var(--surface);border:1px solid var(--hairline-strong);padding:2px 7px;border-radius:5px}
+
+  @page{ size: A4; margin: 16mm 14mm; }
+  @media print{
+    body{background:#fff;color:#111}
+    .print-hint{display:none}
+    .finding, .section{break-inside:avoid;page-break-inside:avoid}
+    a{color:#111;text-decoration:underline}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <div>
+      <div class="brand">Deadeye<span class="dot">.</span> VAPT report</div>
+      <div class="subtitle">Whole-service pen-test pass -- source read, static and whitebox</div>
+    </div>
+  </header>
+
+  <div class="scopebar">
+    <div><span>Target</span> <span class="repo">{{.Repo}}</span></div>
+    <div class="mono">generated {{.GeneratedAt}}</div>
+  </div>
+
+  <p class="disclaimer">No traffic was sent and no exploit was run. This is
+    the source half of a VAPT -- a whitebox read of this repository's code,
+    not the network half. Every finding below was verified against the
+    source in hand, not demonstrated live.</p>
+
+  <p class="print-hint">Use your browser's Print &#8594; Save as PDF
+    (<span class="cmd">&#8984;P</span> / <span class="cmd">Ctrl+P</span>)
+    for a shareable copy.</p>
+
+  <div class="tally" aria-label="findings by severity">
+    <div class="tally-cell critical"><div class="n">{{.Tally.critical}}</div><div class="lbl">Critical</div></div>
+    <div class="tally-cell high"><div class="n">{{.Tally.high}}</div><div class="lbl">High</div></div>
+    <div class="tally-cell medium"><div class="n">{{.Tally.medium}}</div><div class="lbl">Medium</div></div>
+    <div class="tally-cell nit"><div class="n">{{.Tally.nit}}</div><div class="lbl">Nit</div></div>
+  </div>
+
+  {{if .Clean}}
+  <div class="clean">Clean line of fire &#8212; no service-level exposure survived verification.</div>
+  {{end}}
+
+  {{if .SurfaceInventory}}
+  <section class="section">
+    <h2>Attack-surface inventory</h2>
+    <div class="raw">{{.SurfaceInventory}}</div>
+  </section>
+  {{end}}
+
+  {{if .TrustBoundaryMap}}
+  <section class="section">
+    <h2>Trust-boundary map</h2>
+    <div class="raw">{{.TrustBoundaryMap}}</div>
+  </section>
+  {{end}}
+
+  {{if .Findings}}
+  <section class="section">
+    <h2>Findings</h2>
+    {{range .Findings}}
+    <div class="finding {{.Severity}}">
+      <div class="finding-title"><span class="sev">{{.Severity}}</span>{{.Tag}} {{.Title}}</div>
+      <div class="field"><div class="k">Endpoint</div><div class="v mono">{{.Endpoint}}</div></div>
+      <div class="field"><div class="k">OWASP</div><div class="v mono">{{range $i, $o := .OWASP}}{{if $i}}, {{end}}{{$o}}{{end}}</div></div>
+      <div class="field"><div class="k">Link</div><div class="v"><a href="{{.Link}}">{{.Link}}</a></div></div>
+      <div class="field"><div class="k">Attack</div><div class="v">{{.Attack}}</div></div>
+      <div class="field"><div class="k">Proof</div><div class="v mono">{{.Proof}}</div></div>
+      <div class="field"><div class="k">Fix</div><div class="v">{{.Fix}}</div></div>
+      {{if .FixCode}}<div class="fixcode mono">{{.FixCode}}</div>{{end}}
+    </div>
+    {{end}}
+    {{if .OmittedCount}}<p class="omitted">{{.OmittedCount}} lower-severity finding(s) ranked but omitted above the report cap.</p>{{end}}
+  </section>
+  {{end}}
+
+  {{if .Coverage}}
+  <section class="section">
+    <h2>Coverage matrix</h2>
+    <table class="coverage">
+      <thead><tr><th>Category</th><th>State</th><th>Detail</th></tr></thead>
+      <tbody>
+      {{range .Coverage}}
+        <tr>
+          <td>{{.Category}}</td>
+          <td><span class="state {{.State}}">{{.State}}</span></td>
+          <td class="mono">{{.Detail}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </section>
+  {{end}}
+
+  <div class="footline">
+    <div>Static, source-only, whitebox pass -- no traffic sent, no exploit run.</div>
+    <div>Generated by <span class="mono">deadeye vapt-report</span></div>
+  </div>
+
+</div>
+</body>
+</html>
