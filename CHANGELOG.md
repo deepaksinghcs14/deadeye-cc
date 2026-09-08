@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.57.0
+
+**`/deadeye-vapt` was 100% static rubric prose with zero orchestration
+behind it** — no scanner, no persisted state, no report. Its own Phase 2
+built a trust-boundary map and then said *"working state, not printed"*,
+throwing away the one artifact that would have made cross-file flow
+tracing checkable instead of a claim. That's fixed:
+
+- **The trust-boundary map now prints**, before any finding — every
+  attacker-controlled input named with its file:line origin. Phase 4's
+  verification and the new Workflow fan-out (below) both cite it directly
+  instead of re-deriving it from scratch.
+- **Ask when scope is ambiguous.** A monorepo with several
+  independently-deployed services, vendored code mixed with first-party
+  surface, or a repo that's plainly a client SDK for a service defined
+  elsewhere → stop and ask which service(s) to scope to, instead of
+  silently flattening everything into one surface.
+- **Multi-hop proofs must cite every hop**, not just entry and sink —
+  proof discipline that actually forces depth instead of trusting the
+  model traced the chain.
+- **Runs as a Workflow on Claude Code by default** — Phase 0/1 surface
+  detection fans out across the four independent tracks, Phase 3/4
+  triage+verify fans out per tag-family grounded in the trust-boundary
+  map, then one integration pass over everything before the report. Every
+  other host has no Workflow tool and keeps running single-agent, same as
+  before.
+- **Generates a shareable report.** A new `internal/vaptreport` package
+  (mirrors `internal/report`'s embed + `html/template` + atomic-write
+  shape) and `deadeye vapt --in=<file>|- [--out=<path>]` render the
+  compiled findings into a print-optimized HTML report in the scanned
+  repo's `vapt-reports/` — Cmd/Ctrl+P → Save as PDF for a shareable copy.
+  Zero new dependencies: no PDF library, no shelling out to a converter,
+  keeping the project's zero-dependency policy (`CONTRIBUTING.md`) intact.
+  Auto-escaping is on throughout — finding text (routes, param names,
+  proof snippets) is repo-derived and untrusted, same reasoning
+  `internal/report` already documents for its own fields.
+
+**"Copy for AI" was printing on every `/deadeye-review` run** — a local
+self-review that never posts anywhere — as one collated block, a leftover
+from before it and `/deadeye-pr` shared a fragment. It's posting-specific
+now: gone entirely from `/deadeye-review` (nothing to copy an AI prompt
+*for* when nothing was published), and no longer a separate collated
+block on `/deadeye-pr` either — each individual posted GitHub comment now
+carries its own self-contained task line, so any single comment is
+paste-ready into a coding agent on its own, with no PR context needed.
+Only appears when `--post` actually publishes something.
+
 ## 0.56.0
 
 **A project's own `.deadeye.json` could silently disable the exfiltration
