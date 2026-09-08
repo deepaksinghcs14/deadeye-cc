@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -322,6 +325,8 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 		return decideBashPreprocess(in, cfg, state)
 	case "Agent":
 		return decideAgentRouting(in, cfg, state)
+	case "Workflow":
+		return decideWorkflowTiering(in, cfg, state)
 	case "Read":
 		if out := decideExfilRead(in, cfg, state); out.HookSpecificOutput != nil {
 			return out
@@ -446,6 +451,98 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	out.HookSpecificOutput.AdditionalContext = reason
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "advise", Reason: decision.Reason, Model: decision.Model})
 	return out
+}
+
+// workflowInput is the one field of the Workflow tool's PreToolUse
+// payload decideWorkflowTiering reads. scriptPath/name (a saved script,
+// or a file on disk) carry no script text here -- skipped, not scanned,
+// since reading an arbitrary file from a hook is out of scope for an
+// advisory.
+type workflowInput struct {
+	Script string `json:"script"`
+}
+
+// agentCallRe finds each `agent(` call site in a Workflow script -- the
+// word boundary before "agent" keeps a script's own "subagent(" or
+// similar identifier from matching.
+var agentCallRe = regexp.MustCompile(`\bagent\(`)
+
+// decideWorkflowTiering is decideAgentRouting's Workflow-script
+// counterpart, on the same mode.routing axis: a Workflow's agent() calls
+// run inside a background-orchestrated script, never through the
+// interactive Agent tool this daemon's PreToolUse intercepts, so an
+// agent() call with no explicit model silently inherits the session's
+// own model instead of being routed -- verified live: a Workflow fan-out
+// with no tiering in its script ran every agent on opus. This can't
+// reach into the script and route each call the way decideAgentRouting
+// does; it can only advise before the whole script runs. Same
+// nudge-not-enforce shape as everywhere else (INV-2: never block a
+// workflow, only ever suggest).
+func decideWorkflowTiering(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.Routing == "off" {
+		return hookio.Empty()
+	}
+	var wi workflowInput
+	if err := json.Unmarshal(in.ToolInput, &wi); err != nil || wi.Script == "" {
+		return hookio.Empty()
+	}
+
+	total, untiered := scanWorkflowTiering(wi.Script)
+	if untiered == 0 {
+		return hookio.Empty()
+	}
+
+	sum := sha256.Sum256([]byte(wi.Script))
+	if !state.markSuggestedIfFirst(in.SessionID, "workflow-tiering:"+hex.EncodeToString(sum[:8])) {
+		return hookio.Empty()
+	}
+
+	out := hookio.ForEvent("PreToolUse")
+	out.HookSpecificOutput.AdditionalContext = fmt.Sprintf(
+		"deadeye: %d of %d agent() call sites in this Workflow script have no explicit model tier -- unlike a standalone Agent call, an untiered agent() here is NOT judge-classified, it silently inherits the session's own model. Set model: on each based on task difficulty (tier 0 haiku for mechanical/indexing work, tier 1 sonnet as the capable middle, the top tier reserved for judgment-heavy verification).",
+		untiered, total,
+	)
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Workflow", Action: "advise", Reason: "workflow-tiering"})
+	return out
+}
+
+// scanWorkflowTiering is a best-effort static scan, not a JS parser: it
+// counts agent() call sites and how many have neither a "model:" key nor
+// a "..." spread in their arguments. A spread is treated as tiered even
+// though this scan can't see the spread's own definition -- it's a
+// strong signal the call sources shared options (tier included) from
+// elsewhere in the script, and flagging it anyway would be a false
+// positive on a legitimate pattern.
+func scanWorkflowTiering(script string) (total, untiered int) {
+	for _, loc := range agentCallRe.FindAllStringIndex(script, -1) {
+		total++
+		args := balancedParens(script, loc[1]-1)
+		if !strings.Contains(args, "model:") && !strings.Contains(args, "...") {
+			untiered++
+		}
+	}
+	return total, untiered
+}
+
+// balancedParens returns the substring inside the parens opening at
+// script[open] (which must be "("), matched by simple depth counting --
+// good enough for a well-formed script. An unbalanced paren inside a
+// string argument is the one case this misreads, acceptable for a
+// best-effort advisory that only ever nudges, never blocks.
+func balancedParens(script string, open int) string {
+	depth := 0
+	for i := open; i < len(script); i++ {
+		switch script[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return script[open+1 : i]
+			}
+		}
+	}
+	return script[open+1:]
 }
 
 func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
