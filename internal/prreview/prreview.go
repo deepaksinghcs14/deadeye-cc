@@ -1,9 +1,13 @@
 // Package prreview holds the canonical review rubric -- the single source
 // of truth for both the /deadeye-pr and /deadeye-review capabilities. The
-// four lenses, verify-before-reporting/proof discipline, suggested fixes,
-// and copy-for-AI block are GitHub-agnostic and shared verbatim (lenses.md,
-// fixes.md) between a PR wrapper (ruleset.md) and a working-diff/whole-repo
-// wrapper (review.md). The Claude Code skills (skills/deadeye-pr/SKILL.md,
+// four lenses, verify-before-reporting/proof discipline, and suggested
+// fixes are GitHub-agnostic and shared verbatim (lenses.md, fixes.md)
+// between a PR wrapper (ruleset.md) and a working-diff/whole-repo wrapper
+// (review.md). The "Copy for AI" task line is NOT shared -- it's
+// PR-posting-specific (lives inside ruleset.md's "Posting back to the PR"
+// section, one line folded into each posted comment, never a standalone
+// collated block) since review.md's self-review never posts anywhere to
+// ride along with. The Claude Code skills (skills/deadeye-pr/SKILL.md,
 // skills/deadeye-review/SKILL.md) carry these bodies verbatim (canary tests
 // keep them identical), and `deadeye init <host>` renders both into each
 // other host's on-demand command file. One rubric, many surfaces.
@@ -85,13 +89,15 @@ func cutSection(s, from, to string) string {
 // the Security lens (`<!-- pentest-tags -->`...`<!-- /pentest-tags -->` in
 // lenses.md -- the original 7-tag Security lens is still fully functional
 // without them, same as it shipped before that widening), the "Learning
-// loop" section, "Suggested fixes"/"Copy for AI" (all three call a `deadeye`
-// CLI or lean on `gh`'s suggestion rendering Windsurf has no guaranteed
-// binary/UI for, so they have nothing to read there anyway), and the opt-in
-// "Posting back to the PR" section (the least relevant there, reduced to a
-// one-line pointer). This lets the flagship rubric grow without the weakest
-// host capping the best reviewer -- Windsurf still gets the four lenses and
-// the verify-before-reporting/proof discipline, just not the Rigor upgrade,
+// loop" section, "Suggested fixes" (calls a `deadeye` CLI or leans on
+// `gh`'s suggestion rendering Windsurf has no guaranteed binary/UI for, so
+// it has nothing to read there anyway), and the opt-in "Posting back to
+// the PR" section -- including the per-comment "Copy for AI" line that
+// lives inside it (posting-only by design; Windsurf's one-line pointer
+// below doesn't post at all, so there's no comment for it to ride along
+// on). This lets the flagship rubric grow without the weakest host capping
+// the best reviewer -- Windsurf still gets the four lenses and the
+// verify-before-reporting/proof discipline, just not the Rigor upgrade,
 // the full pentest tag set, the cross-session learning loop, or the
 // fix-acceleration extras.
 func WindsurfBody() string {
@@ -111,9 +117,11 @@ func WindsurfBody() string {
 // SelfWindsurfBody is WindsurfBody's counterpart for SelfBody(): drops
 // Rigor, the whole-repo `--repo` mode (the single largest section and the
 // least useful on a workflow surface with no persistent CLI access), the
-// same 13 pentest tags, Learning loop, and Suggested fixes/Copy for AI --
-// same reasoning as WindsurfBody, no posting section to trim here since
-// self-review never posts anywhere.
+// same 13 pentest tags, Learning loop, and Suggested fixes -- same
+// reasoning as WindsurfBody. No "Copy for AI" line and no posting section
+// to trim here on ANY host, Windsurf included: self-review never posts
+// anywhere, and Copy for AI only exists riding along inside a posted PR
+// comment.
 func SelfWindsurfBody() string {
 	b := selfBody
 	b = cutSection(b, "## Rigor", "## The four lenses")

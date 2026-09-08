@@ -164,7 +164,16 @@ ONLY when the user passes `--post` or explicitly asks:
     `side: "RIGHT"` for an added/context line, or `side: "LEFT"` with the
     ORIGINAL file's line number for a finding on a deleted line (a removed
     guard, a dropped `ok &&`) — the body being the finding line (severity,
-    tag, fix, proof).
+    tag, fix, proof), followed by one blank line and a fenced `Copy for AI`
+    block holding just that finding's task line: `path:line — <tag>:
+    <what>. Fix: <the snippet if you have one, else the prose fix>.` —
+    self-contained per comment, no PR context needed, so anyone can paste
+    that one comment into a coding agent on its own. Never collate every
+    finding's task into one combined block; each posted comment carries
+    only its own.
   Get `{owner}/{repo}` from `gh repo view --json nameWithOwner`. Anchor `line`
   to a line the diff actually touches, or GitHub rejects the comment.
 - `event: "COMMENT"` only — never approve, request-changes, merge, or close.
+- This "Copy for AI" line is posting-only — a print-only run (no `--post`)
+  never shows it; it exists to make an already-public GitHub comment
+  actionable on its own, not to pad chat output nobody asked to publish.
