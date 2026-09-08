@@ -141,7 +141,11 @@ Findings are a LIST. Do not apply or push any code change unless asked.
 ## Posting back to the PR (opt-in only)
 
 Default is print-only — nothing is sent anywhere. Post the review to GitHub
-ONLY when the user passes `--post` or explicitly asks:
+ONLY when the user passes `--post` or explicitly asks — that IS the
+authorization, not a request to be asked about again: `--post` means post,
+so once the review is compiled, print the exact comment body as part of
+the normal output and then post it. Don't stop and wait for a second,
+separate yes on content the flag already approved.
 
 - A suggested-fix snippet (see "Suggested fixes" above) becomes the comment's
   fix content as a `` ```suggestion `` block instead of a plain fenced one,
@@ -150,8 +154,6 @@ ONLY when the user passes `--post` or explicitly asks:
   A suggestion block can only replace lines already in the diff; if the fix
   reaches outside them, post the plain snippet and prose fix instead —
   GitHub rejects a suggestion that doesn't fit the anchored range.
-- Show the exact comment body first and get an explicit yes — posting is
-  outward-facing and public on the PR.
 - **Redact any secret value** a `secret:`/`expose:` finding surfaced before it
   goes into a public comment — name the location, never the credential.
 - Post ONE review that anchors each finding to its line — not a wall of text
