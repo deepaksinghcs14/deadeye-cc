@@ -51,7 +51,7 @@ func TestFitsWindsurfCap(t *testing.T) {
 	if n := len([]rune(WindsurfBody())); n > 11700 {
 		t.Errorf("Windsurf rubric is %d chars -- trim it; the rendered workflow must stay under 12000", n)
 	}
-	for _, must := range []string{"## The eighteen tags", "## Report format", "authz:", "inject:"} {
+	for _, must := range []string{"## The twenty tags", "## Report format", "authz:", "inject:"} {
 		if !strings.Contains(WindsurfBody(), must) {
 			t.Errorf("WindsurfBody() is missing %q -- over-trimmed", must)
 		}
@@ -91,7 +91,7 @@ func TestWindsurfDropsLearningLoop(t *testing.T) {
 // TestCoverageComplete is the direct check on this feature's core promise
 // ("I want all owasp, no things left behind"): every OWASP Top 10:2025,
 // API Security Top 10 2023, and LLM Top 10:2025 category id must appear in
-// the rubric, and every one of the eighteen tags must appear too. A
+// the rubric, and every one of the twenty tags must appear too. A
 // category present in name only (missing its id) would let coverage silently
 // erode as the rubric is edited.
 func TestCoverageComplete(t *testing.T) {
@@ -107,8 +107,8 @@ func TestCoverageComplete(t *testing.T) {
 		}
 	}
 	tags := []string{
-		"authn:", "authz:", "bizlogic:", "inject:", "ssrf:", "massassign:",
-		"expose:", "validation:", "ratelimit:", "crypto:", "config:", "dep:",
+		"authn:", "authz:", "bizlogic:", "inject:", "secret:", "ssrf:", "massassign:",
+		"expose:", "validation:", "ratelimit:", "dos:", "crypto:", "config:", "dep:",
 		"integrity:", "logging:", "inventory:", "thirdparty:", "llm:", "exceptions:",
 	}
 	for _, tag := range tags {
@@ -197,20 +197,24 @@ func TestAuthnAuthzOverlapDisambiguated(t *testing.T) {
 
 // TestCitationScopeIsAccurate pins the citation-scope fix: the old text
 // claimed only four tags were API-only, which was wrong on inspection --
-// six tags are API-only, six are Top-10:2025-only, and validation: has
+// seven tags are API-only, seven are Top-10:2025-only, and validation: has
 // no dedicated row in ANY table. A live acceptance test hit this
 // inaccuracy directly (several tags it needed to cite had no row in the
 // table the old text implied they should). This test checks the
 // corrected claim is actually present, not just that citation-scope
-// text exists at all.
+// text exists at all. Compares against whitespace-collapsed prose --
+// hand-wrapped markdown reflows on every edit, and a literal embedded
+// newline in the expectation breaks the moment a rewrap moves it, the
+// exact way this test's own "API\nSecurity" line once did silently.
 func TestCitationScopeIsAccurate(t *testing.T) {
+	flat := strings.Join(strings.Fields(Body()), " ")
 	for _, must := range []string{
 		"don't assume every tag dual-cites",
 		"have a Top 10:2025 row only",
-		"have an API\nSecurity row only",
+		"have an API Security row only",
 		"has no dedicated row anywhere in any of the three tables",
 	} {
-		if !strings.Contains(Body(), must) {
+		if !strings.Contains(flat, must) {
 			t.Errorf("rubric missing %q -- the citation-scope accuracy fix regressed", must)
 		}
 	}

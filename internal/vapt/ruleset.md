@@ -27,6 +27,17 @@ meaningfully more tokens than a single-agent pass to get meaningfully more
 coverage; say so if asked why. Every other host has no Workflow tool —
 run every phase below as one agent there, same as always.
 
+**Set each agent's tier explicitly in the script** — a Workflow's `agent()`
+calls run outside deadeye's own routing advisory (that only watches the
+interactive `Agent` tool, not a script's internal calls), so an untiered
+script silently inherits the session's own model for every agent, tiering
+nothing. Phase 0/1 detection is grep-driven pattern matching: the cheapest
+tier that fits. Phase 3/4 verification needs real judgment: floor each
+tag-family agent at tier 1 (sonnet), reserving the top tier for a family
+touching a risky surface (authn/authz/crypto/inject/llm). Run the closing
+integration pass at the strongest tier available — it's the one place
+seeing every finding at once.
+
 ## Scope
 
 `git ls-files` (or `find -maxdepth` outside a git repo) — never read

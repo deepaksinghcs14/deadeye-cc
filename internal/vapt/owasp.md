@@ -1,8 +1,11 @@
 ## Coverage — every OWASP category, mapped to a tag
 
-Eighteen tags. Every OWASP Top 10:2025 category, every API Security Top
-10 2023 category, and every LLM Top 10:2025 category maps to one — none
-dropped, none silently folded away.
+Twenty tags — the exact same set `/deadeye-guard` uses on a diff, so a
+vulnerability that's ever touched by a reviewed PR and one that's been
+sitting untouched for years get tagged identically; only the scope
+differs. Every OWASP Top 10:2025 category, every API Security Top 10 2023
+category, and every LLM Top 10:2025 category maps to one — none dropped,
+none silently folded away.
 
 **Reference — cite these, never a fabricated deep link:**
 
@@ -21,7 +24,7 @@ others rather than carried forward unchanged, noted below):
 | A01:2025 | Broken Access Control (absorbs 2021's standalone SSRF category) | `authz:` (SSRF shape still separately tagged `ssrf:`) |
 | A02:2025 | Security Misconfiguration | `config:` |
 | A03:2025 | Software Supply Chain Failures (expands 2021's "Vulnerable and Outdated Components" to the whole ecosystem, not just direct deps) | `dep:` |
-| A04:2025 | Cryptographic Failures | `crypto:` |
+| A04:2025 | Cryptographic Failures | `crypto:` / `secret:` |
 | A05:2025 | Injection | `inject:` |
 | A06:2025 | Insecure Design | `bizlogic:` |
 | A07:2025 | Authentication Failures | `authn:` |
@@ -36,7 +39,7 @@ others rather than carried forward unchanged, noted below):
 | API1 | Broken Object Level Authorization | `authz:` |
 | API2 | Broken Authentication | `authn:` |
 | API3 | Broken Object Property Level Authorization | `massassign:` / `expose:` |
-| API4 | Unrestricted Resource Consumption | `ratelimit:` |
+| API4 | Unrestricted Resource Consumption | `ratelimit:` / `dos:` |
 | API5 | Broken Function Level Authorization | `authz:` |
 | API6 | Unrestricted Access to Sensitive Business Flows | `bizlogic:` |
 | API7 | Server-Side Request Forgery | `ssrf:` |
@@ -61,28 +64,30 @@ All ten fold under `llm:`, with the sub-id named in the finding
 hat (a poisoned or unpinned model/plugin/tool dependency), and LLM10,
 which is `ratelimit:` (unbounded token/cost consumption).
 
-## The eighteen tags
+## The twenty tags
 
 | tag | covers |
 |---|---|
-| `authn:` | absent/weak authentication, JWT signature unverified, `alg:none`, `kid`/JWK header injection, algorithm confusion, no expiry, session fixation, weak reset/OTP flow, non-constant-time credential compare, OAuth `state`/PKCE/`redirect_uri` flaws |
+| `authn:` | absent/weak auth, unverified JWT signature, `alg:none`, `kid`/JWK injection, algorithm confusion, no expiry, session fixation, weak reset/OTP flow, non-constant-time compare, OAuth `state`/PKCE/`redirect_uri` flaws |
 | `authz:` | BOLA/IDOR, BFLA, missing tenant scoping, privilege escalation, CSRF, path-based access-control bypass, GraphQL field-level authz |
-| `bizlogic:` | insecure design: abuse-control-free business flows, race/TOCTOU on balance or inventory, negative/overflow quantities, workflow step skipping, no threat-model-driven limits |
+| `bizlogic:` | insecure design: abuse-control-free flows, race/TOCTOU on balance or inventory, negative/overflow quantities, workflow step skipping, no threat-model limits |
 | `inject:` | SQL, NoSQL, command, LDAP, XPath, SSTI, CRLF/header, path traversal, zip-slip, XSS sinks, unsafe deserialization, XXE, prototype pollution |
+| `secret:` | a credential literal in source, or a secret handled where it can leak (logs, errors, client output) |
 | `ssrf:` | attacker-controlled URL reaching a fetch, cloud metadata/internal network reachable, webhook and redirect-follow fetches, DNS-rebind-prone validation |
 | `massassign:` | request body bound straight to a model, letting a client set `role`, `is_admin`, `balance`, `verified` |
-| `expose:` | excessive data in a response on the NORMAL path (PII, hashes, internal ids, over-broad fields), secrets in logs, debug endpoints reachable, XS-leaks |
+| `expose:` | excessive data in a response on the NORMAL path (PII, hashes, internal ids, over-broad fields), debug endpoints reachable, XS-leaks |
 | `validation:` | absent/weak boundary validation — no schema, type confusion, unbounded size, content-type confusion, missing allow-list |
 | `ratelimit:` | no throttle or quota on login, OTP, reset, signup, expensive query, or any resource-creating endpoint; ReDoS; unbounded pagination; GraphQL alias/batch amplification |
-| `crypto:` | weak/absent crypto, secrets stored plaintext, ECB/static IV, non-CSPRNG token, TLS verification off or weak version |
-| `config:` | debug mode on, permissive CORS, missing security headers, insecure cookie flags, directory listing, GraphQL introspection, default credentials, TRACE, clickjacking, host-header injection, cache poisoning/deception, request smuggling, WebSocket origin unchecked, gRPC reflection |
+| `dos:` | untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion — the shape, not a missing throttle (that's `ratelimit:`) |
+| `crypto:` | weak/absent crypto, ECB/static IV, non-CSPRNG token, TLS verification off or weak version |
+| `config:` | debug mode, permissive CORS, missing security headers, insecure cookies, directory listing, GraphQL introspection, default creds, TRACE, clickjacking, host-header injection, cache poisoning, request smuggling, unchecked WebSocket origin, gRPC reflection |
 | `dep:` | vulnerable or superseded dependency, unpinned CI action ref, mutable `:latest` base image, `curl \| sh` installer, LLM03 supply chain |
-| `integrity:` | unsigned/unverified update or plugin load, CI/CD pipeline trusting unreviewed input, subdomain takeover -- the SUPPLY-CHAIN/trust dimension; a deserializer that executes attacker-controlled code is `inject:`, not this |
+| `integrity:` | unsigned/unverified update or plugin load, CI/CD trusting unreviewed input, subdomain takeover -- the supply-chain/trust dimension; a deserializer executing attacker code is `inject:`, not this |
 | `logging:` | auth failures and privileged actions with no audit trail, monitoring blind spots, log injection/forging |
 | `inventory:` | undocumented/shadow endpoints, deprecated API versions still routable, non-prod or debug hosts exposed, orphaned routes |
 | `thirdparty:` | third-party API responses trusted without validation, unvalidated redirects to partner services, blind trust in upstream data shape |
-| `llm:` | prompt injection, system-prompt leakage, improper output handling, excessive agency, embedding/vector weaknesses, model/data poisoning, misinformation, unbounded consumption |
-| `exceptions:` | mishandled exceptional conditions — an uncaught exception leaking a stack trace or internal state (the ERROR-path counterpart to `expose:`'s normal-path over-sharing), a caught error that fails open on a security-relevant path, a logic error in error-recovery code, a resource left in an inconsistent state after a partial failure |
+| `llm:` | prompt injection, system-prompt leakage, improper output handling, excessive agency, embedding weaknesses, data poisoning, misinformation, unbounded consumption |
+| `exceptions:` | an uncaught exception leaking a stack trace or internal state (the ERROR-path counterpart to `expose:`), a caught error that fails open on a security-relevant path, or a resource left inconsistent after a partial failure |
 
 **Overlap rule** — three pairs above share a mechanism at a glance; tag
 by the more specific one and never split one finding across two matrix
@@ -103,15 +108,18 @@ two pairs — never split one finding across two matrix lines.
 **Citation scope** — don't assume every tag dual-cites; cite whichever
 table above actually carries a row for it. `authz:`, `authn:`,
 `bizlogic:`, and `config:` have a real row in BOTH tables — cite both.
-`dep:`, `crypto:`, `inject:`, `integrity:`, `logging:`, and
-`exceptions:` have a Top 10:2025 row only. `ssrf:`, `massassign:`,
-`expose:`, `ratelimit:`, `inventory:`, and `thirdparty:` have an API
-Security row only (`ssrf:` is credited inside A01:2025's own entry
-above, not a dedicated `ssrf:` row — cite API7 alone, not A01). `llm:`
-always cites the LLM table regardless of the other two. `validation:`
-has no dedicated row anywhere in any of the three tables — cite the Top
-10:2025 link generically and name the ASVS chapter (V5, below) in
-`fix:` instead of forcing a citation that doesn't exist.
+`dep:`, `crypto:`, `secret:`, `inject:`, `integrity:`, `logging:`, and
+`exceptions:` have a Top 10:2025 row only (`secret:` is credited inside
+A04:2025's own entry alongside `crypto:` — cite A04:2025 alone, not a
+dedicated row). `ssrf:`, `massassign:`, `expose:`, `ratelimit:`, `dos:`,
+`inventory:`, and `thirdparty:` have an API Security row only (`ssrf:`
+is credited inside A01:2025's own entry above, not a dedicated `ssrf:`
+row — cite API7 alone, not A01; `dos:` likewise shares API4 with
+`ratelimit:` — cite API4, not a dedicated row). `llm:` always cites the
+LLM table regardless of the other two. `validation:` has no dedicated
+row anywhere in any of the three tables — cite the Top 10:2025 link
+generically and name the ASVS chapter (V5, below) in `fix:` instead of
+forcing a citation that doesn't exist.
 
 **Beyond the Top 10** — classic pen-test findings with no standalone
 Top-10 slot fold into the tags above rather than get dropped: CSRF and

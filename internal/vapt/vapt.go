@@ -4,7 +4,7 @@
 // lenses/fixes fragments out of the wrapper templates: ruleset.md carries
 // the method (scope, phases, report format, boundaries) and owasp.md
 // carries the long, mechanical OWASP/API/LLM coverage matrices and the
-// eighteen-tag reference table, substituted in at {{owasp}}. The Claude
+// twenty-tag reference table, substituted in at {{owasp}}. The Claude
 // Code skill (skills/deadeye-vapt/SKILL.md) carries Body() verbatim (a
 // canary test keeps them identical), and `deadeye init <host>` renders it
 // into every other host's on-demand command file.
@@ -81,7 +81,7 @@ func cutSection(s, from, to string) string {
 // in the intro paragraph and Phase 0 itself). Every method phase
 // (including all four of Phase 0's surface-detection tracks -- this is
 // control flow, not reference material, never a cut candidate), the
-// eighteen-tag table, and the coverage-matrix requirement all stay --
+// twenty-tag table, and the coverage-matrix requirement all stay --
 // the pass still functions identically, just without the
 // illustrative/convenience/reinforcement/redundant extras.
 //
@@ -102,10 +102,10 @@ func WindsurfBody() string {
 	b = cutSection(b, "**How this runs.**", "## Scope")
 	b = cutSection(b, "**Scope is ambiguous", "\n\n**Phase 1 —")
 	b = cutSection(b, "Unlike Phase 3's ranking", "\n\n**Phase 3 — triage")
-	b = cutSection(b, "Eighteen tags. Every OWASP", "**Reference —")
+	b = cutSection(b, "Twenty tags —", "**Reference —")
 	b = cutSection(b, "## Report generation", "## Honesty boundaries")
 	b = cutSection(b, "## Honesty boundaries", "## Learning loop")
-	b = cutSection(b, "**OWASP Top 10:2025**", "## The eighteen tags")
+	b = cutSection(b, "**OWASP Top 10:2025**", "## The twenty tags")
 	b = cutSection(b, "**Overlap rule**", "## Report format")
 	b = cutSection(b, "```\n🔴 authz: IDOR", "**The report closes")
 	b = cutSection(b, "## Learning loop", "## Boundaries")
