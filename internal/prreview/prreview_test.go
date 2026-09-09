@@ -77,6 +77,51 @@ func TestBodiesShareLenses(t *testing.T) {
 	}
 }
 
+// TestCICDInfraChecklistPresent pins the CI/CD & IaC checklist added
+// alongside /deadeye-vapt's fifth Phase 0 track: generic diff review has
+// no prompt to look for pull_request_target running untrusted PR content
+// with secrets in scope, or a wildcard IAM policy / privileged container
+// in a Terraform/Kubernetes/Dockerfile diff. Both rubrics share it via
+// lenses.md.
+func TestCICDInfraChecklistPresent(t *testing.T) {
+	for _, must := range []string{"pull_request_target", "ClusterRoleBinding", "privileged: true"} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("Body() missing %q -- the CI/CD & IaC checklist regressed", must)
+		}
+		if !strings.Contains(SelfBody(), must) {
+			t.Errorf("SelfBody() missing %q -- the CI/CD & IaC checklist regressed", must)
+		}
+	}
+}
+
+// TestNoFramingIsItselfAFinding and TestClientSideChecklistPresent pin
+// the two rules ported from /deadeye-vapt's deeper LLM and client-side/UI
+// treatment: a missing trust-boundary label on content reaching an LLM's
+// context is reportable without a demonstrated exploit, and a diff
+// touching client-side/UI code gets checked for token storage location,
+// postMessage origin checks, third-party embeds, and CSP presence --
+// none of which look like a classic injection sink on their own.
+func TestNoFramingIsItselfAFinding(t *testing.T) {
+	const must = "No framing IS the finding"
+	if !strings.Contains(Body(), must) {
+		t.Error("Body() no longer states a missing trust-boundary label is reportable on its own")
+	}
+	if !strings.Contains(SelfBody(), must) {
+		t.Error("SelfBody() no longer states a missing trust-boundary label is reportable on its own")
+	}
+}
+
+func TestClientSideChecklistPresent(t *testing.T) {
+	for _, must := range []string{"postMessage", "event.origin", "httpOnly cookie", "CSP"} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("Body() missing %q -- the client-side/UI checklist regressed", must)
+		}
+		if !strings.Contains(SelfBody(), must) {
+			t.Errorf("SelfBody() missing %q -- the client-side/UI checklist regressed", must)
+		}
+	}
+}
+
 // TestPentestTagDisambiguation pins the overlap fixes applied when the
 // Security lens grew from 7 to 20 tags -- the vapt acceptance test found
 // exactly this ambiguity (inject/integrity on deserialization, expose/

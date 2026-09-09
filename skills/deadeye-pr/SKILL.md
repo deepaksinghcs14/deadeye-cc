@@ -36,18 +36,16 @@ Preconditions and graceful degradation:
   instead. Do not invent PR contents.
 - Not a GitHub repo / no PR for the branch → say so; don't substitute a
   different scope.
-- Huge PR (more than ~40 changed files or a few thousand lines) → review it ALL
-  by fanning out one subagent per ~2,500-line package-grouped cluster, in
-  parallel, each returning findings in the standard format. Spawn each cluster
-  subagent at the cheapest tier that fits it, but the review floor is tier 1
-  (sonnet) for any cluster with real logic — drop to tier 0 only for a purely
-  mechanical cluster (generated code, lockfiles, vendored deps, pure renames),
-  and reserve the top tier for a cluster on a risky surface (auth, crypto,
-  concurrency, raw SQL or shell, money). Verify every returned finding yourself
-  before reporting it. Never truncate, and never report partial coverage as
-  complete. Then run one integration pass over the combined findings for what
-  no single cluster sees alone — an export removed in one, its only caller
-  in another (`break:`/`contract:`).
+- Huge PR (~40+ changed files or a few thousand lines) → review it ALL: fan
+  out one subagent per ~2,500-line package cluster, in parallel, each
+  returning findings in the standard format. Cheapest tier that fits, floor
+  tier 1 (sonnet) for real logic — tier 0 only for purely mechanical
+  clusters (generated code, lockfiles, vendored deps, renames), top tier for
+  a risky cluster (auth, crypto, concurrency, raw SQL/shell, money). Verify
+  every finding yourself; never truncate or report partial coverage as
+  complete. One integration pass over the combined findings after — an
+  export removed in one cluster, its only caller in another
+  (`break:`/`contract:`).
 
 ## Verify before reporting
 
@@ -156,13 +154,13 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 
 ### Security
 
-- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a raw-HTML/DOM sink (XSS), or a deserializer
+- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a DOM sink (XSS), or a deserializer
 - `secret:` — a credential literal, or a secret handled where it can leak (logs, errors, client output)
 - `authz:` — a decision or resource access with no confirmed permission check
-- `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS verification off)
-- `expose:` — sensitive data returned or logged beyond what the caller needs, on the NORMAL response path (an error path leaking a trace is `exceptions:`, not this)
+- `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS off)
+- `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL path (an error path leaking a trace is `exceptions:`, not this)
 - `dep:` — a vulnerable or superseded dependency
-- `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first.
+- `dos:` — untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion. Cap or bound the input first.
 <!-- pentest-tags -->
 - `ssrf:` — an attacker-controlled URL reaching a fetch: cloud metadata, internal network, a webhook or redirect-follow target
 - `authn:` — absent/weak authentication: unverified JWT signature, `alg:none`, no expiry, session fixation, a weak reset/OTP flow
@@ -179,6 +177,12 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 - `llm:` — only when the diff touches an LLM/agent surface: prompt injection, system-prompt leakage, excessive agency, unbounded token/cost consumption
 <!-- /pentest-tags -->
 
+**No framing IS the finding.** When the diff adds a place where external/
+repo-derived content reaches an LLM's context (a hook point, a RAG result,
+a tool-output pass-through), check whether that text carries ANY
+untrusted-content framing. A missing trust boundary is reportable the same
+way a missing authz check is (`llm:`) — no crafted payload needed.
+
 **A guard is only as good as its weakest path.** When the diff adds or hardens
 a check on a sink, grep the file and package for *every other path to the same
 sink* — a second `http.Client`, a raw fetch, a probe that runs *before* the
@@ -191,14 +195,22 @@ If a dependency manifest OR its lockfile changed (`go.mod`/`go.sum`,
 `package.json`+lockfile, `requirements.txt`/`pyproject.toml`+lockfile,
 `Cargo.toml`/`Cargo.lock`, `pom.xml`/`build.gradle`), run its native auditor
 if installed — `govulncheck ./...`, `npm audit`, `pip-audit`, `cargo audit`
-— or `osv-scanner -L <manifest>` if none is. A newly ADDED dep also gets a
-direct OSV cross-check. A lockfile-only bump needs the same pass — a vuln
-can land transitively with no manifest edit. Also
+— or `osv-scanner -L <manifest>` as fallback. A newly ADDED dep gets a
+direct OSV cross-check; a lockfile-only bump needs the same pass. Also
 flag CI supply chain: an unpinned Action ref (`x@main`), a `:latest`
-Docker base, or `curl | sh`. No auditor installed →
-SAY SO, don't fabricate a CVE. Never invent an advisory ID or fixed version
-you didn't see from a tool. Rank by exploitability. Footer: `<N> exposures,
-<M> accepted.` or `Clean line of fire.`
+Docker base, or `curl | sh`. No auditor installed → say so, don't
+fabricate a CVE or advisory id. Rank by exploitability. Footer: `<N>
+exposures, <M> accepted.` or `Clean line of fire.`
+
+If the diff touches CI/CD or IaC config (`.github/workflows/*.yml`,
+`.gitlab-ci.yml`, Terraform, Kubernetes manifests, a Dockerfile), check
+for `pull_request_target` running untrusted PR content with secrets in
+scope, a wildcard IAM policy or `privileged: true`/root container, a
+`ClusterRoleBinding` granting cluster-admin, or a hardcoded credential.
+
+If the diff touches client-side/UI code: token storage (localStorage vs.
+httpOnly cookie), `postMessage` listeners checking `event.origin`,
+third-party script embeds, and whether a CSP exists.
 
 ## Don't repeat what's already on the PR
 
@@ -211,11 +223,9 @@ reviewer already made is how a review loses trust. Fetch the existing comments
 - `gh api repos/{owner}/{repo}/pulls/<N>/reviews` — summary bodies, incl.
   deadeye's own prior run
 
-Drop anything already raised — match on the sink or the fix, not exact wording
-(you and a bot word the same bug differently). Report only net-new, and print
-one honest line so coverage stays clear —
-`N findings already raised by existing reviewers — skipped` — whether you're
-posting or just printing.
+Drop anything already raised — match on the sink or the fix, not exact
+wording (you and a bot word the same bug differently). Report only
+net-new, and print one line: `N findings already raised — skipped`.
 
 ## Learning loop (repo-scoped priority)
 

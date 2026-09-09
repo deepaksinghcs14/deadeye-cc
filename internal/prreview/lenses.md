@@ -105,13 +105,13 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 
 ### Security
 
-- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a raw-HTML/DOM sink (XSS), or a deserializer
+- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a DOM sink (XSS), or a deserializer
 - `secret:` — a credential literal, or a secret handled where it can leak (logs, errors, client output)
 - `authz:` — a decision or resource access with no confirmed permission check
-- `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS verification off)
-- `expose:` — sensitive data returned or logged beyond what the caller needs, on the NORMAL response path (an error path leaking a trace is `exceptions:`, not this)
+- `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS off)
+- `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL path (an error path leaking a trace is `exceptions:`, not this)
 - `dep:` — a vulnerable or superseded dependency
-- `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first.
+- `dos:` — untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion. Cap or bound the input first.
 <!-- pentest-tags -->
 - `ssrf:` — an attacker-controlled URL reaching a fetch: cloud metadata, internal network, a webhook or redirect-follow target
 - `authn:` — absent/weak authentication: unverified JWT signature, `alg:none`, no expiry, session fixation, a weak reset/OTP flow
@@ -128,6 +128,12 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 - `llm:` — only when the diff touches an LLM/agent surface: prompt injection, system-prompt leakage, excessive agency, unbounded token/cost consumption
 <!-- /pentest-tags -->
 
+**No framing IS the finding.** When the diff adds a place where external/
+repo-derived content reaches an LLM's context (a hook point, a RAG result,
+a tool-output pass-through), check whether that text carries ANY
+untrusted-content framing. A missing trust boundary is reportable the same
+way a missing authz check is (`llm:`) — no crafted payload needed.
+
 **A guard is only as good as its weakest path.** When the diff adds or hardens
 a check on a sink, grep the file and package for *every other path to the same
 sink* — a second `http.Client`, a raw fetch, a probe that runs *before* the
@@ -140,11 +146,19 @@ If a dependency manifest OR its lockfile changed (`go.mod`/`go.sum`,
 `package.json`+lockfile, `requirements.txt`/`pyproject.toml`+lockfile,
 `Cargo.toml`/`Cargo.lock`, `pom.xml`/`build.gradle`), run its native auditor
 if installed — `govulncheck ./...`, `npm audit`, `pip-audit`, `cargo audit`
-— or `osv-scanner -L <manifest>` if none is. A newly ADDED dep also gets a
-direct OSV cross-check. A lockfile-only bump needs the same pass — a vuln
-can land transitively with no manifest edit. Also
+— or `osv-scanner -L <manifest>` as fallback. A newly ADDED dep gets a
+direct OSV cross-check; a lockfile-only bump needs the same pass. Also
 flag CI supply chain: an unpinned Action ref (`x@main`), a `:latest`
-Docker base, or `curl | sh`. No auditor installed →
-SAY SO, don't fabricate a CVE. Never invent an advisory ID or fixed version
-you didn't see from a tool. Rank by exploitability. Footer: `<N> exposures,
-<M> accepted.` or `Clean line of fire.`
+Docker base, or `curl | sh`. No auditor installed → say so, don't
+fabricate a CVE or advisory id. Rank by exploitability. Footer: `<N>
+exposures, <M> accepted.` or `Clean line of fire.`
+
+If the diff touches CI/CD or IaC config (`.github/workflows/*.yml`,
+`.gitlab-ci.yml`, Terraform, Kubernetes manifests, a Dockerfile), check
+for `pull_request_target` running untrusted PR content with secrets in
+scope, a wildcard IAM policy or `privileged: true`/root container, a
+`ClusterRoleBinding` granting cluster-admin, or a hardcoded credential.
+
+If the diff touches client-side/UI code: token storage (localStorage vs.
+httpOnly cookie), `postMessage` listeners checking `event.origin`,
+third-party script embeds, and whether a CSP exists.

@@ -29,18 +29,16 @@ Preconditions and graceful degradation:
   instead. Do not invent PR contents.
 - Not a GitHub repo / no PR for the branch → say so; don't substitute a
   different scope.
-- Huge PR (more than ~40 changed files or a few thousand lines) → review it ALL
-  by fanning out one subagent per ~2,500-line package-grouped cluster, in
-  parallel, each returning findings in the standard format. Spawn each cluster
-  subagent at the cheapest tier that fits it, but the review floor is tier 1
-  (sonnet) for any cluster with real logic — drop to tier 0 only for a purely
-  mechanical cluster (generated code, lockfiles, vendored deps, pure renames),
-  and reserve the top tier for a cluster on a risky surface (auth, crypto,
-  concurrency, raw SQL or shell, money). Verify every returned finding yourself
-  before reporting it. Never truncate, and never report partial coverage as
-  complete. Then run one integration pass over the combined findings for what
-  no single cluster sees alone — an export removed in one, its only caller
-  in another (`break:`/`contract:`).
+- Huge PR (~40+ changed files or a few thousand lines) → review it ALL: fan
+  out one subagent per ~2,500-line package cluster, in parallel, each
+  returning findings in the standard format. Cheapest tier that fits, floor
+  tier 1 (sonnet) for real logic — tier 0 only for purely mechanical
+  clusters (generated code, lockfiles, vendored deps, renames), top tier for
+  a risky cluster (auth, crypto, concurrency, raw SQL/shell, money). Verify
+  every finding yourself; never truncate or report partial coverage as
+  complete. One integration pass over the combined findings after — an
+  export removed in one cluster, its only caller in another
+  (`break:`/`contract:`).
 
 {{lenses}}
 
@@ -55,11 +53,9 @@ reviewer already made is how a review loses trust. Fetch the existing comments
 - `gh api repos/{owner}/{repo}/pulls/<N>/reviews` — summary bodies, incl.
   deadeye's own prior run
 
-Drop anything already raised — match on the sink or the fix, not exact wording
-(you and a bot word the same bug differently). Report only net-new, and print
-one honest line so coverage stays clear —
-`N findings already raised by existing reviewers — skipped` — whether you're
-posting or just printing.
+Drop anything already raised — match on the sink or the fix, not exact
+wording (you and a bot word the same bug differently). Report only
+net-new, and print one line: `N findings already raised — skipped`.
 
 ## Learning loop (repo-scoped priority)
 

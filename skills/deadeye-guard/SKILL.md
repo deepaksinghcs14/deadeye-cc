@@ -104,6 +104,13 @@ Also flag CI supply chain: an unpinned GitHub Actions ref (`uses: x@main`,
 not a SHA), a mutable Docker base image (`:latest`), or a `curl | sh`
 install script.
 
+If the diff touches CI/CD or IaC config (`.github/workflows/*.yml`,
+`.gitlab-ci.yml`, Terraform, Kubernetes manifests, a Dockerfile), also
+check for `pull_request_target` running untrusted PR content with
+secrets in scope, a wildcard IAM policy or `privileged: true`/root
+container, a `ClusterRoleBinding` granting cluster-admin, or a
+hardcoded credential.
+
 If the tool isn't installed, SAY SO and fall back to what coder mode's
 live advisory already used — the bundled superseded-package table and
 `~/.deadeye/osv-cache.json` — rather than fabricating a CVE list. When a
