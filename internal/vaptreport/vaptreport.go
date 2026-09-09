@@ -56,6 +56,7 @@ type CoverageRow struct {
 // contract the skill writes to).
 type Input struct {
 	Repo             string        `json:"repo"`
+	Scope            string        `json:"scope,omitempty"` // e.g. "billing service" when Phase 0's ambiguity gate narrowed it; empty means the whole repo
 	SurfaceInventory string        `json:"surface_inventory"`
 	TrustBoundaryMap string        `json:"trust_boundary_map"`
 	Findings         []Finding     `json:"findings"`
@@ -72,6 +73,7 @@ var severityRank = map[string]int{"critical": 0, "high": 1, "medium": 2, "nit": 
 // in template syntax, same discipline internal/report follows.
 type Data struct {
 	Repo             string
+	Scope            string // "" means Build already resolved it to "whole repository"
 	GeneratedAt      string
 	SurfaceInventory string
 	TrustBoundaryMap string
@@ -93,8 +95,14 @@ func Build(in Input, now time.Time) Data {
 		tally[f.Severity]++
 	}
 
+	scope := in.Scope
+	if scope == "" {
+		scope = "whole repository"
+	}
+
 	return Data{
 		Repo:             in.Repo,
+		Scope:            scope,
 		GeneratedAt:      now.UTC().Format("2006-01-02 15:04 UTC"),
 		SurfaceInventory: in.SurfaceInventory,
 		TrustBoundaryMap: in.TrustBoundaryMap,

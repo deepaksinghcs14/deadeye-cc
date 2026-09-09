@@ -40,6 +40,36 @@ func TestBuildSortsWorstFirst(t *testing.T) {
 	}
 }
 
+// TestBuildDefaultsScopeToWholeRepo: an omitted Scope must never render
+// as blank -- that would silently read as "we don't know", not the
+// actual "the whole repo was in scope" it means.
+func TestBuildDefaultsScopeToWholeRepo(t *testing.T) {
+	d := Build(sample(), fixedTime)
+	if d.Scope != "whole repository" {
+		t.Errorf("Scope = %q, want %q for an Input with no Scope set", d.Scope, "whole repository")
+	}
+}
+
+// TestBuildKeepsNarrowedScope: when the ambiguity gate narrowed the pass
+// to one service, that name must survive into the report -- the whole
+// point is the report never silently reads as full-repo coverage when
+// it wasn't.
+func TestBuildKeepsNarrowedScope(t *testing.T) {
+	in := sample()
+	in.Scope = "billing service"
+	d := Build(in, fixedTime)
+	if d.Scope != "billing service" {
+		t.Errorf("Scope = %q, want %q", d.Scope, "billing service")
+	}
+	html, err := Render(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(html, "billing service") {
+		t.Error("rendered report doesn't mention the narrowed scope")
+	}
+}
+
 // TestBuildCleanWithNoFindings: an empty findings list must report Clean,
 // matching the rubric's "Clean line of fire" case.
 func TestBuildCleanWithNoFindings(t *testing.T) {

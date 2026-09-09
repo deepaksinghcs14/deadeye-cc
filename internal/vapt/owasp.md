@@ -68,26 +68,26 @@ which is `ratelimit:` (unbounded token/cost consumption).
 
 | tag | covers |
 |---|---|
-| `authn:` | absent/weak auth, unverified JWT signature, `alg:none`, `kid`/JWK injection, algorithm confusion, no expiry, session fixation, weak reset/OTP flow, non-constant-time compare, OAuth `state`/PKCE/`redirect_uri` flaws |
-| `authz:` | BOLA/IDOR, BFLA, missing tenant scoping, privilege escalation, CSRF, path-based access-control bypass, GraphQL field-level authz |
-| `bizlogic:` | insecure design: abuse-control-free flows, race/TOCTOU on balance or inventory, negative/overflow quantities, workflow step skipping, no threat-model limits |
-| `inject:` | SQL, NoSQL, command, LDAP, XPath, SSTI, CRLF/header, path traversal, zip-slip, XSS sinks, unsafe deserialization, XXE, prototype pollution |
-| `secret:` | a credential literal in source, or a secret handled where it can leak (logs, errors, client output) |
-| `ssrf:` | attacker-controlled URL reaching a fetch, cloud metadata/internal network reachable, webhook and redirect-follow fetches, DNS-rebind-prone validation |
-| `massassign:` | request body bound straight to a model, letting a client set `role`, `is_admin`, `balance`, `verified` |
-| `expose:` | excessive data in a response on the NORMAL path (PII, hashes, internal ids, over-broad fields), debug endpoints reachable, XS-leaks |
-| `validation:` | absent/weak boundary validation — no schema, type confusion, unbounded size, content-type confusion, missing allow-list |
-| `ratelimit:` | no throttle or quota on login, OTP, reset, signup, expensive query, or any resource-creating endpoint; ReDoS; unbounded pagination; GraphQL alias/batch amplification |
+| `authn:` | absent/weak auth, unverified JWT signature, `alg:none`, algorithm confusion, no expiry, session fixation, weak reset/OTP flow, OAuth `state`/PKCE flaws |
+| `authz:` | BOLA/IDOR, BFLA, missing tenant scoping, privilege escalation, CSRF, access-control bypass |
+| `bizlogic:` | abuse-control-free flows, race/TOCTOU on balance or inventory, negative/overflow quantities, workflow step skipping |
+| `inject:` | SQL, NoSQL, command, LDAP, SSTI, CRLF/header, path traversal, zip-slip, XSS sinks, unsafe deserialization, XXE, prototype pollution |
+| `secret:` | a credential literal in source, or a secret that can leak (logs, errors, client output) |
+| `ssrf:` | attacker-controlled URL reaching a fetch: cloud metadata, internal network, webhook/redirect-follow targets, DNS-rebind-prone validation |
+| `massassign:` | request body bound straight to a model, letting a client set `role`/`is_admin`/`balance` |
+| `expose:` | excessive data in a response on the NORMAL path (PII, hashes, internal ids), debug endpoints reachable, XS-leaks |
+| `validation:` | absent/weak boundary validation — no schema, type confusion, unbounded size, missing allow-list |
+| `ratelimit:` | no throttle on login, OTP, reset, signup, or an expensive query; ReDoS; unbounded pagination |
 | `dos:` | untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion — the shape, not a missing throttle (that's `ratelimit:`) |
-| `crypto:` | weak/absent crypto, ECB/static IV, non-CSPRNG token, TLS verification off or weak version |
-| `config:` | debug mode, permissive CORS, missing security headers, insecure cookies, directory listing, GraphQL introspection, default creds, TRACE, clickjacking, host-header injection, cache poisoning, request smuggling, unchecked WebSocket origin, gRPC reflection |
-| `dep:` | vulnerable or superseded dependency, unpinned CI action ref, mutable `:latest` base image, `curl \| sh` installer, LLM03 supply chain |
-| `integrity:` | unsigned/unverified update or plugin load, CI/CD trusting unreviewed input, subdomain takeover -- the supply-chain/trust dimension; a deserializer executing attacker code is `inject:`, not this |
-| `logging:` | auth failures and privileged actions with no audit trail, monitoring blind spots, log injection/forging |
-| `inventory:` | undocumented/shadow endpoints, deprecated API versions still routable, non-prod or debug hosts exposed, orphaned routes |
-| `thirdparty:` | third-party API responses trusted without validation, unvalidated redirects to partner services, blind trust in upstream data shape |
-| `llm:` | prompt injection, system-prompt leakage, improper output handling, excessive agency, embedding weaknesses, data poisoning, misinformation, unbounded consumption |
-| `exceptions:` | an uncaught exception leaking a stack trace or internal state (the ERROR-path counterpart to `expose:`), a caught error that fails open on a security-relevant path, or a resource left inconsistent after a partial failure |
+| `crypto:` | weak/absent crypto, ECB/static IV, non-CSPRNG token, TLS off/weak version |
+| `config:` | debug mode, permissive CORS, missing security headers, insecure cookies, default creds, clickjacking, host-header injection, cache poisoning, request smuggling |
+| `dep:` | vulnerable/superseded dependency, unpinned CI action ref, mutable `:latest` image, `curl \| sh` installer |
+| `integrity:` | unsigned/unverified update or plugin load, CI/CD trusting unreviewed input, subdomain takeover |
+| `logging:` | auth failures/privileged actions with no audit trail, log injection/forging |
+| `inventory:` | undocumented/shadow endpoints, deprecated API versions still routable, debug hosts exposed, orphaned routes |
+| `thirdparty:` | third-party responses trusted without validation, unvalidated redirects to partner services, blind trust in upstream data shape |
+| `llm:` | prompt injection, system-prompt leakage, output handling, excessive agency, embedding weaknesses, data poisoning, misinformation, unbounded consumption |
+| `exceptions:` | an uncaught exception leaking a stack trace (the ERROR-path twin of `expose:`), or a caught error that fails open on a security path |
 
 **Overlap rule** — three pairs above share a mechanism at a glance; tag
 by the more specific one and never split one finding across two matrix

@@ -22,7 +22,7 @@ half of a VAPT: a whitebox read that reasons like an attacker with the
 code in hand, not the network half. Say this plainly in the output, not
 just here.
 
-**How this runs.** Phase 0 (the four surface tracks below) and the
+**How this runs.** Phase 0 (the five surface tracks below) and the
 ambiguous-scope gate run first, sequentially, as normal interactive turns
 — Phase 0 is a handful of greps, no fan-out needed, and the ambiguity
 gate needs a live turn to actually ask from (a Workflow runs to
@@ -30,9 +30,14 @@ completion in the background with no pause point to ask mid-script).
 Once scope is settled, on Claude Code, load the `workflow-authoring`
 skill and run the rest as a Workflow: Phase 1 (attack-surface inventory)
 fans out across whichever surface tracks Phase 0 confirmed, then Phase
-3/4 (triage + verify) fan out one agent per tag-family, each grounded in
-the Phase 2 trust-boundary map printed below — then one integration pass
-over every returned finding before the report (Phase 5) is generated.
+3/4 (triage + verify) fan out one agent per tag-family. A fanned-out
+agent doesn't inherit this conversation's context the way a sequential
+turn does — **interpolate Phase 2's full trust-boundary map text
+directly into every Phase 3/4 `agent()` call's prompt**, not just a
+reference to it; "grounded in the map" means the map's actual text
+travels into the call, not that it's assumed to already be in scope.
+Then one integration pass over every returned finding before the report
+(Phase 5) is generated.
 This is the default, not an opt-in — a whole-service pass is already the
 heaviest, least-frequent command here, and it spends meaningfully more
 tokens than a single-agent pass to get meaningfully more coverage; say so
@@ -53,10 +58,10 @@ seeing every finding at once.
 ## Scope
 
 `git ls-files` (or `find -maxdepth` outside a git repo) — never read
-directories of files whole. Grep-first for candidates; open full file
-bodies only for the ones that make the attack-surface table.
+whole directories. Grep-first; open full file bodies only for candidates
+that make the attack-surface table.
 
-**Phase 0 — confirm there's a real attack surface.** Four independent
+**Phase 0 — confirm there's a real attack surface.** Five independent
 tracks; any one alone is enough to proceed, a target may have any
 combination:
 
@@ -84,6 +89,12 @@ combination:
   UI-only repo with no backend at all still renders untrusted content,
   stores tokens, and embeds third-party scripts — it's a real target on
   its own, not a "nothing to review here."
+- **Infrastructure-as-code / CI-CD.** Grep for deployment config:
+  Terraform/CloudFormation (`*.tf`), Kubernetes manifests (`kind:
+  Deployment/Role/ClusterRoleBinding`), Dockerfiles (`FROM`, `USER`),
+  pipeline defs (`.github/workflows/*.yml`, `.gitlab-ci.yml`,
+  `Jenkinsfile`). A repo with no app code at all can still be exactly
+  this — provisioning infra or running builds with real credentials.
 
 None found → say so and stop. Whichever track(s) DO apply set Phase 1's
 inventory shape (below); tags with no matching surface end up `n/a` in
@@ -99,11 +110,10 @@ matrix that LOOKS complete and isn't — a real decision point, not
 another `not reached` line.
 
 **Phase 1 — attack-surface inventory.** Network-facing: every route,
-method, path, handler, and what auth middleware is actually mounted on
-it (trace the chain, not just what's declared in the file). Uploads,
-webhooks, admin panels, GraphQL/gRPC/WebSocket endpoints. Every API
-version still routable — a live `/v1/` beside a `/v2/` is itself a
-finding (`inventory:`, API9), not just scope.
+method, path, handler, and what auth middleware is actually mounted (trace
+the chain, not just what's declared). Uploads, webhooks, admin panels,
+GraphQL/gRPC/WebSocket endpoints. A live `/v1/` beside a `/v2/` is itself
+a finding (`inventory:`, API9), not just scope.
 
 LLM/agent surface: every place external or repo-derived content reaches
 the model's context — a hook injection point, a RAG result, a
@@ -114,17 +124,21 @@ demonstrated; a missing trust boundary is reportable the same way a
 missing authz check is, without a full exploit chain.
 
 Message/event-driven surface: every queue/topic consumed, the consumer
-group, what triggers processing, and whether the payload is
-schema-validated and the claimed sender authenticated BEFORE use — most
-consumers trust whatever arrives. Note redelivery/retry behavior: an
-unbounded retry on a poison-pill message is a `ratelimit:`/`dos:`
-finding on its own, not just an inconvenience.
+group, what triggers processing, whether the payload is schema-validated
+and the claimed sender authenticated BEFORE use. An unbounded retry on a
+poison-pill message is a `ratelimit:`/`dos:` finding on its own.
 
 Client-side/UI surface: every place user- or third-party-controlled
-content renders into the DOM, where auth tokens are stored (localStorage
-vs. an httpOnly cookie), every `postMessage` listener and whether it
-checks `event.origin`, third-party script/widget embeds, and whether a
-CSP exists at all.
+content renders into the DOM, where tokens are stored (localStorage vs.
+an httpOnly cookie), every `postMessage` listener and whether it checks
+`event.origin`, third-party script embeds, and whether a CSP exists.
+
+Infrastructure/CI-CD surface: every pipeline's trigger and secret access
+— does `pull_request_target` (or similar) check out and run untrusted
+PR content with secrets in scope? Every IaC resource's effective
+permissions — wildcard IAM, `privileged: true`/root containers, a
+`ClusterRoleBinding` granting cluster-admin, or a hardcoded credential in
+a manifest.
 
 Report the applicable table(s) first, before any finding.
 
@@ -134,8 +148,10 @@ webhook payloads — LLM surface: repo/file content, tool output,
 retrieval results — message/event surface: message body,
 headers/metadata, claimed sender identity — client-side/UI surface:
 URL/query string, `postMessage` payloads, third-party script content,
-anything a server response reflects into the DOM. Unnamed here, no
-finding later. **Print this as a "Trust-boundary map" section, before
+anything a server response reflects into the DOM — infrastructure/CI-CD
+surface: a PR's own branch content checked out before verification,
+secret values injected into a build, an image tag pulled from a
+registry. Unnamed here, no finding later. **Print this as a "Trust-boundary map" section, before
 findings** — name each input source's file:line. Unlike Phase 3's ranking
 (genuinely working state — a scratch list nobody needs to audit), this is
 the one artifact that makes cross-file flow tracing checkable instead of
@@ -230,26 +246,26 @@ which is `ratelimit:` (unbounded token/cost consumption).
 
 | tag | covers |
 |---|---|
-| `authn:` | absent/weak auth, unverified JWT signature, `alg:none`, `kid`/JWK injection, algorithm confusion, no expiry, session fixation, weak reset/OTP flow, non-constant-time compare, OAuth `state`/PKCE/`redirect_uri` flaws |
-| `authz:` | BOLA/IDOR, BFLA, missing tenant scoping, privilege escalation, CSRF, path-based access-control bypass, GraphQL field-level authz |
-| `bizlogic:` | insecure design: abuse-control-free flows, race/TOCTOU on balance or inventory, negative/overflow quantities, workflow step skipping, no threat-model limits |
-| `inject:` | SQL, NoSQL, command, LDAP, XPath, SSTI, CRLF/header, path traversal, zip-slip, XSS sinks, unsafe deserialization, XXE, prototype pollution |
-| `secret:` | a credential literal in source, or a secret handled where it can leak (logs, errors, client output) |
-| `ssrf:` | attacker-controlled URL reaching a fetch, cloud metadata/internal network reachable, webhook and redirect-follow fetches, DNS-rebind-prone validation |
-| `massassign:` | request body bound straight to a model, letting a client set `role`, `is_admin`, `balance`, `verified` |
-| `expose:` | excessive data in a response on the NORMAL path (PII, hashes, internal ids, over-broad fields), debug endpoints reachable, XS-leaks |
-| `validation:` | absent/weak boundary validation — no schema, type confusion, unbounded size, content-type confusion, missing allow-list |
-| `ratelimit:` | no throttle or quota on login, OTP, reset, signup, expensive query, or any resource-creating endpoint; ReDoS; unbounded pagination; GraphQL alias/batch amplification |
+| `authn:` | absent/weak auth, unverified JWT signature, `alg:none`, algorithm confusion, no expiry, session fixation, weak reset/OTP flow, OAuth `state`/PKCE flaws |
+| `authz:` | BOLA/IDOR, BFLA, missing tenant scoping, privilege escalation, CSRF, access-control bypass |
+| `bizlogic:` | abuse-control-free flows, race/TOCTOU on balance or inventory, negative/overflow quantities, workflow step skipping |
+| `inject:` | SQL, NoSQL, command, LDAP, SSTI, CRLF/header, path traversal, zip-slip, XSS sinks, unsafe deserialization, XXE, prototype pollution |
+| `secret:` | a credential literal in source, or a secret that can leak (logs, errors, client output) |
+| `ssrf:` | attacker-controlled URL reaching a fetch: cloud metadata, internal network, webhook/redirect-follow targets, DNS-rebind-prone validation |
+| `massassign:` | request body bound straight to a model, letting a client set `role`/`is_admin`/`balance` |
+| `expose:` | excessive data in a response on the NORMAL path (PII, hashes, internal ids), debug endpoints reachable, XS-leaks |
+| `validation:` | absent/weak boundary validation — no schema, type confusion, unbounded size, missing allow-list |
+| `ratelimit:` | no throttle on login, OTP, reset, signup, or an expensive query; ReDoS; unbounded pagination |
 | `dos:` | untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion — the shape, not a missing throttle (that's `ratelimit:`) |
-| `crypto:` | weak/absent crypto, ECB/static IV, non-CSPRNG token, TLS verification off or weak version |
-| `config:` | debug mode, permissive CORS, missing security headers, insecure cookies, directory listing, GraphQL introspection, default creds, TRACE, clickjacking, host-header injection, cache poisoning, request smuggling, unchecked WebSocket origin, gRPC reflection |
-| `dep:` | vulnerable or superseded dependency, unpinned CI action ref, mutable `:latest` base image, `curl \| sh` installer, LLM03 supply chain |
-| `integrity:` | unsigned/unverified update or plugin load, CI/CD trusting unreviewed input, subdomain takeover -- the supply-chain/trust dimension; a deserializer executing attacker code is `inject:`, not this |
-| `logging:` | auth failures and privileged actions with no audit trail, monitoring blind spots, log injection/forging |
-| `inventory:` | undocumented/shadow endpoints, deprecated API versions still routable, non-prod or debug hosts exposed, orphaned routes |
-| `thirdparty:` | third-party API responses trusted without validation, unvalidated redirects to partner services, blind trust in upstream data shape |
-| `llm:` | prompt injection, system-prompt leakage, improper output handling, excessive agency, embedding weaknesses, data poisoning, misinformation, unbounded consumption |
-| `exceptions:` | an uncaught exception leaking a stack trace or internal state (the ERROR-path counterpart to `expose:`), a caught error that fails open on a security-relevant path, or a resource left inconsistent after a partial failure |
+| `crypto:` | weak/absent crypto, ECB/static IV, non-CSPRNG token, TLS off/weak version |
+| `config:` | debug mode, permissive CORS, missing security headers, insecure cookies, default creds, clickjacking, host-header injection, cache poisoning, request smuggling |
+| `dep:` | vulnerable/superseded dependency, unpinned CI action ref, mutable `:latest` image, `curl \| sh` installer |
+| `integrity:` | unsigned/unverified update or plugin load, CI/CD trusting unreviewed input, subdomain takeover |
+| `logging:` | auth failures/privileged actions with no audit trail, log injection/forging |
+| `inventory:` | undocumented/shadow endpoints, deprecated API versions still routable, debug hosts exposed, orphaned routes |
+| `thirdparty:` | third-party responses trusted without validation, unvalidated redirects to partner services, blind trust in upstream data shape |
+| `llm:` | prompt injection, system-prompt leakage, output handling, excessive agency, embedding weaknesses, data poisoning, misinformation, unbounded consumption |
+| `exceptions:` | an uncaught exception leaking a stack trace (the ERROR-path twin of `expose:`), or a caught error that fails open on a security path |
 
 **Overlap rule** — three pairs above share a mechanism at a glance; tag
 by the more specific one and never split one finding across two matrix
@@ -306,12 +322,11 @@ fast.
 
 ## Report format
 
-One block per finding, richer than a diff-review one-liner because a
-pen-test finding needs a reproduction and a remediation, but reusing the
-same four severity glyphs the rest of this product speaks rather than
-inventing a CVSS scale: 🔴 `critical` (exploitable now, data loss, account
-takeover), 🟠 `high` (must fix before this ships), 🟡 `medium` (should
-fix), ⚪ `nit` (optional / defense-in-depth).
+One block per finding — richer than a diff-review one-liner since a
+pen-test finding needs a reproduction and a remediation — using the same
+four severity glyphs this product speaks, not a CVSS scale: 🔴 `critical`
+(exploitable now, data loss, account takeover), 🟠 `high` (must fix
+before ship), 🟡 `medium` (should fix), ⚪ `nit` (optional).
 
 ```
 🔴 authz: IDOR on GET /api/orders/{id}
@@ -366,6 +381,14 @@ shareable report: build the JSON shape `deadeye vapt` expects (one
 object per finding — severity, tag, title, endpoint, owasp ids, link,
 attack, proof, fix — plus the coverage rows, the tally, and the Phase 1/2
 text printed above) and run:
+
+`"repo"` is the repo's own name (its directory name, or `git remote`'s
+`owner/repo` if one exists). `"scope"` names whatever the pass actually
+covered — if the ambiguous-scope gate fired and narrowed to one service,
+put that service's name here (e.g. `"billing service"`), never the whole
+repo's name; leave it empty only when no gate fired and the entire repo
+was genuinely in scope. This is what stops the report from reading as
+full coverage when it wasn't.
 
 ```bash
 deadeye vapt --in=- <<'JSON'
@@ -442,6 +465,6 @@ deadeye lessons record review-false-positive security:<tag>
   right tool for "did this change introduce a problem." This is "what can
   an attacker already reach in this service," scoped to the whole repo by
   design.
-- None of Phase 0's four tracks found → say so and stop. Do not invent
-  a route, an LLM call, a consumer, or a rendered page for a plain
-  library that genuinely has none of the four.
+- None of Phase 0's five tracks found → say so and stop. Do not invent
+  a route, an LLM call, a consumer, a rendered page, or a deployment
+  resource for a plain library that genuinely has none of the five.

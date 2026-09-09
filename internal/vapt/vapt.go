@@ -79,7 +79,7 @@ func cutSection(s, from, to string) string {
 // section (calls a deadeye CLI Windsurf has no guaranteed binary for).
 // It also drops Boundaries' two most-redundant closing bullets (restated
 // in the intro paragraph and Phase 0 itself). Every method phase
-// (including all four of Phase 0's surface-detection tracks -- this is
+// (including all five of Phase 0's surface-detection tracks -- this is
 // control flow, not reference material, never a cut candidate), the
 // twenty-tag table, and the coverage-matrix requirement all stay --
 // the pass still functions identically, just without the
@@ -92,7 +92,7 @@ func cutSection(s, from, to string) string {
 // Learning Loop above), and the "scope is ambiguous -> ask" escalation
 // (an experimental host with no hook contract is the least reliable place
 // to depend on an interactive back-and-forth landing correctly -- unlike
-// Phase 0's four tracks, this is a conditional escalation, not the
+// Phase 0's five tracks, this is a conditional escalation, not the
 // pass's core control flow, so it degrades to best-effort scoping here
 // rather than blocking). Every phase still runs single-agent as before;
 // only the plumbing and interactivity unavailable on this host are
@@ -110,7 +110,7 @@ func WindsurfBody() string {
 	b = cutSection(b, "```\n🔴 authz: IDOR", "**The report closes")
 	b = cutSection(b, "## Learning loop", "## Boundaries")
 	// Boundaries' last two bullets ("Not a diff review", "None of Phase
-	// 0's four tracks found") restate what the intro paragraph and Phase
+	// 0's five tracks found") restate what the intro paragraph and Phase
 	// 0 itself already say -- true of every other host too, but only
 	// Windsurf is char-constrained enough for the duplication to cost
 	// something. The two bullets that AREN'T restated elsewhere

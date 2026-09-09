@@ -148,17 +148,18 @@ func TestNoLiveTrafficClaim(t *testing.T) {
 // no untrusted-content framing), then generalized to the other surface
 // shapes a network-route-only gate would also miss: queue/topic
 // consumers, and UI-only repos with no backend at all.
-func TestPhase0FourIndependentTracks(t *testing.T) {
+func TestPhase0FiveIndependentTracks(t *testing.T) {
 	for _, must := range []string{
-		"Four independent",
+		"Five independent",
 		"LLM/agent context-injection",
 		"A CLI with no HTTP surface can still be",
 		"Message/event-driven",
 		"Client-side/UI",
+		"Infrastructure-as-code / CI-CD",
 		"None found → say so and stop",
 	} {
 		if !strings.Contains(Body(), must) {
-			t.Errorf("rubric missing %q -- Phase 0's four independent surface tracks regressed", must)
+			t.Errorf("rubric missing %q -- Phase 0's five independent surface tracks regressed", must)
 		}
 	}
 }
@@ -220,16 +221,16 @@ func TestCitationScopeIsAccurate(t *testing.T) {
 	}
 }
 
-// TestWindsurfKeepsAllFourTracks guards every Windsurf cut this rubric
+// TestWindsurfKeepsAllFiveTracks guards every Windsurf cut this rubric
 // makes against ever creeping into Phase 0/1/2 -- that's control flow
 // the pass depends on, never a trim candidate the way an illustrative
-// example or a reference table is. All four surface-detection tracks
+// example or a reference table is. All five surface-detection tracks
 // must survive on the one host with a hard character budget, not just
 // the flagship hosts.
-func TestWindsurfKeepsAllFourTracks(t *testing.T) {
+func TestWindsurfKeepsAllFiveTracks(t *testing.T) {
 	for _, must := range []string{
 		"Network-facing", "LLM/agent context-injection", "Message/event-driven",
-		"Client-side/UI", "Phase 0", "Phase 1", "Phase 2",
+		"Client-side/UI", "Infrastructure-as-code / CI-CD", "Phase 0", "Phase 1", "Phase 2",
 	} {
 		if !strings.Contains(WindsurfBody(), must) {
 			t.Errorf("WindsurfBody() lost %q -- Phase 0/1/2 must never be cut for Windsurf, only reference/illustrative material", must)
@@ -244,12 +245,12 @@ func TestWindsurfKeepsAllFourTracks(t *testing.T) {
 // CLI, library, or static site" -- directly contradicting the new
 // LLM-only and client-side/UI tracks a few paragraphs earlier. A rubric
 // that contradicts itself is worse than one that's merely incomplete.
-func TestBoundariesMatchesFourTracks(t *testing.T) {
+func TestBoundariesMatchesFiveTracks(t *testing.T) {
 	if strings.Contains(Body(), "No route/handler surface found") {
-		t.Error(`Boundaries still says "No route/handler surface found" -- stale, contradicts the four-track Phase 0`)
+		t.Error(`Boundaries still says "No route/handler surface found" -- stale, contradicts the five-track Phase 0`)
 	}
-	if !strings.Contains(Body(), "None of Phase 0's four tracks found") {
-		t.Error("Boundaries' closing bullet no longer matches Phase 0's four tracks")
+	if !strings.Contains(Body(), "None of Phase 0's five tracks found") {
+		t.Error("Boundaries' closing bullet no longer matches Phase 0's five tracks")
 	}
 }
 
@@ -316,5 +317,36 @@ func TestSectionHeadingsUnique(t *testing.T) {
 		if n > 1 {
 			t.Errorf("heading %q appears %d times -- cutSection targeting it would bind to the wrong occurrence", h, n)
 		}
+	}
+}
+
+// TestPhase0RunsSequentiallyBeforeWorkflow is the regression test for a
+// real bug this rubric shipped and fixed in the same release cycle: Phase
+// 0 hosts the ask-when-ambiguous gate, which needs a live interactive
+// turn to ask from -- a Workflow runs to completion in the background
+// with no pause point to ask mid-script. Phase 0 must never again be
+// described as part of the fanned-out Workflow. Compares against
+// whitespace-collapsed prose, the same fix TestCitationScopeIsAccurate
+// already needed -- a hand-wrapped rewrap must not be able to break this
+// the way it broke that one.
+func TestPhase0RunsSequentiallyBeforeWorkflow(t *testing.T) {
+	flat := strings.Join(strings.Fields(Body()), " ")
+	if !strings.Contains(flat, "Phase 0") || !strings.Contains(flat, "run first, sequentially") {
+		t.Error(`rubric no longer states Phase 0 runs first, sequentially -- the ask-when-ambiguous gate has no other live turn to fire from`)
+	}
+	if strings.Contains(flat, "Phase 0/1") {
+		t.Error(`rubric mentions "Phase 0/1" together again -- regression of the fan-out-vs-ask-gate bug: Phase 0 must never be described as inside the Workflow fan-out`)
+	}
+}
+
+// TestTrustBoundaryMapInterpolatedIntoWorkflowAgents pins the fix for the
+// other Workflow-fan-out gap: a fanned-out agent() call doesn't inherit
+// this conversation's context the way a sequential turn does, so "grounded
+// in the trust-boundary map" must say the map's actual TEXT gets
+// interpolated into each call's prompt, not just referenced.
+func TestTrustBoundaryMapInterpolatedIntoWorkflowAgents(t *testing.T) {
+	flat := strings.Join(strings.Fields(Body()), " ")
+	if !strings.Contains(flat, "interpolate Phase 2's full trust-boundary map text") {
+		t.Error(`rubric no longer instructs interpolating the trust-boundary map's text into each Workflow agent() call's prompt -- a fanned-out agent doesn't get it for free`)
 	}
 }
