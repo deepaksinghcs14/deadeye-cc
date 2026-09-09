@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.59.0
+
+A fresh critical pass over `/deadeye-vapt` (deliberately not a
+self-consistency sweep this time — real coverage gaps) found four real
+issues, all fixed:
+
+- **The report never recorded a narrowed scope.** When the ask-when-
+  ambiguous gate narrows a monorepo scan to one service, the generated
+  report had no field for that — it would show the repo's generic name,
+  reading as full-repo coverage when it wasn't. `internal/vaptreport`
+  gained a `Scope` field, rendered in the report header; the rubric now
+  tells the model exactly what to put there.
+- **The trust-boundary map wasn't actually wired into the fanned-out
+  Workflow agents.** "Grounded in the trust-boundary map" asserted the
+  map was available to Phase 3/4's agents, but a Workflow's `agent()`
+  calls run in a separate background context — nothing carries text into
+  them unless a script explicitly interpolates it. Fixed with one
+  explicit instruction: interpolate the map's actual text into every
+  call's prompt.
+- **No regression test guarded last release's Phase-0-sequencing fix.**
+  Added one, plus one for the trust-map interpolation fix above — both
+  would have caught their own bug before it shipped.
+- **No Phase 0 track looked at infrastructure/CI-CD surface at all.** A
+  Terraform file with a wildcard IAM policy, a root Dockerfile, a GitHub
+  Actions workflow trusting `pull_request_target` with secrets in scope —
+  not a missing tag (`config:`/`integrity:`/`dep:` already name these),
+  just nothing telling Phase 0 to go look in `.github/workflows/`,
+  Terraform, or Kubernetes manifests in the first place. VAPT gained a
+  fifth surface track for it, with matching Phase 1 inventory and Phase 2
+  trust-boundary guidance.
+
+The same CI/CD & IaC checklist was ported into `/deadeye-pr`,
+`/deadeye-review` (shared `lenses.md`), and `/deadeye-guard` — a diff
+touching pipeline or deployment config now gets checked the same way.
+
+Two more gaps closed on the diff-review side, both borrowed from VAPT's
+deeper treatment of the same surfaces: **"no framing IS the finding"** —
+a missing trust-boundary label on content reaching an LLM's context is
+reportable without a demonstrated exploit, same as a missing authz check
+— and a **client-side/UI checklist** (token storage location, `postMessage`
+origin checks, third-party script embeds, CSP presence) for diffs that
+touch client-side code, none of which read as a classic injection sink on
+their own.
+
 ## 0.58.1
 
 Two stated-vs-actual bugs in deadeye's own rubric text, the same class of
