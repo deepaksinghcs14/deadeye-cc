@@ -27,29 +27,6 @@ import (
 
 func Dir() string { return filepath.Join(meta.StateDir(), "sessions") }
 
-// sanitizeControlBytes replaces any control byte (<0x20) with "?", the same
-// treatment internal/codemap gives git-derived paths. Both inputs here can
-// legally carry one: a commit subject is arbitrary text (a raw newline or an
-// ANSI escape is perfectly valid in one), and a filename may contain control
-// bytes on macOS/Linux. This summary is a one-item-per-line block, so an
-// unescaped newline lets a single commit forge extra lines -- inventing a
-// "Recent commits:" entry that was never committed, or closing the block and
-// appending text that reads as deadeye's own guidance rather than repo data.
-func sanitizeControlBytes(s string) string {
-	if !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 }) {
-		return s
-	}
-	var b strings.Builder
-	for _, r := range s {
-		if r < 0x20 {
-			b.WriteByte('?')
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
 const (
 	freshnessGuard = 30 * time.Second // skip summaries this fresh when loading -- likely same-session artifacts
 	headLines      = 25
@@ -92,14 +69,14 @@ func Write(cwd, sessionID string, decisionCount int) error {
 	if commits != "" {
 		b.WriteString("Recent commits:\n")
 		for _, line := range strings.Split(commits, "\n") {
-			fmt.Fprintf(&b, "  %s\n", sanitizeControlBytes(line))
+			fmt.Fprintf(&b, "  %s\n", gitutil.SanitizeControlBytes(line))
 		}
 		b.WriteString("\n")
 	}
 	if status != "" {
 		b.WriteString("Modified/staged files:\n")
 		for _, line := range strings.Split(status, "\n") {
-			fmt.Fprintf(&b, "  %s\n", sanitizeControlBytes(line))
+			fmt.Fprintf(&b, "  %s\n", gitutil.SanitizeControlBytes(line))
 		}
 		b.WriteString("\n")
 	}

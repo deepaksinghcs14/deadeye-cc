@@ -36,6 +36,7 @@ Present this reference card, formatted cleanly:
 | `/deadeye-guard` | Security review of the current diff -- full OWASP-mapped coverage (Top 10:2025, API Security Top 10 2023, LLM Top 10:2025), deps |
 | `/deadeye-vapt` | Whole-service pen-test/VAPT pass -- full OWASP Top 10:2025/API Security Top 10 2023/LLM Top 10:2025 coverage |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses -- over-engineering, correctness, performance, security |
+| `/deadeye-sweep [--repo\|--pr [<PR>]] [<N>] [--commit] [--all]` | Applies review/guard findings (crit/high, or every severity with `--all`), verifies the build, loops until clean (cap 5). `--pr` mode also fixes/replies/resolves the PR's own open review comments |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
 | `/deadeye-help` | This card |
 

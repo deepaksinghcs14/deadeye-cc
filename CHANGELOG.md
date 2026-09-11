@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.60.0
+
+New skill: `/deadeye-sweep`. Every review command in this plugin — `/deadeye-review`,
+`/deadeye-pr`, `/deadeye-guard` — reports and stops; fixing what they found and
+checking whether the fix held was always a manual, repeated cycle. Sweep closes
+that loop: it runs the existing review, re-verifies each finding's premise
+against the code before touching anything, applies the ones that are critical
+or high severity *and* contained to the files they name, proves the build and
+tests still pass, then re-scans the changed code and repeats — up to 5 passes,
+stopping the moment a scan comes back clean.
+
+It's built entirely on the existing rubric, not a second one: no new canonical
+review text, no duplicated scanning logic. One confirmation before the first
+pass lists what will be fixed, deferred, and skipped; every pass after that
+runs unattended, bounded by the same severity-and-reach gates plus a check
+that stops and re-confirms if a later pass suddenly wants to touch far more
+than the first one did. It never pushes or comments on a PR without asking
+first, and it never folds your own unrelated uncommitted changes into its
+commits. Defaults to critical/high only; pass `--all` to widen the floor to
+every severity the rubric reports, medium and nits included — the reach gate
+(a fix stays inside the files its finding names) still applies either way.
+
+In `--pr` mode it also pulls the PR's own open review comment threads,
+answers them through the same premise-audit and reach gates as a scanner
+finding (no severity floor — a person asking is already in scope), and at
+the end of the run replies and resolves the ones it actually fixed, in a
+voice that reads like the person who made the fix rather than a scanner
+report. Threads it disproves or defers get a reply too, but stay open —
+closing someone else's thread isn't sweep's call to make on its own.
+
 ## 0.59.1
 
 A review-quality benchmark run surfaced one real miss: a reconstructed

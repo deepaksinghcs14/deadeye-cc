@@ -258,6 +258,7 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-guard` | Security review of the current diff — full OWASP-mapped coverage (Top 10:2025, API Security Top 10 2023, LLM Top 10:2025), deps, dependency auditors |
 | `/deadeye-vapt` | Whole-service pen-test/VAPT pass — complete OWASP Top 10:2025, API Security Top 10 2023, and LLM Top 10:2025 coverage, ranked worst-first, every finding linked to its source |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. Findings with a mechanical fix get a code snippet (a GitHub suggestion block when posted), plus a closing paste-ready block for a coding agent. On Codex, invoke the installed skill as `$deadeye-pr`. Huge PRs fan out to parallel subagents where the host supports them. |
+| `/deadeye-sweep [--repo\|--pr [<PR>]] [<max-passes>] [--commit] [--all]` | Applies the 🔴/🟠 findings from `/deadeye-review`, `/deadeye-pr`, and `/deadeye-guard` (all four severities with `--all`), verifies the build, and re-scans until clean (capped at 5 passes). In `--pr` mode, also answers the PR's own open review threads — fixes, replies like a person, resolves. One confirmation up front, then unattended; never pushes, replies, or resolves without asking. |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye update` | Update the managed binary (sha256-verified, atomic) — for Codex-only installs |

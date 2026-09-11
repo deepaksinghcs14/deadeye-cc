@@ -64,3 +64,30 @@ func sanitize(s string) string {
 	}
 	return b.String()
 }
+
+// SanitizeControlBytes replaces any control byte (<0x20) in git-derived text
+// with "?". Two independent callers need this for two different reasons, both
+// preserved here since either could regress independently: codemap's git
+// listing uses `-z` to fix quote-character corruption, which as a side
+// effect disables ALL of git's path quoting, so a tracked path with a
+// literal control byte (a raw newline is legal in a filename on
+// macOS/Linux) now flows through unescaped -- and codemap's one-row-per-line
+// render has no other defense against a newline splitting one row into two.
+// sessionmem's commit summary is one-item-per-line the same way, and a
+// commit subject is arbitrary text where a raw newline or ANSI escape is
+// just as legal, letting a single commit forge extra lines that read as
+// deadeye's own guidance rather than repo data.
+func SanitizeControlBytes(s string) string {
+	if !strings.ContainsFunc(s, func(r rune) bool { return r < 0x20 }) {
+		return s
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if r < 0x20 {
+			b.WriteByte('?')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
