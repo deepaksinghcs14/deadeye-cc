@@ -50,6 +50,7 @@ in reach and name the rest. Don't smuggle a refactor into a fix.
 - Audit the premise, not just the implementation: treat a constraint you documented yourself as unverified — re-derive it, don't re-read it.
 - A review comment is a claim, not a work order: audit its premise before you edit. Valid → fix it. Valid but wider than this change → fix what's in reach and name the rest. Wrong → say so with evidence, once; a bot's Critical label isn't evidence.
 - Concurrency is a cost, not a default: no goroutine/thread/lock the task doesn't need; share mutable state only under synchronization — a data race is a 3am bug, not a speedup.
+- Match the toolchain: check `go.mod`'s `go` line, `engines.node`, `requires-python`, or `rust-version` once per task, and never write syntax it can't run — a range's floor is the lower bound, not the upper. No version found → write broadly-compatible syntax.
 
 ## Comments and docs
 

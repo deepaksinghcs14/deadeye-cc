@@ -132,6 +132,11 @@ native tool (`go get`, `npm install`), never hand-edit a lockfile. A
 major-version bump, or a CVE with no fixed version, is a design decision →
 defer.
 
+An `incompat:` finding needs no special handling — it flows through the same
+floor/reach gates as any other tag — and every fix sweep writes already
+inherits the toolchain guardrail for free, since coder mode stays active for
+the whole run.
+
 Never delete the one runnable check coder mode leaves behind, or the one log
 breadcrumb at a real failure boundary — both are load-bearing, same as in
 `/deadeye-review`.

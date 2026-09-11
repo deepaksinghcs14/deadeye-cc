@@ -124,6 +124,7 @@ second impl in a test file makes it a false positive. Footer:
 - `race:` — a data race, unsynchronized shared state, async cancellation, a promise that never resolves, an ordering race, or check-then-act invalidated across `await`
 - `bound:` — off-by-one, slice/array overrun, integer overflow
 - `contract:` — violates a caller assumption or the function's own documented contract
+- `incompat:` — syntax or a stdlib call the project's OWN declared version can't run (`go.mod`'s `go` line, `engines.node`, `requires-python`, `rust-version`/`edition`). Range floor = lower bound, never the upper. Compiles on a newer toolchain, breaks on the declared one.
 - `leak:` — a resource opened and never released: file/conn/rows, goroutine, context, remote/session handle, transaction, timer, lock, subscription, temp file, or missing cleanup-registration.
 - `break:` — a removed/renamed export, or a changed public signature/behavior, that breaks existing consumers — even when the diff compiles.
 - `untested:` — non-trivial changed logic with no test exercising it, or a hollow test that mocks its own unit or skips rollback/cancel/error. Name the regression that would slip through.

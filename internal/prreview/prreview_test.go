@@ -272,6 +272,28 @@ func TestWindsurfDropsPentestTags(t *testing.T) {
 	}
 }
 
+// TestWindsurfDropsIncompatTag pins the `incompat:` Correctness-tag trim:
+// present in Body(), absent from WindsurfBody(). The actual risk it guards
+// against (writing syntax the project's declared toolchain can't run) is
+// still covered on Windsurf via coder mode's own "Match the toolchain"
+// rule -- this cut only removes the REVIEW-side flag for it, same budget
+// tradeoff as the pentest tags.
+func TestWindsurfDropsIncompatTag(t *testing.T) {
+	const marker = "incompat:"
+	if !strings.Contains(Body(), marker) {
+		t.Fatalf("test fixture stale: %q no longer in Body() -- update this test alongside the incompat: tag", marker)
+	}
+	if strings.Contains(WindsurfBody(), marker) {
+		t.Error("WindsurfBody() carries the incompat: tag -- there's no char budget left to keep it")
+	}
+	// Its neighbors in the Correctness lens must survive the cut.
+	for _, tag := range []string{"contract:", "leak:"} {
+		if !strings.Contains(WindsurfBody(), tag) {
+			t.Errorf("WindsurfBody() is missing Correctness tag %q -- over-trimmed", tag)
+		}
+	}
+}
+
 // TestSelfWindsurfDropsSections mirrors the WindsurfDrops* tests above for
 // SelfBody(): Rigor, Learning loop, and Suggested fixes/Copy for AI are cut
 // for the same reasons; the whole-repo `--repo` section is cut too, as the
@@ -285,6 +307,7 @@ func TestSelfWindsurfDropsSections(t *testing.T) {
 		{"Rigor", "Sweep every instance."},
 		{"whole-repo mode", "Scope cheaply"},
 		{"pentest tags", "ssrf:"},
+		{"incompat: tag", "incompat:"},
 		{"Learning loop", "deadeye lessons priority"},
 		{"Suggested fixes", "concrete and mechanical"},
 	}
@@ -318,7 +341,7 @@ func TestSelfWindsurfDropsSections(t *testing.T) {
 // accidentally introduces a second occurrence of one of these markers.
 func TestSectionHeadingsUnique(t *testing.T) {
 	headingRe := regexp.MustCompile(`(?m)^##[^#].*$`)
-	nonHeadingMarkers := []string{"<!-- pentest-tags -->", "**A guard is only as good"}
+	nonHeadingMarkers := []string{"<!-- pentest-tags -->", "**A guard is only as good", "- `incompat:`", "- `leak:`"}
 	check := func(t *testing.T, name, body string) {
 		seen := map[string]int{}
 		for _, h := range headingRe.FindAllString(body, -1) {

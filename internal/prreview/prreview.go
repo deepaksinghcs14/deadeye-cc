@@ -84,26 +84,32 @@ func cutSection(s, from, to string) string {
 
 // WindsurfBody returns the rubric trimmed to fit Windsurf's hard 12000-char
 // workflow cap. Every other host gets the full Body(); Windsurf (experimental,
-// no hook contract) drops FIVE things to fit: the "Rigor -- where reviews
+// no hook contract) drops SIX things to fit: the "Rigor -- where reviews
 // miss" habits (the largest single section), the 13 pentest tags added to
 // the Security lens (`<!-- pentest-tags -->`...`<!-- /pentest-tags -->` in
 // lenses.md -- the original 7-tag Security lens is still fully functional
-// without them, same as it shipped before that widening), the "Learning
-// loop" section, "Suggested fixes" (calls a `deadeye` CLI or leans on
-// `gh`'s suggestion rendering Windsurf has no guaranteed binary/UI for, so
-// it has nothing to read there anyway), and the opt-in "Posting back to
-// the PR" section -- including the per-comment "Copy for AI" line that
-// lives inside it (posting-only by design; Windsurf's one-line pointer
-// below doesn't post at all, so there's no comment for it to ride along
-// on). This lets the flagship rubric grow without the weakest host capping
-// the best reviewer -- Windsurf still gets the four lenses and the
-// verify-before-reporting/proof discipline, just not the Rigor upgrade,
-// the full pentest tag set, the cross-session learning loop, or the
-// fix-acceleration extras.
+// without them, same as it shipped before that widening), the `incompat:`
+// Correctness tag (the toolchain-version guardrail -- coder mode's own rule
+// covers the actual risk, writing incompatible syntax, on every host
+// already; this is only the REVIEW-side flag for it, cut here same as the
+// pentest tags were for budget, not because Windsurf's diffs are somehow
+// exempt from the bug class), the "Learning loop" section, "Suggested
+// fixes" (calls a `deadeye` CLI or leans on `gh`'s suggestion rendering
+// Windsurf has no guaranteed binary/UI for, so it has nothing to read
+// there anyway), and the opt-in "Posting back to the PR" section --
+// including the per-comment "Copy for AI" line that lives inside it
+// (posting-only by design; Windsurf's one-line pointer below doesn't post
+// at all, so there's no comment for it to ride along on). This lets the
+// flagship rubric grow without the weakest host capping the best reviewer
+// -- Windsurf still gets the four lenses and the verify-before-reporting/
+// proof discipline, just not the Rigor upgrade, the full pentest tag set,
+// the toolchain-incompatibility flag, the cross-session learning loop, or
+// the fix-acceleration extras.
 func WindsurfBody() string {
 	b := body
 	b = cutSection(b, "## Rigor", "## The four lenses")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
+	b = cutSection(b, "- `incompat:`", "- `leak:`")
 	b = cutSection(b, "## Learning loop", "## Output")
 	b = cutSection(b, "## Suggested fixes", "## Posting back to the PR")
 	// Drop the opt-in "Posting back to the PR" section, leave a one-line pointer.
@@ -117,15 +123,16 @@ func WindsurfBody() string {
 // SelfWindsurfBody is WindsurfBody's counterpart for SelfBody(): drops
 // Rigor, the whole-repo `--repo` mode (the single largest section and the
 // least useful on a workflow surface with no persistent CLI access), the
-// same 13 pentest tags, Learning loop, and Suggested fixes -- same
-// reasoning as WindsurfBody. No "Copy for AI" line and no posting section
-// to trim here on ANY host, Windsurf included: self-review never posts
-// anywhere, and Copy for AI only exists riding along inside a posted PR
-// comment.
+// same 13 pentest tags, the same `incompat:` tag, Learning loop, and
+// Suggested fixes -- same reasoning as WindsurfBody. No "Copy for AI" line
+// and no posting section to trim here on ANY host, Windsurf included:
+// self-review never posts anywhere, and Copy for AI only exists riding
+// along inside a posted PR comment.
 func SelfWindsurfBody() string {
 	b := selfBody
 	b = cutSection(b, "## Rigor", "## The four lenses")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
+	b = cutSection(b, "- `incompat:`", "- `leak:`")
 	b = cutSection(b, "## Whole-repo mode", "## Learning loop")
 	b = cutSection(b, "## Learning loop", "## Output")
 	b = cutSection(b, "## Suggested fixes", "## Boundaries")

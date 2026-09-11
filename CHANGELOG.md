@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.60.1
+
+Coder mode, `/deadeye-review`, and `/deadeye-pr` now know a project has a
+declared language version, and that writing syntax above it is a build
+break, not a style miss. Coder mode gets a new rule — "Match the
+toolchain": read the version the project declares once per task (`go.mod`'s
+`go` line, `package.json`'s `engines.node`, `pyproject.toml`'s
+`requires-python`/`.python-version`, `Cargo.toml`'s `rust-version`/
+`edition`) and never write syntax it can't run. A declared range's floor is
+always the LOWER bound, never the upper or a wildcard's newest release —
+misreading a range the wrong way would ship exactly the bug this rule
+exists to prevent. When two forms both run on the declared version, default
+to the one it was actually built for, not the newest possible feature.
+
+The review family gets the matching read: a new Correctness tag,
+`incompat:`, for syntax or a stdlib call the diff's *own* declared version
+can't run — checked only when the diff looks version-flavored, not as a
+mandatory step on every review. `/deadeye-sweep` needed no new machinery:
+an `incompat:` finding flows through its existing floor/reach gates like
+any other tag, and every fix it writes already inherits the toolchain
+guardrail since coder mode stays active for the whole run.
+
+Prose-only — no new Go code, no new signal provider; the skills read the
+manifest themselves, the same grep-first discipline the dependency pass
+already uses. `/deadeye-guard` and `/deadeye-vapt` are untouched: an EOL
+runtime as a security/lifecycle risk is a different concern from syntax
+correctness. Windsurf's rubric drops the `incompat:` tag the same way it
+already drops the pentest-tag block — no char budget left on that host —
+while still carrying the underlying guardrail through coder mode's own
+rule, which every host gets in full.
+
 ## 0.60.0
 
 New skill: `/deadeye-sweep`. Every review command in this plugin — `/deadeye-review`,
