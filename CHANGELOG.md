@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.59.1
+
+A review-quality benchmark run surfaced one real miss: a reconstructed
+gRPC-Go DoS case (unbounded HTTP/2 DATA-frame fragmentation buffering)
+that `/deadeye-review` built, tested, and cleared as "Clean — ship it."
+The rubric's own "run the repo's own checks and fuse them in" guidance
+said a passing build/test could confirm or kill *any* finding, including
+a `dos:` one — but an ordinary test suite never sends adversarial-sized
+input, so a green run is not evidence a resource-exhaustion cap exists.
+
+- **`internal/prreview/lenses.md`** (shared by `/deadeye-pr` and
+  `/deadeye-review`) now scopes that guidance to FUNCTIONAL findings
+  only, and the `dos:` tag itself carries the caveat directly: a green
+  test suite never clears it. Same fix applied to
+  `skills/deadeye-guard/SKILL.md`'s independent copy of the same
+  paragraph. Both Claude Code skill mirrors (`deadeye-pr`,
+  `deadeye-review`) regenerated from the canonical source; Windsurf's
+  trimmed variants stay under the 12,000-char cap with room to spare.
+
 ## 0.59.0
 
 A fresh critical pass over `/deadeye-vapt` (deliberately not a

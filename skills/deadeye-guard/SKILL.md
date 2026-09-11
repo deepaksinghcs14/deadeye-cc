@@ -47,10 +47,10 @@ concrete thing in THIS repo that makes the finding true — the caller you
 traced, the grep that came back empty, the auditor line. A finding you
 cannot prove from the code in front of you is a guess; drop it.
 
-**Run the repo's own checks and fuse them in.** Before you finalize, run
-what the project already ships — `go vet`, `tsc --noEmit`, the linter, a
-touched test — and let their output confirm or kill findings. Mark a
-finding `(confirmed)` when a tool agrees; otherwise it stands as `likely`.
+**Run the repo's own checks and fuse them in.** Run what the project
+already ships — `go vet`, `tsc --noEmit`, the linter, a touched test —
+and let their output confirm or kill a FUNCTIONAL finding. Mark it
+`(confirmed)` when a tool agrees; otherwise it stands as `likely`.
 
 The inverse is just as important: a guard is only as good as its weakest
 path. When the diff adds or hardens a check on a sink, grep the file and
@@ -140,7 +140,7 @@ runs whole-service):
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, a non-CSPRNG for a token, TLS verification disabled)
 - `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL response path (an error path leaking a trace is `exceptions:`, not this)
 - `dep:` — a vulnerable or superseded dependency, from the pass above
-- `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first
+- `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first — a green test suite never clears this; it doesn't send adversarial-sized input
 - `ssrf:` — an attacker-controlled URL reaching a fetch: cloud metadata, internal network, a webhook or redirect-follow target
 - `authn:` — absent/weak authentication: unverified JWT signature, `alg:none`, no expiry, session fixation, a weak reset/OTP flow
 - `bizlogic:` — a business flow with no abuse control: TOCTOU on a balance/inventory value, a negative/overflow quantity, a skippable workflow step

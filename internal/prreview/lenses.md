@@ -14,12 +14,11 @@ fails. A finding you cannot prove from the code in front of you is a guess;
 drop it. Precision is the product: one finding that's true beats ten maybes,
 and every hosted reviewer drowns in the maybes — that's the gap you win on.
 
-**Run the repo's own checks and fuse them in.** Before you finalize, run what
-the project already ships when it's present — `go vet`, `tsc --noEmit`, the
-linter, the tests the diff touches — and let their output confirm or kill
-findings. Mark a finding `(confirmed)` when a tool or a failing test agrees,
-otherwise it stands as `likely`. You can run the code; a diff-only bot can't
-— that is the edge, so use it.
+**Run the repo's own checks and fuse them in.** Run what the project
+ships — `go vet`, `tsc --noEmit`, the linter, the tests the diff touches —
+and let their output confirm or kill a FUNCTIONAL finding. Mark it
+`(confirmed)` when a tool or failing test agrees, else `likely`. You can
+run the code; a diff-only bot can't.
 
 A `deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` comment over a
 hunk is a recorded DECISION, not a finding — someone already chose to ship
@@ -111,7 +110,7 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS off)
 - `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL path (an error path leaking a trace is `exceptions:`, not this)
 - `dep:` — a vulnerable or superseded dependency
-- `dos:` — untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion. Cap or bound the input first.
+- `dos:` — untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion. Cap or bound the input first — a green test suite never clears this; it doesn't send adversarial-sized input.
 <!-- pentest-tags -->
 - `ssrf:` — an attacker-controlled URL reaching a fetch: cloud metadata, internal network, a webhook or redirect-follow target
 - `authn:` — absent/weak authentication: unverified JWT signature, `alg:none`, no expiry, session fixation, a weak reset/OTP flow
