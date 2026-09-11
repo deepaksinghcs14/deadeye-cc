@@ -86,7 +86,14 @@ One pass:
    finding from the cross-file context that made it real (an interface named
    in one file, its one implementer in another), make a red build
    unattributable to one edit, and lose coder mode's session-level persona,
-   which a fanned-out agent does not inherit.
+   which a fanned-out agent does not inherit. Triage and premise-audit each
+   finding one at a time regardless — but when two or more surviving findings
+   touch entirely disjoint files with no dependency between them, issue those
+   edits as parallel tool calls in the same turn rather than one-by-one; same
+   session, same persona, same single verify gate at the end, just less
+   wall-clock waiting on I/O. Two findings sharing a file, or where one's fix
+   could change another's premise (a rename here needing an import fix
+   there), stay sequential.
 5. **Verify.** Run the check command (see gate below). Green → pass recorded.
    Red from formatting alone → run the formatter, re-check, no repair budget
    spent. Red from anything else → one repair attempt, then restore the

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.60.2
+
+`/deadeye-sweep` now says explicitly when it's allowed to move faster: two
+or more surviving findings in the same pass that touch entirely disjoint
+files, with no dependency between them, get applied as parallel tool calls
+in the same turn rather than one-by-one — same session, same coder-mode
+persona, same single verify gate at the end, just less time spent waiting
+on I/O sequentially. This is not the subagent fan-out sweep already
+rejected (and still rejects, for the same reasons): triage and the
+premise-audit still happen one finding at a time in reasoning, and two
+findings sharing a file, or where one fix could change another's premise,
+still go sequential.
+
 ## 0.60.1
 
 Coder mode, `/deadeye-review`, and `/deadeye-pr` now know a project has a
