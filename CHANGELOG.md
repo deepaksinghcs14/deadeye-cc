@@ -8,6 +8,32 @@
 > tree was green. The tags are deleted; every fix described under them
 > ships in 0.61.6 and 0.61.7, which built and published normally.
 
+## 0.62.1
+
+`/deadeye-guard`'s copy of the twenty security tags is now pinned to the
+canonical list.
+
+Guard is Claude-only and hand-maintained — no Go package renders it, and
+nothing compared it to anything — so its tag descriptions drifted quietly.
+Six of twenty had diverged: five accidentally, left behind when `lenses.md`
+was tightened, and one deliberately (`dep:` cross-references guard's own
+dependency-auditor pass, which `lenses.md` has no equivalent of).
+
+That is not cosmetic. The learning loop keys on `lens:tag`, so two wordings
+of one tag let two reviewers file the same defect under different meanings
+— the ReDoS split between `ratelimit:` and `dos:` that 0.61.6 had to chase
+across three files by hand. The five accidental drifts now match the
+canonical wording, `dep:` is recorded as intentional with its reason, and a
+test fails on any future divergence — including a tag guard defines that
+the canonical list doesn't.
+
+Not done, and deliberately: an ASCII fold of the Windsurf renderings. Its
+premise inverts on measurement. Folding an em-dash (1 rune, 3 bytes) to
+`--` (2 runes, 2 bytes) trades a rune for a byte, and the vapt rendering is
+rune-constrained, not byte-constrained: 22 runes of headroom against 213
+bytes. Folding its 49 multi-byte glyphs would have pushed it ~27 runes over
+its cap while freeing budget it was not short of.
+
 ## 0.62.0
 
 New: `deadeye doctor`.

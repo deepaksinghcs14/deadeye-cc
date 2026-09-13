@@ -134,13 +134,13 @@ Top 10 2023, and LLM Top 10:2025 category maps to one (full mapping and
 rationale: `internal/vapt/owasp.md`, the same taxonomy `/deadeye-vapt`
 runs whole-service):
 
-- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a raw-HTML/DOM sink (XSS), or a deserializer
-- `secret:` — a credential literal, or a secret handled somewhere it can leak (logs, error messages, client-visible output)
+- `inject:` — untrusted input reaches SQL, a shell, a template, a path, `eval`, a DOM sink (XSS), or a deserializer
+- `secret:` — a credential literal, or a secret handled where it can leak (logs, errors, client output)
 - `authz:` — a decision or resource access with no confirmed permission check
-- `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, a non-CSPRNG for a token, TLS verification disabled)
-- `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL response path (an error path leaking a trace is `exceptions:`, not this)
+- `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS off)
+- `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL path (an error path leaking a trace is `exceptions:`, not this)
 - `dep:` — a vulnerable or superseded dependency, from the pass above
-- `dos:` — untrusted input sizes or shapes an allocation, an unbounded loop, unbounded recursion, or a compile → memory or CPU exhaustion. Cap it, or bound the input first — a green test suite never clears this; it doesn't send adversarial-sized input
+- `dos:` — untrusted input sizes or shapes an allocation, loop, recursion, or compile → memory/CPU exhaustion. Cap or bound the input first — a green test suite never clears this; it doesn't send adversarial-sized input.
 - `ssrf:` — an attacker-controlled URL reaching a fetch: cloud metadata, internal network, a webhook or redirect-follow target
 - `authn:` — absent/weak authentication: unverified JWT signature, `alg:none`, no expiry, session fixation, a weak reset/OTP flow
 - `bizlogic:` — a business flow with no abuse control: TOCTOU on a balance/inventory value, a negative/overflow quantity, a skippable workflow step

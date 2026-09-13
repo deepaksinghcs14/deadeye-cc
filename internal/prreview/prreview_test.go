@@ -373,3 +373,63 @@ func TestSectionHeadingsUnique(t *testing.T) {
 	check(t, "Body()", Body())
 	check(t, "SelfBody()", SelfBody())
 }
+
+// guardIntentionalTagDrift lists security tags whose wording in
+// skills/deadeye-guard/SKILL.md is DELIBERATELY different from lenses.md,
+// with the reason. Everything else must match byte-for-byte.
+var guardIntentionalTagDrift = map[string]string{
+	// guard runs a dedicated dependency-auditor pass; lenses has no such
+	// section to point at, so only guard's line can say "from the pass above".
+	"dep": "cross-references guard's own dependency pass",
+}
+
+// TestGuardTagsMatchLenses pins skills/deadeye-guard/SKILL.md's security
+// tag lines to lenses.md. Guard is Claude-only and hand-maintained -- no Go
+// package renders it and, until this test, nothing compared it to anything
+// -- so its copy of the twenty tags drifted silently: six of twenty had
+// diverged by v0.62.0, five of them accidentally (stale phrasings left
+// behind when lenses.md was tightened).
+//
+// That matters beyond tidiness. The learning loop keys on `lens:tag`, so
+// two descriptions of one tag mean two reviewers can file the same defect
+// under different meanings -- exactly the ReDoS split (`ratelimit:` vs
+// `dos:`) that 0.61.6 had to chase across three files by hand.
+func TestGuardTagsMatchLenses(t *testing.T) {
+	guard, err := os.ReadFile("../../skills/deadeye-guard/SKILL.md")
+	if err != nil {
+		t.Fatalf("skills/deadeye-guard/SKILL.md missing: %v", err)
+	}
+	tagLine := regexp.MustCompile("^- `([a-z]+):`")
+	collect := func(body string) map[string]string {
+		out := map[string]string{}
+		for _, line := range strings.Split(body, "\n") {
+			if m := tagLine.FindStringSubmatch(line); m != nil {
+				out[m[1]] = line
+			}
+		}
+		return out
+	}
+	lenses := collect(lensesFragment)
+	got := collect(string(guard))
+	if len(got) == 0 {
+		t.Fatal("found no tag lines in deadeye-guard -- did its format change?")
+	}
+
+	for tag, line := range got {
+		want, ok := lenses[tag]
+		if !ok {
+			t.Errorf("guard defines tag %q that lenses.md does not -- one vocabulary, or the learning loop splits on it", tag)
+			continue
+		}
+		if reason, deliberate := guardIntentionalTagDrift[tag]; deliberate {
+			if line == want {
+				t.Errorf("tag %q is now identical to lenses.md, so its entry in guardIntentionalTagDrift (%s) is stale -- drop it", tag, reason)
+			}
+			continue
+		}
+		if line != want {
+			t.Errorf("tag %q drifted from lenses.md.\n guard: %s\nlenses: %s\n"+
+				"Make them identical, or add %q to guardIntentionalTagDrift with the reason.", tag, line, want, tag)
+		}
+	}
+}
