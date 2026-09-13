@@ -341,7 +341,7 @@ func TestSelfWindsurfDropsSections(t *testing.T) {
 // accidentally introduces a second occurrence of one of these markers.
 func TestSectionHeadingsUnique(t *testing.T) {
 	headingRe := regexp.MustCompile(`(?m)^##[^#].*$`)
-	nonHeadingMarkers := []string{"<!-- pentest-tags -->", "**A guard is only as good", "- `incompat:`", "- `leak:`"}
+	nonHeadingMarkers := []string{"<!-- pentest-tags -->", "**A guard is only as good", "- `incompat:`", "- `leak:`", "If the diff touches CI/CD"}
 	check := func(t *testing.T, name, body string) {
 		seen := map[string]int{}
 		for _, h := range headingRe.FindAllString(body, -1) {

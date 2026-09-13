@@ -140,7 +140,7 @@ runs whole-service):
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, a non-CSPRNG for a token, TLS verification disabled)
 - `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL response path (an error path leaking a trace is `exceptions:`, not this)
 - `dep:` — a vulnerable or superseded dependency, from the pass above
-- `dos:` — untrusted input sizes an allocation, an unbounded loop, or unbounded recursion → memory or CPU exhaustion. Cap it, or bound the input first — a green test suite never clears this; it doesn't send adversarial-sized input
+- `dos:` — untrusted input sizes or shapes an allocation, an unbounded loop, unbounded recursion, or a compile → memory or CPU exhaustion. Cap it, or bound the input first — a green test suite never clears this; it doesn't send adversarial-sized input
 - `ssrf:` — an attacker-controlled URL reaching a fetch: cloud metadata, internal network, a webhook or redirect-follow target
 - `authn:` — absent/weak authentication: unverified JWT signature, `alg:none`, no expiry, session fixation, a weak reset/OTP flow
 - `bizlogic:` — a business flow with no abuse control: TOCTOU on a balance/inventory value, a negative/overflow quantity, a skippable workflow step

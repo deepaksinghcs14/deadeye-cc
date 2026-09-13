@@ -84,8 +84,13 @@ func cutSection(s, from, to string) string {
 
 // WindsurfBody returns the rubric trimmed to fit Windsurf's hard 12000-char
 // workflow cap. Every other host gets the full Body(); Windsurf (experimental,
-// no hook contract) drops SIX things to fit: the "Rigor -- where reviews
-// miss" habits (the largest single section), the 13 pentest tags added to
+// no hook contract) drops SEVEN things to fit: the "Rigor -- where reviews
+// miss" habits (the largest single section), the two "If the diff touches
+// CI/CD..."/"client-side/UI..." checklists at the end of the Security lens
+// (the most checklist-shaped text in the rubric; the trace-then-tag
+// discipline above the lenses covers the same ground generically, so
+// these are the cheapest cut -- same budget rationale as the pentest
+// tags), the 13 pentest tags added to
 // the Security lens (`<!-- pentest-tags -->`...`<!-- /pentest-tags -->` in
 // lenses.md -- the original 7-tag Security lens is still fully functional
 // without them, same as it shipped before that widening), the `incompat:`
@@ -110,6 +115,7 @@ func WindsurfBody() string {
 	b = cutSection(b, "## Rigor", "## The four lenses")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "- `incompat:`", "- `leak:`")
+	b = cutSection(b, "If the diff touches CI/CD", "## Don't repeat")
 	b = cutSection(b, "## Learning loop", "## Output")
 	b = cutSection(b, "## Suggested fixes", "## Posting back to the PR")
 	// Drop the opt-in "Posting back to the PR" section, leave a one-line pointer.
@@ -133,6 +139,9 @@ func SelfWindsurfBody() string {
 	b = cutSection(b, "## Rigor", "## The four lenses")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "- `incompat:`", "- `leak:`")
+	// Must precede the whole-repo cut below: that cut removes this one's
+	// end marker.
+	b = cutSection(b, "If the diff touches CI/CD", "## Whole-repo mode")
 	b = cutSection(b, "## Whole-repo mode", "## Learning loop")
 	b = cutSection(b, "## Learning loop", "## Output")
 	b = cutSection(b, "## Suggested fixes", "## Boundaries")

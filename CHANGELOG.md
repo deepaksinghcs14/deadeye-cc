@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.61.0
+
+`/deadeye-pr` and `/deadeye-review` now trace before they tag. A benchmark
+of five real, historical bug-introducing pull requests (netty, grpc-go,
+redis-py, PrismJS, vLLM — each graded against the project's own later fix)
+showed the reviewer missing bugs it already had the evidence for: the
+Security lens ran as a checklist of named sinks and printed `Clean line of
+fire.` when nothing matched a name; a trace the Correctness lens had
+already followed to a dangerous sink was discarded when Security re-asked
+from the tag list; the PR author's own comments and tests decided which
+branches got read; and the Performance gate dismissed a trivially-fusable
+duplicate scan as "not a finding". Five rubric changes, none naming a bug
+class: (1) the four lenses now open with a trace discipline — for each
+value the diff creates or newly trusts, name who chooses it, follow it to
+every consumer, ask what the worst chooser sends (absent, the wrong type
+that still passes the check, the costliest to process), and only then
+classify with a tag; four lenses are four questions at each consumer of one
+trace, not four passes, and a clean footer must name the value it traced.
+(2) A fifth Rigor habit: the diff's own claims are claims — an author
+comment, a PR test, or "already validated" upstream is a premise to
+disprove, and every new condition's not-taken cases get enumerated.
+(3) Input size now sets a performance finding's severity, not its
+existence; a second pass whose fused form is shorter is `shrink:`, hot path
+or not. (4) "No framing IS the finding" is generalized from LLM context to
+any boundary whose panicking consumer may live in a later PR. (5) `dos:`
+covers input that *shapes* a compile, not only sizes an allocation. On the
+same five cases the mechanical catch rate went 0/5 → 2/5 (3/5 on a hand
+read) at +5% cost — directional, not a published number. Windsurf's capped
+rendering drops the two end-of-Security checklists to make room, on the
+same budget rationale as its existing pentest-tag cut.
+
 ## 0.60.2
 
 `/deadeye-sweep` now says explicitly when it's allowed to move faster: two

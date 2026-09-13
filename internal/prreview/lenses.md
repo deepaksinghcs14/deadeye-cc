@@ -1,11 +1,10 @@
 ## Verify before reporting
 
 Before claiming a check is MISSING — a sanitizer, an authz guard, a
-nil-check — grep OUTSIDE the diff AND follow the value into the callee: a
-base class, a caller that guards, or the deeper function
-it's handed to — the real guard often lives one call down. An `authz`/bypass
-claim needs a concrete input that reaches the sink, or drop it; one wrong
-finding erodes trust in all of them.
+nil-check — grep OUTSIDE the diff and follow the value into the callee: the
+real guard often lives one call down. An `authz`/bypass claim needs a
+concrete input that reaches the sink, or drop it; one wrong finding erodes
+trust in all of them.
 
 **Every finding carries its proof.** Append a `proof:` clause naming the
 concrete thing in THIS repo that makes the finding true — the caller you
@@ -28,17 +27,27 @@ deletion — lean code without its check is unfinished.
 
 ## Rigor — where reviews miss
 
-Precision is the floor. Four habits separate a real review from a plausible one:
+Precision is the floor. Five habits separate a real review from a plausible one:
 
 - **Sweep every instance.** One leak, missing registration, or hollow test → check every sibling, in AND out of the diff. A fix with an unfixed twin is a half-fix — name the twin.
 - **Disprove your own mitigation.** "X covers it" isn't a pass until X provably runs on the failing path — an early `return`/guard that fires first makes X moot. For a branch gated on a non-null/present field, read the migration: is old data backfilled?
-- **The bugs a scan slides past:** two arms handling one value (success/error) should mirror — flag the one missing a capture/close/guard; a rewritten condition must keep every predicate it AND-ed (a dropped `ok &&` re-admits what it rejected); a value can pass `isinstance`/`!= undefined` yet be wrong (`str` subclass, `null` vs `undefined`); an error branch returning a nil used later; in-place mutation of a list aliased from a default arg, shared config, or module cache; every `await` — can it never resolve, and does pre-await state still hold after (abort, concurrent completion)?
+- **The diff's own claims are claims.** A comment ("no-op if absent, still valid", "safe because of the guarantee above"), an assertion in the PR's tests, or "already validated" upstream is a premise to disprove, not evidence — read the validator it points at. For every new or rewritten condition, list the cases it does NOT take — the else, zero/absent, the default arm, the all-absent and one-present combos of a value merged from several optional sources — and follow one of each into its consumer. The bug lives in the case nobody wrote a test for.
+- **The bugs a scan slides past:** two arms handling one value (success/error) should mirror — flag the one missing a capture/close/guard; a rewritten condition must keep every predicate it AND-ed (a dropped `ok &&` re-admits what it rejected); a value can pass `isinstance`/`!= undefined`/`in` yet be wrong (`str` subclass, `null` vs `undefined`, a name that exists but isn't the type you assumed); an error branch returning a nil used later; in-place mutation of a list aliased from a default arg, shared config, or module cache; every `await` — can it never resolve, and does pre-await state still hold after (abort, concurrent completion)?
 - **Sweep the cheap layer:** dead scaffolding, unused imports, placeholder secrets, unpinned deps, a `default:` giving a CPU host a GPU image; a test that mocks its own unit proves nothing.
 
 ## The four lenses
 
-Review the diff through each lens. One line per finding, ranked most-severe
-first within each lens:
+The tags classify what a trace found; they are not the search. For each
+value the diff creates, re-derives, or newly trusts: name who chooses it,
+follow it to every consumer (indexed, parsed, compiled, matched, loaded,
+allocated), and at each ask what the worst chooser sends — absent, empty,
+the wrong type that still passes the check, the costliest to process. What
+breaks there is the finding, on the standard line with its tag. Four lenses
+are four questions at each consumer of ONE trace, not four passes; a clean
+footer names the value traced and the consumer that survived — "no known
+sink in the diff" earns nothing.
+
+One line per finding, ranked most-severe first within each lens:
 
 Each finding is one comment — write it like a sharp human reviewer, not a
 linter firing rules:
@@ -100,8 +109,11 @@ Rank by likelihood of actually firing. Footer: `<N> correctness risks.` or
 - `blocking:` — synchronous I/O or a lock held on a latency-sensitive path
 - `copy:` — a large value passed or returned by value where a reference would do
 
-Only flag what a realistic input size makes matter — a triple loop over three
-config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
+Input size sets severity, not existence: a triple loop over three config
+keys is nothing when the fix costs more than it saves, a ⚪ when the fix is
+free; a second pass over data the code already scans once, whose fused form
+is shorter, is `shrink:` — hot path or not. Footer: `<N> perf risks.` or `No
+hot-path cost.`
 
 ### Security
 
@@ -111,7 +123,7 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 - `crypto:` — hand-rolled or weak crypto (MD5/SHA1 for passwords, non-CSPRNG token, TLS off)
 - `expose:` — sensitive data returned/logged beyond what the caller needs, on the NORMAL path (an error path leaking a trace is `exceptions:`, not this)
 - `dep:` — a vulnerable or superseded dependency
-- `dos:` — untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion. Cap or bound the input first — a green test suite never clears this; it doesn't send adversarial-sized input.
+- `dos:` — untrusted input sizes or shapes an allocation, loop, recursion, or compile → memory/CPU exhaustion. Cap or bound the input first — a green test suite never clears this; it doesn't send adversarial-sized input.
 <!-- pentest-tags -->
 - `ssrf:` — an attacker-controlled URL reaching a fetch: cloud metadata, internal network, a webhook or redirect-follow target
 - `authn:` — absent/weak authentication: unverified JWT signature, `alg:none`, no expiry, session fixation, a weak reset/OTP flow
@@ -128,19 +140,19 @@ config keys is not a finding. Footer: `<N> perf risks.` or `No hot-path cost.`
 - `llm:` — only when the diff touches an LLM/agent surface: prompt injection, system-prompt leakage, excessive agency, unbounded token/cost consumption
 <!-- /pentest-tags -->
 
-**No framing IS the finding.** When the diff adds a place where external/
-repo-derived content reaches an LLM's context (a hook point, a RAG result,
-a tool-output pass-through), check whether that text carries ANY
-untrusted-content framing. A missing trust boundary is reportable the same
-way a missing authz check is (`llm:`) — no crafted payload needed.
+**No framing IS the finding.** A missing boundary is reportable without a
+payload in hand, the same way a missing authz check is. External/repo-derived
+content reaching an LLM's context (a hook point, a RAG result, a tool-output
+pass-through) with no untrusted-content framing is `llm:`. A fallback chain
+that can yield an empty or unchecked value which callers are told is always
+there is `validation:`/`contract:` — the consumer that panics on it may not
+be in this diff yet.
 
 **A guard is only as good as its weakest path.** When the diff adds or hardens
-a check on a sink, grep the file and package for *every other path to the same
-sink* — a second `http.Client`, a raw fetch, a probe that runs *before* the
-guarded call, a duplicate "is-this-safe" predicate that can drift. A guard on
-one path with an unguarded sibling is a fix-shaped diff, not a fix: flag the
-sibling with the same tag and cite both lines in `proof:`. The SSRF that ships
-is almost always the door nobody guarded.
+a check on a sink, grep the package for every other path to the same sink — a
+second client, a probe that runs before the guarded call, a duplicate
+predicate that can drift. One guarded door with an unguarded sibling is a
+fix-shaped diff, not a fix: flag the sibling, cite both lines in `proof:`.
 
 If a dependency manifest OR its lockfile changed (`go.mod`/`go.sum`,
 `package.json`+lockfile, `requirements.txt`/`pyproject.toml`+lockfile,
