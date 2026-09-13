@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
 
@@ -56,7 +59,15 @@ func runRoute(taskDescription, subagentType string) {
 
 	cfg := config.Load()
 	cat := catalog.Load()
-	decision := kernel.Decide(evidence, cat, cfg.DownshiftThreshold)
+	// Same ADJUSTED threshold the live path uses (decideAgentRouting):
+	// reading cfg.DownshiftThreshold raw here meant any shape carrying a
+	// recorded escalation explained itself with a threshold the real call
+	// would never use -- the dry run silently disagreed with the thing it
+	// exists to explain.
+	outcomes, _ := lessons.Scan(meta.OutcomesPath())
+	shape := taskShapeKey(scope.Files, scope.Prompt, evidence)
+	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, outcomes, shape, time.Now())
+	decision := kernel.Decide(evidence, cat, threshold)
 	// Same judge path decideAgentRouting uses -- a real Agent call gets
 	// this too when mode.routing_judge=on, so the dry-run must show it or
 	// the explanation can silently diverge from the real decision.
@@ -85,6 +96,16 @@ func runRoute(taskDescription, subagentType string) {
 	fmt.Printf("  model:      %s\n", cValue(decision.Model))
 	fmt.Printf("  effort:     %s\n", cValue(decision.Effort))
 	fmt.Printf("  confidence: %.2f\n", decision.Confidence)
+	// Show the threshold the decision was actually gated on, and say so
+	// when recorded escalations raised it above the configured base --
+	// otherwise "confidence 0.80" next to a ceiling decision reads as a
+	// contradiction with no way to see why.
+	if threshold != cfg.DownshiftThreshold {
+		fmt.Printf("  threshold:  %.2f %s\n", threshold,
+			cDim(fmt.Sprintf("(base %.2f, raised by recorded escalations for shape %s)", cfg.DownshiftThreshold, shape)))
+	} else {
+		fmt.Printf("  threshold:  %.2f\n", threshold)
+	}
 	fmt.Printf("  reason:     %s\n", cDim(decision.Reason))
 	fmt.Printf("\nMode: routing=%s, effort=%s (advise = shown only; enforce = actually rewrites Agent tool calls)\n", cfg.Mode.Routing, cfg.Mode.Effort)
 }

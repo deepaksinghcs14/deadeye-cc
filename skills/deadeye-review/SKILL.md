@@ -288,10 +288,9 @@ deadeye lessons record coder-miss <lens>:<tag>
 using the lens the finding came from (`over-engineering`, `correctness`,
 `performance`, or `security`) and its tag without the trailing colon — e.g.
 a `race:` finding → `deadeye lessons record coder-miss correctness:race`.
-This is a no-op when coder mode wasn't active this session — nothing to
-attribute, nothing gets written. Diff-scope only — `--repo` mode above scans
-pre-existing code nothing here wrote this session, so it never attributes to
-coder mode.
+Recorded per repo, and read back as the "recent misses" reminder. Diff-scope
+only — `--repo` mode above scans pre-existing code nothing here wrote this
+session, so it never attributes to coder mode.
 
 When the user disputes a finding you reported ("that's not a bug",
 "already handled", "won't fix"), record it so the next review on this repo

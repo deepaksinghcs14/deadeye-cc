@@ -249,7 +249,7 @@ installs get a one-time welcome pointing at all of this.
 | Command | What it does |
 |---|---|
 | `/deadeye-status` | Modes, coder level, kill switches, model list, daemon health |
-| `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — without doing anything |
+| `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — changes nothing, but an unsure decision spends one real judge call |
 | `/deadeye-config` | View or change any setting from chat, or interactively with `deadeye config` |
 | `/deadeye-stats [savings\|context]` | Decision-log reports: measured-impact scoreboard (default), token-savings, per-session context bytes — ends with a link to the full visual report |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |

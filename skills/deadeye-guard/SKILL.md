@@ -77,8 +77,8 @@ deadeye lessons record coder-miss security:<tag>
 ```
 
 using the finding's tag name without its trailing colon (a `crypto:`
-finding → `security:crypto`). This is a no-op when coder mode wasn't
-active this session — nothing to attribute, nothing gets written.
+finding → `security:crypto`). Recorded per repo, and read back as the
+"recent misses" reminder.
 
 ## Dependency pass
 

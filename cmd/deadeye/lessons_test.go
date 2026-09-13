@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/coder"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
@@ -29,7 +28,7 @@ func TestCheckEscalationDetectsHigherTierRequest(t *testing.T) {
 	state := newDaemonState(testCatalogForLessons(), nil)
 	state.setLastRouting("s1", "shape-a", "cheap-id", "low", 0)
 
-	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)
+	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-a", state)
 
 	got := state.outcomesSnapshot()
 	if len(got) != 1 {
@@ -40,13 +39,31 @@ func TestCheckEscalationDetectsHigherTierRequest(t *testing.T) {
 	}
 }
 
+// TestCheckEscalationIgnoresDifferentShape: an explicit model on a
+// DIFFERENT kind of task says nothing about the previous recommendation,
+// so it must not be graded against it. This test used to assert the
+// opposite by accident -- checkEscalation took currentShape and never
+// read it, so routing task A cheap and then picking opus for unrelated
+// task B penalised A's shape for 30 days.
+func TestCheckEscalationIgnoresDifferentShape(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	state := newDaemonState(testCatalogForLessons(), nil)
+	state.setLastRouting("s1", "shape-a", "cheap-id", "low", 0)
+
+	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)
+
+	if got := state.outcomesSnapshot(); len(got) != 0 {
+		t.Errorf("got %d outcomes, want 0 -- an override on a different task shape is not evidence about this one: %+v", len(got), got)
+	}
+}
+
 func TestCheckEscalationIgnoresSameOrLowerTier(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	state := newDaemonState(testCatalogForLessons(), nil)
 	state.setLastRouting("s1", "shape-a", "top-id", "high", 2)
 
-	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)  // same tier
-	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "haiku"}, "shape-b", state) // lower tier
+	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-a", state)  // same tier
+	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "haiku"}, "shape-a", state) // lower tier
 
 	if got := state.outcomesSnapshot(); len(got) != 0 {
 		t.Errorf("got %d outcomes, want 0 for same/lower-tier requests", len(got))
@@ -82,8 +99,8 @@ func TestCheckEscalationClearsLastRoutingAfterRecording(t *testing.T) {
 	state := newDaemonState(testCatalogForLessons(), nil)
 	state.setLastRouting("s1", "shape-a", "cheap-id", "low", 0)
 
-	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)
-	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-b", state)
+	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-a", state)
+	checkEscalation(hookio.Input{SessionID: "s1"}, agentInput{Model: "opus"}, "shape-a", state)
 
 	if got := state.outcomesSnapshot(); len(got) != 1 {
 		t.Errorf("got %d outcomes, want exactly 1 -- the prior decision should only be graded once", len(got))
@@ -238,33 +255,16 @@ func TestShapeRegexRejectsMalformed(t *testing.T) {
 	}
 }
 
-// TestCoderModeActiveReadsGlobalFile: coderModeActive is the gate that
-// keeps a coder-miss from being attributed when coder mode never ran.
-func TestCoderModeActiveReadsGlobalFile(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	if coderModeActive() {
-		t.Error("no coder-mode file at all should read as inactive")
-	}
-	os.MkdirAll(meta.StateDir(), 0o700)
-	os.WriteFile(meta.CoderModePath(), []byte("marksman\n"), 0o600)
-	if !coderModeActive() {
-		t.Error("a file holding an active level should read as active")
-	}
-	os.WriteFile(meta.CoderModePath(), []byte(coder.LevelOff+"\n"), 0o600)
-	if coderModeActive() {
-		t.Error("a file holding \"off\" should read as inactive")
-	}
-}
-
-// TestRunLessonsRecordCoderMissWritesWhenActive is the happy path: valid
-// kind/shape, coder mode active, a real (temp) cwd -- exercises the full
-// runLessonsRecord write, the only path that never calls os.Exit.
-func TestRunLessonsRecordCoderMissWritesWhenActive(t *testing.T) {
+// TestRunLessonsRecordCoderMissWrites is the happy path: valid kind/shape
+// and a real (temp) cwd -- exercises the full runLessonsRecord write, the
+// only path that never calls os.Exit. No coder-mode file is created: the
+// record is no longer gated on one (that gate read shared global state any
+// other session could delete, so it dropped legitimate records).
+func TestRunLessonsRecordCoderMissWrites(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	repoDir := t.TempDir()
 	t.Chdir(repoDir)
 	os.MkdirAll(meta.StateDir(), 0o700)
-	os.WriteFile(meta.CoderModePath(), []byte("marksman\n"), 0o600)
 
 	runLessonsRecord([]string{"coder-miss", "security:inject"})
 

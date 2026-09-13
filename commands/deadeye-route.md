@@ -13,7 +13,15 @@ resolves its own binary internally for hook invocations. Retry with
 
 Present the output as-is: the evidence each
 signal provider contributed (or "none" if every provider had nothing to go
-on), and the resulting Decision (model, effort, confidence, reason).
+on), and the resulting Decision (model, effort, confidence, threshold,
+reason). A threshold above the configured base means recorded escalations
+for this task shape raised the bar -- the real Agent call uses the same
+adjusted number.
+
+This changes no state, but it is not free: with `mode.routing_judge=on`
+(the default) an unsure decision spends one real `claude -p`
+classification, the same one a live Agent call would. Say so if the user
+is counting spend.
 
 If evidence is empty, explain that this is expected and correct, not a
 bug -- per INV-1, missing evidence must default to the most conservative

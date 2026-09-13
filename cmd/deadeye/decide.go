@@ -133,6 +133,13 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 			memory = sessionmem.LoadRecent(in.Cwd)
 			if cfg.Mode.Codemap == "on" && in.Cwd != "" {
 				mapText = codemap.Text(in.Cwd)
+			}
+			// The recent-misses reminder is about THIS repo's review
+			// history, not its file structure: it used to live inside the
+			// codemap branch above, so turning the codebase map off
+			// silently also turned off the learning loop's only user-facing
+			// output, which no skill or doc ever mentioned as linked.
+			if in.Cwd != "" {
 				state.reloadOutcomes()
 				missesText = lessonsMissesText(state, in.Cwd)
 			}

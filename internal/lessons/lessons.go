@@ -25,6 +25,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
 
 // WeightEscalation is PLAN.md §8's table: escalation is a strong negative
@@ -99,8 +101,23 @@ const recencyWindow = 30 * 24 * time.Hour
 // dropped as if it never happened. Escalation-free or never-seen shapes
 // get the unmodified base threshold -- this only ever makes downshifting
 // harder, never easier, consistent with INV-1.
+//
+// The bias scales into [base, signals.MaxAchievableConfidence], NOT
+// [base, 1]. kernel.Decide compares the threshold against the MINIMUM
+// confidence across evidence, which can never exceed that ceiling, so the
+// old (1-base) scaling jumped clean over the whole signal range on the
+// FIRST escalation: with the 0.8 default, one escalation produced 0.85
+// and that shape could never downshift again for 30 days, while
+// escalations 2..N changed nothing observable -- the exact "single early
+// escalation permanently maxes it out" outcome `smoothing` exists to
+// prevent. Saturating at the ceiling instead means an escalated shape
+// needs progressively BETTER evidence to go cheap, and a heavily-escalated
+// one needs flawless evidence -- a bar on evidence quality, not an
+// absolute block. Absolute blocking stays the complexity bands' job.
+// A base at or above the ceiling has no headroom to graduate into and is
+// returned unchanged (it already permits only flawless evidence).
 func AdjustedDownshiftThreshold(base float64, outcomes []Outcome, taskShape string, now time.Time) float64 {
-	if base >= 1 {
+	if base >= signals.MaxAchievableConfidence {
 		return base
 	}
 	var escalationWeight float64
@@ -117,7 +134,7 @@ func AdjustedDownshiftThreshold(base float64, outcomes []Outcome, taskShape stri
 		return base
 	}
 	bias := escalationWeight / (escalationWeight + smoothing)
-	return base + (1-base)*bias
+	return base + (signals.MaxAchievableConfidence-base)*bias
 }
 
 // WeightMiss is coder-miss and review-false-positive's per-occurrence

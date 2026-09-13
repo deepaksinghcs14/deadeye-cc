@@ -25,6 +25,24 @@ type Evidence struct {
 	Facts      map[string]any
 }
 
+// MaxAchievableConfidence is the highest value kernel.Decide's
+// minConfidence can ever take: the kernel uses the MINIMUM confidence
+// across all evidence, so the ceiling is the minimum of every builtin
+// provider's BEST case -- today TestPresence's flat 0.8 (see providers.go:
+// "file existence is a fact; ratio-to-complexity mapping is the only
+// guess"), which is lower than promptshape/filescope/taskspecificity/
+// subagentkind's 0.85 and gitchurn's 0.82.
+//
+// It is exported because a downshift_threshold at or above this value
+// makes downshifting IMPOSSIBLE rather than merely strict, which is a
+// silent, total behavior change -- internal/lessons scales its escalation
+// bias into [base, ceiling] so accumulated escalations raise the bar on
+// evidence quality instead of jumping clean over it. Kept a const rather
+// than a method on Signal (six implementations, plus every test double,
+// to compute a number that changes about once a year); TestProviderBestCase
+// ConfidenceMatchesCeiling is the drift guard.
+const MaxAchievableConfidence = 0.8
+
 // Signal is a single evidence provider. An error means "skip this
 // provider for this call" -- never treated as low-complexity evidence.
 type Signal interface {

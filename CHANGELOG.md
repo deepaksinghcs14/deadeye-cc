@@ -1,5 +1,65 @@
 # Changelog
 
+## 0.61.2
+
+Five fixes to the learning loop — the recorded-outcomes feedback that is
+supposed to make routing smarter over time.
+
+An escalation (you explicitly ask for a pricier model than deadeye
+recommended) was recorded against whichever task shape deadeye had last
+routed, never the one you were actually overriding on. Route a small task
+cheap, then pick opus for something unrelated, and the small task's shape
+carried the penalty for 30 days. It is now recorded only when the override
+is for the same kind of task.
+
+The escalation bias now scales into the range the confidence signal can
+actually reach. `kernel.Decide` gates downshifting on the *minimum*
+confidence across evidence providers, and the lowest any provider emits at
+its best is 0.8 — so the old formula's first escalation produced 0.85, a
+bar no evidence can clear, and that task shape simply could not downshift
+for 30 days while further escalations changed nothing. The bias now scales
+into `[base, ceiling]` and saturates at the ceiling: an escalated shape
+needs progressively better evidence to go cheap, never an impossible
+amount. `signals.MaxAchievableConfidence` names that ceiling, with a test
+that fails if any provider's confidence moves.
+
+Be aware of the consequence at the shipped default: `downshift_threshold`
+is 0.8, which *is* the ceiling, so there is no headroom and the escalation
+adjustment does nothing. That is deliberate and measured. Lowering the
+default to 0.5 was tried against the routing benchmark's recorded cost and
+pass grid and made routing more expensive, not cheaper — realized savings
+went from 22% to 0%, because clearing the confidence gate on a
+high-complexity task routes to the *high* ceiling rather than to a cheap
+tier. Giving the escalation signal somewhere useful to move needs that
+band interaction reworked; recording an inert signal is better than the
+silent 30-day block it replaced, and the state is now explicit and tested
+rather than hidden.
+
+`deadeye config set downshift_threshold` validates its range. The picker
+has always labelled it "(0-1)" and enforced nothing, so `5` was accepted
+and silently disabled downshifting for good. Values outside 0-1 are now
+rejected, and a legal value above the achievable ceiling prints a note
+saying downshifting is off rather than merely strict.
+
+`/deadeye-route` explains the decision a real Agent call would get. It
+read the raw configured threshold while the live path used the
+escalation-adjusted one, so for any task shape with a recorded escalation
+the dry run described a decision that could not happen — while its own
+comment claimed the two could never diverge. It now uses the adjusted
+threshold, prints it, and says when escalations raised it. Its docs also
+now admit it spends one real judge classification on an unsure decision
+instead of claiming it does nothing.
+
+Recording a coder-miss no longer depends on a global file any other
+session can delete. The gate read `~/.deadeye/coder-mode`, which is shared
+mutable state: a second session switching the persona off silently threw
+away legitimate records from the first. What gets stored is repo-scoped
+advice, worth keeping regardless of which persona wrote the code.
+
+The "recent misses in this repo" reminder no longer rides on
+`mode.codemap`. Turning the codebase map off also turned off the learning
+loop's only user-facing output, which nothing documented as linked.
+
 ## 0.61.1
 
 Three fixes from a whole-product review, each reproduced before it was

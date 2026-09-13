@@ -529,3 +529,53 @@ func TestSubagentKindSkipsUnknownTypes(t *testing.T) {
 		}
 	}
 }
+
+// TestProviderBestCaseConfidenceMatchesCeiling is the drift guard for
+// MaxAchievableConfidence. kernel.Decide gates downshift on the MINIMUM
+// confidence across all evidence, so the highest that minimum can ever be
+// is the lowest of every provider's best case. Build the most favourable
+// scope a real task can present -- a small, committed, well-tested repo
+// with a specific prompt citing a real file -- and assert no provider
+// beats the constant and at least one provider sits exactly on it. If a
+// provider's confidence changes, this fails and whoever changed it has to
+// update the constant, because internal/lessons scales the escalation
+// bias into [base, ceiling] and config's downshift_threshold is only
+// meaningful below it.
+func TestProviderBestCaseConfidenceMatchesCeiling(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git on PATH")
+	}
+	dir := initTestRepo(t)
+	src := filepath.Join(dir, "a.go")
+	if err := os.WriteFile(src, []byte("package p\n\nfunc Count() int { return 0 }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a_test.go"), []byte("package p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-q", "-m", "well-tested single file")
+
+	scope := Scope{
+		Prompt:       "Rename the variable x to count in a.go:3 inside `Count`",
+		Files:        []string{src},
+		Repo:         dir,
+		SubagentType: "Explore",
+	}
+
+	min, minProvider := 1.0, ""
+	for _, p := range Builtins() {
+		e, err := p.Assess(context.Background(), scope)
+		if err != nil {
+			continue // a skipped provider contributes no confidence of its own
+		}
+		if e.Confidence < min {
+			min, minProvider = e.Confidence, p.Name()
+		}
+	}
+	if min != MaxAchievableConfidence {
+		t.Errorf("best-case min confidence = %.4f (from %s), but MaxAchievableConfidence = %.4f -- "+
+			"a provider's confidence moved; update the constant (and re-check config's downshift_threshold default "+
+			"and internal/lessons' escalation scaling, which both key off it)", min, minProvider, MaxAchievableConfidence)
+	}
+}

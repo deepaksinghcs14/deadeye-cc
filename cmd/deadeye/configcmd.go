@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
 
 // settingsSiteURL documents every knob's effect in full -- this file only
@@ -148,6 +150,20 @@ func configSet(key, value string) error {
 		f, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return fmt.Errorf("%s must be a number", key)
+		}
+		// The picker has always LABELLED this "(0-1)" and enforced
+		// nothing: `downshift_threshold 5` was accepted and silently
+		// disabled downshifting forever, with `deadeye status` happily
+		// printing 5.
+		if math.IsNaN(f) || f < 0 || f > 1 {
+			return fmt.Errorf("%s must be between 0 and 1", key)
+		}
+		if key == "downshift_threshold" && f > signals.MaxAchievableConfidence {
+			// Legal, but worth saying out loud: kernel.Decide gates on the
+			// MINIMUM confidence across evidence, which can never exceed
+			// this ceiling, so a higher bar isn't strict -- it's off.
+			fmt.Fprintf(os.Stderr, "note: %g is above the highest confidence any evidence can reach (%g), so downshifting is now disabled entirely\n",
+				f, signals.MaxAchievableConfidence)
 		}
 		coerced = f
 	default:

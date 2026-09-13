@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
 )
 
 func TestAdjustedThresholdUnaffectedByOtherShapes(t *testing.T) {
@@ -23,25 +25,77 @@ func TestAdjustedThresholdNeverSeenShapeIsUnchanged(t *testing.T) {
 	}
 }
 
+// baseWithHeadroom is a downshift_threshold below
+// signals.MaxAchievableConfidence, i.e. one the escalation bias has room
+// to graduate into. Tests that exercise the ADJUSTMENT must use it: at a
+// base sitting on the ceiling there is nothing to scale into and the
+// adjustment is correctly a no-op (TestAdjustedThresholdNoHeadroomAtCeiling).
+const baseWithHeadroom = 0.5
+
 func TestAdjustedThresholdRisesWithEscalations(t *testing.T) {
 	shape := "files=1,impl=true,tests=false"
-	one := AdjustedDownshiftThreshold(0.8, []Outcome{
+	esc := func(n int) []Outcome {
+		var out []Outcome
+		for i := 0; i < n; i++ {
+			out = append(out, Outcome{TaskShape: shape, Kind: "escalation", Weight: 1.0})
+		}
+		return out
+	}
+	one := AdjustedDownshiftThreshold(baseWithHeadroom, esc(1), shape, time.Now())
+	two := AdjustedDownshiftThreshold(baseWithHeadroom, esc(2), shape, time.Now())
+	many := AdjustedDownshiftThreshold(baseWithHeadroom, esc(4), shape, time.Now())
+
+	// Each additional escalation must be observable, not saturate on the
+	// first one -- that is the whole reason `smoothing` exists.
+	if !(one > baseWithHeadroom) {
+		t.Errorf("one escalation: threshold = %v, want > %v", one, baseWithHeadroom)
+	}
+	if !(two > one) {
+		t.Errorf("the second escalation changed nothing: one=%v two=%v", one, two)
+	}
+	if !(many > two) {
+		t.Errorf("more escalations should raise the threshold further: two=%v many=%v", two, many)
+	}
+	// ...but never past what the evidence can actually deliver, or the
+	// shape is blocked absolutely rather than held to a higher bar.
+	if many > signals.MaxAchievableConfidence {
+		t.Errorf("threshold %v exceeds MaxAchievableConfidence %v -- downshift becomes impossible, not just strict",
+			many, signals.MaxAchievableConfidence)
+	}
+}
+
+// TestAdjustedThresholdSaturatesAtAchievableCeiling: no amount of
+// escalation may push the bar past the best evidence a real task can
+// produce. At saturation the shape still downshifts on a flawless
+// reading -- absolute blocking is the complexity bands' job (INV-1),
+// not the confidence gate's.
+func TestAdjustedThresholdSaturatesAtAchievableCeiling(t *testing.T) {
+	shape := "files=1,impl=true,tests=false"
+	got := AdjustedDownshiftThreshold(baseWithHeadroom, []Outcome{
+		{TaskShape: shape, Kind: "escalation", Weight: 1000},
+	}, shape, time.Now())
+	if got > signals.MaxAchievableConfidence {
+		t.Errorf("got %v, want <= MaxAchievableConfidence %v", got, signals.MaxAchievableConfidence)
+	}
+	if got <= baseWithHeadroom {
+		t.Errorf("got %v, a huge escalation weight should approach the ceiling, not stay at base", got)
+	}
+}
+
+// TestAdjustedThresholdNoHeadroomAtCeiling documents the degenerate case
+// rather than hiding it: a base at or above MaxAchievableConfidence
+// already admits only flawless evidence, so there is nothing for the
+// escalation bias to scale into and the threshold is returned unchanged.
+// Before the range fix this case silently produced a value ABOVE the
+// ceiling, which made the shape undownshiftable for the full 30-day
+// window on a single escalation.
+func TestAdjustedThresholdNoHeadroomAtCeiling(t *testing.T) {
+	shape := "files=1,impl=true,tests=false"
+	got := AdjustedDownshiftThreshold(signals.MaxAchievableConfidence, []Outcome{
 		{TaskShape: shape, Kind: "escalation", Weight: 1.0},
 	}, shape, time.Now())
-	many := AdjustedDownshiftThreshold(0.8, []Outcome{
-		{TaskShape: shape, Kind: "escalation", Weight: 1.0},
-		{TaskShape: shape, Kind: "escalation", Weight: 1.0},
-		{TaskShape: shape, Kind: "escalation", Weight: 1.0},
-		{TaskShape: shape, Kind: "escalation", Weight: 1.0},
-	}, shape, time.Now())
-	if !(one > 0.8) {
-		t.Errorf("one escalation: threshold = %v, want > 0.8", one)
-	}
-	if !(many > one) {
-		t.Errorf("more escalations should raise the threshold further: one=%v many=%v", one, many)
-	}
-	if many >= 1.0 {
-		t.Errorf("threshold must stay below 1.0 (a never-satisfiable bar): got %v", many)
+	if got != signals.MaxAchievableConfidence {
+		t.Errorf("got %v, want the base returned unchanged when it has no headroom", got)
 	}
 }
 
@@ -65,25 +119,28 @@ func TestAdjustedThresholdNeverLowersBelowBase(t *testing.T) {
 // escalation made downshifting mathematically impossible for the shape
 // forever, in every project, since outcomes.jsonl is global and never
 // rotated. An escalation older than recencyWindow (30 days) must stop
-// counting; one within the window must still raise the bar.
+// counting; one within the window must still raise the bar. (Recency was
+// half the fix: the other half is scaling the bias into [base, ceiling]
+// instead of [base, 1] so a single escalation can't clear the whole
+// signal range at once -- see TestAdjustedThresholdRisesWithEscalations.)
 func TestAdjustedThresholdIgnoresStaleEscalations(t *testing.T) {
 	shape := "files=1,impl=true,tests=false"
 	now := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
 
 	stale := now.Add(-40 * 24 * time.Hour).Format(time.RFC3339)
-	got := AdjustedDownshiftThreshold(0.8, []Outcome{
+	got := AdjustedDownshiftThreshold(baseWithHeadroom, []Outcome{
 		{TaskShape: shape, TS: stale, Kind: "escalation", Weight: 1.0},
 	}, shape, now)
-	if got != 0.8 {
-		t.Errorf("a 40-day-old escalation still raised the threshold: got %v, want unchanged base 0.8", got)
+	if got != baseWithHeadroom {
+		t.Errorf("a 40-day-old escalation still raised the threshold: got %v, want the unchanged base", got)
 	}
 
 	recent := now.Add(-1 * 24 * time.Hour).Format(time.RFC3339)
-	got = AdjustedDownshiftThreshold(0.8, []Outcome{
+	got = AdjustedDownshiftThreshold(baseWithHeadroom, []Outcome{
 		{TaskShape: shape, TS: recent, Kind: "escalation", Weight: 1.0},
 	}, shape, now)
-	if !(got > 0.8) {
-		t.Errorf("a 1-day-old escalation did not raise the threshold: got %v, want > 0.8", got)
+	if !(got > baseWithHeadroom) {
+		t.Errorf("a 1-day-old escalation did not raise the threshold: got %v, want > the base", got)
 	}
 }
 
@@ -93,11 +150,11 @@ func TestAdjustedThresholdIgnoresStaleEscalations(t *testing.T) {
 // never happened.
 func TestAdjustedThresholdTreatsUnparseableTimestampAsRecent(t *testing.T) {
 	shape := "files=1,impl=true,tests=false"
-	got := AdjustedDownshiftThreshold(0.8, []Outcome{
+	got := AdjustedDownshiftThreshold(baseWithHeadroom, []Outcome{
 		{TaskShape: shape, TS: "not-a-timestamp", Kind: "escalation", Weight: 1.0},
 	}, shape, time.Now())
-	if !(got > 0.8) {
-		t.Errorf("an outcome with an unparseable timestamp was ignored: got %v, want > 0.8", got)
+	if !(got > baseWithHeadroom) {
+		t.Errorf("an outcome with an unparseable timestamp was ignored: got %v, want > the base", got)
 	}
 }
 
@@ -123,11 +180,11 @@ func TestAdjustedThresholdIgnoresNonRoutingSurface(t *testing.T) {
 // counting as routing escalations, not silently stop mattering.
 func TestAdjustedThresholdTreatsEmptySurfaceAsRouting(t *testing.T) {
 	shape := "files=1,impl=true,tests=false"
-	got := AdjustedDownshiftThreshold(0.8, []Outcome{
+	got := AdjustedDownshiftThreshold(baseWithHeadroom, []Outcome{
 		{TaskShape: shape, Kind: "escalation", Weight: 1.0}, // Surface left zero-value, as pre-existing rows are
 	}, shape, time.Now())
-	if !(got > 0.8) {
-		t.Errorf("a pre-existing (Surface-less) escalation stopped counting: got %v, want > 0.8", got)
+	if !(got > baseWithHeadroom) {
+		t.Errorf("a pre-existing (Surface-less) escalation stopped counting: got %v, want > the base", got)
 	}
 }
 

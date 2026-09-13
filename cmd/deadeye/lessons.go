@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/deepaksinghcs14/deadeye-cc/internal/coder"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
@@ -63,6 +62,14 @@ func checkEscalation(in hookio.Input, ai agentInput, currentShape string, state 
 	}
 	prev := state.getLastRouting(in.SessionID)
 	if prev == nil {
+		return
+	}
+	// The override is only evidence about the PRIOR recommendation if it is
+	// for the same KIND of task. Without this, routing task A cheap and
+	// then explicitly picking opus for an unrelated task B recorded a
+	// 30-day penalty against A's shape -- currentShape was passed in and
+	// never read.
+	if currentShape != prev.taskShape {
 		return
 	}
 	requestedTier, ok := state.cat.TierFor(familyToAnyModelID(state, ai.Model))
@@ -294,10 +301,16 @@ var shapeRe = regexp.MustCompile(`^[a-z][a-z-]*:[a-z][a-z0-9-]*$`)
 // skill is told to move on regardless.
 //
 // Attribution differs by kind:
-//   - coder-miss: strict (the plan's "Attribution" decision) -- recorded
-//     only when coder mode is currently active, per coderModeActive. Avoids
-//     blaming coder mode for pre-existing/third-party code a session
-//     happened to scan with the persona off.
+//   - coder-miss: recorded unconditionally. This used to be gated on
+//     "is coder mode active right now", read from the GLOBAL coder-mode
+//     file -- but that file is shared mutable state: any other session
+//     switching the persona off deletes it (coder.go's clear path), so a
+//     legitimate record from this session silently exited 1, and a
+//     different session leaving it set made the gate pass for a session
+//     that had it off. Unreliable in both directions, and the CLI has no
+//     session id to consult the per-session file with. What gets stored
+//     is repo-scoped advice ("this lens:tag was missed here"), which is
+//     worth having regardless of which persona wrote the code.
 //   - external-miss: no such gate -- it names a real bug shape another
 //     reviewer caught in a SHIPPED PR, which "was coder mode on right now"
 //     can't answer either way after the fact. Known limitation: this kind's
@@ -320,9 +333,6 @@ func runLessonsRecord(args []string) {
 		fmt.Fprintln(os.Stderr, `usage: deadeye lessons record <kind> <lens:tag>  (shape must look like "security:inject")`)
 		os.Exit(2)
 	}
-	if kind == "coder-miss" && !coderModeActive() {
-		os.Exit(1)
-	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		os.Exit(1)
@@ -338,21 +348,6 @@ func runLessonsRecord(args []string) {
 	if err := lessons.Open(meta.OutcomesPath()).Append(o); err != nil {
 		os.Exit(1)
 	}
-}
-
-// coderModeActive reports whether the global coder-mode state file
-// (written at every SessionStart and by every /deadeye-coder switch,
-// cmd/deadeye/coder.go's writeCoderModeFile) currently holds an active
-// level. Fail-open to false, same posture as every other read of this
-// file: a missing file (coder mode never enabled, or its per-session file
-// already cleaned up at SessionEnd) means "not active", not an error.
-func coderModeActive() bool {
-	b, err := os.ReadFile(meta.CoderModePath())
-	if err != nil {
-		return false
-	}
-	level := strings.TrimSpace(string(b))
-	return level != "" && level != coder.LevelOff
 }
 
 // rewriteOutcomes atomically replaces outcomes.jsonl with exactly kept --
