@@ -1,5 +1,13 @@
 # Changelog
 
+> **0.61.4 and 0.61.5 were never published.** Their release builds failed:
+> the four releases below were split so that a rubric source file and its
+> regenerated `SKILL.md` landed in different commits, and the sync tests
+> compare the skill against a body built from all of those inputs — so
+> those two commits were internally inconsistent even though the final
+> tree was green. The tags are deleted; every fix described under them
+> ships in 0.61.6 and 0.61.7, which built and published normally.
+
 ## 0.61.7
 
 Claims that didn't match the code.
