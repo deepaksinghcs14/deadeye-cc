@@ -48,6 +48,10 @@ func TestNoTripleSingleQuote(t *testing.T) {
 // WindsurfBody() plus a ~220-char host header, so the trimmed body must
 // stay under ~11700 to leave header room.
 func TestFitsWindsurfCap(t *testing.T) {
+	// Bytes as well as runes -- see internal/prreview's equivalent.
+	if n := len(WindsurfBody()); n > 12000 {
+		t.Errorf("WindsurfBody() is %d BYTES, over the 12000 cap if Windsurf counts bytes (runes: %d)", n, len([]rune(WindsurfBody())))
+	}
 	if n := len([]rune(WindsurfBody())); n > 11700 {
 		t.Errorf("Windsurf rubric is %d chars -- trim it; the rendered workflow must stay under 12000", n)
 	}

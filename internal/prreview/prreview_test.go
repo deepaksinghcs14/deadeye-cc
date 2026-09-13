@@ -175,6 +175,15 @@ func TestNoTripleSingleQuote(t *testing.T) {
 // not bytes -- em-dashes/glyphs are multi-byte) must stay under ~11700 to
 // leave header room under 12000.
 func TestFitsWindsurfCap(t *testing.T) {
+	// Assert BYTES too: the cap is documented as 12000 characters, but if
+	// Windsurf counts UTF-8 bytes instead, every em-dash and glyph in this
+	// rubric costs 3. Measured at v0.61.3 the body is 11669 runes but
+	// 11823 bytes -- 154 bytes of the budget invisible to a rune-only
+	// check, and Fable's product review flagged this body and vapt's as
+	// having been OVER 12000 bytes before the 0.61.0 trims.
+	if n := len(WindsurfBody()); n > 12000 {
+		t.Errorf("WindsurfBody() is %d BYTES, over Windsurf's 12000 cap if it counts bytes (runes: %d)", n, len([]rune(WindsurfBody())))
+	}
 	if n := len([]rune(WindsurfBody())); n > 11700 {
 		t.Errorf("Windsurf rubric is %d chars -- trim it; the rendered workflow must stay under 12000", n)
 	}
@@ -190,6 +199,9 @@ func TestFitsWindsurfCap(t *testing.T) {
 // TestSelfFitsWindsurfCap mirrors TestFitsWindsurfCap for the self-review
 // rubric.
 func TestSelfFitsWindsurfCap(t *testing.T) {
+	if n := len(SelfWindsurfBody()); n > 12000 {
+		t.Errorf("SelfWindsurfBody() is %d BYTES, over the 12000 cap if Windsurf counts bytes (runes: %d)", n, len([]rune(SelfWindsurfBody())))
+	}
 	if n := len([]rune(SelfWindsurfBody())); n > 11700 {
 		t.Errorf("Windsurf self-review rubric is %d chars -- trim it; the rendered workflow must stay under 12000", n)
 	}

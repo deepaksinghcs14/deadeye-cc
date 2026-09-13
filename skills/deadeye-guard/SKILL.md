@@ -26,7 +26,7 @@ actually validated" often requires seeing the caller.
 
 - Empty diff (nothing changed or staged): say so plainly and stop — do
   not substitute a different scope.
-- Not a git repo: ask the user which files to review.
+- Not a git repo: say so plainly and stop -- same as an empty diff above.
 - Diff-scoped by design, not repo-wide — a whole-repo sweep would re-read
   everything into context for exposures that haven't changed; that's what
   native auditors and periodic CI scanning are for.

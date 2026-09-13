@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.61.6
+
+Rubric consistency, so one bug class has one tag.
+
+ReDoS was filed under `ratelimit:` in the VAPT taxonomy but under `dos:`
+in the review lenses and `/deadeye-guard`. The learning loop keys on
+`lens:tag`, so the same defect was landing in two different buckets and
+neither accumulated a usable signal. ReDoS is `dos:` everywhere now — it
+is the allocation shape, not a missing throttle.
+
+CI supply chain was claimed by `dep:` and `integrity:` at once, and the
+review lenses' "also flag CI supply chain" sentence carried no tag at all.
+The split is now explicit: `dep:` for the artifact pulled in, `integrity:`
+for a pipeline that trusts unreviewed input.
+
+The LLM mapping said LLM03 is a `dep:` finding and LLM10 a `ratelimit:`
+one, while the citation rules below it said those tags have no LLM row —
+a contradiction with no way to resolve it from the text. Those two now
+cite the LLM row for the sub-id and their own row for the tag.
+
+`/deadeye-review` and `/deadeye-guard` no longer stop to ask which files
+to review when the directory is not a git repo. That instruction cannot be
+followed in a headless `claude -p` run — which is how the review benchmark
+drives them — so it now says so and stops, matching the empty-diff rule
+directly above it.
+
+The Windsurf cap tests now assert bytes as well as runes. The limit is
+documented as 12,000 characters, but if Windsurf counts UTF-8 bytes then
+every em-dash and glyph in these rubrics costs three, and a rune-only check
+is blind to about 150 bytes of the budget.
+
 ## 0.61.5
 
 Robustness fixes in the paths that run on every session.

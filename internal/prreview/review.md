@@ -24,7 +24,7 @@ need the code around the hunk, not just the `+` lines.
 
 - Empty diff (nothing changed or staged): say so plainly and stop — do
   not substitute a different scope.
-- Not a git repo: ask the user which files to review.
+- Not a git repo: say so plainly and stop -- same as an empty diff above.
 
 Before tagging `yagni:`/`delete:`, or claiming an `authz`/nil/sanitizer
 check is MISSING, grep for implementers/callers/guards OUTSIDE the diff —
