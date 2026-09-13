@@ -28,6 +28,14 @@ func TestParseTier(t *testing.T) {
 		{"no digit here", 0, false},
 		{"", 0, false},
 		{"tier three", 0, false}, // no 0/1/2 present
+		// A digit embedded in a larger number is not a verdict: these all
+		// used to return a tier, so a judge answering in prose that
+		// happened to contain a year or a version routed real work.
+		{"2024", 0, false},
+		{"v1.2.3", 0, false},
+		{"line 42", 0, false},
+		{"go 1.21", 0, false},
+		{"I would say 2 for this", 2, true}, // still parses a standalone digit
 	}
 	for _, c := range cases {
 		tier, ok := parseTier(c.in)

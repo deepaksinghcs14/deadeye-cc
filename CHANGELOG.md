@@ -8,6 +8,42 @@
 > tree was green. The tags are deleted; every fix described under them
 > ships in 0.61.6 and 0.61.7, which built and published normally.
 
+## 0.61.8
+
+A clean working tree is no longer an evidence blackout, and the judge no
+longer puts your subtask text on the command line.
+
+Three of the six signal providers key off the files in scope, which is the
+git diff — so committing your work silenced filescope, gitchurn and
+testpresence, the gap was emitted as zero-confidence evidence, and the
+kernel correctly refused to downshift anything. Correct, but it meant a
+fully specified one-file task routed to the ceiling purely because its code
+was already committed, and the AI judge became the only route to a cheap
+tier. Scope now falls back to the files the prompt itself names, matched
+against the repo the same way `taskspecificity` already matches them.
+Measured on a clean fixture repo, "Rename the variable x to count in a.go"
+went from the sonnet ceiling at confidence 0.00 ("no evidence") to haiku at
+confidence 0.80 ("all evidence supports downshift") — with no model call.
+
+The guard this replaces is intact: a prompt that names nothing real, or
+names a file that does not exist, still yields an empty scope and still
+gets the unknown-evidence ceiling, and a prompt naming many files gets a
+complexity reading that blocks downshift on its own merits. It does not
+change the benchmark tasks, which all create new files and so have nothing
+to name.
+
+The routing judge now passes its prompt on stdin instead of as a command-
+line argument. A subtask description is the user's own text, and an argv is
+readable via `ps` by every other process on the machine for the life of the
+call — which since 0.61.3 is the critical path of every first-seen Agent
+call rather than a rarity.
+
+`parseTier` now requires the judge's verdict to be a standalone digit. It
+took the first 0, 1 or 2 anywhere in the reply, so a judge answering in
+prose that mentioned a year, a version or a line number — "2024", "v1.2.3",
+"go 1.21" — had that read as its tier, routing real work off a number that
+was never an answer.
+
 ## 0.61.7
 
 Claims that didn't match the code.

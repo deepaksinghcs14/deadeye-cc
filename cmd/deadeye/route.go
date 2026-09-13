@@ -34,7 +34,18 @@ func newScope(prompt, cwd string) signals.Scope {
 	if repo == "" {
 		repo = cwd
 	}
-	return signals.Scope{Prompt: prompt, Files: scopedFiles(cwd), Repo: repo}
+	files := scopedFiles(cwd)
+	if len(files) == 0 {
+		// Clean tree: fall back to the files the prompt itself names, so
+		// committing your work doesn't blind filescope/gitchurn/
+		// testpresence and force every decision to the ceiling. A prompt
+		// naming nothing real still yields nothing here, and still gets
+		// the unknown-evidence ceiling it should.
+		ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+		defer cancel()
+		files = signals.FilesNamedIn(ctx, repo, prompt)
+	}
+	return signals.Scope{Prompt: prompt, Files: files, Repo: repo}
 }
 
 // runRoute backs `deadeye route [--subagent-type=<type>] [task description]`

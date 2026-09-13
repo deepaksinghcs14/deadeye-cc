@@ -447,6 +447,50 @@ func fileContainsAny(repo, path string, idents []string) bool {
 // every other git call site. Empty repo, a non-git directory, or any git
 // error all degrade to an empty set -- TaskSpecificity still scores on
 // wording alone, it just can't verify a path shape as real.
+// FilesNamedIn returns the repo-relative paths a prompt cites that actually
+// exist in the repo, using the same token shape and tracked-file matching
+// TaskSpecificity already applies to judge anchor strength.
+//
+// It exists so a CLEAN working tree is not automatically an evidence
+// blackout. filescope/gitchurn/testpresence all key off Scope.Files, which
+// is the git diff -- so committing your work silenced three of six
+// providers, AssessAll emitted the gap as zero-confidence "unknown", and
+// kernel.Decide correctly refused to downshift anything. Correct, but it
+// meant a fully-specified one-file task routed to the ceiling purely
+// because it was asked about committed code, and the AI judge became the
+// only path to a cheap tier.
+//
+// Deriving scope from what the prompt NAMES keeps the guard where it
+// belongs: a prompt that cites nothing real still yields an empty scope
+// and still hits the unknown-evidence ceiling, and a prompt that names
+// twenty files gets a filescope complexity reading that blocks downshift
+// on its own merits.
+func FilesNamedIn(ctx context.Context, repo, prompt string) []string {
+	if repo == "" || prompt == "" {
+		return nil
+	}
+	tracked := trackedFileSet(ctx, repo)
+	if len(tracked) == 0 {
+		return nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, tok := range strings.Fields(prompt) {
+		tok = strings.Trim(tok, `,;:!?)("'`+"`")
+		m := pathToken.FindStringSubmatch(tok)
+		if m == nil {
+			continue
+		}
+		path := m[1]
+		if !trackedFileMatches(tracked, path) || seen[path] {
+			continue
+		}
+		seen[path] = true
+		out = append(out, path)
+	}
+	return out
+}
+
 func trackedFileSet(ctx context.Context, repo string) map[string]bool {
 	set := map[string]bool{}
 	if repo == "" {

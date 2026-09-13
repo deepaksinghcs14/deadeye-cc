@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
@@ -159,7 +161,13 @@ func judgeTierClaude(task string) (int, bool) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), judgeTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "claude", "-p", judgePrompt+task, "--model", "sonnet")
+	// The prompt goes on STDIN, not argv: a subtask description is the
+	// user's own text, and an argv is world-readable through `ps` to every
+	// other process on the machine for the life of the call. Since 0.61.3
+	// this call sits on the critical path of every first-seen Agent call,
+	// so that window is now the common case rather than a rarity.
+	cmd := exec.CommandContext(ctx, "claude", "-p", "--model", "sonnet")
+	cmd.Stdin = strings.NewReader(judgePrompt + task)
 	cmd.Env = append(os.Environ(), "DEADEYE_JUDGE=1")
 	out, err := cmd.Output()
 	if err != nil {
@@ -171,15 +179,27 @@ func judgeTierClaude(task string) (int, bool) {
 // parseTier reads the first 0/1/2 from the judge's output -- robust to a stray
 // newline or the model prefixing a word before the digit.
 func parseTier(s string) (int, bool) {
-	for _, r := range s {
-		switch r {
-		case '0':
-			return 0, true
-		case '1':
-			return 1, true
-		case '2':
-			return 2, true
+	// The digit has to stand alone. Scanning for "the first 0/1/2 anywhere"
+	// read a year, a version, or a line number as a verdict -- "2024" came
+	// back as tier 2, i.e. route this to the priciest model, from a judge
+	// that had actually answered with prose.
+	glued := func(c rune) bool {
+		// A version, a year, a line number: anything that makes the digit
+		// part of a larger token rather than an answer on its own.
+		return unicode.IsLetter(c) || unicode.IsDigit(c) || c == '.' || c == '-'
+	}
+	r := []rune(s)
+	for i, c := range r {
+		if c < '0' || c > '2' {
+			continue
 		}
+		if i > 0 && glued(r[i-1]) {
+			continue
+		}
+		if i+1 < len(r) && glued(r[i+1]) {
+			continue
+		}
+		return int(c - '0'), true
 	}
 	return 0, false
 }
