@@ -38,8 +38,10 @@ no hosted service, no API keys, no telemetry.
 
 ## Numbers
 
-Every figure is measured from a real run and logged to
-`~/.deadeye/decisions.jsonl` — nothing averaged, nothing modelled. The
+Every figure is measured, not averaged or modelled. The command-output rows
+are logged to `~/.deadeye/decisions.jsonl`; the persona row is measured
+directly off the two rendered artifacts (full ruleset vs. the card a
+subagent inherits), since the log carries only an estimate on that path. The
 rewrite happens *before* the command runs, so only the part worth keeping
 ever enters context.
 
@@ -48,7 +50,7 @@ ever enters context.
 | `go test` with one genuine failure | 485 B | 99 B | **79.6%** |
 | This repo's own suite (202 lines, all passing) | 10,301 B | 55 B | **99.5%** |
 | `npm install express mocha` (progress spam) | 553 B | 55 B | **90.1%** |
-| Coder persona a subagent inherits, per spawn | 9,235 B | 1,099 B | **88.1%** |
+| Coder persona a subagent inherits, per spawn | 9,499 B | 1,099 B | **88.4%** |
 
 Run `/deadeye-stats savings` to see your own. Quiet no-op events (95% of all
 rows on one real machine) aren't logged at all — the log holds only the rows
@@ -216,7 +218,7 @@ Then `/plugin uninstall deadeye@deadeye` in Claude Code.
 
 ## What it controls
 
-Ten independent controls — each has its own on/off, and switching one off
+Nine independent controls — each has its own on/off, and switching one off
 never touches the others.
 
 | What | Modes | What it does |
@@ -227,7 +229,7 @@ never touches the others.
 | Codebase map | `off` / `on` | A persistent per-project map — skeleton, most-touched files, exploration notes — injected once per session so a fresh session doesn't re-explore from scratch. |
 | Effort level | `off` / `advise` | Suggests lower effort for mechanical steps; no effect if `CLAUDE_EFFORT` is pinned. |
 | Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one. |
-| AI routing judge | `off` / `on` | Opt-in: when the cheap signals can't place a subtask, classify it with a `claude -p` call (haiku, no API key) instead of defaulting a tier. |
+| AI routing judge | `off` / `on` | **On by default.** When the cheap signals can't place a subtask, classify it with a `claude -p` call (sonnet, your own login, no API key) instead of defaulting a tier. A first-seen subtask waits ~5s for that answer; a repeat is served from cache. |
 | Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit. |
 | Workflow suggestion | `off` / `on` | Flags tasks that look like parallel/fan-out work — only ever suggests, never starts one. |
 | Update check | `off` / `on` | Once/day background check for a newer release; asks (once per version) whether to update. |

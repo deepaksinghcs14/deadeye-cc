@@ -30,7 +30,7 @@ func TestBuildNeverBlendsMeasuredAndEstimated(t *testing.T) {
 	d := Build(logs, nil, "repo", testCatalog(), time.Now())
 	var measuredKpi *Kpi
 	for i := range d.Kpis {
-		if d.Kpis[i].Label == "Bytes filtered (measured)" {
+		if d.Kpis[i].Label == "Filtered output size (measured)" {
 			measuredKpi = &d.Kpis[i]
 		}
 	}
@@ -40,6 +40,9 @@ func TestBuildNeverBlendsMeasuredAndEstimated(t *testing.T) {
 	if measuredKpi.Value != "500" {
 		t.Errorf("measured Kpi = %q, want \"500\" -- the rewrite's estimated bytes must not be added in", measuredKpi.Value)
 	}
+	// 500 is BytesAfter: the size the filtered output ended up at, not the
+	// number of bytes removed. The KPI was labelled "Bytes filtered" for
+	// three releases while reporting the opposite quantity.
 }
 
 func TestBuildFamilyBarsFixedOrderNeverByValue(t *testing.T) {

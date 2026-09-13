@@ -205,7 +205,7 @@ func Build(logs []logstore.Record, outcomes []lessons.Outcome, repo string, cat 
 
 	d.Kpis = []Kpi{
 		{Label: "Decisions logged", Value: fmtBytes(len(logs))},
-		{Label: "Bytes filtered (measured)", Value: fmtBytes(measuredBytes), Sub: fmt.Sprintf("%d rewrites also estimated", rewrites)},
+		{Label: "Filtered output size (measured)", Value: fmtBytes(measuredBytes), Sub: fmt.Sprintf("%d rewrites also estimated", rewrites)},
 		{Label: "Routing decisions", Value: fmtBytes(routingCount)},
 	}
 	if pr := buildPRStats(logs); pr != nil {

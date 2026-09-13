@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.61.7
+
+Claims that didn't match the code.
+
+The report's headline KPI read "Bytes filtered (measured)" while summing
+the bytes that *remained* after filtering — the opposite quantity. Its own
+test fixture showed it: a 500-byte `BytesAfter` reported as 500 bytes
+filtered. It now reads "Filtered output size (measured)".
+
+Both locally generated HTML reports fetched webfonts from Google on every
+open, under a footer promising "no hosted service, no telemetry". The
+request leaked when and how often the report was opened. The font links
+are gone; the stacks already had local fallbacks.
+
+README described the AI routing judge as "opt-in ... (haiku)". It is on by
+default, uses sonnet, and since 0.61.3 a first-seen subtask waits about 5
+seconds for its answer — worth knowing before wondering why a subagent
+spawn pauses, and `mode.routing_judge=off` is the switch.
+
+The coder-persona figures were stale everywhere: README claimed 9,235 →
+1,099 bytes (88.1%) and the site claimed 7,666 → 1,073 (86.0%). Measured
+from the rendered artifacts, it is 9,499 → 1,099, an 88.4% cut. README
+also counted "ten independent controls" over a nine-row table while the
+site said eight.
+
+"Every figure is measured from a real run and logged to decisions.jsonl"
+overstated one row: the command-output figures are logged, but the persona
+figure is measured off the two rendered artifacts, because the log carries
+only an estimate on that path. Said plainly now.
+
 ## 0.61.6
 
 Rubric consistency, so one bug class has one tag.
