@@ -208,6 +208,25 @@ gets the rubric in full. Experimental until live-verified.
 go install github.com/deepaksinghcs14/deadeye-cc/cmd/deadeye@latest
 ```
 
+### Is it actually working?
+
+```bash
+deadeye doctor
+```
+
+One read-only pass over the plumbing: which binary is running and whether a
+stale one on `PATH` shadows it, whether `~/.deadeye` is private, whether
+`config.json` parses (it fails open to defaults, so a stray comma silently
+reverts every setting), the socket path, daemon liveness, whether the
+routing judge can actually reach `claude`, whether the hook manifest covers
+every tool deadeye dispatches, and how large the stores have grown. Each
+failure prints the command that fixes it, and it exits non-zero if anything
+failed.
+
+Reach for it whenever deadeye seems to be doing nothing. `status` reports
+what the settings *are*; every silent failure this plugin has shipped was
+plumbing underneath them, and `status` looked perfect through all of it.
+
 ### Uninstall
 
 ```bash
@@ -251,6 +270,7 @@ installs get a one-time welcome pointing at all of this.
 | Command | What it does |
 |---|---|
 | `/deadeye-status` | Modes, coder level, kill switches, model list, daemon health |
+| `deadeye doctor` | Checks whether it's actually *working* — binary, permissions, config parse, socket, daemon, judge reachability, hook coverage, store sizes. Exits non-zero if anything failed |
 | `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — changes nothing, but an unsure decision spends one real judge call |
 | `/deadeye-config` | View or change any setting from chat, or interactively with `deadeye config` |
 | `/deadeye-stats [savings\|context]` | Decision-log reports: measured-impact scoreboard (default), token-savings, per-session context bytes — ends with a link to the full visual report |

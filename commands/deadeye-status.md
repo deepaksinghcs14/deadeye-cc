@@ -1,6 +1,6 @@
 ---
 description: Modes, coder level, kill switches, catalog, daemon health
-allowed-tools: Bash(deadeye status), Bash(~/.deadeye/bin/deadeye status)
+allowed-tools: Bash(deadeye status), Bash(~/.deadeye/bin/deadeye status), Bash(deadeye doctor), Bash(~/.deadeye/bin/deadeye doctor)
 ---
 
 Run `deadeye status`. If that reports "command not found", it's very likely
@@ -24,3 +24,12 @@ it. Do not attempt to install it yourself.
 
 Do not editorialize beyond what the output shows -- this command reports
 state, it doesn't take action.
+
+If the user's question is "is it WORKING" rather than "what is it set to" --
+nothing seems to be happening, an advisory never appears, a setting seems
+ignored -- run `deadeye doctor` instead and present that. `status` shows
+configuration, which looks identical whether the plumbing under it is
+healthy or broken; doctor checks the plumbing (binary resolution, state-dir
+permissions, whether config.json parses, socket, daemon, whether the
+routing judge can reach `claude`, hook-manifest coverage) and prints the fix
+for each failure. Same PATH fallback applies.

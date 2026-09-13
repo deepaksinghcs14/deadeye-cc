@@ -8,6 +8,38 @@
 > tree was green. The tags are deleted; every fix described under them
 > ships in 0.61.6 and 0.61.7, which built and published normally.
 
+## 0.62.0
+
+New: `deadeye doctor`.
+
+`deadeye status` answers "what is this set to". Nothing answered "is this
+actually working" — and every silent failure this plugin has shipped was
+plumbing underneath a configuration that looked perfect: a routing judge
+that could never run because `claude` wasn't on PATH (fail-open, no
+message), a `config.json` that stopped parsing and reverted every setting
+to its default without saying so, a state directory created world-readable
+by one install path, a socket path too long for the platform's limit, a
+hook manifest whose matcher didn't cover a tool the daemon dispatches —
+which silently retired a whole advisory, twice.
+
+`doctor` is one read-only pass over exactly those: which binary is running
+and whether a stale one on `PATH` shadows it, `~/.deadeye` permissions,
+whether `config.json` parses, the socket path and any fallback, daemon
+liveness with a measured connect time, whether the routing judge can reach
+`claude` at all, whether every tool `decidePreToolUse` handles is covered by
+a matcher in the installed manifest, which non-Claude hosts are set up, and
+how close the decision and outcome stores are to their rotation point. Each
+failure prints the command that fixes it; it exits non-zero if anything
+failed, so it can gate a script.
+
+Two checks are pinned by tests rather than trusted: the tool list doctor
+compares the manifest against is checked against the real switch in
+`decidePreToolUse` by parsing it, and the manifest check is exercised
+against a matcher that has lost a tool.
+
+`/deadeye-status` now redirects to it when the question is "is it working"
+rather than "what is it set to".
+
 ## 0.61.8
 
 A clean working tree is no longer an evidence blackout, and the judge no

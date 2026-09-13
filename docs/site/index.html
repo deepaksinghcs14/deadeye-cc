@@ -942,6 +942,17 @@ Cross-check these figures against /usage's plugin attribution.</div>
         Windows: grab the binary from Releases first — self-bootstrap there
         isn't built yet.</p>
 
+      <h3 style="margin-top:34px">Is it working?</h3>
+      <div class="term"><span class="c">deadeye</span> doctor</div>
+      <p class="note" style="margin-top:14px">One read-only pass over the
+        plumbing: binary resolution, whether <code>~/.deadeye</code> is
+        private, whether <code>config.json</code> parses, the socket, the
+        daemon, whether the routing judge can reach <code>claude</code>, and
+        whether the hook manifest covers every tool it dispatches. Each
+        failure prints the command that fixes it. Reach for it when deadeye
+        seems to be doing nothing — settings can look perfect while the
+        plumbing underneath them is broken.</p>
+
       <h3 style="margin-top:34px">Turn it off</h3>
       <div class="term"><span class="m">DEADEYE=off</span>              everything
 <span class="m">DEADEYE_PREPROCESS=off</span>   context hygiene

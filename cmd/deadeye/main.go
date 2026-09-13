@@ -12,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|config|route|audit|gain|context|lessons|report|vapt|init|capture|uninstall|version> [args]")
+		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|doctor|config|route|audit|gain|context|lessons|report|vapt|init|capture|update|uninstall|version> [args]")
 		os.Exit(2)
 	}
 
@@ -23,6 +23,8 @@ func main() {
 		runDaemon()
 	case "status":
 		runStatus()
+	case "doctor":
+		runDoctor()
 	case "config":
 		runConfig(os.Args[2:])
 	case "route":
