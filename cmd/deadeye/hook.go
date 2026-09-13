@@ -107,6 +107,16 @@ const requestTimeoutCeiling = 5 * time.Second
 // never call the judge, and INV-8's p95 applies to them unchanged.
 const agentRequestTimeout = 12 * time.Second
 
+// sessionStartSpawnWait is how long a SessionStart waits for a daemon it
+// just spawned. It STACKS with the request deadline that follows, and the
+// sum has to fit the hook timeout in hooks/hooks.json: 2s of spawn wait
+// plus a request running to requestTimeoutCeiling (5s) came to ~7s against
+// a 5s timeout, so the host could kill the hook mid-request and the session
+// would start with no coder persona -- the exact failure awaitDaemon exists
+// to prevent. Now 1.5s + 5s + handler margin against a 10s SessionStart
+// timeout, with room to spare.
+const sessionStartSpawnWait = 1500 * time.Millisecond
+
 // isAgentPayload reports whether this PreToolUse payload is an Agent call,
 // by substring rather than a full unmarshal: this runs on every matched
 // tool call, and the only question is which deadline to set.
@@ -152,7 +162,7 @@ func requestDaemon(event string, raw []byte, host string) []byte {
 		if event != "SessionStart" {
 			return []byte("{}")
 		}
-		conn = awaitDaemon(2 * time.Second)
+		conn = awaitDaemon(sessionStartSpawnWait)
 		if conn == nil {
 			return []byte("{}")
 		}

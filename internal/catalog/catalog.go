@@ -10,6 +10,8 @@ package catalog
 import (
 	"encoding/json"
 	"os"
+	"regexp"
+	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
@@ -56,7 +58,14 @@ func Load() Catalog {
 	}
 	if b, err := os.ReadFile(meta.CatalogCachePath()); err == nil {
 		var c Catalog
-		if json.Unmarshal(b, &c) == nil && c.Valid() && c.BuiltAt >= builtin.BuiltAt {
+		// BuiltAt is a plain string from an unsigned file, and ">=" alone
+		// let a hosted catalog claim any freshness it liked ("9999") and
+		// win forever -- it steers every Unsure decision and, in enforce
+		// mode, rewrites real Agent calls. Require it to look like the
+		// date it claims to be, and refuse one dated implausibly far ahead
+		// of this build: a genuinely newer catalog is days or weeks newer,
+		// not years.
+		if json.Unmarshal(b, &c) == nil && c.Valid() && plausiblyNewer(c.BuiltAt, builtin.BuiltAt) {
 			c.Source = "remote"
 			return c
 		}
@@ -206,4 +215,27 @@ func (c Catalog) modelAtOrBelowTier(maxTier int) (Model, bool) {
 		}
 	}
 	return bestModel, best != -1
+}
+
+// builtAtRe pins BuiltAt to a YYYY-MM-DD prefix, so a non-date string can
+// never sort above the builtin's by plain string comparison.
+var builtAtRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
+
+// maxCatalogSkew bounds how far ahead of this build a hosted catalog may
+// claim to be. Model tables move on a scale of weeks; a year ahead means
+// either a broken clock or a file crafted to outrank the builtin forever.
+const maxCatalogSkew = 365 * 24 * time.Hour
+
+// plausiblyNewer reports whether a hosted catalog's BuiltAt should be
+// allowed to supersede the builtin's: well-formed, not older, and not
+// implausibly far in the future.
+func plausiblyNewer(remote, builtin string) bool {
+	if !builtAtRe.MatchString(remote) || remote < builtin {
+		return false
+	}
+	t, err := time.Parse("2006-01-02", remote[:10])
+	if err != nil {
+		return false
+	}
+	return t.Before(time.Now().Add(maxCatalogSkew))
 }

@@ -51,6 +51,20 @@ func wantedChecksum(checksums, asset string) string {
 	return ""
 }
 
+// shortHash renders a hash for a human without assuming it is well-formed:
+// an unreadable file gives "", and a truncated checksums.txt line can give
+// anything.
+func shortHash(h string) string {
+	switch {
+	case h == "":
+		return "unreadable"
+	case len(h) <= 12:
+		return h
+	default:
+		return h[:12] + "..."
+	}
+}
+
 func sha256File(path string) string {
 	f, err := os.Open(path)
 	if err != nil {
@@ -128,7 +142,11 @@ func runUpdate() {
 	tmp.Close()
 
 	if got := sha256File(tmpPath); got != want {
-		fmt.Fprintln(os.Stderr, "deadeye update: sha256 mismatch -- refusing to install (got "+got[:12]+"..., want "+want[:12]+"...)")
+		// sha256File returns "" when it can't read the file, and `want`
+		// comes from a remote checksums.txt -- slicing either blind
+		// panicked the updater instead of reporting the mismatch it had
+		// correctly detected.
+		fmt.Fprintln(os.Stderr, "deadeye update: sha256 mismatch -- refusing to install (got "+shortHash(got)+", want "+shortHash(want)+")")
 		os.Exit(1)
 	}
 	if err := os.Chmod(tmpPath, 0o755); err != nil {

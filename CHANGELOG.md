@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.61.5
+
+Robustness fixes in the paths that run on every session.
+
+A hook with `$HOME` unset exited 1 with no output at all, instead of the
+`{}` the contract requires — noisy on every tool call in an environment
+that strips it.
+
+SessionStart could overrun its own hook timeout: up to 2 seconds waiting
+for a daemon it had just spawned, plus a request that could run to the 5
+second ceiling, against a 5 second timeout. The host could kill the hook
+mid-request and the session would start with no coder persona — the exact
+failure the spawn-wait exists to prevent. The wait is now 1.5s and the
+SessionStart timeout is 10s.
+
+`deadeye update` panicked instead of reporting a checksum mismatch: it
+sliced the first 12 characters off a hash that is empty when the file
+can't be read, and off a `want` value that comes from a remote
+checksums.txt.
+
+A single log line over 1MB aborted the whole read, taking `deadeye gain`,
+`audit`, `context` and `report` down with it — even though a short
+malformed line was already skipped harmlessly. One unreadable row is now
+skipped the same way whatever its length.
+
+Bootstrap no longer re-downloads on every session when a plugin version
+has no release assets. It falls back to `latest`, which installs something
+still behind `plugin.json`, so the next session sees "managed is behind"
+and tries again — indefinitely if a release build failed. Attempts are now
+stamped per version with a 24-hour retry window.
+
+A hosted model catalog can no longer claim arbitrary freshness. `built_at`
+is an unsigned string compared with `>=`, so a file dated "9999" outranked
+the built-in table forever, steering every unsure routing decision and, in
+enforce mode, rewriting real Agent calls. It must now parse as a date and
+fall within a year of this build.
+
 ## 0.61.4
 
 Host install and uninstall fixes.

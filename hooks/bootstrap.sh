@@ -83,9 +83,22 @@ else
   BASE_URL="$LATEST_URL"
 fi
 
+# A plugin version whose release assets don't exist yet (the minutes between
+# a tag and its finished build -- or forever, if that build failed) falls
+# back to `latest`, which installs something still BEHIND plugin.json. The
+# hook then sees "managed < plugin" again next session and re-downloads, on
+# every session, indefinitely. Stamp the attempt and don't retry the same
+# version for 24h.
+STAMP="$HOME/.deadeye/.bootstrap-attempted-${PLUGIN_VERSION:-latest}"
+if [ -f "$STAMP" ]; then
+  STAMP_AGE=$(( $(date +%s) - $(stat -f %m "$STAMP" 2>/dev/null || stat -c %Y "$STAMP" 2>/dev/null || echo 0) ))
+  [ "$STAMP_AGE" -lt 86400 ] && exit 0
+fi
+
 if ! curl -fsSL -o "$TMP/deadeye" "$BASE_URL/$ASSET"; then
-  [ "$BASE_URL" = "$LATEST_URL" ] && exit 0
+  [ "$BASE_URL" = "$LATEST_URL" ] && { mkdir -p "$HOME/.deadeye" && : > "$STAMP"; exit 0; }
   BASE_URL="$LATEST_URL"
+  mkdir -p "$HOME/.deadeye" && : > "$STAMP"
   curl -fsSL -o "$TMP/deadeye" "$BASE_URL/$ASSET" || exit 0
 fi
 curl -fsSL -o "$TMP/checksums.txt" "$BASE_URL/checksums.txt" || exit 0

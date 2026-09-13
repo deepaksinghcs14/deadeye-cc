@@ -9,6 +9,7 @@ package logstore
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -93,5 +94,13 @@ func Scan(path string) ([]Record, error) {
 		}
 		records = append(records, r)
 	}
-	return records, sc.Err()
+	// A single line past the 1MB cap used to abort the read and take every
+	// gain/audit/context/report command down with it ("token too long"),
+	// even though a SHORT malformed line was already skipped harmlessly.
+	// One unreadable row is the same class of problem either way: skip it
+	// and report what parsed.
+	if err := sc.Err(); err != nil && !errors.Is(err, bufio.ErrTooLong) {
+		return records, err
+	}
+	return records, nil
 }

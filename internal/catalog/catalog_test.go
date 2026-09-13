@@ -155,7 +155,10 @@ func TestLoadFallsBackToBuiltinWhenNoOverride(t *testing.T) {
 }
 
 func validTestCatalog() Catalog {
-	return Catalog{BuiltAt: "2099-01-01", Models: []Model{
+	// Plausibly newer than the builtin, not absurdly so: Load refuses a
+	// hosted catalog dated implausibly far ahead, because BuiltAt is an
+	// unsigned string and ">=" alone let one claim permanent freshness.
+	return Catalog{BuiltAt: "2026-09-20", Models: []Model{
 		{ID: "cheap", Family: "cheap-fam", InputPrice: 1, OutputPrice: 1, Tier: 0},
 		{ID: "mid", Family: "mid-fam", InputPrice: 2, OutputPrice: 2, Tier: 1, Role: RoleUnsureCeiling},
 		{ID: "top", Family: "top-fam", InputPrice: 5, OutputPrice: 5, Tier: 2, Role: RoleHighCeiling},
@@ -283,4 +286,34 @@ func TestLoadPrefersOverrideThenCacheThenBuiltin(t *testing.T) {
 			t.Errorf("Source = %q, want builtin (stale cache must not win)", c.Source)
 		}
 	})
+}
+
+// TestLoadRejectsImplausiblyDatedRemoteCatalog: the hosted catalog is
+// fetched over HTTPS but is not signed, and Load used a plain string ">="
+// on BuiltAt -- so a file claiming "9999" outranked the builtin forever,
+// steering every Unsure routing decision and, in enforce mode, rewriting
+// real Agent calls. A malformed or far-future date must lose to the
+// builtin instead.
+func TestLoadRejectsImplausiblyDatedRemoteCatalog(t *testing.T) {
+	for _, bad := range []string{"9999", "2099-01-01", "not-a-date", ""} {
+		t.Run(bad, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			if err := os.MkdirAll(filepath.Dir(meta.CatalogCachePath()), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			c := validTestCatalog()
+			c.BuiltAt = bad
+			b, err := json.Marshal(c)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(meta.CatalogCachePath(), b, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if got := Load(); got.Source == "remote" {
+				t.Errorf("BuiltAt %q was accepted as remote; want the builtin to win", bad)
+			}
+		})
+	}
 }

@@ -19,6 +19,12 @@ set -u
 [ -n "${DEADEYE_JUDGE:-}" ] && { echo '{}'; exit 0; }
 
 EVENT="${1:-}"
+# `set -u` above turns an unset HOME into "unbound variable", exit 1, with
+# no JSON at all -- noisy on every single tool call in an environment that
+# strips HOME. Fall back rather than fail: the hook contract is to always
+# answer, even if that answer is {}.
+HOME="${HOME:-$(cd ~ 2>/dev/null && pwd || echo /tmp)}"
+export HOME
 MANAGED="$HOME/.deadeye/bin/deadeye"
 
 plugin_version() {
