@@ -82,6 +82,31 @@ func cutSection(s, from, to string) string {
 	return s[:i] + s[i+j:]
 }
 
+// NonClaudeBody is Body() with Claude-Code-only prose removed, for the
+// codex/gemini/cursor renderings. Those hosts have no Workflow tool, no
+// subagent fan-out and no model-tier vocabulary, so instructions written in
+// terms of them are noise the user pays for on every invocation and cannot
+// act on. Windsurf gets WindsurfBody(), which drops this along with much
+// more to fit its cap.
+const (
+	claudeOnlyOpen  = "<!-- claude-only -->"
+	claudeOnlyClose = "<!-- /claude-only -->"
+)
+
+func NonClaudeBody() string {
+	// cutSection leaves its END marker in place by design (callers chain
+	// cuts on it), so the closing fence has to be swept up separately or
+	// it survives into every non-Claude rendering -- and, on Windsurf,
+	// costs budget that is measured in single runes.
+	b := cutSection(body, claudeOnlyOpen, claudeOnlyClose)
+	for _, residue := range []string{claudeOnlyClose + "\n\n", claudeOnlyClose + "\n", claudeOnlyClose} {
+		if strings.Contains(b, residue) {
+			return strings.Replace(b, residue, "", 1)
+		}
+	}
+	return b
+}
+
 // WindsurfBody returns the rubric trimmed to fit Windsurf's hard 12000-char
 // workflow cap. Every other host gets the full Body(); Windsurf (experimental,
 // no hook contract) drops SEVEN things to fit: the "Rigor -- where reviews
@@ -111,7 +136,10 @@ func cutSection(s, from, to string) string {
 // the toolchain-incompatibility flag, the cross-session learning loop, or
 // the fix-acceleration extras.
 func WindsurfBody() string {
-	b := body
+	// Start from NonClaudeBody: Windsurf has no subagents to fan out to,
+	// so the huge-PR fan-out paragraph was pure cost on the tightest
+	// budget of any host.
+	b := NonClaudeBody()
 	b = cutSection(b, "## Rigor", "## The four lenses")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "- `incompat:`", "- `leak:`")

@@ -22,6 +22,7 @@ half of a VAPT: a whitebox read that reasons like an attacker with the
 code in hand, not the network half. Say this plainly in the output, not
 just here.
 
+<!-- claude-only -->
 **How this runs.** Phase 0 (the five surface tracks below) and the
 ambiguous-scope gate run first, sequentially, as normal interactive turns
 — Phase 0 is a handful of greps, no fan-out needed, and the ambiguity
@@ -54,6 +55,8 @@ tag-family agent at tier 1 (sonnet), reserving the top tier for a family
 touching a risky surface (authn/authz/crypto/inject/llm). Run the closing
 integration pass at the strongest tier available — it's the one place
 seeing every finding at once.
+
+<!-- /claude-only -->
 
 ## Scope
 
@@ -240,7 +243,8 @@ otherwise:
 All ten fold under `llm:`, with the sub-id named in the finding
 (`llm:LLM01`) — except LLM03, which is a `dep:` finding wearing an LLM
 hat (a poisoned or unpinned model/plugin/tool dependency), and LLM10,
-which is `ratelimit:` (unbounded token/cost consumption).
+which is `ratelimit:` (unbounded token/cost consumption) — those two cite
+the LLM row for the sub-id and their own row for the tag.
 
 ## The twenty tags
 
@@ -255,8 +259,8 @@ which is `ratelimit:` (unbounded token/cost consumption).
 | `massassign:` | request body bound straight to a model, letting a client set `role`/`is_admin`/`balance` |
 | `expose:` | excessive data in a response on the NORMAL path (PII, hashes, internal ids), debug endpoints reachable, XS-leaks |
 | `validation:` | absent/weak boundary validation — no schema, type confusion, unbounded size, missing allow-list |
-| `ratelimit:` | no throttle on login, OTP, reset, signup, or an expensive query; ReDoS; unbounded pagination |
-| `dos:` | untrusted input sizes an allocation, loop, or recursion → memory/CPU exhaustion — the shape, not a missing throttle (that's `ratelimit:`) |
+| `ratelimit:` | no throttle on login, OTP, reset, signup, or an expensive query; unbounded pagination |
+| `dos:` | untrusted input sizes or shapes an allocation, loop, recursion, or compile (ReDoS) → the shape, not a missing throttle (`ratelimit:`) |
 | `crypto:` | weak/absent crypto, ECB/static IV, non-CSPRNG token, TLS off/weak version |
 | `config:` | debug mode, permissive CORS, missing security headers, insecure cookies, default creds, clickjacking, host-header injection, cache poisoning, request smuggling |
 | `dep:` | vulnerable/superseded dependency, unpinned CI action ref, mutable `:latest` image, `curl \| sh` installer |
@@ -305,7 +309,7 @@ clickjacking (`authz:`/`config:`), open redirect and host-header
 injection (`config:`), HTTP request smuggling and web cache
 poisoning/deception (`config:`), subdomain takeover (`integrity:`),
 TOCTOU race conditions and negative-quantity abuse (`bizlogic:`), ReDoS
-and pagination/batch amplification (`ratelimit:`), zip-slip and
+(`dos:`), pagination/batch amplification (`ratelimit:`), zip-slip and
 file-upload-to-RCE (`inject:`), prototype pollution (`inject:`), JWT
 `kid`/JWK confusion and OAuth/SAML flow flaws (`authn:`), GraphQL
 batching and field-level authz (`ratelimit:`/`authz:`), gRPC reflection

@@ -98,8 +98,11 @@ func cutSection(s, from, to string) string {
 // only the plumbing and interactivity unavailable on this host are
 // dropped.
 func WindsurfBody() string {
-	b := body
-	b = cutSection(b, "**How this runs.**", "## Scope")
+	// Start from NonClaudeBody: Windsurf has no Workflow tool or subagents
+	// either, so the Claude-only section is dead weight here too -- and
+	// cutting it by its fence rather than by prose leaves no orphaned
+	// marker behind (which is what pushed this body 10 runes over its cap).
+	b := NonClaudeBody()
 	b = cutSection(b, "**Scope is ambiguous", "\n\n**Phase 1 —")
 	b = cutSection(b, "Unlike Phase 3's ranking", "\n\n**Phase 3 — triage")
 	b = cutSection(b, "Twenty tags —", "**Reference —")
@@ -117,6 +120,27 @@ func WindsurfBody() string {
 	// ("Findings are a LIST", the static/source-only reminder) stay.
 	if i := strings.Index(b, "- Not a diff review:"); i >= 0 {
 		b = strings.TrimRight(b[:i], "\n") + "\n"
+	}
+	return b
+}
+
+// NonClaudeBody is Body() with Claude-Code-only prose removed -- see
+// prreview.NonClaudeBody for the reasoning.
+const (
+	claudeOnlyOpen  = "<!-- claude-only -->"
+	claudeOnlyClose = "<!-- /claude-only -->"
+)
+
+func NonClaudeBody() string {
+	// cutSection leaves its END marker in place by design (callers chain
+	// cuts on it), so the closing fence has to be swept up separately or
+	// it survives into every non-Claude rendering -- and, on Windsurf,
+	// costs budget that is measured in single runes.
+	b := cutSection(body, claudeOnlyOpen, claudeOnlyClose)
+	for _, residue := range []string{claudeOnlyClose + "\n\n", claudeOnlyClose + "\n", claudeOnlyClose} {
+		if strings.Contains(b, residue) {
+			return strings.Replace(b, residue, "", 1)
+		}
 	}
 	return b
 }

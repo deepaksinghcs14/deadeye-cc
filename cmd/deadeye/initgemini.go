@@ -112,6 +112,15 @@ func runInitGemini(args []string) {
 		}
 	}
 
+	// ~/.deadeye first and at 0700: on a gemini-first install the loop
+	// below would otherwise CREATE the state dir as a side effect at
+	// 0755, world-listable, and decisions.jsonl there carries prompt
+	// markers and credential paths. Every other writer (daemon, codex
+	// init, bootstrap.sh) uses 0700; this was the one that didn't.
+	if err := os.MkdirAll(meta.StateDir(), 0o700); err != nil {
+		fmt.Fprintln(os.Stderr, "deadeye init gemini:", err)
+		os.Exit(1)
+	}
 	for _, p := range []string{filepath.Dir(script), filepath.Dir(geminiHooksPath())} {
 		if err := os.MkdirAll(p, 0o755); err != nil {
 			fmt.Fprintln(os.Stderr, "deadeye init gemini:", err)
@@ -144,9 +153,13 @@ func runUninstallGemini() {
 	for _, cmd := range hostCmds {
 		removeCommand(cmd, "gemini")
 	}
+	// os.RemoveAll returns nil for a path that was never there, so the old
+	// `err == nil` test reported "Removed ..." on every run, including the
+	// very first one.
 	removed := false
 	for _, p := range []string{geminiExtensionDir(), geminiScriptPath()} {
-		if err := os.RemoveAll(p); err == nil {
+		_, statErr := os.Stat(p)
+		if err := os.RemoveAll(p); err == nil && statErr == nil {
 			removed = true
 		}
 	}

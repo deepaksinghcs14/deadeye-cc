@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.61.4
+
+Host install and uninstall fixes.
+
+`deadeye init gemini` created `~/.deadeye` as 0755 when Gemini was the
+first host set up, leaving the state directory world-listable — and
+`decisions.jsonl` there carries prompt markers and credential paths. Every
+other writer already used 0700; this one created the directory as a side
+effect of making its own script path.
+
+`deadeye uninstall cursor` and `uninstall windsurf` returned "Nothing to
+remove" whenever the rules file was already gone, and skipped the command
+files entirely — so `.cursor/skills/deadeye-*/SKILL.md` and
+`.windsurf/workflows/*.md` stayed on disk. `uninstall gemini` announced
+"Removed the deadeye Gemini extension scaffold" on every run, including
+runs where nothing existed, because `os.RemoveAll` returns nil for a path
+that was never there.
+
+Codex, Gemini and Cursor no longer receive Claude-Code-only instructions.
+The PR rubric's huge-PR subagent fan-out and the VAPT rubric's "How this
+runs" section are written in terms of the Workflow tool, subagent spawning
+and model tiers — none of which exist on those hosts, so it was prose the
+user paid for on every invocation and could not act on. Both sections are
+now fenced and dropped from the non-Claude renderings, which also buys back
+679 bytes of Windsurf's cap.
+
 ## 0.61.3
 
 The Agent hook now waits for the AI routing judge, reversing the

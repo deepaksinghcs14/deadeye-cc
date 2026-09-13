@@ -108,7 +108,13 @@ func runUninstallRules(host string) {
 	path := filepath.Join(cwd, rel)
 	b, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Println("Nothing to remove (" + path + " not present).")
+		// The rules file is only half of an install: the command/skill
+		// files go somewhere else entirely. Returning here left them on
+		// disk while claiming there was nothing to remove.
+		for _, cmd := range hostCmds {
+			removeCommand(cmd, host)
+		}
+		fmt.Println("Removed any deadeye command files (" + path + " was not present).")
 		return
 	}
 	if !strings.Contains(string(b), coder.RulesetMarkdownMarker) {

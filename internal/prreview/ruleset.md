@@ -29,6 +29,7 @@ Preconditions and graceful degradation:
   instead. Do not invent PR contents.
 - Not a GitHub repo / no PR for the branch → say so; don't substitute a
   different scope.
+<!-- claude-only -->
 - Huge PR (~40+ changed files or a few thousand lines) → review it ALL: fan
   out one subagent per ~2,500-line package cluster, in parallel, each
   returning findings in the standard format. Cheapest tier that fits, floor
@@ -40,6 +41,7 @@ Preconditions and graceful degradation:
   export removed in one cluster, its only caller in another
   (`break:`/`contract:`).
 
+<!-- /claude-only -->
 {{lenses}}
 
 ## Don't repeat what's already on the PR

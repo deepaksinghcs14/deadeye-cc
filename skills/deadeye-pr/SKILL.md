@@ -36,6 +36,7 @@ Preconditions and graceful degradation:
   instead. Do not invent PR contents.
 - Not a GitHub repo / no PR for the branch → say so; don't substitute a
   different scope.
+<!-- claude-only -->
 - Huge PR (~40+ changed files or a few thousand lines) → review it ALL: fan
   out one subagent per ~2,500-line package cluster, in parallel, each
   returning findings in the standard format. Cheapest tier that fits, floor
@@ -47,6 +48,7 @@ Preconditions and graceful degradation:
   export removed in one cluster, its only caller in another
   (`break:`/`contract:`).
 
+<!-- /claude-only -->
 ## Verify before reporting
 
 Before claiming a check is MISSING — a sanitizer, an authz guard, a
@@ -209,8 +211,9 @@ If a dependency manifest OR its lockfile changed (`go.mod`/`go.sum`,
 if installed — `govulncheck ./...`, `npm audit`, `pip-audit`, `cargo audit`
 — or `osv-scanner -L <manifest>` as fallback. A newly ADDED dep gets a
 direct OSV cross-check; a lockfile-only bump needs the same pass. Also
-flag CI supply chain: an unpinned Action ref (`x@main`), a `:latest`
-Docker base, or `curl | sh`. No auditor installed → say so, don't
+flag CI supply chain as `dep:` (the artifact pulled in) or `integrity:`
+(the pipeline trusting unreviewed input): an unpinned Action ref
+(`x@main`), a `:latest` Docker base, or `curl | sh`. No auditor installed → say so, don't
 fabricate a CVE or advisory id. Rank by exploitability. Footer: `<N>
 exposures, <M> accepted.` or `Clean line of fire.`
 

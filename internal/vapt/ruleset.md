@@ -16,6 +16,7 @@ half of a VAPT: a whitebox read that reasons like an attacker with the
 code in hand, not the network half. Say this plainly in the output, not
 just here.
 
+<!-- claude-only -->
 **How this runs.** Phase 0 (the five surface tracks below) and the
 ambiguous-scope gate run first, sequentially, as normal interactive turns
 — Phase 0 is a handful of greps, no fan-out needed, and the ambiguity
@@ -48,6 +49,8 @@ tag-family agent at tier 1 (sonnet), reserving the top tier for a family
 touching a risky surface (authn/authz/crypto/inject/llm). Run the closing
 integration pass at the strongest tier available — it's the one place
 seeing every finding at once.
+
+<!-- /claude-only -->
 
 ## Scope
 

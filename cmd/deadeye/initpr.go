@@ -34,7 +34,8 @@ type hostCmd struct {
 	desc         string                     // one-line description in host frontmatter
 	argHint      string                     // codex/cursor argument-hint value
 	marker       string                     // never-clobber sentinel, unique per command
-	body         func() string              // full rubric for codex/gemini/cursor
+	body         func() string              // full rubric (the Claude skill body)
+	nonClaude    func() string              // body minus Claude-Code-only prose, for codex/gemini/cursor; nil = same as body
 	windsurfBody func() string              // trimmed rubric for windsurf's 12000-char cap
 	leadLine     func(host string) string   // host-specific lead-in before the body
 	kind         string                     // printed noun, e.g. "PR-review"
@@ -48,6 +49,7 @@ var prCmd = hostCmd{
 	argHint:      "[<PR number or URL>] [--post]",
 	marker:       prreview.Marker,
 	body:         prreview.Body,
+	nonClaude:    prreview.NonClaudeBody,
 	windsurfBody: prreview.WindsurfBody,
 	kind:         "PR-review",
 	trigger:      "/deadeye-pr -- experimental",
@@ -92,6 +94,7 @@ var vaptCmd = hostCmd{
 	desc:         "deadeye VAPT -- whole-service pen-test pass, complete OWASP Top 10:2025/API Security Top 10 2023/LLM Top 10:2025 coverage (experimental)",
 	marker:       vapt.Marker,
 	body:         vapt.Body,
+	nonClaude:    vapt.NonClaudeBody,
 	windsurfBody: vapt.WindsurfBody,
 	kind:         "VAPT",
 	trigger:      "/deadeye-vapt -- experimental",
@@ -143,22 +146,32 @@ func legacyCodexPRCommandPaths(home string) []string {
 	return paths
 }
 
+// hostBody is the rubric a non-Claude, non-Windsurf host receives: the full
+// body minus any Claude-Code-only section, or the full body when a command
+// has none to drop.
+func (c hostCmd) hostBody() string {
+	if c.nonClaude == nil {
+		return c.body()
+	}
+	return c.nonClaude()
+}
+
 // renderCommand wraps cmd's canonical rubric in host's command-file format,
 // substituting the argument token in that host's syntax.
 func renderCommand(cmd hostCmd, host string) string {
 	switch host {
 	case "codex":
 		return "---\nname: " + cmd.name + "\ndescription: " + cmd.desc + "\nlicense: MIT\nargument-hint: \"" + cmd.argHint + "\"\n---\n\n" +
-			cmd.leadLine(host) + cmd.body()
+			cmd.leadLine(host) + cmd.hostBody()
 	case "gemini":
 		// TOML literal string ('''): no escape processing, so backticks,
 		// backslashes, and quotes in the rubric pass through verbatim. The
 		// rubric contains no ''' sequence (a size/marker test guards its shape).
 		return "description = \"" + cmd.desc + "\"\nprompt = '''\n" +
-			cmd.leadLine(host) + cmd.body() + "\n'''\n"
+			cmd.leadLine(host) + cmd.hostBody() + "\n'''\n"
 	case "cursor":
 		return "---\nname: " + cmd.name + "\ndescription: " + cmd.desc + "\ndisable-model-invocation: true\n---\n\n" +
-			cmd.leadLine(host) + cmd.body()
+			cmd.leadLine(host) + cmd.hostBody()
 	case "windsurf":
 		// Windsurf workflows cap at 12000 chars; use the trimmed rubric.
 		return "---\ndescription: " + cmd.desc + "\n---\n\n" +
