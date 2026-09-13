@@ -409,7 +409,10 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	// model call is more accurate on these ambiguous cases than the keyword
 	// heuristics; fail-open leaves the heuristic decision untouched.
 	if ai.Model == "" {
-		decision = applyRoutingJudge(cfg, decision, state.cat, scope.Prompt)
+		// wait=false: a hook must never block a tool call on a model call
+		// (see judgeTierAsync) -- a pending verdict lands in the cache for
+		// the next identical spawn.
+		decision = applyRoutingJudge(cfg, decision, state.cat, scope.Prompt, false)
 	}
 
 	checkEscalation(in, ai, shape, state)

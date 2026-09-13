@@ -40,6 +40,14 @@ func runStatus() {
 		fmt.Println(cWarn("  or remove it so ~/.deadeye/bin/deadeye takes over."))
 		fmt.Println()
 	}
+	// Load() fails open to defaults over a broken config.json by design;
+	// without this line the table below reports defaults with no hint the
+	// user's own settings were never read.
+	if err := config.ParseError(); err != nil {
+		fmt.Println(cWarn("⚠ " + err.Error()))
+		fmt.Println(cWarn("  every value below is a default until it parses."))
+		fmt.Println()
+	}
 
 	fmt.Println(cHead("Modes") + cDim("   change → deadeye config set <key> <value>"))
 	srow("routing", cfg.Mode.Routing, "mode.routing", "off · advise · enforce")

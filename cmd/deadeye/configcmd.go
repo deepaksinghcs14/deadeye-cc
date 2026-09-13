@@ -106,7 +106,10 @@ func runConfig(args []string) {
 // falling back to the built-in default when the key is absent.
 func currentValue(key string) string {
 	path := strings.Split(key, ".")
-	if v, ok := rawGet(loadConfigMap(), path); ok {
+	// Read path: fail open to defaults like config.Load() does. Only the
+	// WRITERS refuse an unparseable file (configSet, WriteCoderDefault).
+	m, _ := loadConfigMap()
+	if v, ok := rawGet(m, path); ok {
 		return scalarString(v)
 	}
 	if v, ok := rawGet(defaultMap(), path); ok {
@@ -151,7 +154,10 @@ func configSet(key, value string) error {
 		coerced = value
 	}
 
-	m := loadConfigMap()
+	m, err := loadConfigMap()
+	if err != nil {
+		return err
+	}
 	rawSet(m, strings.Split(key, "."), coerced)
 	out, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
@@ -229,12 +235,15 @@ func runConfigPicker() {
 
 // --- helpers: raw nested map get/set + config.json / default loading ---
 
-func loadConfigMap() map[string]any {
-	m := map[string]any{}
-	if b, err := os.ReadFile(meta.ConfigPath()); err == nil {
-		_ = json.Unmarshal(b, &m)
-	}
-	return m
+// loadConfigMap is the read half of every config write. A missing or empty
+// config.json starts fresh; one that EXISTS but doesn't parse is an error,
+// never a fresh map -- the old `_ = json.Unmarshal` here turned a trailing
+// comma into a silent wipe of every setting the user had (reproduced:
+// `deadeye config set mode.codemap off` printed ✓ and left
+// {"mode":{"codemap":"off"}}). Shared with WriteCoderDefault via
+// config.ReadConfigMap so both writers refuse the same way.
+func loadConfigMap() (map[string]any, error) {
+	return config.ReadConfigMap(meta.ConfigPath())
 }
 
 func defaultMap() map[string]any {

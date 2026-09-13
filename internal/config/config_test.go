@@ -11,6 +11,58 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
 
+// TestWriteCoderDefaultRefusesUnparseableConfig: `/deadeye-coder default
+// <level>` must not re-serialize an empty map over a config.json that
+// exists but doesn't parse -- the old "malformed existing file: start
+// fresh" path wiped every other setting on a trailing comma. Missing and
+// empty files still start fresh; ParseError reports the broken state for
+// `deadeye status` and clears once the file is valid.
+func TestWriteCoderDefaultRefusesUnparseableConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	path := meta.ConfigPath()
+
+	// Missing file: fresh start, no error.
+	if err := ParseError(); err != nil {
+		t.Fatalf("ParseError on a missing file = %v, want nil", err)
+	}
+	if err := WriteCoderDefault("marksman"); err != nil {
+		t.Fatalf("WriteCoderDefault on a missing file: %v", err)
+	}
+
+	broken := `{"mode":{"routing":"enforce",},"coder":{"default_level":"sniper"}}` + "\n"
+	if err := os.WriteFile(path, []byte(broken), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ParseError(); err == nil || !strings.Contains(err.Error(), path) {
+		t.Errorf("ParseError over a broken file = %v, want an error naming %s", err, path)
+	}
+	err := WriteCoderDefault("sniper")
+	if err == nil {
+		t.Fatal("WriteCoderDefault over an unparseable config.json returned nil; it must refuse")
+	}
+	if !strings.Contains(err.Error(), "not writing") {
+		t.Errorf("error should say it won't write; got %q", err)
+	}
+	after, _ := os.ReadFile(path)
+	if string(after) != broken {
+		t.Errorf("config.json was modified despite the parse failure:\n%s", after)
+	}
+
+	// Empty file: also a fresh start.
+	if err := os.WriteFile(path, []byte("  \n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ParseError(); err != nil {
+		t.Errorf("ParseError on an empty file = %v, want nil", err)
+	}
+	if err := WriteCoderDefault("spotter"); err != nil {
+		t.Errorf("WriteCoderDefault on an empty file: %v", err)
+	}
+	if err := ParseError(); err != nil {
+		t.Errorf("ParseError after a valid write = %v, want nil", err)
+	}
+}
+
 // TestConfigToleratesUTF8BOM: a config.json saved with a leading UTF-8 BOM
 // (some Windows editors add one) must still load, and a read-modify-write
 // must not drop the user's other keys. Without the BOM strip, json.Unmarshal

@@ -60,7 +60,9 @@ func runRoute(taskDescription, subagentType string) {
 	// Same judge path decideAgentRouting uses -- a real Agent call gets
 	// this too when mode.routing_judge=on, so the dry-run must show it or
 	// the explanation can silently diverge from the real decision.
-	decision = applyRoutingJudge(cfg, decision, cat, scope.Prompt)
+	// wait=true: this is a CLI dry-run, not a hook -- it can afford to wait
+	// for the verdict (the hook path returns the heuristic and judges async).
+	decision = applyRoutingJudge(cfg, decision, cat, scope.Prompt, true)
 
 	if taskDescription != "" {
 		fmt.Printf("Task: %q\n", taskDescription)

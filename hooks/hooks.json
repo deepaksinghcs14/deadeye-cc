@@ -28,7 +28,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|Agent|Read|Grep|WebFetch",
+        "matcher": "Bash|Edit|Write|Agent|Read|Grep|WebFetch|Workflow",
         "hooks": [
           {
             "type": "command",

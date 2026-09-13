@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.61.1
+
+Three fixes from a whole-product review, each reproduced before it was
+fixed.
+
+Routing advice now actually reaches Claude when the AI judge runs. The
+judge (`mode.routing_judge`, on by default) is a `claude -p` call with a
+30-second budget, and it ran *inside* the PreToolUse hook request — whose
+client deadline is about 200ms. On a committed tree every Agent decision
+is "Unsure", so the judge ran on every first-seen subtask, the client had
+already failed open to `{}` by the time the verdict existed, and no advice
+was delivered at all — not even the heuristic one. The judge now runs in
+the background: the hook returns the heuristic recommendation immediately,
+marked `(judge pending)`, and the next identical spawn (the retry or
+repeated subagent the cache was always for) gets the judge's verdict.
+Repeated spawns of the same subtask start one judge call, not one each.
+`/deadeye-route` still waits for the verdict — it's a dry run, not a hook.
+
+The `Workflow` tool's tiering advisory (added in 0.58.0) was unreachable:
+the hook's PreToolUse matcher never listed `Workflow`, so the handler
+existed but the hook never fired for it — the same slip that hid the Grep
+advisory in 0.9.0. The matcher now lists it, and a test parses
+`decidePreToolUse` and `hooks/hooks.json` (plus the Codex adapter's
+matcher) and fails if any dispatched tool name is reachable from neither.
+
+`deadeye config set` and `/deadeye-coder default <level>` no longer wipe a
+`config.json` that exists but doesn't parse. Both did a read-modify-write
+that swallowed the parse error and re-serialized an empty map, so a
+trailing comma silently cost every other setting. Writers now refuse with
+the path and the JSON error and leave the file untouched; reads keep
+failing open to defaults as before, and `deadeye status` says so when the
+file doesn't parse instead of silently reporting defaults.
+
+Known remaining gap: on a cold daemon the very first Agent call can still
+miss its 200ms client deadline on first-touch work unrelated to the judge,
+and the decision log records advice the client never received. Tracked
+separately.
+
 ## 0.61.0
 
 `/deadeye-pr` and `/deadeye-review` now trace before they tag. A benchmark

@@ -7,6 +7,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -325,9 +326,12 @@ func WriteCoderDefault(level string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	raw := map[string]any{}
-	if b, err := readConfigBytes(path); err == nil {
-		_ = json.Unmarshal(b, &raw) // malformed existing file: start fresh below
+	// An existing file that doesn't parse is an error, not a fresh start:
+	// re-serializing from an empty map here silently dropped every other
+	// setting the user had (see ReadConfigMap).
+	raw, err := ReadConfigMap(path)
+	if err != nil {
+		return err
 	}
 	coderRaw, _ := raw["coder"].(map[string]any)
 	if coderRaw == nil {
@@ -358,6 +362,41 @@ func readConfigBytes(path string) ([]byte, error) {
 		return nil, err
 	}
 	return bytes.TrimPrefix(b, utf8BOM), nil
+}
+
+// ReadConfigMap is the read half of every read-modify-write on a config
+// file (WriteCoderDefault here, `deadeye config set` in cmd/deadeye). A
+// missing or empty file starts fresh; a file that EXISTS but doesn't parse
+// returns an error naming the path and the JSON problem, so no writer ever
+// re-serializes an empty map over a user's settings because of a trailing
+// comma. Load()/overlay() deliberately keep failing open -- the hook path
+// must never refuse to run over a bad config -- this is only for writers,
+// and for `deadeye status` to say so (see ParseError).
+func ReadConfigMap(path string) (map[string]any, error) {
+	raw := map[string]any{}
+	b, err := readConfigBytes(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return raw, nil
+		}
+		return nil, err
+	}
+	if len(bytes.TrimSpace(b)) == 0 {
+		return raw, nil
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, fmt.Errorf("%s does not parse (%v); not writing -- fix or delete it first", path, err)
+	}
+	return raw, nil
+}
+
+// ParseError reports whether the user's own config.json is unparseable --
+// nil when missing, empty, or valid. Load() swallows this by design
+// (defaults must always win over a broken file on the hook path); the
+// status command surfaces it so "running defaults" isn't silent.
+func ParseError() error {
+	_, err := ReadConfigMap(meta.ConfigPath())
+	return err
 }
 
 func overlay(cfg *Config, path string) {
