@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.61.3
+
+The Agent hook now waits for the AI routing judge, reversing the
+asynchronous judge 0.61.1 introduced.
+
+That change fixed the right bug the wrong way. The judge was blocking a
+hook whose client gave up after ~200ms, so no routing advice was delivered
+at all; making it asynchronous restored delivery, but what got delivered
+was the heuristic decision — and for a subagent task described only by a
+prompt, with nothing in the working tree, three of the six evidence
+providers have nothing to assess. That gap is deliberately treated as
+zero-confidence evidence, so the heuristic correctly refuses to downshift
+and answers "sonnet, high effort" every time. The judge's verdict landed
+in a cache keyed on the exact prompt text, which a distinct subagent spawn
+essentially never reads.
+
+The benchmark measures what that costs: with the judge on, routing realizes
+48% savings against an all-opus baseline and agrees with the perfect-
+hindsight oracle on 5 of 6 tasks; with it off, 22% and 0 of 6. The judge is
+not a refinement on top of the heuristic — on prompt-only subtasks it is
+doing all of the work. So the call that needs the verdict now waits for it.
+
+Only Agent PreToolUse waits. It gets its own hook entry with a 15-second
+timeout; every other tool keeps the 5-second timeout and the 200ms client
+budget, because no other path can invoke the judge. Four deadlines now nest
+innermost-first — judge 10s, client 12s, daemon 13s, hook 15s — so the
+judge's own fail-open to the heuristic always fires before an outer layer
+gives up, and a test asserts that ordering against hooks.json rather than
+trusting four constants to stay in step by hand.
+
+The trade: the judge's budget drops from 30 seconds to 10 to fit inside the
+hook, so an unusually slow cold start now falls back to the heuristic where
+it previously waited. Measured cost on the common path: three real
+classifications took 3.9s, 4.8s and 5.8s, and a first-seen subagent call
+takes about that long before its recommendation appears. A repeat of the
+same subtask is still served from cache immediately.
+
 ## 0.61.2
 
 Five fixes to the learning loop — the recorded-outcomes feedback that is

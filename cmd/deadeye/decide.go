@@ -419,7 +419,7 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 		// wait=false: a hook must never block a tool call on a model call
 		// (see judgeTierAsync) -- a pending verdict lands in the cache for
 		// the next identical spawn.
-		decision = applyRoutingJudge(cfg, decision, state.cat, scope.Prompt, false)
+		decision = applyRoutingJudge(cfg, decision, state.cat, scope.Prompt)
 	}
 
 	checkEscalation(in, ai, shape, state)

@@ -73,7 +73,7 @@ func runRoute(taskDescription, subagentType string) {
 	// the explanation can silently diverge from the real decision.
 	// wait=true: this is a CLI dry-run, not a hook -- it can afford to wait
 	// for the verdict (the hook path returns the heuristic and judges async).
-	decision = applyRoutingJudge(cfg, decision, cat, scope.Prompt, true)
+	decision = applyRoutingJudge(cfg, decision, cat, scope.Prompt)
 
 	if taskDescription != "" {
 		fmt.Printf("Task: %q\n", taskDescription)

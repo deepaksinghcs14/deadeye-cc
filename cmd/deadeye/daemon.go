@@ -124,7 +124,12 @@ func handleConn(conn net.Conn, state *daemonState, markStale func()) {
 	// on top covers this handler's own read-to-write processing time for a
 	// near-ceiling payload, distinct from the transfer time the client's
 	// budget already accounts for.
-	_ = conn.SetDeadline(time.Now().Add(requestTimeoutCeiling + time.Second))
+	// Must outlast the most patient client: agentRequestTimeout for an Agent
+	// PreToolUse (which waits on the judge), requestTimeoutCeiling for
+	// everything else, plus a margin for this handler's own processing. A
+	// deadline that fires first would close the connection under a client
+	// still correctly waiting -- the silent-{} bug, one hop over.
+	_ = conn.SetDeadline(time.Now().Add(agentRequestTimeout + time.Second))
 
 	// Bounded read: the daemon is one shared process serving every session,
 	// so one oversized payload must not balloon its memory. Past the cap the

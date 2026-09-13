@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -88,6 +89,32 @@ func runHookTo(w io.Writer, r io.Reader, event, host string) {
 // payload, reintroducing the silent-{}-degradation bug one hop over.
 const requestTimeoutCeiling = 5 * time.Second
 
+// agentRequestTimeout is the one deliberate exception to the budget above.
+// An Agent PreToolUse call is the only request that can run the AI routing
+// judge, a real `claude -p` classification (judgeTimeout, 10s). That judge
+// IS the routing product: benchmarks/routing measures 48% realized savings
+// with it on against 22% with it off, because for a prompt-only subtask
+// three of six evidence providers have nothing to assess and the heuristic
+// correctly refuses to downshift on the gap. Answering before the verdict
+// exists means answering "sonnet" every time -- so this one request waits.
+// Ordering is load-bearing and nested innermost-first:
+//
+//	judgeTimeout (10s) < agentRequestTimeout (12s) < daemon deadline (13s)
+//	    < hooks.json's Agent PreToolUse timeout (15s)
+//
+// so the judge's own fail-open to the heuristic always fires before any
+// outer layer gives up. Every other tool keeps the 200ms..5s budget: they
+// never call the judge, and INV-8's p95 applies to them unchanged.
+const agentRequestTimeout = 12 * time.Second
+
+// isAgentPayload reports whether this PreToolUse payload is an Agent call,
+// by substring rather than a full unmarshal: this runs on every matched
+// tool call, and the only question is which deadline to set.
+func isAgentPayload(raw []byte) bool {
+	return bytes.Contains(raw, []byte(`"tool_name":"Agent"`)) ||
+		bytes.Contains(raw, []byte(`"tool_name": "Agent"`))
+}
+
 func requestTimeout(payloadBytes int) time.Duration {
 	const floor = 200 * time.Millisecond
 	const perByte = time.Millisecond / 1024 // ~1s of headroom per MB
@@ -96,6 +123,14 @@ func requestTimeout(payloadBytes int) time.Duration {
 		return requestTimeoutCeiling
 	}
 	return d
+}
+
+// requestTimeoutFor is requestTimeout plus the Agent exception above.
+func requestTimeoutFor(event string, raw []byte) time.Duration {
+	if event == "PreToolUse" && isAgentPayload(raw) {
+		return agentRequestTimeout
+	}
+	return requestTimeout(len(raw))
 }
 
 // requestDaemon dials the daemon with a short fixed connect deadline (see
@@ -123,7 +158,7 @@ func requestDaemon(event string, raw []byte, host string) []byte {
 		}
 	}
 	defer conn.Close()
-	_ = conn.SetDeadline(time.Now().Add(requestTimeout(len(raw))))
+	_ = conn.SetDeadline(time.Now().Add(requestTimeoutFor(event, raw)))
 
 	req := proto.Request{
 		Event: event, Payload: raw, Off: config.OffSwitches(), Host: host,

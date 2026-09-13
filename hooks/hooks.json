@@ -28,7 +28,19 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|Agent|Read|Grep|WebFetch|Workflow",
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" PreToolUse",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" PreToolUse",
+            "timeout": 15,
+            "statusMessage": "deadeye: routing..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|Read|Grep|WebFetch|Workflow",
         "hooks": [
           {
             "type": "command",

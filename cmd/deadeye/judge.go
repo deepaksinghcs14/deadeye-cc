@@ -28,14 +28,16 @@ import (
 // deliberate trade of the zero-network default for accuracy on the
 // genuinely ambiguous cases; off switches back to pure heuristics.
 
-// judgeTimeout bounds the `claude -p` subprocess. Measured live against
-// haiku, a bare, standalone `claude -p --model haiku` cold start took 5.6s
-// on ordinary hardware -- a 6s budget left near-zero margin and silently
-// fell back to the heuristic decision (fail-open) on 3 of 4 real test
-// calls. Sonnet's cold start runs longer than haiku's; 30s gives real
-// headroom so the now-default judge doesn't fail open more often than it
-// actually answers.
-const judgeTimeout = 30 * time.Second
+// judgeTimeout bounds the `claude -p` subprocess. It is the INNERMOST of
+// four nested deadlines and must stay the smallest, or a slower layer
+// gives up first and the judge's own fail-open to the heuristic never
+// runs: judgeTimeout < agentRequestTimeout (hook.go) < the daemon's
+// per-connection deadline (daemon.go) < the Agent PreToolUse timeout in
+// hooks/hooks.json. Measured live: three real sonnet classifications of
+// benchmark prompts took 3.9s, 4.8s and 5.8s, and an earlier 6s budget
+// fell open on 3 of 4 haiku calls -- so 10s is roughly 2x the observed
+// worst case while still leaving the outer layers room.
+const judgeTimeout = 10 * time.Second
 
 // judgePrompt is calibrated against benchmarks/routing's measured ground
 // truth, not intuition. Two defects in the original wording showed up there:
@@ -67,19 +69,18 @@ var judgeFunc = judgeTierClaude
 
 var judgeCache sync.Map // task-hash -> tier (int)
 
-// judgeInflight holds task-hashes with a background judge call running, so
-// N repeated spawns of the same subtask start ONE `claude -p`, not N.
-var judgeInflight sync.Map // task-hash -> struct{}
-
 func judgeKey(task string) string {
 	sum := sha256.Sum256([]byte(task))
 	return hex.EncodeToString(sum[:8])
 }
 
-// judgeTierCached classifies a task into tier 0/1/2, caching by task text so an
-// identical subtask isn't re-judged (retries, repeated spawns). Synchronous:
-// waits for the model call. Only the dry-run /deadeye-route path may wait --
-// see judgeTierAsync for why the hook path must not.
+// judgeTierCached classifies a task into tier 0/1/2, caching by task text so
+// an identical subtask isn't re-judged (retries, repeated spawns).
+// Synchronous by design: the verdict is where the routing value is (48%
+// realized savings with the judge on vs 22% with it off, measured in
+// benchmarks/routing), and it only helps the call that asked for it, so the
+// Agent hook waits for it rather than answering early and caching a verdict
+// for a prompt that will probably never repeat verbatim.
 func judgeTierCached(task string) (int, bool) {
 	if task == "" {
 		return 0, false
@@ -95,64 +96,17 @@ func judgeTierCached(task string) (int, bool) {
 	return tier, ok
 }
 
-// judgeTierAsync is the hook-path judge. A PreToolUse hook has ~200ms of
-// client deadline (hook.go requestTimeout) and a 5s hook timeout; the judge
-// is a `claude -p` call with a 30s budget. Running it inline meant the
-// client had already failed open to {} by the time the verdict existed --
-// with routing_judge on (the default) and a committed tree (every decision
-// Unsure), NO routing advice was ever delivered on a first-seen subtask,
-// not even the heuristic one (caught by a live repro: first call {} in
-// 0.2s, identical second call answered from cache). So: serve the cached
-// verdict if there is one; otherwise start ONE background judge for this
-// task and return ok=false immediately, so the caller delivers the
-// heuristic decision now. The next call with the same prompt -- the retry
-// or repeated spawn the cache was built for -- gets the judge's verdict.
-// The goroutine holds no daemon state, and the `claude -p` subprocess
-// already carries its own judgeTimeout context.
-func judgeTierAsync(task string) (tier int, ok, started bool) {
-	if task == "" {
-		return 0, false, false
-	}
-	key := judgeKey(task)
-	if v, ok := judgeCache.Load(key); ok {
-		return v.(int), true, false
-	}
-	if _, running := judgeInflight.LoadOrStore(key, struct{}{}); running {
-		return 0, false, false
-	}
-	go func() {
-		defer judgeInflight.Delete(key)
-		if t, ok := judgeFunc(task); ok {
-			judgeCache.Store(key, t)
-		}
-	}()
-	return 0, false, true
-}
-
 // applyRoutingJudge runs the optional AI judge against decision when the
 // cheap signals couldn't confidently place the task, folding its
 // classification back in. Shared by the real routing path
-// (decideAgentRouting, wait=false: never block a tool call on a model
-// call) and the dry-run explain path (runRoute, wait=true: a CLI that can
-// afford to wait for the verdict) so the two can't drift in how they
-// resolve a verdict -- they were drifting when each kept its own copy.
-func applyRoutingJudge(cfg config.Config, decision kernel.Decision, cat catalog.Catalog, prompt string, wait bool) kernel.Decision {
+// (decideAgentRouting) and the dry-run explain path (runRoute) so the two
+// can't drift in how they resolve a verdict -- they were drifting when each
+// kept its own copy.
+func applyRoutingJudge(cfg config.Config, decision kernel.Decision, cat catalog.Catalog, prompt string) kernel.Decision {
 	if cfg.Mode.RoutingJudge != "on" || !decision.Unsure {
 		return decision
 	}
-	var tier int
-	var ok bool
-	if wait {
-		tier, ok = judgeTierCached(prompt)
-	} else {
-		var started bool
-		tier, ok, started = judgeTierAsync(prompt)
-		if !ok && started {
-			// Heuristic advice goes out now, labelled: the log row and
-			// /deadeye-stats must not count this as a judged answer.
-			decision.Reason += " (judge pending)"
-		}
-	}
+	tier, ok := judgeTierCached(prompt)
 	if !ok {
 		return decision
 	}
