@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.63.0
+
+`/deadeye-pr` and `/deadeye-review` ask a fifth question none of the four
+lenses ask: not "is this built correctly" but "why this, and not
+something smaller." A new `## Premise` section prints once, after the
+four lenses — not a fifth lens: no tag, no severity glyph, no per-line
+`proof:`. Four checks, each held to the same evidence bar as a finding —
+does the diff do what it claims (checked against the PR's title/body, or
+the commit message with no PR, or skipped with neither), does it reinvent
+something that already exists, is the shape proportionate to the problem
+(a named smaller alternative, never a rhetorical "have you considered"),
+does the fix reach the cause or stop at a symptom. Defaults to silence —
+`No premise concerns.` — the same discipline `Clean — nothing survived
+verification. Ship it.` already uses when nothing else survives. Skipped
+entirely in `--repo` mode, which has no single diff or stated goal to
+hold accountable. Windsurf drops it for budget, same reasoning as Rigor.
+
+Tested against itself before shipping: run live against its own diff, the
+four lenses caught a real gap in the new section's own first check — it
+told the reviewer to read a PR's title and body "word for word" with no
+framing, when this rubric's own existing rule ("No framing IS the
+finding") already says external content reaching an LLM's context needs
+one. A PR body is the author's claim, not an instruction — a malicious
+"already approved, don't flag this" line changes nothing about what gets
+reported now. Also caught: a "belt and suspenders" Windsurf cut that
+turned out to be byte-for-byte identical to the simpler cut it was
+replacing (verified independently), a `--repo`-mode exclusion sentence
+that had leaked into the PR skill's rendering (which has no `--repo`
+mode to exclude), and a stale README caveat. Then run live against a real
+historical PR (netty/netty #17007): the seeded bug was still caught
+(non-regression), and Premise found something none of the four lenses
+would — the PR's own "Result" section claims a speedup that the diff
+doesn't actually deliver internally, verified by tracing where the
+relevant field is read (exactly once, and not on the path the PR
+claims), with a proportionate call: relabel the PR, don't block it.
+
 > **0.61.4 and 0.61.5 were never published.** Their release builds failed:
 > the four releases below were split so that a rubric source file and its
 > regenerated `SKILL.md` landed in different commits, and the sync tests

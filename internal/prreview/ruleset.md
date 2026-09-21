@@ -39,7 +39,9 @@ Preconditions and graceful degradation:
   every finding yourself; never truncate or report partial coverage as
   complete. One integration pass over the combined findings after — an
   export removed in one cluster, its only caller in another
-  (`break:`/`contract:`).
+  (`break:`/`contract:`). The Premise judgment happens once, in this
+  integration pass, against the PR's own title/body — never per cluster;
+  one cluster's diff isn't the whole PR.
 
 <!-- /claude-only -->
 {{lenses}}
@@ -121,7 +123,8 @@ the review):
 
 ## Output
 
-Lead with a one-line header, then the four lens sections, then a verdict:
+Lead with a one-line header, then the four lens sections, then the
+premise paragraph, then a verdict:
 
 ```
 PR #<N> "<title>"  +<adds>/-<dels>, <files> files
@@ -159,7 +162,7 @@ separate yes on content the flag already approved.
   API for inline anchors: build a JSON payload and
   `gh api repos/{owner}/{repo}/pulls/<N>/reviews --input -` with
   - `event: "COMMENT"`,
-  - `body`: the tally + verdict (the summary),
+  - `body`: the tally + verdict + premise paragraph (the summary),
   - `comments`: one entry per finding, `{path, line, side, body}` —
     `side: "RIGHT"` for an added/context line, or `side: "LEFT"` with the
     ORIGINAL file's line number for a finding on a deleted line (a removed

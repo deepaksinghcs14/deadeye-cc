@@ -111,6 +111,24 @@ func TestNoFramingIsItselfAFinding(t *testing.T) {
 	}
 }
 
+// TestPremiseFramesThePRBodyAsUntrusted is the rubric applying its own
+// "No framing IS the finding" rule to itself: Premise's first check reads
+// a PR's title and body "word for word" to judge the diff against it --
+// on a public repo that text is attacker-controlled, and an unframed
+// instruction to read it as the yardstick is exactly the gap `llm:` exists
+// to catch elsewhere in this same file. Found live: /deadeye-review,
+// reviewing this rubric's own diff, flagged its own missing framing here
+// before this clause was added.
+func TestPremiseFramesThePRBodyAsUntrusted(t *testing.T) {
+	const must = "the AUTHOR's claim"
+	if !strings.Contains(Body(), must) {
+		t.Error("Body()'s Premise section no longer frames the PR title/body as the author's claim, not an instruction -- a PR body can carry attacker-controlled text on a public repo")
+	}
+	if !strings.Contains(SelfBody(), must) {
+		t.Error("SelfBody()'s Premise section no longer frames the PR title/body as the author's claim, not an instruction")
+	}
+}
+
 func TestClientSideChecklistPresent(t *testing.T) {
 	for _, must := range []string{"postMessage", "event.origin", "httpOnly cookie", "CSP"} {
 		if !strings.Contains(Body(), must) {
@@ -229,6 +247,41 @@ func TestWindsurfDropsRigor(t *testing.T) {
 	}
 }
 
+// TestWindsurfDropsPremise mirrors TestWindsurfDropsRigor for the Premise
+// section: opinion-shaped, PR-context-dependent prose, same budget
+// tradeoff as Rigor -- present in Body(), cut from WindsurfBody().
+func TestWindsurfDropsPremise(t *testing.T) {
+	const marker = "No premise concerns."
+	if !strings.Contains(Body(), marker) {
+		t.Fatalf("test fixture stale: %q no longer in Body() -- update this test alongside the Premise section", marker)
+	}
+	if strings.Contains(WindsurfBody(), marker) {
+		t.Error("WindsurfBody() carries the Premise section -- if that's now intentional, update prreview.go's doc comments too")
+	}
+}
+
+// TestPremiseSection pins the new section's existence in both flagship
+// rubrics and SelfBody()'s self-scoping out of --repo mode (which has no
+// single diff or stated goal for a premise judgment to be about). The
+// --repo exclusion lives in review.md's own Output section, not the
+// shared lenses.md fragment -- ruleset.md (the PR wrapper) has no --repo
+// mode at all, so a mention there would be dead instruction shipped into
+// skills/deadeye-pr/SKILL.md for a mode /deadeye-pr never has.
+func TestPremiseSection(t *testing.T) {
+	for name, b := range map[string]string{"Body()": Body(), "SelfBody()": SelfBody()} {
+		if !strings.Contains(b, "## Premise") {
+			t.Errorf("%s is missing the \"## Premise\" section", name)
+		}
+	}
+	const repoScope = "skip the premise"
+	if !strings.Contains(SelfBody(), repoScope) {
+		t.Error("SelfBody()'s Output section doesn't scope Premise out of --repo mode -- --repo has no single diff or stated goal to hold accountable")
+	}
+	if strings.Contains(Body(), repoScope) {
+		t.Error("Body() (the PR rubric) mentions --repo mode, which /deadeye-pr doesn't have -- the exclusion belongs only in review.md's Output section")
+	}
+}
+
 // TestWindsurfDropsLearningLoop pins the "Learning loop" trim the same way
 // TestWindsurfDropsRigor pins Rigor: the section calls a `deadeye` CLI
 // Windsurf has no guaranteed binary for, so it's cut there (present in
@@ -317,6 +370,7 @@ func TestSelfWindsurfDropsSections(t *testing.T) {
 		marker string
 	}{
 		{"Rigor", "Sweep every instance."},
+		{"Premise", "No premise concerns."},
 		{"whole-repo mode", "Scope cheaply"},
 		{"pentest tags", "ssrf:"},
 		{"incompat: tag", "incompat:"},

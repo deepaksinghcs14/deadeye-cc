@@ -120,14 +120,17 @@ deadeye lessons record review-false-positive <lens>:<tag>
 
 ## Output
 
-Lead with a one-line header, then the four lens sections, then a verdict:
+Lead with a one-line header, then the four lens sections, then the
+premise paragraph, then a verdict:
 
 ```
 <files> files, +<adds>/-<dels>
 ```
 
 (`git diff --shortstat` gives you the numbers; omit the header entirely in
-`--repo` mode, where the ranked list above is the output.)
+`--repo` mode, where the ranked list above is the output — and skip the premise
+paragraph there too: a whole-repo scan has no single diff or stated goal to
+hold accountable.)
 
 End with the tally and the verdict — `<C> critical, <H> high, <M> medium,
 <N> nits` and the one `critical` that must ship fixed — or, when nothing

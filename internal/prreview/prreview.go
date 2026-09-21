@@ -112,10 +112,13 @@ func NonClaudeBody() string {
 // no hook contract) drops SEVEN things to fit: the "Rigor -- where reviews
 // miss" habits (the largest single section), the two "If the diff touches
 // CI/CD..."/"client-side/UI..." checklists at the end of the Security lens
-// (the most checklist-shaped text in the rubric; the trace-then-tag
-// discipline above the lenses covers the same ground generically, so
-// these are the cheapest cut -- same budget rationale as the pentest
-// tags), the 13 pentest tags added to
+// TOGETHER WITH the "Premise" section right after them -- one cut removes
+// all three, since the trace-then-tag discipline above the lenses covers
+// the checklists' ground generically (the cheapest cut, same budget
+// rationale as the pentest tags), and Premise is PR-level opinion that
+// needs context -- the roadmap, why an alternative was rejected -- a
+// diff-only pass on Windsurf's tightest budget can't reliably have, cut
+// for the same reason Rigor is), the 13 pentest tags added to
 // the Security lens (`<!-- pentest-tags -->`...`<!-- /pentest-tags -->` in
 // lenses.md -- the original 7-tag Security lens is still fully functional
 // without them, same as it shipped before that widening), the `incompat:`
@@ -132,9 +135,9 @@ func NonClaudeBody() string {
 // at all, so there's no comment for it to ride along on). This lets the
 // flagship rubric grow without the weakest host capping the best reviewer
 // -- Windsurf still gets the four lenses and the verify-before-reporting/
-// proof discipline, just not the Rigor upgrade, the full pentest tag set,
-// the toolchain-incompatibility flag, the cross-session learning loop, or
-// the fix-acceleration extras.
+// proof discipline, just not the Rigor upgrade, the Premise judgment, the
+// full pentest tag set, the toolchain-incompatibility flag, the
+// cross-session learning loop, or the fix-acceleration extras.
 func WindsurfBody() string {
 	// Start from NonClaudeBody: Windsurf has no subagents to fan out to,
 	// so the huge-PR fan-out paragraph was pure cost on the tightest
@@ -143,6 +146,10 @@ func WindsurfBody() string {
 	b = cutSection(b, "## Rigor", "## The four lenses")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "- `incompat:`", "- `leak:`")
+	// This one cut spans the CI/CD checklist, the client-side/UI checklist,
+	// AND the Premise section that follows them (all three sit between
+	// these two markers) -- a second cutSection targeting "## Premise"
+	// alone would be a no-op here, since this call already consumes it.
 	b = cutSection(b, "If the diff touches CI/CD", "## Don't repeat")
 	b = cutSection(b, "## Learning loop", "## Output")
 	b = cutSection(b, "## Suggested fixes", "## Posting back to the PR")
@@ -155,20 +162,22 @@ func WindsurfBody() string {
 }
 
 // SelfWindsurfBody is WindsurfBody's counterpart for SelfBody(): drops
-// Rigor, the whole-repo `--repo` mode (the single largest section and the
-// least useful on a workflow surface with no persistent CLI access), the
-// same 13 pentest tags, the same `incompat:` tag, Learning loop, and
-// Suggested fixes -- same reasoning as WindsurfBody. No "Copy for AI" line
-// and no posting section to trim here on ANY host, Windsurf included:
-// self-review never posts anywhere, and Copy for AI only exists riding
-// along inside a posted PR comment.
+// Rigor, Premise, the whole-repo `--repo` mode (the single largest
+// section and the least useful on a workflow surface with no persistent
+// CLI access), the same 13 pentest tags, the same `incompat:` tag,
+// Learning loop, and Suggested fixes -- same reasoning as WindsurfBody.
+// No "Copy for AI" line and no posting section to trim here on ANY host,
+// Windsurf included: self-review never posts anywhere, and Copy for AI
+// only exists riding along inside a posted PR comment.
 func SelfWindsurfBody() string {
 	b := selfBody
 	b = cutSection(b, "## Rigor", "## The four lenses")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "- `incompat:`", "- `leak:`")
-	// Must precede the whole-repo cut below: that cut removes this one's
-	// end marker.
+	// This one cut spans the CI/CD checklist, the client-side/UI checklist,
+	// and the Premise section right after them -- see WindsurfBody's
+	// identical comment. Must precede the whole-repo cut below: that cut
+	// removes this one's end marker.
 	b = cutSection(b, "If the diff touches CI/CD", "## Whole-repo mode")
 	b = cutSection(b, "## Whole-repo mode", "## Learning loop")
 	b = cutSection(b, "## Learning loop", "## Output")

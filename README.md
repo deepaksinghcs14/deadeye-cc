@@ -197,8 +197,9 @@ what deadeye wrote. For the full engine, use Claude Code or Codex.
 `--repo`), and `/deadeye-vapt` (a whole-service pen-test/VAPT pass) — in
 that host's native format: a Codex user skill, a Gemini TOML command, a
 Cursor skill, a Windsurf workflow. Windsurf's 12000-char workflow cap
-drops the "Rigor" habits section and the learning loop/fix-acceleration
-extras (and, for `/deadeye-vapt`, the OWASP id-mapping reference tables —
+drops the "Rigor" habits and "Premise" sections and the learning
+loop/fix-acceleration extras (and, for `/deadeye-vapt`, the OWASP
+id-mapping reference tables —
 the tags and method still carry the full pass) to fit; every other host
 gets the rubric in full. Experimental until live-verified.
 
