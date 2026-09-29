@@ -194,6 +194,11 @@ deadeye config set mode.laya shadow
 
 deadeye laya health   # reachability
 deadeye laya test     # one real tier question, end to end</code></pre>
+      <p><strong>Keep the endpoint on loopback.</strong> Nothing stops you pointing
+      <code>laya.endpoint</code> at another host, but then every task description deadeye
+      classifies leaves this machine &mdash; so <code>deadeye laya status</code> and
+      <code>deadeye doctor</code> both warn when it isn't loopback. What gets sent is the
+      task description or, for the two gate checks, the prompt as you typed it.</p>
       <p>Useful <code>laya-serve</code> environment variables:
       <code>LAYA_DEVICE=cuda</code> if you have a GPU, <code>LAYA_PORT</code>,
       <code>LAYA_THREADS</code>, and <code>LAYA_API_KEY</code> for a bearer token. If you set a
@@ -225,6 +230,15 @@ deadeye laya test     # one real tier question, end to end</code></pre>
         hours). Every published figure for Laya is vendor-self-reported; we found no independent
         evaluation. Shadow mode lets you discover how it does on <em>your</em> traffic at zero
         risk, before anything routes on it.</p>
+      </div>
+      <div class="callout">
+        <p><strong>Only the rungs that act on an answer wait for it.</strong> On
+        <code>shadow</code>, and for the plan-gate and workflow-hint checks on
+        <code>advise</code> too, deadeye asks Laya <em>off</em> the critical path and records
+        the answer when it arrives &mdash; your tool calls and prompts are never delayed to
+        collect a measurement. <code>advise</code> waits on the routing question (it prints
+        the answer in the reason you read) and <code>authoritative</code> waits wherever the
+        answer decides something. That's the latency you opt into by climbing.</p>
       </div>
       <p>Check the evidence before promoting:</p>
       <pre><code>/deadeye-stats laya      # or: deadeye laya agreement</code></pre>

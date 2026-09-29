@@ -433,19 +433,23 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 		// Laya first, when configured: on the authoritative rung it resolves
 		// exactly the case the judge would otherwise pay a model call for,
 		// leaving applyRoutingJudge to return early on !Unsure.
-		decision, layaTierAnswer, layaAnswered := state.layaRouting(cfg, decision, scope.Prompt)
+		decision, layaTierAnswer, layaAnswered := state.layaRouting(cfg, decision, scope.Prompt, shape, in.SessionID, in.Cwd)
 		// wait=false: a hook must never block a tool call on a model call
 		// (see judgeTierAsync) -- a pending verdict lands in the cache for
 		// the next identical spawn.
 		decision = applyRoutingJudge(cfg, decision, state.cat, scope.Prompt)
+		// Shadow asks here, after the judge, so its comparison uses the tier
+		// that actually shipped.
+		state.layaShadowRecord(cfg, decision, scope.Prompt, shape, in.SessionID, in.Cwd)
 		if layaAnswered {
 			// Recorded AFTER the judge so "actual" is the tier that really
 			// shipped, not a pre-judge guess that the judge then overrode.
-			actual := ""
+			// A model the catalog doesn't know has no comparable tier, and
+			// recording an empty one would count as a disagreement against
+			// Laya that nothing actually establishes -- skip instead.
 			if t, ok := state.cat.TierFor(decision.Model); ok {
-				actual = strconv.Itoa(t)
+				state.recordLayaVerdict(siteJudge, shape, strconv.Itoa(layaTierAnswer), strconv.Itoa(t), decision.Model, in.SessionID, in.Cwd)
 			}
-			state.recordLayaVerdict(siteJudge, shape, strconv.Itoa(layaTierAnswer), actual, decision.Model, in.SessionID, in.Cwd)
 		}
 		if confident {
 			state.maybeSampleTier(cfg, decision, state.cat, shape, scope.Prompt, in.SessionID, in.Cwd)

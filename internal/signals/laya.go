@@ -8,15 +8,18 @@ import (
 )
 
 // layaFloor is the certainty a Laya answer needs before it counts as
-// evidence at all.
+// evidence at all, and it is deliberately pinned to the kernel's own
+// ceiling rather than set to a "reasonable-looking" lower number.
 //
-// Below it the provider skips QUIETLY rather than contributing a
-// low-confidence estimate, and that is the load-bearing detail:
-// kernel.Decide takes the MINIMUM confidence across all evidence, so a
-// hedging classifier would drag the whole decision's confidence down and
-// silently make every route more expensive. A signal that isn't sure has
-// nothing to add here; it must not be able to tax the ones that are.
-const layaFloor = 0.6
+// kernel.Decide takes the MINIMUM confidence across all evidence and
+// compares it against the downshift threshold, whose default is also 0.8.
+// So a Laya answer with certainty anywhere in [floor, 0.8) would drag the
+// minimum under the threshold and force the unsure ceiling for EVERY
+// decision -- discarding all six heuristics and disabling downshift
+// entirely. An earlier 0.6 did exactly that. At the ceiling, a
+// contributing answer can never be the reason a decision goes unsure; an
+// unsure classifier simply says nothing.
+const layaFloor = MaxAchievableConfidence
 
 // layaLevels is the ordinal rubric. Four levels, lowest first, so the
 // normalized score lands on a 0..1 complexity scale the kernel already
@@ -63,9 +66,16 @@ func (l LayaComplexity) Assess(ctx context.Context, s Scope) (Evidence, error) {
 		return Evidence{}, fmt.Errorf("laya: certainty %.2f below floor %.2f", certainty, layaFloor)
 	}
 	// Laya returns the expected level on the rubric; normalize to 0..1.
+	// A score outside the rubric means the server answered a DIFFERENT
+	// rubric than the one asked (a different checkpoint, a 1-based scale),
+	// so the number is not comparable. Clamping it would round that
+	// confusion up to 1.0 -- "hardest possible task" -- which kernel.Decide
+	// upshifts on with no confidence gate at all. Skip instead.
 	span := float64(len(layaLevels) - 1)
+	if a.Score < 0 || a.Score > span {
+		return Evidence{}, fmt.Errorf("laya: score %v outside the %d-level rubric", a.Score, len(layaLevels))
+	}
 	complexity := a.Score / span
-	complexity = clamp01(complexity)
 	// Capped at MaxAchievableConfidence so this provider can't claim more
 	// certainty than the kernel's own ceiling assumes any signal can have --
 	// that constant is documented as the minimum of every provider's best
@@ -85,14 +95,4 @@ func (l LayaComplexity) Assess(ctx context.Context, s Scope) (Evidence, error) {
 			"source":    "laya (local classifier)",
 		},
 	}, nil
-}
-
-func clamp01(f float64) float64 {
-	switch {
-	case f < 0:
-		return 0
-	case f > 1:
-		return 1
-	}
-	return f
 }

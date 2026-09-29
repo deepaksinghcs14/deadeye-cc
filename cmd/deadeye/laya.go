@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
@@ -30,11 +34,8 @@ const KindLayaVerdict = "laya-verdict"
 // The call sites, as recorded in Outcome.Site.
 const (
 	siteJudge        = "judge"
-	siteComplexity   = "complexity"
 	sitePlanGate     = "plan-gate"
 	siteWorkflowHint = "workflow-hint"
-	siteTierSample   = "tier-sample"
-	siteFixShaped    = "fix-shaped"
 )
 
 // layaEnabled reports whether Laya should be called at all.
@@ -54,18 +55,75 @@ func layaDecides(cfg config.Config) bool {
 	return cfg.Mode.Laya == layaAuthoritative && cfg.Laya.Endpoint != ""
 }
 
-// layaClient builds a client from config. Returns nil whenever Laya is off
-// or unconfigured -- a nil *laya.Client answers nothing, so call sites hold
-// one unconditionally instead of branching on config themselves.
+// layaInFlight bounds concurrent background Laya calls.
+//
+// A single fan-out can spawn dozens of Agent calls at once, and an
+// unbounded `go f()` would point all of them at one laya-serve
+// simultaneously -- which is single-process, so they queue, time out
+// together, and starve the calls that actually need an answer. Work that
+// can't get a slot is dropped rather than queued: these are measurements,
+// and a missed sample costs nothing while a backlog costs latency.
+var layaInFlight = make(chan struct{}, 4)
+
+// layaAsync is the seam tests replace, so a fire-and-forget call can be
+// made synchronous and observed. The real one outlives the hook response
+// on purpose -- see layaShadowRecord.
+var layaAsync = func(f func()) {
+	select {
+	case layaInFlight <- struct{}{}:
+	default:
+		return // at capacity; drop this measurement
+	}
+	go func() {
+		defer func() { <-layaInFlight }()
+		f()
+	}()
+}
+
+// layaClientCache memoizes one *laya.Client per endpoint+key+timeout.
+//
+// Built fresh per call, every Laya request opened a NEW http.Client and
+// therefore a new connection pool: no keep-alive reuse, a fresh TCP (and
+// TLS) handshake every time, and a steady drip of sockets in a daemon that
+// lives for days. One client per configuration reuses its pool, which is
+// most of the difference between 464ms and something a hook can afford.
+var (
+	layaClientMu    sync.Mutex
+	layaClientCache = map[string]*laya.Client{}
+)
+
+// layaClient returns the shared client for this config. Returns nil
+// whenever Laya is off or unconfigured -- a nil *laya.Client answers
+// nothing, so call sites hold one unconditionally instead of branching on
+// config themselves.
 func layaClient(cfg config.Config) *laya.Client {
 	if !layaEnabled(cfg) {
 		return nil
 	}
+	// NOTE: read from THIS process's environment. In the daemon that is the
+	// environment the daemon was started with, not the shell the user typed
+	// the export in -- config.go says the same thing about kill switches,
+	// which is why those travel over the wire instead. A token exported
+	// after the daemon started is invisible to it, so laya-serve behind
+	// LAYA_API_KEY must have that variable set wherever the daemon is
+	// launched from. `deadeye laya status` flags the mismatch it can see.
 	key := ""
 	if cfg.Laya.APIKeyEnv != "" {
 		key = os.Getenv(cfg.Laya.APIKeyEnv)
 	}
-	return laya.New(cfg.Laya.Endpoint, key, time.Duration(cfg.Laya.TimeoutMS)*time.Millisecond)
+	timeout := time.Duration(cfg.Laya.TimeoutMS) * time.Millisecond
+	// The token is part of the identity but must not be the map key in
+	// clear text alongside everything else -- length is enough to
+	// distinguish "changed" without holding a second copy of a credential.
+	ck := fmt.Sprintf("%s|%d|%d", cfg.Laya.Endpoint, timeout, len(key))
+	layaClientMu.Lock()
+	defer layaClientMu.Unlock()
+	if c, ok := layaClientCache[ck]; ok {
+		return c
+	}
+	c := laya.New(cfg.Laya.Endpoint, key, timeout)
+	layaClientCache[ck] = c
+	return c
 }
 
 // layaTimeout bounds one call from a hook, independent of the client's own
@@ -127,14 +185,42 @@ func layaTier(ctx context.Context, c *laya.Client, prompt string) (int, float64,
 }
 
 // layaYes asks a yes/no proposition and reports whether P(true) clears
-// bar. A missing probability reads as "no", never as "yes": an unreachable
-// or unsure classifier must not be able to fire a gate on its own.
+// bar.
+//
+// An answer carrying no certainty is treated as no answer at all. Without
+// that check a service returning `{"answers":{"q":{}}}` -- any JSON
+// endpoint that isn't laya-serve -- yields Noul=0 with ok=true, which reads
+// as a CONFIDENT "no" and can suppress a gate on the authoritative rung.
 func layaYes(ctx context.Context, c *laya.Client, text, question string, bar float64) (bool, float64, bool) {
 	a, ok := c.YesNo(ctx, text, question)
-	if !ok {
+	if !ok || a.Certainty() <= 0 {
 		return false, 0, false
 	}
 	return a.Noul >= bar, a.Noul, true
+}
+
+// isLoopbackEndpoint reports whether the configured endpoint points at this
+// machine.
+//
+// Nothing stops a user pointing laya.endpoint at a remote host, and if they
+// do, every task description deadeye classifies leaves the machine -- which
+// would quietly falsify the one claim this feature is sold on ("nothing
+// leaves your machine"). deadeye doesn't forbid it; it's the user's
+// endpoint. It does have to SAY so, in status and in doctor, rather than
+// letting a privacy promise silently stop being true.
+func isLoopbackEndpoint(endpoint string) bool {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	if host == "localhost" {
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	return false
 }
 
 // runLaya backs `deadeye laya <status|health|test>` -- the mechanical steps
@@ -156,9 +242,13 @@ func runLaya(args []string) {
 	case "status":
 		layaStatus(cfg)
 	case "health":
-		layaHealth(cfg)
+		if code := layaHealth(cfg); code != 0 {
+			os.Exit(code)
+		}
 	case "test":
-		layaTest(cfg)
+		if code := layaTest(cfg); code != 0 {
+			os.Exit(code)
+		}
 	case "agreement":
 		layaAgreement(meta.OutcomesPath(), cfg, time.Now())
 	default:
@@ -177,14 +267,18 @@ func layaStatus(cfg config.Config) {
 	fmt.Printf("  mode        %s %s\n", cValue(mode), cDim("(off · shadow · advise · authoritative)"))
 	if cfg.Laya.Endpoint == "" {
 		fmt.Printf("  endpoint    %s %s\n", cWarn("unset"), cDim("(set it with: deadeye config set laya.endpoint "+laya.DefaultEndpoint+")"))
-	} else {
+	} else if isLoopbackEndpoint(cfg.Laya.Endpoint) {
 		fmt.Printf("  endpoint    %s\n", cValue(cfg.Laya.Endpoint))
+	} else {
+		fmt.Printf("  endpoint    %s %s\n", cValue(cfg.Laya.Endpoint), cWarn("(not loopback)"))
+		fmt.Println("  " + cWarn("            task descriptions will leave this machine to reach it"))
 	}
-	fmt.Printf("  timeout     %dms\n", cfg.Laya.TimeoutMS)
+	fmt.Printf("  timeout     %dms\n", layaTimeout(cfg).Milliseconds())
 	keyState := cDim("not set")
 	if cfg.Laya.APIKeyEnv != "" {
 		if os.Getenv(cfg.Laya.APIKeyEnv) != "" {
-			keyState = cGood("present in $" + cfg.Laya.APIKeyEnv)
+			keyState = cGood("present in $"+cfg.Laya.APIKeyEnv) +
+				cDim("  (the daemon only sees it if it was exported before the daemon started)")
 		} else {
 			keyState = cDim("$" + cfg.Laya.APIKeyEnv + " empty (fine unless laya-serve requires a token)")
 		}
@@ -208,30 +302,33 @@ func layaStatus(cfg config.Config) {
 	}
 }
 
-func layaHealth(cfg config.Config) {
+// layaHealth returns a process exit code rather than calling os.Exit, so
+// the behavior is testable without killing the test binary.
+func layaHealth(cfg config.Config) int {
 	c := laya.New(cfg.Laya.Endpoint, os.Getenv(cfg.Laya.APIKeyEnv), layaTimeout(cfg))
 	if c == nil {
 		fmt.Println(cWarn("no endpoint configured") + " -- deadeye config set laya.endpoint " + laya.DefaultEndpoint)
-		os.Exit(1)
+		return 1
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := c.Health(ctx); err != nil {
 		fmt.Printf("%s %s\n", cWarn("unreachable:"), err)
 		fmt.Println(cDim("start it with: LAYA_PRELOAD=1 laya-serve"))
-		os.Exit(1)
+		return 1
 	}
 	fmt.Printf("%s %s\n", cGood("reachable:"), c.Endpoint())
+	return 0
 }
 
 // layaTest sends one real tier question -- an obviously mechanical task --
 // so setup can be verified end to end, and so the answer's certainty is
 // visible before anyone promotes Laya up the ladder.
-func layaTest(cfg config.Config) {
+func layaTest(cfg config.Config) int {
 	c := laya.New(cfg.Laya.Endpoint, os.Getenv(cfg.Laya.APIKeyEnv), 30*time.Second)
 	if c == nil {
 		fmt.Println(cWarn("no endpoint configured") + " -- deadeye config set laya.endpoint " + laya.DefaultEndpoint)
-		os.Exit(1)
+		return 1
 	}
 	const probe = "Rename the local variable `tmp` to `buf` in one Go function. Nothing else."
 	// Generous deadline on purpose: a first call may pay a cold checkpoint
@@ -242,15 +339,27 @@ func layaTest(cfg config.Config) {
 	tier, certainty, ok := layaTier(ctx, c, probe)
 	elapsed := time.Since(start)
 	if !ok {
-		fmt.Println(cWarn("no usable answer") + cDim(" -- endpoint reachable but the reply wasn't a tier."))
-		fmt.Println(cDim("  Check `laya-serve` logs, and that the checkpoint finished loading."))
-		os.Exit(1)
+		// Distinguish "nothing is listening" from "answered, but not with a
+		// tier" -- reporting the endpoint as reachable when the connection
+		// was refused sends people to read laya-serve logs that don't exist.
+		hctx, hcancel := context.WithTimeout(context.Background(), 3*time.Second)
+		herr := c.Health(hctx)
+		hcancel()
+		if herr != nil {
+			fmt.Printf("%s %v\n", cWarn("unreachable:"), herr)
+			fmt.Println(cDim("  start it with: LAYA_PRELOAD=1 laya-serve"))
+			return 1
+		}
+		fmt.Println(cWarn("no usable answer") + cDim(" -- the endpoint answered, but not with a tier."))
+		fmt.Println(cDim("  Check `laya-serve` logs, that the checkpoint finished loading, and"))
+		fmt.Println(cDim("  that this endpoint is actually laya-serve and not another service."))
+		return 1
 	}
 	fmt.Printf("%s tier %s, certainty %.2f, %s\n", cGood("answered:"), cValue(fmt.Sprintf("%d", tier)), certainty, elapsed.Round(time.Millisecond))
 	fmt.Println(cDim("  A mechanical rename should come back tier 0. If it doesn't, Laya is"))
 	fmt.Println(cDim("  working but not accurate on this task yet -- leave mode at shadow."))
 	if elapsed > layaTimeout(cfg) {
-		fmt.Printf("%s first call took longer than the %dms hook budget; later calls\n", cWarn("note:"), cfg.Laya.TimeoutMS)
+		fmt.Printf("%s first call took longer than the %dms hook budget; later calls\n", cWarn("note:"), layaTimeout(cfg).Milliseconds())
 		fmt.Println(cDim("  should be faster once the checkpoint is resident. Run this again."))
 	}
 	fmt.Println()
@@ -264,6 +373,7 @@ func layaTest(cfg config.Config) {
 		fmt.Printf("%s\n", cDim("  Recorded nothing -- this is a probe. mode.laya is already "+cfg.Mode.Laya+";"))
 		fmt.Println(cDim("  real decisions are what populate ") + cValue("/deadeye-stats laya") + cDim("."))
 	}
+	return 0
 }
 
 // layaRouting asks Laya for a tier BEFORE the `claude -p` judge runs, so
@@ -274,9 +384,26 @@ func layaTest(cfg config.Config) {
 // Returns the decision (possibly updated), Laya's tier, and whether Laya
 // answered at all. On the shadow and advise rungs the decision comes back
 // untouched apart from, on advise, a note in the visible reason.
-func (d *daemonState) layaRouting(cfg config.Config, decision kernel.Decision, prompt string) (kernel.Decision, int, bool) {
+func (d *daemonState) layaRouting(cfg config.Config, decision kernel.Decision, prompt, shape, sessionID, cwd string) (kernel.Decision, int, bool) {
 	c := layaClient(cfg)
 	if c == nil {
+		return decision, -1, false
+	}
+	// Shadow changes nothing, so blocking a real tool call on it would buy
+	// measurement with the user's latency -- against a hook budget (INV-8)
+	// the whole product is built around. Fire and forget; the caller
+	// records nothing and the goroutine does it instead, using the decision
+	// as it stands (shadow never alters it, so this snapshot is accurate).
+	//
+	// advise and authoritative DO stay inline: advise surfaces the answer in
+	// the reason the user reads, and authoritative needs it to decide. Both
+	// are explicit opt-ins to paying that latency.
+	if cfg.Mode.Laya == layaShadow {
+		// Nothing here: shadow is asked AFTER the judge has run, by
+		// layaShadowRecord below. Scoring against the decision as it stands
+		// now would compare Laya to a pre-judge guess the judge then
+		// overrode -- systematically marking Laya wrong whenever it agreed
+		// with the judge rather than the heuristics.
 		return decision, -1, false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
@@ -320,18 +447,39 @@ func (d *daemonState) layaConfirmsGate(cfg config.Config, site, prompt, question
 	if c == nil {
 		return true
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
-	defer cancel()
-	yes, p, ok := layaYes(ctx, c, prompt, question, gateConfirmBar)
+	ask := func() (bool, bool) {
+		ctx, cancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
+		defer cancel()
+		yes, _, ok := layaYes(ctx, c, prompt, question, gateConfirmBar)
+		return yes, ok
+	}
+	// Below the authoritative rung the answer cannot change anything, so
+	// asking inline would add up to a full timeout to the user's own turn
+	// (this runs on UserPromptSubmit) purely to record a number. Measure
+	// off the critical path instead.
+	if !layaDecides(cfg) {
+		layaAsync(func() {
+			if yes, ok := ask(); ok {
+				d.recordLayaVerdict(site, shape, fmt.Sprintf("%t", yes), "true", "", sessionID, cwd)
+			}
+		})
+		return true
+	}
+	yes, ok := ask()
 	if !ok {
 		return true
 	}
-	keep := true
-	if layaDecides(cfg) {
-		keep = yes
-	}
-	d.recordLayaVerdict(site, shape, fmt.Sprintf("%t(p=%.2f)", yes, p), fmt.Sprintf("%t", keep), "", sessionID, cwd)
-	return keep
+	// Actual is always "true" because this function is only reached when the
+	// heuristic already fired -- that IS what deadeye would have done. So the
+	// number measures "how often Laya agrees with the heuristic", identically
+	// on every rung.
+	//
+	// Recording `yes` on both sides instead (as a first attempt did) makes
+	// authoritative tautologically 100%: on that rung Laya IS the decision,
+	// so scoring it against itself would flatter it forever on the very
+	// report the ladder is promoted on.
+	d.recordLayaVerdict(site, shape, fmt.Sprintf("%t", yes), "true", "", sessionID, cwd)
+	return yes
 }
 
 // layaAgreement backs `deadeye laya agreement` and /deadeye-stats laya:
@@ -379,8 +527,11 @@ func layaAgreement(outcomesPath string, cfg config.Config, now time.Time) {
 	fmt.Printf("  mode        %s\n", cValue(mode))
 	if cfg.Laya.Endpoint == "" {
 		fmt.Printf("  endpoint    %s\n", cWarn("unset"))
-	} else {
+	} else if isLoopbackEndpoint(cfg.Laya.Endpoint) {
 		fmt.Printf("  endpoint    %s\n", cValue(cfg.Laya.Endpoint))
+	} else {
+		fmt.Printf("  endpoint    %s %s\n", cValue(cfg.Laya.Endpoint), cWarn("(not loopback)"))
+		fmt.Println("  " + cWarn("            task descriptions will leave this machine to reach it"))
 	}
 	fmt.Println()
 
@@ -430,4 +581,40 @@ func layaAgreement(outcomesPath string, cfg config.Config, now time.Time) {
 		fmt.Println()
 		fmt.Println("  " + cWarn("Authoritative:") + cDim(" these answers are changing real decisions."))
 	}
+}
+
+// layaShadowRecord asks Laya about a decision that has already been made
+// and records the answer beside it, off the critical path.
+//
+// Called AFTER the judge so "actual" is the tier that really shipped -- the
+// same rule decide.go follows for the other rungs. Comparing against the
+// pre-judge decision instead biases the shadow numbers downward exactly
+// when Laya is RIGHT (it agrees with the judge, which then overrode the
+// heuristic guess), which would be the worst possible error in the data the
+// trust ladder is promoted on.
+func (d *daemonState) layaShadowRecord(cfg config.Config, decision kernel.Decision, prompt, shape, sessionID, cwd string) {
+	if cfg.Mode.Laya != layaShadow {
+		return
+	}
+	c := layaClient(cfg)
+	if c == nil {
+		return
+	}
+	tier, tok := d.cat.TierFor(decision.Model)
+	if !tok {
+		return // no comparable tier; recording one would invent a disagreement
+	}
+	model := decision.Model
+	layaAsync(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
+		defer cancel()
+		got, _, ok := layaTier(ctx, c, prompt)
+		if !ok {
+			return
+		}
+		// The SESSION's cwd, carried into the closure: ProjectKey("") would
+		// resolve against the daemon's own working directory and file every
+		// verdict under the wrong repo.
+		d.recordLayaVerdict(siteJudge, shape, strconv.Itoa(got), strconv.Itoa(tier), model, sessionID, cwd)
+	})
 }

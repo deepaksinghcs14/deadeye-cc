@@ -77,6 +77,15 @@ risk, before anything routes on it.
    If the server needs a token, the user exports it and deadeye reads the
    variable by NAME (`laya.api_key_env`, default `LAYA_API_KEY`) — never
    write the token into `config.json`, which `deadeye config` prints.
+
+   **Warn the user about this one:** the hook path runs inside deadeye's
+   long-lived daemon, which only sees the environment it was *started* with.
+   A token exported in their shell afterwards is invisible to it, so every
+   hook-path call would get a 401 and silently fall back — while
+   `deadeye laya health` and `laya test`, which run in their shell, both
+   report green. If `laya-serve` needs a token, it has to be exported before
+   the daemon starts (or just run `laya-serve` without one on loopback,
+   which is the simpler setup).
 5. **Verify** (below). Then stop: shadow is the correct resting state until
    there's data.
 
@@ -163,6 +172,29 @@ which one fits:
 Clearing the endpoint (`deadeye config set laya.endpoint ""`) also disables
 it, whatever `mode.laya` says.
 
+## What waits, and what doesn't
+
+Only the rungs that act on an answer wait for it:
+
+- **`shadow`** — nothing waits. Routing and both gate checks ask Laya off the
+  critical path and record the answer when it arrives. A measurement rung that
+  slowed the user's own turn would be indefensible.
+- **`advise`** — the routing question waits (its answer is printed in the reason
+  the user reads); the two gate checks still don't.
+- **`authoritative`** — waits wherever the answer decides something.
+
+Say this if a user worries about latency on `shadow`: there isn't any.
+
+## Keep the endpoint on loopback
+
+Nothing forbids pointing `laya.endpoint` at another host, but then every task
+description deadeye classifies leaves the machine — which would quietly
+falsify the "nothing leaves your machine" claim this feature is sold on.
+`deadeye laya status` and `deadeye doctor` both warn when the endpoint isn't
+loopback. What gets sent is the task description, or for the plan-gate and
+workflow-hint checks the user's prompt as typed — so it contains whatever
+they put in it.
+
 ## Where Laya gets used (only when configured)
 
 Six sites, all opt-in, all fail-open:
@@ -191,6 +223,9 @@ Six sites, all opt-in, all fail-open:
   lifecycle. The user owns that process.
 - Never quote 32.8ms as the expected latency without saying it's a T4 GPU
   number; CPU is 193-464ms resident.
+- Never say Laya slows things down on `shadow` -- it doesn't, it's off the
+  critical path there. And never imply a remote endpoint is equivalent to a
+  local one; it isn't, and doctor says so.
 - Never call the agreement number an accuracy number.
 - Always state the 0.362-vs-0.33 untuned figure when recommending a
   promotion past `shadow`, and that every published number for Laya is

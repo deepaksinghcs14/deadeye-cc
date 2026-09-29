@@ -430,6 +430,15 @@ That's an *agreement* rate, not an accuracy rate — on `shadow` and `advise`
 truth either. It also accumulates the labelled `task → tier` data that
 fine-tuning would need, which is the only real route to the 0.766 figure.
 
+**Only the rungs that act on an answer wait for it.** On `shadow` — the rung
+everyone starts on — routing and both gate checks ask Laya off the critical
+path and record the answer when it arrives, so nothing you do is ever delayed
+to collect a measurement. `advise` waits on the routing question (it prints
+the answer in the reason you read); `authoritative` waits wherever the answer
+decides something. And keep the endpoint on loopback: a remote one sends every
+classified task description off your machine, which `deadeye doctor` warns
+about.
+
 ### Turning it off
 
 Four ways, all instant, none of which lose recorded data:

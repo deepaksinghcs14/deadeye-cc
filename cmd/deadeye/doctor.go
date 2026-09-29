@@ -209,8 +209,18 @@ func checkLaya() checkResult {
 			"mode.laya=" + cfg.Mode.Laya + " but " + cfg.Laya.Endpoint + " is not answering -- every decision falls back",
 			"start it: LAYA_PRELOAD=1 laya-serve   (or /deadeye-laya verify)"}
 	}
+	if !isLoopbackEndpoint(cfg.Laya.Endpoint) {
+		return checkResult{"laya", "warn",
+			cfg.Mode.Laya + ", answering at " + cfg.Laya.Endpoint + " -- NOT loopback, so task descriptions leave this machine",
+			"point laya.endpoint at a local laya-serve, or accept that this sends task text off-box"}
+	}
+	// Deliberately says "answers /health", not "works": /health is a
+	// reachability probe, and any HTTP service that returns 200 passes it.
+	// Proving it can answer a typed question means a real classification --
+	// seconds on a cold checkpoint -- which belongs in a command the user
+	// runs, not in a doctor row that should stay fast.
 	return checkResult{"laya", "ok",
-		cfg.Mode.Laya + ", reachable at " + cfg.Laya.Endpoint, ""}
+		cfg.Mode.Laya + ", answers /health at " + cfg.Laya.Endpoint + " (run `deadeye laya test` to prove it classifies)", ""}
 }
 
 // checkHooksManifest: a matcher that doesn't list a tool the daemon

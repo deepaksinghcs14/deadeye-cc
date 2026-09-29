@@ -10,6 +10,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/laya"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 )
@@ -28,15 +29,19 @@ func sampleHarness(t *testing.T, judged int, judgeOK bool) (*daemonState, string
 		sessions: map[string]*sessionState{},
 	}
 
-	prevAsync, prevJudge := tierSampleAsync, judgeFunc
+	prevAsync, prevJudge, prevLaya := tierSampleAsync, judgeFunc, layaAsync
 	tierSampleAsync = func(f func()) { f() } // synchronous: the test can assert after the call
+	layaAsync = func(f func()) { f() }       // same, for the shadow-rung fire-and-forget
 	judgeFunc = func(string) (int, bool) { return judged, judgeOK }
 	judgeCache.Clear()
 	tierSampleSeen.Store(0)
 	t.Cleanup(func() {
-		tierSampleAsync, judgeFunc = prevAsync, prevJudge
+		tierSampleAsync, judgeFunc, layaAsync = prevAsync, prevJudge, prevLaya
 		judgeCache.Clear()
 		tierSampleSeen.Store(0)
+		layaClientMu.Lock()
+		layaClientCache = map[string]*laya.Client{}
+		layaClientMu.Unlock()
 	})
 	return st, outPath
 }

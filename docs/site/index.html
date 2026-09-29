@@ -986,9 +986,13 @@ Cross-check these figures against /usage's plugin attribution.</div>
         <code>~/.deadeye/</code> like everything else.</p>
         <p>Separately, and also off by default, deadeye can talk to a
         <a href="laya.html">locally-run Laya classifier</a> instead of calling
-        <code>claude -p</code> for those typed decisions &mdash; in which case nothing
-        leaves your machine at all. deadeye doesn't ship or run Laya; you do, and
-        deadeye falls back the moment it stops answering.</p></details>
+        <code>claude -p</code> for those typed decisions &mdash; pointed at a loopback
+        address, that means the text stays on your machine entirely. What it sends is the
+        task description or the prompt being classified, which on the plan-gate and
+        workflow-hint checks is your prompt as you typed it, so it can contain whatever you
+        put there. <code>deadeye doctor</code> warns if the endpoint isn't loopback, since
+        a remote one would send that text off-box. deadeye doesn't ship or run Laya; you do,
+        and it falls back the moment it stops answering.</p></details>
       <details><summary>Can I check whether any of this actually works?</summary>
         <p>That's what <code>/deadeye-stats</code> is for, and three of its
         views hold deadeye to its own claims rather than reporting its

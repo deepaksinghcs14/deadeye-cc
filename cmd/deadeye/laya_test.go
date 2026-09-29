@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/laya"
@@ -111,22 +112,61 @@ func TestLayaTierRejectsUnknownLabel(t *testing.T) {
 	}
 }
 
-// Shadow records the verdict and leaves the decision untouched, including
-// the reason string -- an unchanged decision must be unchanged in full.
-func TestLayaRoutingShadowChangesNothing(t *testing.T) {
+// Shadow must not block the hook at all: it changes nothing, so paying a
+// Laya timeout on a real tool call would buy measurement with the user's
+// latency. It answers off the critical path and records there.
+func TestLayaRoutingShadowIsAsyncAndChangesNothing(t *testing.T) {
 	st, outPath := sampleHarness(t, 0, true)
 	cfg := layaCfg(layaShadow, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
 	before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "original reason", Unsure: true}
 
-	after, tier, ok := st.layaRouting(cfg, before, "some task")
-	if !ok || tier != 0 {
-		t.Fatalf("layaRouting = tier %d ok=%v; want 0,true", tier, ok)
+	after, _, ok := st.layaRouting(cfg, before, "some task", "shape", "sess", t.TempDir())
+	if ok {
+		t.Error("shadow answered inline; it must defer so the hook never waits")
 	}
 	if after != before {
 		t.Errorf("shadow changed the decision:\n got %+v\nwant %+v", after, before)
 	}
+	// Recording happens post-judge, via the dedicated recorder.
+	st.layaShadowRecord(cfg, before, "some task", "shape", "sess", t.TempDir())
+	// sampleHarness makes the async seam synchronous, so the verdict has
+	// landed by now.
+	outs, err := lessons.Scan(outPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found *lessons.Outcome
+	for i := range outs {
+		if outs[i].Kind == KindLayaVerdict {
+			found = &outs[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("shadow recorded no verdict; got %+v", outs)
+	}
+	if found.LayaValue != "0" || found.Actual == "" {
+		t.Errorf("verdict = %+v; want laya 0 against a known actual tier", *found)
+	}
 	if n := len(disagreements(t, outPath)); n != 0 {
 		t.Errorf("shadow wrote %d tier-disagreement rows; it should write none itself", n)
+	}
+}
+
+// A model the catalog doesn't know has no comparable tier. Recording an
+// empty "actual" would score as a disagreement against Laya that nothing
+// establishes, quietly biasing the number the ladder is promoted on.
+func TestLayaRoutingSkipsRecordWhenTierUnknown(t *testing.T) {
+	st, outPath := sampleHarness(t, 0, true)
+	cfg := layaCfg(layaShadow, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
+	before := kernel.Decision{Model: "a-model-not-in-the-catalog", Effort: "high", Unsure: true}
+
+	st.layaShadowRecord(cfg, before, "task", "shape", "sess", t.TempDir())
+
+	outs, _ := lessons.Scan(outPath)
+	for _, o := range outs {
+		if o.Kind == KindLayaVerdict {
+			t.Errorf("recorded a verdict with no comparable tier: %+v", o)
+		}
 	}
 }
 
@@ -136,7 +176,7 @@ func TestLayaRoutingAdviseAnnotatesOnly(t *testing.T) {
 	cfg := layaCfg(layaAdvise, layaServer(t, `{"answers":{"q":{"choice":"1","answer_confidence":0.8}}}`))
 	before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "original", Unsure: true}
 
-	after, _, _ := st.layaRouting(cfg, before, "task")
+	after, _, _ := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
 	if after.Model != before.Model || after.Effort != before.Effort || after.Unsure != before.Unsure {
 		t.Errorf("advise changed behavior: %+v", after)
 	}
@@ -152,7 +192,7 @@ func TestLayaRoutingAuthoritativeResolvesUnsure(t *testing.T) {
 	cfg := layaCfg(layaAuthoritative, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
 	before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "thin evidence", Unsure: true}
 
-	after, _, _ := st.layaRouting(cfg, before, "rename a variable")
+	after, _, _ := st.layaRouting(cfg, before, "rename a variable", "shape", "sess", t.TempDir())
 	if after.Unsure {
 		t.Error("authoritative should resolve Unsure so the judge returns early")
 	}
@@ -171,7 +211,7 @@ func TestLayaRoutingAuthoritativeLeavesConfidentDecisionAlone(t *testing.T) {
 	cfg := layaCfg(layaAuthoritative, layaServer(t, `{"answers":{"q":{"choice":"0"}}}`))
 	before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "strong evidence", Confidence: 1, Unsure: false}
 
-	after, _, ok := st.layaRouting(cfg, before, "task")
+	after, _, ok := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
 	if !ok {
 		t.Fatal("expected Laya to answer")
 	}
@@ -193,7 +233,7 @@ func TestLayaRoutingFailsOpen(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			st, _ := sampleHarness(t, 0, true)
 			before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "r", Unsure: true}
-			after, _, ok := st.layaRouting(c.cfg, before, "task")
+			after, _, ok := st.layaRouting(c.cfg, before, "task", "shape", "sess", t.TempDir())
 			if ok {
 				t.Error("expected no usable answer")
 			}
@@ -213,11 +253,11 @@ func TestLayaConfirmsGate(t *testing.T) {
 		body string
 		keep bool
 	}{
-		{"off keeps", layaOff, `{"answers":{"q":{"noul":0.01}}}`, true},
-		{"shadow keeps despite low p", layaShadow, `{"answers":{"q":{"noul":0.01}}}`, true},
-		{"advise keeps despite low p", layaAdvise, `{"answers":{"q":{"noul":0.01}}}`, true},
-		{"authoritative suppresses on low p", layaAuthoritative, `{"answers":{"q":{"noul":0.01}}}`, false},
-		{"authoritative keeps on high p", layaAuthoritative, `{"answers":{"q":{"noul":0.9}}}`, true},
+		{"off keeps", layaOff, `{"answers":{"q":{"noul":0.01,"answer_confidence":0.9}}}`, true},
+		{"shadow keeps despite low p", layaShadow, `{"answers":{"q":{"noul":0.01,"answer_confidence":0.9}}}`, true},
+		{"advise keeps despite low p", layaAdvise, `{"answers":{"q":{"noul":0.01,"answer_confidence":0.9}}}`, true},
+		{"authoritative suppresses on low p", layaAuthoritative, `{"answers":{"q":{"noul":0.01,"answer_confidence":0.9}}}`, false},
+		{"authoritative keeps on high p", layaAuthoritative, `{"answers":{"q":{"noul":0.9,"answer_confidence":0.9}}}`, true},
 		{"unreachable keeps", layaAuthoritative, "", true},
 	}
 	for _, c := range cases {
@@ -316,7 +356,7 @@ func TestEveryDocumentedOffSwitchWorks(t *testing.T) {
 		st, _ := sampleHarness(t, 0, true)
 		cfg := layaCfg(layaAuthoritative, "http://127.0.0.1:1")
 		before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "r", Unsure: true}
-		after, _, ok := st.layaRouting(cfg, before, "task")
+		after, _, ok := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
 		if ok || after != before {
 			t.Error("a stopped laya-serve must leave the decision untouched")
 		}
@@ -377,7 +417,7 @@ func TestTierSampleLayaScreenSuppressesPaidCallOnAgreement(t *testing.T) {
 	t.Cleanup(func() { judgeFunc = prev })
 
 	// Laya says tier 2, matching the routed tier -> agreement -> stop.
-	cfg := layaCfg(layaShadow, layaServer(t, `{"answers":{"q":{"choice":"2","answer_confidence":0.9}}}`))
+	cfg := layaCfg(layaAuthoritative, layaServer(t, `{"answers":{"q":{"choice":"2","answer_confidence":0.9}}}`))
 	cfg.Mode.TierSample = "on"
 	cfg.Mode.RoutingJudge = "on"
 	cfg.TierSample.Rate = 1
@@ -401,7 +441,7 @@ func TestTierSampleLayaScreenEscalatesOnDisagreement(t *testing.T) {
 	judgeFunc = func(string) (int, bool) { judgeCalls++; return 0, true }
 	t.Cleanup(func() { judgeFunc = prev })
 
-	cfg := layaCfg(layaShadow, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
+	cfg := layaCfg(layaAuthoritative, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
 	cfg.Mode.TierSample = "on"
 	cfg.Mode.RoutingJudge = "on"
 	cfg.TierSample.Rate = 1
@@ -416,27 +456,51 @@ func TestTierSampleLayaScreenEscalatesOnDisagreement(t *testing.T) {
 	}
 }
 
-// A configured-but-silent classifier must not fall back to paying for the
-// sample: it was configured precisely to avoid that.
-func TestTierSampleSkipsWhenLayaConfiguredButSilent(t *testing.T) {
+// A configured-but-unreachable classifier must FAIL OPEN to the paid
+// sampler that existed before it (INV-5). Returning instead meant a stopped
+// laya-serve silently reported zero over-route disagreements forever --
+// indistinguishable from "none found".
+func TestTierSampleFallsBackWhenLayaSilent(t *testing.T) {
 	st, outPath := sampleHarness(t, 0, true)
 	judgeCalls := 0
 	prev := judgeFunc
 	judgeFunc = func(string) (int, bool) { judgeCalls++; return 0, true }
 	t.Cleanup(func() { judgeFunc = prev })
 
-	cfg := layaCfg(layaShadow, "http://127.0.0.1:1") // unreachable
+	cfg := layaCfg(layaAuthoritative, "http://127.0.0.1:1") // unreachable
 	cfg.Mode.TierSample = "on"
 	cfg.Mode.RoutingJudge = "on"
 	cfg.TierSample.Rate = 1
 
 	st.maybeSampleTier(cfg, highTierDecision(t, st.cat), st.cat, "shape", "prompt", "sess", t.TempDir())
 
-	if judgeCalls != 0 {
-		t.Errorf("judge called %d times; a silent configured classifier should skip, not pay", judgeCalls)
+	if judgeCalls != 1 {
+		t.Errorf("judge called %d times; a silent classifier must degrade to the prior sampler", judgeCalls)
 	}
-	if n := len(disagreements(t, outPath)); n != 0 {
-		t.Errorf("recorded %d outcomes, want 0", n)
+	if n := len(disagreements(t, outPath)); n != 1 {
+		t.Errorf("recorded %d outcomes, want 1 from the fallback path", n)
+	}
+}
+
+// Below authoritative, Laya may not change behavior -- and choosing WHICH
+// decisions get sampled is a behavior change. An endpoint configured on
+// shadow silently replaced the documented 1-in-N sampler.
+func TestTierSampleIgnoresLayaBelowAuthoritative(t *testing.T) {
+	for _, mode := range []string{layaShadow, layaAdvise} {
+		t.Run(mode, func(t *testing.T) {
+			st, outPath := sampleHarness(t, 1, true)
+			cfg := layaCfg(mode, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
+			cfg.Mode.TierSample = "on"
+			cfg.Mode.RoutingJudge = "on"
+			cfg.TierSample.Rate = 3
+			d := highTierDecision(t, st.cat)
+			for i := 0; i < 6; i++ {
+				st.maybeSampleTier(cfg, d, st.cat, "shape", "p"+string(rune('a'+i)), "sess", t.TempDir())
+			}
+			if n := len(disagreements(t, outPath)); n != 2 {
+				t.Errorf("got %d samples; want 2 (the rate-limited sampler, unchanged by a non-acting rung)", n)
+			}
+		})
 	}
 }
 
@@ -608,5 +672,180 @@ func TestLayaTestHintIsModeAware(t *testing.T) {
 	}
 	if !strings.Contains(out, "already shadow") {
 		t.Errorf("should acknowledge the current rung:\n%s", out)
+	}
+}
+
+// layaAgreement counts LayaValue == Actual, so the two must be directly
+// comparable. An earlier version recorded "true(p=0.90)" against "true",
+// which made every gate verdict a disagreement and pinned both gate sites
+// at 0% agreement forever -- a silently wrong number on the very report the
+// trust ladder is promoted on.
+func TestGateVerdictValuesAreComparable(t *testing.T) {
+	st, outPath := sampleHarness(t, 0, true)
+	cfg := layaCfg(layaAuthoritative, layaServer(t, `{"answers":{"q":{"noul":0.9,"answer_confidence":0.9}}}`))
+
+	st.layaConfirmsGate(cfg, sitePlanGate, "do a refactor", "Needs a plan?", "marker", "sess", t.TempDir())
+
+	outs, err := lessons.Scan(outPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v *lessons.Outcome
+	for i := range outs {
+		if outs[i].Kind == KindLayaVerdict && outs[i].Site == sitePlanGate {
+			v = &outs[i]
+		}
+	}
+	if v == nil {
+		t.Fatal("no gate verdict recorded")
+	}
+	if strings.ContainsAny(v.LayaValue, "(=") {
+		t.Errorf("LayaValue %q carries formatting that can never equal Actual", v.LayaValue)
+	}
+	if v.Actual != "true" {
+		t.Errorf("Actual = %q; it must be the HEURISTIC's answer (which fired, so true), "+
+			"not a copy of Laya's -- scoring Laya against itself is tautologically 100%%", v.Actual)
+	}
+	if v.LayaValue != "true" {
+		t.Errorf("LayaValue = %q, want true for a high-probability answer", v.LayaValue)
+	}
+	// And it must actually count as agreement in the report.
+	out := captureStdout(t, func() { layaAgreement(outPath, cfg, time.Now()) })
+	if !strings.Contains(out, "100%") {
+		t.Errorf("a self-consistent gate verdict should read as 100%% agreement:\n%s", out)
+	}
+}
+
+// Below the authoritative rung a gate answer can change nothing, so asking
+// inline would add a full timeout to the user's own turn for a number.
+func TestGateDoesNotBlockBelowAuthoritative(t *testing.T) {
+	for _, mode := range []string{layaShadow, layaAdvise} {
+		t.Run(mode, func(t *testing.T) {
+			st, _ := sampleHarness(t, 0, true)
+			asked := false
+			prev := layaAsync
+			layaAsync = func(f func()) { asked = true; f() }
+			t.Cleanup(func() { layaAsync = prev })
+
+			cfg := layaCfg(mode, layaServer(t, `{"answers":{"q":{"noul":0.01,"answer_confidence":0.9}}}`))
+			keep := st.layaConfirmsGate(cfg, sitePlanGate, "p", "q?", "m", "sess", t.TempDir())
+
+			if !keep {
+				t.Error("a non-authoritative rung must never suppress a gate")
+			}
+			if !asked {
+				t.Error("the answer should still be collected, just off the critical path")
+			}
+		})
+	}
+}
+
+// One client per configuration, not one per call: a fresh http.Client per
+// request means no keep-alive reuse and a new connection every time, in a
+// daemon that lives for days.
+func TestLayaClientIsReused(t *testing.T) {
+	cfg := layaCfg(layaShadow, "http://127.0.0.1:8123")
+	a, b := layaClient(cfg), layaClient(cfg)
+	if a == nil || a != b {
+		t.Errorf("expected the same cached client, got %p and %p", a, b)
+	}
+	other := layaCfg(layaShadow, "http://127.0.0.1:8124")
+	if c := layaClient(other); c == a {
+		t.Error("a different endpoint must get its own client")
+	}
+}
+
+// The feature is sold on "nothing leaves your machine". Nothing stops a
+// remote endpoint, so deadeye must at least say when the promise no longer
+// holds.
+func TestLoopbackDetectionAndWarning(t *testing.T) {
+	local := []string{"http://127.0.0.1:8000", "http://localhost:8000", "http://[::1]:8000", "https://127.0.0.1"}
+	remote := []string{"http://example.com:8000", "https://laya.internal.corp", "http://10.0.0.5:8000", "not a url at all"}
+	for _, e := range local {
+		if !isLoopbackEndpoint(e) {
+			t.Errorf("%s should be loopback", e)
+		}
+	}
+	for _, e := range remote {
+		if isLoopbackEndpoint(e) {
+			t.Errorf("%s should NOT be loopback", e)
+		}
+	}
+
+	out := captureStdout(t, func() { layaStatus(layaCfg(layaShadow, "http://example.com:8000")) })
+	if !strings.Contains(out, "not loopback") || !strings.Contains(out, "leave this machine") {
+		t.Errorf("status must warn on a remote endpoint:\n%s", out)
+	}
+	out = captureStdout(t, func() { layaStatus(layaCfg(layaShadow, "http://127.0.0.1:8000")) })
+	if strings.Contains(out, "not loopback") {
+		t.Errorf("a loopback endpoint must not warn:\n%s", out)
+	}
+}
+
+// The shadow rung records from a goroutine; the session's repo has to
+// travel into that closure. Resolving it there from an empty cwd would
+// attribute every verdict to whatever directory the daemon was started in.
+func TestShadowVerdictCarriesTheSessionRepo(t *testing.T) {
+	st, outPath := sampleHarness(t, 0, true)
+	cfg := layaCfg(layaShadow, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
+	before := kernel.Decision{Model: "top-id", Unsure: true}
+
+	repoDir := t.TempDir()
+	st.layaShadowRecord(cfg, before, "task", "code-edit", "sess-7", repoDir)
+
+	outs, _ := lessons.Scan(outPath)
+	var v *lessons.Outcome
+	for i := range outs {
+		if outs[i].Kind == KindLayaVerdict {
+			v = &outs[i]
+		}
+	}
+	if v == nil {
+		t.Fatal("no verdict recorded")
+	}
+	if v.Repo != gitutil.ProjectKey(repoDir) {
+		t.Errorf("Repo = %q, want the session's repo key %q", v.Repo, gitutil.ProjectKey(repoDir))
+	}
+	if v.TaskShape != "code-edit" || v.SessionID != "sess-7" {
+		t.Errorf("verdict lost session context: %+v", *v)
+	}
+}
+
+// "reachable but the reply wasn't a tier" is wrong and misdirecting when
+// nothing is listening at all -- it sends people to read laya-serve logs
+// that don't exist. The two cases must read differently.
+func TestLayaTestDistinguishesUnreachableFromUnusable(t *testing.T) {
+	// A service that answers /health but can't classify (e.g. the wrong
+	// service on that port).
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			fmt.Fprint(w, `{"status":"ok"}`)
+			return
+		}
+		fmt.Fprint(w, `<html>not laya</html>`)
+	}))
+	defer srv.Close()
+
+	var code int
+	out := captureStdout(t, func() { code = layaTest(layaCfg(layaShadow, srv.URL)) })
+	if code != 1 {
+		t.Errorf("exit = %d, want 1", code)
+	}
+	if !strings.Contains(out, "answered, but not with a tier") {
+		t.Errorf("a live-but-wrong service should read as answered-not-usable:\n%s", out)
+	}
+	if strings.Contains(out, "unreachable") {
+		t.Errorf("must not claim unreachable when /health answered:\n%s", out)
+	}
+
+	out = captureStdout(t, func() { code = layaTest(layaCfg(layaShadow, "http://127.0.0.1:1")) })
+	if code != 1 {
+		t.Errorf("exit = %d, want 1", code)
+	}
+	if !strings.Contains(out, "unreachable") {
+		t.Errorf("nothing listening should read as unreachable:\n%s", out)
+	}
+	if strings.Contains(out, "answered, but not with a tier") {
+		t.Errorf("must not claim the endpoint answered when it refused:\n%s", out)
 	}
 }

@@ -48,8 +48,6 @@ func TestLayaComplexityNormalizesScore(t *testing.T) {
 		{0, 0},     // lowest rubric level
 		{1.5, 0.5}, // midpoint of a 4-level rubric (span 3)
 		{3, 1},     // top level
-		{4.5, 1},   // out of range clamps rather than exceeding 1
-		{-2, 0},    // ditto below
 	}
 	for _, c := range cases {
 		cl := layaStub(t, fmt.Sprintf(`{"answers":{"q":{"score":%v,"answer_confidence":0.9}}}`, c.score))
@@ -60,6 +58,35 @@ func TestLayaComplexityNormalizesScore(t *testing.T) {
 		if e.Complexity != c.want {
 			t.Errorf("score %v -> complexity %v, want %v", c.score, e.Complexity, c.want)
 		}
+	}
+}
+
+// A score outside the rubric means the server answered a DIFFERENT rubric
+// than the one asked. Clamping rounds that confusion up to 1.0 -- "hardest
+// possible task" -- which kernel.Decide upshifts on with no confidence
+// gate. It must skip instead.
+func TestLayaComplexitySkipsOutOfRangeScore(t *testing.T) {
+	for _, score := range []float64{4.5, -2, 99} {
+		cl := layaStub(t, fmt.Sprintf(`{"answers":{"q":{"score":%v,"answer_confidence":0.9}}}`, score))
+		if _, err := (LayaComplexity{Client: cl}).Assess(context.Background(), Scope{Prompt: "task"}); err == nil {
+			t.Errorf("score %v outside the rubric should skip, not clamp", score)
+		}
+	}
+}
+
+// The floor is pinned to the kernel's own ceiling. Anything below it would
+// drag kernel.Decide's MINIMUM confidence under the downshift threshold and
+// force the unsure ceiling for every decision, discarding all six
+// heuristics -- so the floor must never drift below MaxAchievableConfidence.
+func TestLayaFloorCannotDragTheKernelBelowThreshold(t *testing.T) {
+	if layaFloor < MaxAchievableConfidence {
+		t.Fatalf("layaFloor %v is below MaxAchievableConfidence %v -- a contributing answer could force every route to the ceiling",
+			layaFloor, MaxAchievableConfidence)
+	}
+	// 0.79 is the shape that used to slip through and disable downshift.
+	cl := layaStub(t, `{"answers":{"q":{"score":1,"answer_confidence":0.79}}}`)
+	if _, err := (LayaComplexity{Client: cl}).Assess(context.Background(), Scope{Prompt: "task"}); err == nil {
+		t.Error("certainty just under the ceiling must skip, not contribute")
 	}
 }
 
@@ -130,7 +157,7 @@ func TestAssessAllIncludesContributingLaya(t *testing.T) {
 	scope := Scope{Prompt: "rewrite the scheduler", Files: []string{"a.go"}}
 	base := AssessAll(context.Background(), scope, Builtins())
 
-	cl := layaStub(t, `{"answers":{"q":{"score":3,"answer_confidence":0.78}}}`)
+	cl := layaStub(t, `{"answers":{"q":{"score":3,"answer_confidence":0.85}}}`)
 	with := AssessAll(context.Background(), scope, append(Builtins(), LayaComplexity{Client: cl}))
 
 	if len(with) != len(base)+1 {
@@ -149,8 +176,10 @@ func TestAssessAllIncludesContributingLaya(t *testing.T) {
 	if got.Provider != "laya" {
 		t.Fatalf("no laya evidence in %+v", with)
 	}
-	if got.Complexity != 1 || got.Confidence != 0.78 {
-		t.Errorf("laya evidence = %+v; want complexity 1, confidence 0.78", got)
+	// Capped at the ceiling: a bonus signal must not claim more certainty
+	// than the kernel assumes any provider can have.
+	if got.Complexity != 1 || got.Confidence != MaxAchievableConfidence {
+		t.Errorf("laya evidence = %+v; want complexity 1, confidence %v", got, MaxAchievableConfidence)
 	}
 	if got.Facts["source"] != "laya (local classifier)" {
 		t.Errorf("facts should name the source, got %v", got.Facts)

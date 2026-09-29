@@ -1,5 +1,81 @@
 # Changelog
 
+## 0.66.2
+
+A hostile review of 0.66.0/0.66.1's Laya flow, plus manual probing against
+deliberately broken endpoints. Eleven defects, several of them in the fixes
+0.66.1 shipped. Nothing about the design changed; it now behaves the way the
+design claimed.
+
+**The signals provider could disable downshifting entirely.** `layaFloor`
+was 0.6 while `MaxAchievableConfidence` and the default
+`downshift_threshold` are both 0.8, and `kernel.Decide` compares the MINIMUM
+confidence across evidence against that threshold. So any Laya certainty in
+[0.6, 0.8) dragged the minimum under the bar and forced the unsure ceiling
+for EVERY routing decision -- discarding all six heuristics and making
+everything more expensive, on the rung meant to be an optional bonus signal.
+The floor is now pinned to `MaxAchievableConfidence` itself, with a test
+that fails if it ever drifts below.
+
+**An out-of-rubric score became "hardest possible task".** A server
+answering a different rubric (a different checkpoint, a 1-based scale) gave
+a score above the span, which `clamp01` rounded to 1.0 -- and complexity 1.0
+upshifts to the top model with no confidence gate at all. Out-of-range now
+skips the provider instead.
+
+**Gate agreement was wrong in both directions.** 0.66.1 fixed
+`"true(p=0.90)"` vs `"true"` (always 0%) by recording Laya's own answer on
+both sides -- which made the authoritative rung tautologically 100%, since
+on that rung Laya IS the decision. Actual is now always the heuristic's
+answer, which is what deadeye would have done, so the number means the same
+thing on every rung: how often Laya agrees with the heuristic.
+
+**Shadow scored against the wrong decision.** The async recorder compared
+Laya to the PRE-judge model, so whenever Laya agreed with the judge -- the
+case that matters most -- it was recorded as a disagreement. It now records
+after the judge, like every other rung.
+
+**Shadow silently changed behavior, and a dead endpoint switched
+measurement off.** The tier-sample screen engaged whenever an endpoint was
+configured, including on `shadow` and `advise`, replacing the documented
+1-in-N sampler; and a silent classifier returned instead of falling back, so
+a stopped `laya-serve` reported zero over-route disagreements forever,
+indistinguishable from "none found". The screen now engages only on
+`authoritative`, and an unreachable one degrades to the prior sampler
+(INV-5).
+
+**A yes/no answer with no certainty could fire a gate.** `layaYes` compared
+`Noul >= bar` without checking certainty, so any JSON service returning
+`{"answers":{"q":{}}}` produced a confident "no" -- enough to suppress a
+gate on `authoritative`. An answer carrying no certainty is now no answer.
+
+**Unbounded background calls.** `go f()` per hook meant a 50-agent fan-out
+pointed ~100 concurrent requests at a single-process `laya-serve`, which
+then timed them all out and starved the calls that needed an answer.
+Bounded to 4 in flight; work that can't get a slot is dropped rather than
+queued, because these are measurements and a missed sample costs nothing.
+
+**`deadeye laya test` claimed "endpoint reachable" when nothing was
+listening**, sending people to read logs that don't exist; it now
+distinguishes a refused connection from a live service that answered with
+something that isn't a tier. **`doctor` reported `ok ... reachable`** for
+any HTTP service returning 200 on `/health`; it now says "answers /health"
+and points at `deadeye laya test` to prove classification. **A `0` timeout
+printed as "0ms"** while the effective value was 1500ms.
+
+**The daemon cannot see a token exported after it started.** `layaClient`
+reads `LAYA_API_KEY` from its own environment, and on the hook path that
+environment belongs to the daemon, not the user's shell -- the same trap
+`config.go` documents for kill switches. A token-protected `laya-serve`
+would 401 on every hook call and fail open silently, while `laya health`
+and `laya test` (client-side) both showed green. Documented in the skill and
+flagged in `laya status`; the simple setup is no token on loopback.
+
+Also: three declared-but-unused call-site constants removed, `layaTest` and
+`layaHealth` return exit codes instead of calling `os.Exit` so both are
+testable, and a concurrency regression test drives the real goroutine path
+under `-race`.
+
 ## 0.66.1
 
 Thorough testing of 0.66.0's Laya support found four real bugs, two of them
