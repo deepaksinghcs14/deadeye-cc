@@ -110,5 +110,38 @@ print(",".join(str(r["tier"]) for r in m))' "$OUT" "$label")
 done
 
 echo >&2
+echo ">> held-out probes (never used to tune anything) ..." >&2
+# A SECOND probe set, deliberately kept separate from the one above.
+#
+# This exists because tuning Laya's prompt on the probes above and then
+# reporting accuracy on those same probes is circular -- and it is not a
+# hypothetical: a criteria rewording once scored 1/9 -> 5/9 on the tuning
+# cases and 8/9 -> 6/9 on these, i.e. it was a regression wearing a win's
+# clothes. Tune against the set above if you must; report against this one.
+heldout=(
+  "0|b64 encoder from spec|Implement func Encode(b []byte) string in internal/b64/b64.go using the standard base64 alphabet with padding. Complete spec, single file."
+  "0|table formatter|Write func Render(rows [][]string) string that pads each column to its widest cell and joins with ' | '. One file."
+  "0|reverse a list|Add func (l *List) Reverse() to internal/list/list.go reversing the nodes in place. Single file, spec complete."
+  "1|ORM migration|Replace every GORM query in the services/ tree with the new sqlc-generated accessors and keep behaviour identical"
+  "1|vague improvement|Make the export feature work better for large accounts; figure out what that should mean from the current code"
+  "1|new endpoint|Add a /v2/reports endpoint alongside the existing v1 one, reusing the existing handler where sensible"
+  "2|heisenbug|Requests intermittently return stale data only under load; nobody can reproduce it locally. Find the cause."
+  "2|crypto review|Review our password reset token generation and fix anything that lets an attacker forge one"
+  "2|consensus design|Choose and justify a replication and failover strategy for the new metadata store"
+)
+for p in "${heldout[@]}"; do
+  IFS='|' read -r want label prompt <<<"$p"
+  for t in $(seq 1 "$TRIALS"); do
+    emit heldout "$label" "$t" "$want" "$("$BIN" laya classify --json "$prompt" 2>/dev/null)"
+  done
+  got=$(python3 -c '
+import json,sys
+rows=[json.loads(l) for l in open(sys.argv[1]) if l.strip()]
+m=[r for r in rows if r["kind"]=="heldout" and r["id"]==sys.argv[2]]
+print(",".join(str(r["tier"]) for r in m))' "$OUT" "$label")
+  printf '  want %s  %-24s got: %s\n' "$want" "$label" "$got" >&2
+done
+
+echo >&2
 echo "wrote $(wc -l < "$OUT" | tr -d ' ') rows to results/laya.jsonl" >&2
 echo "run ./summarize.py for the joined report" >&2

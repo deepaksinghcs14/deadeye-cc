@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.67.1
+
+0.67.0's benchmark compared a paid classifier against a free one on the paid
+one's terms. The router arm charged only task execution, silently treating
+the `claude -p` judge call as costless. It is not, and it is not small.
+
+New `benchmarks/routing/judge-cost.sh` measures it: **$0.05081 per call**,
+mean latency **2082ms** (max 4260ms) over six real calls. That call carries
+Claude Code's entire system prompt, so it bills orders of magnitude more than
+its ~250-token prompt implies — and the latency blocks the hook, which is the
+only thing in deadeye that does. Laya's equivalent is $0.00 at a measured p50
+of 71ms.
+
+Corrected head to head on the same six tasks:
+
+| arm | execute | classify | total | vs all-opus |
+|---|---|---|---|---|
+| deadeye router (judge) | $0.9310 | $0.3049 | **$1.2359** | 31.2% |
+| laya authoritative | $1.4061 | $0.0000 | **$1.4061** | 21.7% |
+
+So the gap is **$0.028 per task**, not the $0.079 the previous entry implied:
+Laya's worse routing costs $0.0792 more to execute while saving $0.0508 in
+classification. Still behind, but 14% rather than 51% — and these six tasks
+are its worst case, being exactly the fiddly-but-fully-specified shape it
+over-rates.
+
+**A held-out probe set, because tuning and reporting on the same cases is
+circular.** Four optimizations were tried against the classifier: aligning its
+instructions with the judge's calibration paragraph (no measurable change),
+rewriting the per-label criteria, enriching the `state` object with structured
+signals (**worse** — 0/9), and asking for an ordinal score instead of a choice
+(no better). The criteria rewrite looked like the win: **1/9 -> 5/9** on the
+tuning probes. On nine cases it had never seen it went **8/9 -> 6/9**. It was
+a regression, and it would have shipped as an improvement.
+
+`laya-probe.sh` now carries both sets. Tune against `probe`, report against
+`heldout`. On `heldout` the shipped configuration scores **8/9** — markedly
+better than the 1/6 it manages on the benchmark tasks, which is worth knowing
+before concluding the classifier is simply bad: it is bad at one specific
+shape.
+
+The instructions alignment is kept despite changing nothing measurable, on the
+grounds that asking two classifiers the same question should mean the same
+question — a difference that would otherwise confound every future comparison.
+
+The honest summary is unchanged: `off` stays the default, `shadow` stays the
+resting state. What moved is the size of the gap and the reason for it.
+
 ## 0.67.0
 
 Laya, benchmarked against the same ground truth as the router it would

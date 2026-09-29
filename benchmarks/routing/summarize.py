@@ -213,6 +213,35 @@ if rrows:
                "The oracle is the ceiling it's trying to reach.")
 
 
+# ------------------------------------------------------------ classification
+# What each router COSTS to decide with, on top of executing the task.
+#
+# The router arm above charges task execution only, which silently treats the
+# judge's own `claude -p` call as free. It is not -- and it is not small: that
+# call carries Claude Code's whole system prompt, so it bills far more than its
+# ~250-token prompt implies. Laya has no such line because local inference
+# genuinely costs nothing per call. Comparing the two without this is comparing
+# a paid classifier to a free one on the paid one's terms.
+jc_path = os.path.join(HERE, "results/judge-cost.jsonl")
+jc = [json.loads(l) for l in open(jc_path) if l.strip()] if os.path.exists(jc_path) else []
+judge_per_call = None
+if jc:
+    costs = [r["cost_usd"] for r in jc if r.get("cost_usd")]
+    lats = [r["ms"] for r in jc if r.get("ms")]
+    if costs:
+        judge_per_call = sum(costs) / len(costs)
+        out.append("")
+        out.append("## Classification cost (what it costs to DECIDE, not to execute)")
+        out.append("")
+        out.append(f"Measured over {len(costs)} real judge calls (`judge-cost.sh`): "
+                   f"**${judge_per_call:.5f} per call**, mean latency "
+                   f"**{sum(lats)/len(lats):.0f}ms** (max {max(lats)}ms) -- and that latency "
+                   f"blocks the hook, which is the only thing in deadeye that does.")
+        out.append("")
+        out.append("Laya's per-call classification cost is **$0.00** (local inference), at a "
+                   "measured p50 of 71ms. That asymmetry is the case for the integration, and "
+                   "the router arm above omits it entirely.")
+
 # ------------------------------------------------------------------ laya arm
 # What the OPTIONAL local Laya classifier would have picked, against the same
 # ground truth. Written by laya-probe.sh; absent until it's been run.
@@ -294,6 +323,29 @@ if lrows:
         out.append("")
         out.append(f"**{hits}/{len({r['id'] for r in probes})}** probes classified as expected.")
 
+    held = [r for r in lrows if r["kind"] == "heldout"]
+    if held:
+        out.append("")
+        out.append("### Held-out probes")
+        out.append("")
+        out.append("Never used to tune anything. Report against these, not the set above.")
+        out.append("")
+        out.append("| probe | want | got | |")
+        out.append("|---|---|---|---|")
+        hh = 0
+        for label in sorted({r["id"] for r in held}):
+            v = [r["tier"] for r in held if r["id"] == label and r["tier"] is not None]
+            want = int([r["want"] for r in held if r["id"] == label][0])
+            got = majority(v)
+            ok = got == want
+            hh += 1 if ok else 0
+            out.append(f"| {label} | {want} | {got} | {'ok' if ok else '**miss**'} |")
+        out.append("")
+        out.append(f"**{hh}/{len({r['id'] for r in held})}** classified as expected -- markedly "
+                   f"better than on the six benchmark tasks, which are a worst case for this "
+                   f"classifier: fiddly-but-fully-specified single-file work is exactly the "
+                   f"shape it over-rates.")
+
     lat = sorted(r["ms"] for r in lrows if r.get("ok") and r.get("ms") is not None)
     if lat:
         out.append("")
@@ -301,6 +353,34 @@ if lrows:
         p95 = lat[max(0, int(len(lat) * 0.95) - 1)]
         out.append(f"Latency over {len(lat)} local calls (checkpoint already resident): "
                    f"p50 **{p50}ms**, p95 **{p95}ms**, min {lat[0]}ms, max {lat[-1]}ms.")
+
+    if judge_per_call is not None:
+        n = len(lscored)
+        # One judge call per task: the judge caches by task text, so a
+        # benchmark of distinct tasks pays exactly once each -- the same
+        # shape as a real session full of distinct subtasks.
+        judge_total = judge_per_call * n
+        router_exec = sum(realized(t)[0] for t in scored) if rrows else None
+        out.append("")
+        out.append("### Head to head, classification included")
+        out.append("")
+        out.append("| arm | execute | classify | total | vs all-opus |")
+        out.append("|---|---|---|---|---|")
+        if router_exec is not None:
+            rt = router_exec + judge_total
+            out.append(f"| deadeye router (judge) | ${router_exec:.4f} | ${judge_total:.4f} | "
+                       f"**${rt:.4f}** | {100 * (1 - rt / baseline):.1f}% |")
+        out.append(f"| laya authoritative | ${lcost:.4f} | $0.0000 | **${lcost:.4f}** | "
+                   f"{100 * (1 - lcost / baseline):.1f}% |")
+        if router_exec is not None:
+            gap = (lcost - (router_exec + judge_total)) / n
+            out.append("")
+            out.append(f"Per task, Laya's worse routing costs **${(lcost - router_exec) / n:.4f}** "
+                       f"more to execute, while saving **${judge_per_call:.4f}** in classification "
+                       f"-- a net **${gap:+.4f}** per task on this set. Break-even is a task mix "
+                       f"where Laya mis-rates less often than it does on fully-specified work; "
+                       f"these six are the worst case for it, being exactly the shape it "
+                       f"over-rates.")
 
     out.append("")
     if lunstable:

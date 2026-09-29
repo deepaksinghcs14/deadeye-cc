@@ -182,6 +182,21 @@ classifier collapsed to a single answer can score well on them. The
 discrimination probes — the same list `judge-probe.sh` uses, spanning all three
 tiers — are where that shows up.
 
+**Judge cost is measured too** (`judge-cost.sh`), because the router arm
+otherwise charges only task execution and treats classification as free. It
+isn't: a `claude -p` judge call carries Claude Code's whole system prompt, so
+it bills ~$0.05 per first-seen task, at ~2s of hook-blocking latency. Laya's
+equivalent is $0.00 at ~71ms. Comparing the two without that line compares a
+paid classifier to a free one on the paid one's terms.
+
+**Two probe sets, and the second is not optional.** Tuning the classifier's
+prompt against the discrimination probes and then reporting accuracy on those
+same probes is circular. It is also not hypothetical: a criteria rewording
+tried during 0.67.1 scored **1/9 -> 5/9** on the tuning probes and
+**8/9 -> 6/9** on the held-out set — a regression wearing a win's clothes, and
+it would have shipped without the second set. Tune against `probe`, report
+against `heldout`.
+
 **What it can and cannot establish.** It can report real cost and whether the
 tier it picked actually passed, because both come from the pass/cost grid. It
 cannot produce a trustworthy accuracy rate from six tasks and seven probes. The

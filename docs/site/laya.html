@@ -281,17 +281,24 @@ deadeye laya test     # one real tier question, end to end</code></pre>
       <table>
         <thead><tr><th>arm</th><th>realized cost</th><th>vs all-opus</th><th>passed</th></tr></thead>
         <tbody>
-          <tr><td class="t">deadeye router (judge)</td><td>$0.931</td><td><strong>48%</strong> saved</td><td>5/6</td></tr>
-          <tr><td class="t">laya authoritative</td><td>$1.406</td><td>21.7% saved</td><td>5/6</td></tr>
+          <tr><td class="t">deadeye router (judge)</td><td>$0.931 + $0.305 to classify</td><td><strong>31.2%</strong> saved</td><td>5/6</td></tr>
+          <tr><td class="t">laya authoritative</td><td>$1.406 + $0.00 to classify</td><td>21.7% saved</td><td>5/6</td></tr>
         </tbody>
       </table>
       </div>
+      <p>Classification is counted on both sides: a judge call costs a measured <strong>$0.051</strong>
+      and ~2s of hook-blocking latency, because it carries Claude Code's whole system prompt; Laya's
+      costs nothing at ~71ms. Net, Laya is <strong>$0.028 per task</strong> behind here.</p>
       <p>Laya rated <em>every one</em> of the six self-contained, fully-specified tasks a tier too
       high &mdash; sonnet where haiku passed. It also missed 2 of 7 discrimination probes, one of
       them rating a security-critical task tier 1 instead of tier 2, which is the expensive
       direction to be wrong in. Answers were identical across all three trials: a single forward
       pass with no sampling, so a wrong answer is wrong the same way every time rather than noise
       to average out.</p>
+      <p>On a nine-case set it has never been tuned against it scores <strong>8/9</strong> &mdash;
+      so it is not simply weak, it is weak at one specific shape. Prompt-level optimization was
+      tried and does not help: a criteria rewrite scored 1/9&nbsp;&rarr;&nbsp;5/9 on the tuning
+      cases and 8/9&nbsp;&rarr;&nbsp;6/9 on held-out ones, a regression wearing a win's clothes.</p>
       <p>Six tasks and seven probes show a <em>direction</em>, not an accuracy rate. But it is
       direction enough that <code>off</code> stays the default and <code>shadow</code> is where to
       start &mdash; and it is exactly the kind of thing the ladder exists to let you find out on

@@ -166,7 +166,18 @@ var tierCriteria = map[string]string{
 	"2": "deep architecture decisions, subtle or tricky debugging, or security-critical work where a wrong answer is expensive.",
 }
 
-const tierInstructions = "Classify how much capability this software subtask needs. If torn between 0 and 1, choose 0."
+// tierInstructions carries the SAME calibration the `claude -p` judge got in
+// 0.54.0's recalibration, not a paraphrase.
+//
+// It was missing here, and the benchmark found the cost: Laya rated all six
+// fiddly-but-fully-specified benchmark tasks (semver parsing, an expression
+// evaluator, wordwrap, CSV) one tier too high -- which is the exact failure
+// mode this paragraph was written to correct in the judge. Asking two
+// classifiers the same question means asking them the SAME question.
+const tierInstructions = "Judge by SCOPE and SPECIFICATION, not by how advanced the topic sounds. " +
+	"A self-contained, fully-specified piece of work is tier 0 even when the algorithm is fiddly -- " +
+	"parsing, precedence rules, and concurrency primitives are routine when the spec is complete. " +
+	"Classify how much capability this software subtask needs. If torn between 0 and 1, choose 0."
 
 // layaTier asks Laya for a tier. Returns (-1, false) on anything short of a
 // clean, parseable, sufficiently certain answer.

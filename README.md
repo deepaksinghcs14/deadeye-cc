@@ -499,13 +499,16 @@ quotes 193–464ms on CPU and 32.8ms on a T4 GPU.
 **Benchmarked, and it does not currently pay.** `benchmarks/routing/laya-probe.sh`
 runs the classifier against the same six tasks and the same hidden-test ground
 truth as the router benchmark, with the same accounting (a wrong-cheap route
-pays for the re-run). On that set deadeye's existing router realizes **48%**
-savings against all-opus; a `mode.laya=authoritative` router realizes **21.7%**
-— it rated every one of the six self-contained tasks a tier too high. It also
-missed 2 of 7 discrimination probes, including rating a security-critical task
-tier 1. Six tasks and seven probes show a direction, not an accuracy rate, but
-the direction is clear enough that `off` remains the default and `shadow` the
-place to start. Full setup guide:
+pays for the re-run). Classification is counted on both sides — a judge call is a measured **$0.051**
+and ~2s of hook-blocking latency; Laya's is $0.00 at ~71ms. On that set the
+existing router realizes **31.2%** savings against all-opus and a
+`mode.laya=authoritative` router **21.7%**: Laya rated every one of the six
+self-contained tasks a tier too high, costing $0.079/task more to execute while
+saving $0.051/task to classify — net **$0.028/task** behind. On a held-out
+nine-case set it scores **8/9**, so it is weak at one specific shape rather than
+weak generally. Prompt-level tuning does not fix it: a criteria rewrite scored
+1/9→5/9 on the cases it was tuned on and 8/9→6/9 on held-out ones. `off` remains
+the default and `shadow` the place to start. Full setup guide:
 [deadeye.dev/laya](https://deepaksinghcs14.github.io/deadeye-cc/laya.html).
 
 ## Development
