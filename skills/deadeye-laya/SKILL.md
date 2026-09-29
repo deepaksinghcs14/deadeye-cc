@@ -304,7 +304,11 @@ Six sites, all opt-in, all fail-open:
   it's their machine — but tell them once what shadow would have told them
   first, and don't repeat it afterwards.
 - Never let a user promote past `shadow` while `deadeye laya test` reports
-  a checkpoint other than `typed-decisions`. Agreement collected on base
-  weights does not transfer.
+  a checkpoint other than the one they configured: agreement collected on one
+  checkpoint says nothing about another.
+- The `typed-decisions` default is ARGUED, not measured. On this repo's own
+  real-prompt set the base `english` checkpoint scores slightly higher (27.9%
+  vs 23.3%), though both are below chance for a three-way choice. Don't
+  present the default as validated.
 - Laya is 11 days old as of deadeye 0.66.3, with ~3 releases a day. Treat
   breaking changes upstream as likely, not hypothetical.

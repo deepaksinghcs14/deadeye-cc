@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.67.4
+
+Can we tell in advance whether fine-tuning would help? Yes, for free — Convai
+already ran the experiment.
+
+`typed-decisions` is the `english` checkpoint fine-tuned on ~2,000 decisions
+across four workflows, reported at 0.362 -> 0.766 on that domain. Running both
+checkpoints over our own data (`corpus/checkpoint_ab.py`) costs nothing and
+answers what would otherwise take days:
+
+| | english (base) | typed-decisions | delta |
+|---|---|---|---|
+| real prompts (n=43) | 27.9% | 23.3% | **-4.7** |
+| synthetic corpus (n=66) | 57.6% | 63.6% | +6.1 |
+| their domain (reported) | 36.2% | 76.6% | **+40.4** |
+
+A +40 in-domain gain that inverts out of domain is evidence fine-tuning
+**specialises hard**, which is an argument FOR fine-tuning on our own domain
+rather than against it — and it is the only intervention tested anywhere in
+this benchmark that has moved the number by more than a few points. Prompt
+framing did nothing; criteria rewording was an overfit; enriched state was
+worse; decomposition did not transfer.
+
+The constraint is unchanged and sharper: their 2,000 decisions came from four
+crisp workflows whose labels two annotators would not fight about, while ours
+sit at 61% agreement. Fine-tuning on labels that noisy teaches the noise, so
+label quality gates this — not compute, not money, and not access, since
+serving a custom checkpoint needs no fork (`create_app(Router(models={...}))`
+accepts an injected router pointed at any repo or local path).
+
+Also recorded: **the shipped `laya.checkpoint` default is argued, not
+measured.** It was set to `typed-decisions` on the reasoning that every
+question deadeye asks is a typed decision. On real prompts the base `english`
+checkpoint scores slightly higher (27.9% vs 23.3%). The default is unchanged —
+n=43, a 4.7-point gap is two cases, and both are below chance — but the skill
+and benchmark README now say it is unvalidated rather than letting the
+reasoning pass for evidence.
+
 ## 0.67.3
 
 The transfer test, and it fails. 0.67.2's decomposition result does not

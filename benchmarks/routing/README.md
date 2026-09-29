@@ -282,3 +282,36 @@ Laya against the `claude -p` judge, whose labels on these same boundaries may
 be no less arbitrary.
 
 Anyone tempted to ship a classifier on dataset-1 numbers should run this first.
+
+
+### Does fine-tuning transfer? (`corpus/checkpoint_ab.py`)
+
+Convai already ran the experiment we would be contemplating: `typed-decisions`
+is `english` fine-tuned on ~2,000 decisions across four workflows, reported at
+0.362 -> 0.766 on that domain. Running both checkpoints over our data answers,
+for free, what would otherwise cost days.
+
+| | english (base) | typed-decisions | delta |
+|---|---|---|---|
+| real prompts (n=43) | 27.9% | 23.3% | **-4.7** |
+| synthetic corpus (n=66) | 57.6% | 63.6% | +6.1 |
+| their domain (reported) | 36.2% | 76.6% | **+40.4** |
+
+A large in-domain gain that inverts out of domain is evidence that fine-tuning
+**specialises hard** — which is an argument *for* fine-tuning on our own
+domain, not against it. It is also the only intervention tested anywhere in
+this benchmark that has moved the number by more than a few points.
+
+The constraint is unchanged and now sharper: their +40 came from four crisp
+workflows (invoice, support, security incidents, agent traces) whose labels two
+annotators would not fight about. Ours sit at 61% agreement. Fine-tuning on
+labels that noisy teaches the noise, so **label quality gates this, not
+compute or money.**
+
+**Note on the shipped default.** `laya.checkpoint` defaults to
+`typed-decisions`, argued from "every question deadeye asks is a typed
+decision". That reasoning was never measured, and on real prompts `english`
+edges it (27.9% vs 23.3%). The default is unchanged because n=43 and a
+4.7-point gap is two cases with both below chance — but it is an argued
+default, not a measured one, and should be revisited against any real
+ground-truth set.
