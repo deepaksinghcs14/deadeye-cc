@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.67.2
+
+Decomposition, measured. No product behaviour changes — this is benchmark
+tooling and a finding.
+
+Laya answers deadeye's single 3-way "which tier" question badly, and the
+66-case labelled corpus added here shows exactly how: it predicts tier 1 for
+most inputs, so tier-1 recall looks perfect (22/22) while **tier-2 recall is
+7/22**. Missing tier 2 routes security-critical and subtle-debugging work to a
+cheap model, which is the expensive direction to be wrong in — and it explains
+the two security under-ratings seen earlier.
+
+Asking six atomic yes/no questions in one forward pass and combining them with
+FITTED weights is better, across 30 folds (6-fold x 5 seeds):
+
+| | baseline (1 question) | decomposed (6 + fitted) |
+|---|---|---|
+| accuracy | 63.2% (sd 11.6) | 71.2% (sd 15.5) |
+| tier 0 recall | 13/22 | 15/22 |
+| tier 1 recall | 22/22 | 13/22 |
+| tier 2 recall | 7/22 | 18/22 |
+
+It trades tier-1 recall for tier-2 recall. For this product that is the right
+trade: the baseline's perfect tier-1 number is an artifact of answering 1 for
+nearly everything, and deadeye's whole posture is that unknown routes up.
+
+**The fitting is the point, not the decomposition.** The same six sub-answers
+combined with hand-set 0.5 thresholds were WORSE than the baseline on held-out
+cases — 8/9 down to 7/9 — before any weights were fitted. Laya's probabilities
+occupy a narrow band (its own server warns this checkpoint ships invalid
+temperatures and uncalibrated confidence), so arbitrary cutoffs decide almost
+everything. Two of the six questions are near-noise alone and earn their place
+only through the combination.
+
+Nothing is shipped from this. The corpus was written and labelled by one
+person, so a model fitted on it may be learning that person's phrasing rather
+than the property, and cross-validation cannot detect that. n=66 against 21
+parameters is thin, and +8 points against a standard deviation of 11-15 is
+suggestive rather than conclusive. The weights need refitting on real traffic
+before any of it reaches the product — which `mode.laya=shadow` is already
+recording, and is now the second reason to leave it on.
+
+Also here: `benchmarks/routing/corpus/fit.py`, dependency-light (numpy only)
+and reproducible without any model calls, since the extracted signals are
+committed alongside the labels.
+
 ## 0.67.1
 
 0.67.0's benchmark compared a paid classifier against a free one on the paid

@@ -201,3 +201,43 @@ against `heldout`.
 tier it picked actually passed, because both come from the pass/cost grid. It
 cannot produce a trustworthy accuracy rate from six tasks and seven probes. The
 direction of the error is the finding; the magnitude is not.
+
+
+## Decomposition experiment (`corpus/`)
+
+Laya answers deadeye's one 3-way "which tier" question badly: across a 66-case
+labelled corpus it predicts tier 1 for most inputs, giving perfect tier-1
+recall (22/22) and **tier-2 recall of 7/22**. Missing tier 2 means routing
+security-critical and subtle-debugging work to a cheap model, which is the
+expensive direction to be wrong in.
+
+Asking six atomic yes/no questions in a single forward pass and combining them
+with **fitted** weights does better:
+
+```bash
+./corpus/fit.py          # reads corpus/signals.jsonl, no model calls
+```
+
+| | baseline (1 question) | decomposed (6 + fitted) |
+|---|---|---|
+| accuracy, 30 folds | 63.2% (sd 11.6) | **71.2%** (sd 15.5) |
+| tier 0 recall | 13/22 | 15/22 |
+| tier 1 recall | 22/22 | 13/22 |
+| tier 2 recall | 7/22 | **18/22** |
+
+**The fitting is the point, not the decomposition.** An earlier attempt using
+the same sub-answers with hand-set 0.5 thresholds was *worse* than the baseline
+on held-out cases. Laya's probabilities sit in a compressed band — the server
+warns at startup that this checkpoint ships invalid temperatures and its
+confidence is uncalibrated — so arbitrary cutoffs carry far too much weight.
+Two of the six questions (`spec`, `existing`) are close to noise on their own;
+they earn their place only through the fitted combination.
+
+**Why this is not shipped.** The corpus was written and labelled by one person
+(see `corpus/tasks.jsonl`), so a classifier fitted on it may be learning that
+person's phrasing rather than the underlying property — and no amount of
+cross-validation detects that. n=66 against 21 fitted parameters is also thin,
+and +8 points against a standard deviation of 11-15 is suggestive, not
+conclusive. Before any of this reaches the product, the weights need refitting
+on real traffic: `mode.laya=shadow` records exactly the `task -> actual tier`
+pairs required, which is the second reason to leave shadow running.

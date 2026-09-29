@@ -1,0 +1,66 @@
+{"text": "Implement func Clamp(v, lo, hi int) int in internal/num/num.go returning v bounded to [lo,hi]. Single file, complete spec.", "tier": 0}
+{"text": "Write func WordWrap(s string, width int) []string breaking on spaces, never mid-word. One file.", "tier": 0}
+{"text": "Add func ParseSemver(s string) (major, minor, patch int, err error) following semver 2.0 core rules. One file.", "tier": 0}
+{"text": "Create internal/csv/writer.go with func Write(rows [][]string) string, quoting any field containing a comma or quote.", "tier": 0}
+{"text": "Implement func Encode(b []byte) string using the standard base64 alphabet with padding, in one new file.", "tier": 0}
+{"text": "Add func (l *List) Reverse() to internal/list/list.go, reversing nodes in place. Spec complete.", "tier": 0}
+{"text": "Write func Median(xs []float64) float64 returning the median; define it as the mean of the two middle values for even length.", "tier": 0}
+{"text": "Add a String() method to the Duration type formatting as '1h2m3s', omitting zero components.", "tier": 0}
+{"text": "Implement func Chunk[T any](xs []T, n int) [][]T splitting a slice into runs of at most n.", "tier": 0}
+{"text": "Rename the variable tmp to buf throughout internal/io/reader.go.", "tier": 0}
+{"text": "Add a package doc comment to internal/queue describing the ring-buffer semantics already implemented.", "tier": 0}
+{"text": "Write func IsPalindrome(s string) bool ignoring case and non-letter runes.", "tier": 0}
+{"text": "Implement func Dedup(xs []string) []string preserving first-occurrence order.", "tier": 0}
+{"text": "Add func RomanToInt(s string) int handling the standard subtractive pairs. One file, full spec.", "tier": 0}
+{"text": "Format internal/config/config.go with gofmt and fix the two lint warnings it reports.", "tier": 0}
+{"text": "Write a table-driven test for the existing func Clamp covering lo>hi, equal bounds, and in-range values.", "tier": 0}
+{"text": "Add func BytesHuman(n int64) string rendering 1536 as '1.5 KiB', binary units, one decimal.", "tier": 0}
+{"text": "Implement func Flatten(xs [][]int) []int concatenating in order. Single function.", "tier": 0}
+{"text": "Create func Title(s string) string upper-casing the first letter of each space-separated word.", "tier": 0}
+{"text": "Add func SumBy[T any](xs []T, f func(T) int) int returning the total. One file.", "tier": 0}
+{"text": "Write func Unique(xs []int) bool reporting whether all elements differ.", "tier": 0}
+{"text": "Implement func TrimComment(line string) string removing a trailing // comment not inside a string literal.", "tier": 0}
+{"text": "Replace every GORM query in the services/ tree with the new sqlc-generated accessors, keeping behaviour identical.", "tier": 1}
+{"text": "Refactor the auth middleware across the api/ package to use the new session store and update every call site.", "tier": 1}
+{"text": "Add a /v2/reports endpoint alongside the existing v1 one, reusing the existing handler where sensible.", "tier": 1}
+{"text": "Make the export feature work better for large accounts; work out what that should mean from the current code.", "tier": 1}
+{"text": "Integrate the billing service with the existing Stripe webhook handler; requirements aren't fully specified.", "tier": 1}
+{"text": "Migrate the logging calls in cmd/ from log to slog, preserving the existing field names.", "tier": 1}
+{"text": "Wire the new feature-flag client into the request path so handlers can read flags without extra plumbing.", "tier": 1}
+{"text": "Move the retry logic out of the HTTP client and into a shared package used by both the API and the worker.", "tier": 1}
+{"text": "Update the CLI so every subcommand accepts --json, matching whatever format the existing report command uses.", "tier": 1}
+{"text": "Add pagination to the reports endpoint, following whatever convention the other list endpoints already use.", "tier": 1}
+{"text": "Extract the duplicated validation in the three handlers into one helper and use it everywhere.", "tier": 1}
+{"text": "Make the importer tolerate the legacy CSV layout as well as the current one; infer the legacy shape from old fixtures.", "tier": 1}
+{"text": "Change the cache key scheme across the read path so tenant IDs are included, and update everything that reads it.", "tier": 1}
+{"text": "Port the settings page to the new form component, keeping the current validation behaviour.", "tier": 1}
+{"text": "Rework the worker so it processes batches instead of single items, keeping the existing at-least-once guarantee.", "tier": 1}
+{"text": "Add support for the new config file location while continuing to read the old one.", "tier": 1}
+{"text": "Thread a context through the storage layer so callers can cancel long reads.", "tier": 1}
+{"text": "Adapt the exporter to the upstream API's v3 response shape; the changes aren't documented, read the client code.", "tier": 1}
+{"text": "Split the god-object Service type into two, keeping the public API unchanged.", "tier": 1}
+{"text": "Make the tests run against both sqlite and postgres, reusing the current fixtures.", "tier": 1}
+{"text": "Update every call site after adding a required ctx parameter to the Store interface.", "tier": 1}
+{"text": "Convert the polling loop to the new event subscription, matching current delivery semantics.", "tier": 1}
+{"text": "Requests intermittently return stale data only under load; nobody can reproduce it locally. Find the cause.", "tier": 2}
+{"text": "Review our password reset token generation and fix anything that lets an attacker forge one.", "tier": 2}
+{"text": "Choose and justify a replication and failover strategy for the new metadata store.", "tier": 2}
+{"text": "Users report intermittent double-charging under concurrent retries in the payment reconciliation job. Find the root cause.", "tier": 2}
+{"text": "Audit the OAuth token refresh flow for privilege escalation and fix any vulnerability you find.", "tier": 2}
+{"text": "Design the sharding and consistency model for our multi-region write path.", "tier": 2}
+{"text": "A goroutine leak shows up only after ~6 hours in production. Track it down.", "tier": 2}
+{"text": "Decide whether to move the job queue from Postgres to Kafka, and justify the choice against our durability needs.", "tier": 2}
+{"text": "Our JWT validation accepts tokens it shouldn't in some edge case. Find and close the hole.", "tier": 2}
+{"text": "Design the migration path that lets us change the primary key type with zero downtime.", "tier": 2}
+{"text": "Occasional data corruption appears after a failover; determine whether the bug is in our code or the driver.", "tier": 2}
+{"text": "Harden the file upload path against path traversal and zip-slip, and prove the fix covers both.", "tier": 2}
+{"text": "Work out why p99 latency tripled after the last deploy when no query plan changed.", "tier": 2}
+{"text": "Design the tenancy isolation model so one tenant can never read another's rows, and justify it.", "tier": 2}
+{"text": "A deadlock appears under a specific interleaving of the scheduler and the cache. Diagnose it.", "tier": 2}
+{"text": "Evaluate whether our current encryption-at-rest scheme meets the requirement and change it if not.", "tier": 2}
+{"text": "Find why the reconciler occasionally writes a state the state machine says is unreachable.", "tier": 2}
+{"text": "Decide the consistency guarantees the new read-replica path should offer, and reshape the API around them.", "tier": 2}
+{"text": "Our rate limiter can be bypassed by a specific header combination. Find it and fix it.", "tier": 2}
+{"text": "Determine the cause of the memory growth that only appears with TLS session resumption enabled.", "tier": 2}
+{"text": "Design how we roll keys without invalidating in-flight sessions, and justify the tradeoffs.", "tier": 2}
+{"text": "Sessions occasionally get attributed to the wrong user under high concurrency. Find the root cause.", "tier": 2}
