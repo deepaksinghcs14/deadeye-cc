@@ -433,7 +433,7 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 		// Laya first, when configured: on the authoritative rung it resolves
 		// exactly the case the judge would otherwise pay a model call for,
 		// leaving applyRoutingJudge to return early on !Unsure.
-		decision, layaTierAnswer, layaAnswered := state.layaRouting(cfg, decision, scope.Prompt, shape, in.SessionID, in.Cwd)
+		decision, layaTierAnswer, layaCheckpoint, layaAnswered := state.layaRouting(cfg, decision, scope.Prompt, shape, in.SessionID, in.Cwd)
 		// wait=false: a hook must never block a tool call on a model call
 		// (see judgeTierAsync) -- a pending verdict lands in the cache for
 		// the next identical spawn.
@@ -448,7 +448,7 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 			// recording an empty one would count as a disagreement against
 			// Laya that nothing actually establishes -- skip instead.
 			if t, ok := state.cat.TierFor(decision.Model); ok {
-				state.recordLayaVerdict(siteJudge, shape, strconv.Itoa(layaTierAnswer), strconv.Itoa(t), decision.Model, in.SessionID, in.Cwd)
+				state.recordLayaVerdict(siteJudge, shape, strconv.Itoa(layaTierAnswer), strconv.Itoa(t), decision.Model, layaCheckpoint, in.SessionID, in.Cwd)
 			}
 		}
 		if confident {

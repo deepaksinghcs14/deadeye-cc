@@ -43,8 +43,8 @@ func TestChoiceSendsDocumentedSchema(t *testing.T) {
 	var got map[string]any
 	srv := serveJSON(t, `{"answers":{"q":{"choice":"1","confidence":0.7,"answer_confidence":0.81}}}`, &got)
 
-	c := New(srv.URL, "", time.Second)
-	a, ok := c.Choice(ctx(t), "refactor the parser", "Pick a tier", map[string]string{"0": "easy", "1": "medium"})
+	c := New(srv.URL, "", "typed-decisions", time.Second)
+	a, _, ok := c.Choice(ctx(t), "refactor the parser", "Pick a tier", map[string]string{"0": "easy", "1": "medium"})
 	if !ok {
 		t.Fatal("Choice returned not-ok against a well-formed server")
 	}
@@ -90,9 +90,9 @@ func TestCertaintyPrefersCalibratedThenFallsBack(t *testing.T) {
 func TestYesNoAndScore(t *testing.T) {
 	var got map[string]any
 	srv := serveJSON(t, `{"answers":{"q":{"noul":0.73,"score":2.4,"confidence":0.8}}}`, &got)
-	c := New(srv.URL, "", time.Second)
+	c := New(srv.URL, "", "typed-decisions", time.Second)
 
-	a, ok := c.YesNo(ctx(t), "fix: nil deref in parser", "Is this a bug fix?")
+	a, _, ok := c.YesNo(ctx(t), "fix: nil deref in parser", "Is this a bug fix?")
 	if !ok || a.Noul != 0.73 {
 		t.Errorf("YesNo = %+v, ok=%v; want noul 0.73", a, ok)
 	}
@@ -107,7 +107,7 @@ func TestYesNoAndScore(t *testing.T) {
 		t.Errorf("noul question should omit criteria, got %v", q)
 	}
 
-	if a, ok := c.Score(ctx(t), "rewrite the kernel", "How hard?", []string{"easy", "mid", "hard"}); !ok || a.Score != 2.4 {
+	if a, _, ok := c.Score(ctx(t), "rewrite the kernel", "How hard?", []string{"easy", "mid", "hard"}); !ok || a.Score != 2.4 {
 		t.Errorf("Score = %+v, ok=%v; want score 2.4", a, ok)
 	}
 	qs, _ = got["questions"].(map[string]any)
@@ -123,7 +123,7 @@ func TestYesNoAndScore(t *testing.T) {
 func TestFailsOpenOnEveryFailureMode(t *testing.T) {
 	t.Run("nil client", func(t *testing.T) {
 		var c *Client
-		if _, ok := c.Choice(ctx(t), "x", "i", map[string]string{"a": "b"}); ok {
+		if _, _, ok := c.Choice(ctx(t), "x", "i", map[string]string{"a": "b"}); ok {
 			t.Error("nil client answered")
 		}
 		if c.Endpoint() != "" {
@@ -134,13 +134,13 @@ func TestFailsOpenOnEveryFailureMode(t *testing.T) {
 		}
 	})
 	t.Run("unset endpoint yields nil client", func(t *testing.T) {
-		if New("", "", time.Second) != nil || New("   ", "", time.Second) != nil {
+		if New("", "", "typed-decisions", time.Second) != nil || New("   ", "", "typed-decisions", time.Second) != nil {
 			t.Error("empty endpoint should produce a nil client")
 		}
 	})
 	t.Run("connection refused", func(t *testing.T) {
-		c := New("http://127.0.0.1:1", "", 200*time.Millisecond)
-		if _, ok := c.YesNo(ctx(t), "x", "i"); ok {
+		c := New("http://127.0.0.1:1", "", "typed-decisions", 200*time.Millisecond)
+		if _, _, ok := c.YesNo(ctx(t), "x", "i"); ok {
 			t.Error("unreachable endpoint answered")
 		}
 	})
@@ -149,32 +149,32 @@ func TestFailsOpenOnEveryFailureMode(t *testing.T) {
 			http.Error(w, "boom", http.StatusInternalServerError)
 		}))
 		defer srv.Close()
-		if _, ok := New(srv.URL, "", time.Second).YesNo(ctx(t), "x", "i"); ok {
+		if _, _, ok := New(srv.URL, "", "typed-decisions", time.Second).YesNo(ctx(t), "x", "i"); ok {
 			t.Error("500 response answered")
 		}
 	})
 	t.Run("malformed json", func(t *testing.T) {
 		srv := serveJSON(t, `{not json`, nil)
-		if _, ok := New(srv.URL, "", time.Second).YesNo(ctx(t), "x", "i"); ok {
+		if _, _, ok := New(srv.URL, "", "typed-decisions", time.Second).YesNo(ctx(t), "x", "i"); ok {
 			t.Error("malformed body answered")
 		}
 	})
 	t.Run("empty answers", func(t *testing.T) {
 		srv := serveJSON(t, `{"answers":{}}`, nil)
-		if _, ok := New(srv.URL, "", time.Second).YesNo(ctx(t), "x", "i"); ok {
+		if _, _, ok := New(srv.URL, "", "typed-decisions", time.Second).YesNo(ctx(t), "x", "i"); ok {
 			t.Error("empty answers map answered")
 		}
 	})
 	t.Run("answer under a different key", func(t *testing.T) {
 		srv := serveJSON(t, `{"answers":{"other":{"noul":1}}}`, nil)
-		if _, ok := New(srv.URL, "", time.Second).YesNo(ctx(t), "x", "i"); ok {
+		if _, _, ok := New(srv.URL, "", "typed-decisions", time.Second).YesNo(ctx(t), "x", "i"); ok {
 			t.Error("mismatched answer key answered")
 		}
 	})
 	t.Run("empty text or no questions", func(t *testing.T) {
 		srv := serveJSON(t, `{"answers":{"q":{"noul":1}}}`, nil)
-		c := New(srv.URL, "", time.Second)
-		if _, ok := c.YesNo(ctx(t), "   ", "i"); ok {
+		c := New(srv.URL, "", "typed-decisions", time.Second)
+		if _, _, ok := c.YesNo(ctx(t), "   ", "i"); ok {
 			t.Error("blank text answered")
 		}
 		if _, ok := c.Ask(ctx(t), "text", nil); ok {
@@ -187,7 +187,7 @@ func TestFailsOpenOnEveryFailureMode(t *testing.T) {
 			fmt.Fprint(w, `{"answers":{"q":{"noul":1}}}`)
 		}))
 		defer srv.Close()
-		if _, ok := New(srv.URL, "", 30*time.Millisecond).YesNo(ctx(t), "x", "i"); ok {
+		if _, _, ok := New(srv.URL, "", "typed-decisions", 30*time.Millisecond).YesNo(ctx(t), "x", "i"); ok {
 			t.Error("a call that outran its deadline answered")
 		}
 	})
@@ -199,7 +199,7 @@ func TestFailsOpenOnEveryFailureMode(t *testing.T) {
 func TestIgnoresUnmodelledFields(t *testing.T) {
 	srv := serveJSON(t, `{"answers":{"q":{"choice":"2","probabilities":[0.1,0.2,0.7],"confidence":0.9}},
 	 "routing":{"model":"english","reason":"ascii"},"usage":{"input_tokens":12}}`, nil)
-	a, ok := New(srv.URL, "", time.Second).Choice(ctx(t), "x", "i", map[string]string{"2": "hard"})
+	a, _, ok := New(srv.URL, "", "typed-decisions", time.Second).Choice(ctx(t), "x", "i", map[string]string{"2": "hard"})
 	if !ok || a.Choice != "2" {
 		t.Errorf("answer = %+v, ok=%v; want choice 2 despite array probabilities", a, ok)
 	}
@@ -213,12 +213,12 @@ func TestBearerTokenSentOnlyWhenPresent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	New(srv.URL, "tok-123", time.Second).YesNo(ctx(t), "x", "i")
+	New(srv.URL, "tok-123", "typed-decisions", time.Second).YesNo(ctx(t), "x", "i")
 	if auth != "Bearer tok-123" {
 		t.Errorf("Authorization = %q, want bearer token", auth)
 	}
 	auth = ""
-	New(srv.URL, "", time.Second).YesNo(ctx(t), "x", "i")
+	New(srv.URL, "", "typed-decisions", time.Second).YesNo(ctx(t), "x", "i")
 	if auth != "" {
 		t.Errorf("Authorization = %q, want no header when no key is set", auth)
 	}
@@ -228,7 +228,7 @@ func TestHealthReachabilityOnly(t *testing.T) {
 	// The health-response body is undocumented upstream, so any 2xx counts
 	// and nothing is parsed out of it.
 	srv := serveJSON(t, `not even json`, nil)
-	if err := New(srv.URL, "", time.Second).Health(ctx(t)); err != nil {
+	if err := New(srv.URL, "", "typed-decisions", time.Second).Health(ctx(t)); err != nil {
 		t.Errorf("2xx with an unparseable body should still be healthy: %v", err)
 	}
 
@@ -236,7 +236,7 @@ func TestHealthReachabilityOnly(t *testing.T) {
 		http.Error(w, "nope", http.StatusServiceUnavailable)
 	}))
 	defer down.Close()
-	err := New(down.URL, "", time.Second).Health(ctx(t))
+	err := New(down.URL, "", "typed-decisions", time.Second).Health(ctx(t))
 	if err == nil || !strings.Contains(err.Error(), "503") {
 		t.Errorf("503 should surface as an error naming the status, got %v", err)
 	}
@@ -249,7 +249,7 @@ func TestEndpointTrailingSlashNormalized(t *testing.T) {
 		fmt.Fprint(w, `{"answers":{"q":{"noul":1}}}`)
 	}))
 	defer srv.Close()
-	New(srv.URL+"/", "", time.Second).YesNo(ctx(t), "x", "i")
+	New(srv.URL+"/", "", "typed-decisions", time.Second).YesNo(ctx(t), "x", "i")
 	if path != "/predict" {
 		t.Errorf("path = %q, want /predict (no doubled slash)", path)
 	}

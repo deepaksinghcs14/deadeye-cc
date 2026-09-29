@@ -56,6 +56,7 @@ var tunables = []tunable{
 	{"laya.endpoint", "laya endpoint URL", "string", nil},
 	{"laya.api_key_env", "env var holding laya's bearer token", "string", nil},
 	{"laya.timeout_ms", "laya call timeout (ms)", "int", nil},
+	{"laya.checkpoint", "laya checkpoint", "enum", []string{"typed-decisions", "english", "multilingual", ""}},
 }
 
 func findTunable(key string) (tunable, bool) {

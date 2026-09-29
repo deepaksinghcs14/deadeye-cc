@@ -187,7 +187,21 @@ pre code{background:none;padding:0;font-size:inherit;border-radius:0;}
 
 # binds 0.0.0.0:8000 &mdash; leave it running, preloaded so the first
 # real decision doesn't pay the cold checkpoint load
-LAYA_PRELOAD=1 ~/.deadeye/laya-venv/bin/laya-serve</code></pre>
+LAYA_MODELS=typed-decisions LAYA_PRELOAD=1 ~/.deadeye/laya-venv/bin/laya-serve</code></pre>
+      <div class="callout">
+        <p><strong>Serve the <code>typed-decisions</code> checkpoint.</strong> Laya ships three
+        &mdash; <code>english</code>, <code>multilingual</code>, <code>typed-decisions</code>
+        &mdash; and the server's router only picks between the first two, by script and
+        language. It never reaches <code>typed-decisions</code> on its own unless started with
+        <code>LAYA_AUTO_TASK=1</code>. Every question deadeye asks is a typed decision, and
+        upstream's own benchmark puts the base checkpoint at <strong>0.362</strong> against
+        <strong>0.766</strong> for <code>typed-decisions</code> &mdash; &ldquo;all of the
+        capability on this benchmark comes from fine-tuning&rdquo;. deadeye names the
+        checkpoint on every request (<code>laya.checkpoint</code>, default
+        <code>typed-decisions</code>), so it doesn't depend on the server's routing &mdash; but
+        the server still has to have it loaded, which is what <code>LAYA_MODELS</code> does.
+        <code>deadeye laya test</code> prints which checkpoint actually answered.</p>
+      </div>
       <p>Then point deadeye at it and start on the bottom rung:</p>
       <pre><code>deadeye config set laya.endpoint http://127.0.0.1:8000
 deadeye config set mode.laya shadow

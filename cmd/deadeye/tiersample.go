@@ -97,7 +97,7 @@ func (d *daemonState) maybeSampleTier(cfg config.Config, decision kernel.Decisio
 		screened := false
 		if layaScreen != nil {
 			sctx, scancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
-			layaT, _, lok := layaTier(sctx, layaScreen, prompt)
+			layaT, _, _, lok := layaTier(sctx, layaScreen, prompt)
 			scancel()
 			switch {
 			case !lok:

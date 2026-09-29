@@ -71,7 +71,13 @@ type Outcome struct {
 	Site      string `json:"site,omitempty"`
 	LayaValue string `json:"laya_value,omitempty"`
 	Actual    string `json:"actual,omitempty"`
-	Repo      string `json:"repo,omitempty"` // gitutil.ProjectKey; "" means global (routing's shape already is)
+	// Checkpoint is which Laya checkpoint produced LayaValue, as the server
+	// reported it. Recorded because an agreement rate that silently mixes
+	// two checkpoints is a number about neither -- and the base and
+	// fine-tuned weights differ by more than two to one on exactly the kind
+	// of question deadeye asks.
+	Checkpoint string `json:"checkpoint,omitempty"`
+	Repo       string `json:"repo,omitempty"` // gitutil.ProjectKey; "" means global (routing's shape already is)
 }
 
 // SurfaceRouting, SurfaceCoder, and SurfacePRReview are Outcome.Surface's

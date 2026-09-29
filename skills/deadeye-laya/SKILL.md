@@ -51,24 +51,41 @@ risk, before anything routes on it.
 ## install
 
 1. **Check prerequisites.** Python 3.10+ (`python3 --version`). Tell the
-   user the real cost before they commit: the English checkpoint is
-   **~843MB** of weights, and on CPU inference runs **193-464ms** per call
-   with the model resident (the widely-quoted 32.8ms is a T4 GPU figure).
-   A cold checkpoint load costs several seconds.
+   user the real cost before they commit: **~843MB** of weights per
+   checkpoint, and on CPU inference runs **193-464ms** per call with the
+   model resident (the widely-quoted 32.8ms is a T4 GPU figure). A cold
+   checkpoint load costs several seconds.
 2. **Install into a venv, never system Python:**
    ```bash
    python3 -m venv ~/.deadeye/laya-venv
    ~/.deadeye/laya-venv/bin/pip install -q "laya[serve]"
    ```
-3. **Start the server, preloaded** so the first real decision doesn't pay
-   the cold load:
+3. **Serve the `typed-decisions` checkpoint.** This is the step that
+   matters, and the easiest one to get wrong:
    ```bash
-   LAYA_PRELOAD=1 ~/.deadeye/laya-venv/bin/laya-serve
+   LAYA_MODELS=typed-decisions LAYA_PRELOAD=1 ~/.deadeye/laya-venv/bin/laya-serve
    ```
+   Laya ships three checkpoints — `english`, `multilingual`, and
+   `typed-decisions` — and **the server's router only chooses between the
+   first two**, by script and language. It never reaches `typed-decisions`
+   on its own unless started with `LAYA_AUTO_TASK=1`. Every question deadeye
+   asks (tier choice, plan-needed, workflow-shaped, is-this-a-bug-fix,
+   complexity) is a typed decision, and upstream's own benchmark puts the
+   base checkpoint at **0.362** against **0.766** for `typed-decisions` —
+   "all of the capability on this benchmark comes from fine-tuning". Serving
+   the base weights means asking the wrong model.
+
+   deadeye names the checkpoint on every request (`laya.checkpoint`,
+   default `typed-decisions`), so it doesn't depend on the server's routing
+   — but the server still has to have that checkpoint available, which is
+   what `LAYA_MODELS` above does.
+
    It binds `0.0.0.0:8000`. It must keep running — tell the user to leave it
    in its own terminal, or set it up under `launchd`/`systemd` themselves.
    Other env vars worth naming: `LAYA_DEVICE=cuda` if they have a GPU,
-   `LAYA_PORT`, `LAYA_API_KEY` for a bearer token.
+   `LAYA_PORT`, `LAYA_THREADS`, `LAYA_API_KEY` for a bearer token, and
+   `LAYA_MAX_LOADED` (default 2) if they want more than two checkpoints
+   resident at once.
 4. **Point deadeye at it and start in shadow:**
    ```bash
    deadeye config set laya.endpoint http://127.0.0.1:8000
@@ -98,10 +115,15 @@ deadeye laya test
 
 `health` is reachability only. `test` sends one real tier question about an
 obviously mechanical task (a variable rename) and prints the tier, the
-certainty, and the latency.
+certainty, the latency, and **which checkpoint answered**.
 
 Interpret it honestly for the user:
 
+- **Checkpoint is not `typed-decisions`** → the most important thing to
+  catch. The server is serving the wrong weights; restart it with
+  `LAYA_MODELS=typed-decisions`. Do not recommend promoting past `shadow`
+  until this is right — the numbers collected on base weights say nothing
+  about the fine-tuned ones.
 - **Tier 0 returned** → working and plausible on this task.
 - **Tier 1 or 2 returned** → the endpoint works but the classifier is wrong
   on an easy case. Say so directly and leave `mode.laya` at `shadow`.
@@ -235,5 +257,8 @@ Six sites, all opt-in, all fail-open:
 - If the user asks for `authoritative` immediately, set it if they insist —
   it's their machine — but tell them once what shadow would have told them
   first, and don't repeat it afterwards.
-- Laya is 11 days old as of deadeye 0.66.1, with ~3 releases a day. Treat
+- Never let a user promote past `shadow` while `deadeye laya test` reports
+  a checkpoint other than `typed-decisions`. Agreement collected on base
+  weights does not transfer.
+- Laya is 11 days old as of deadeye 0.66.3, with ~3 releases a day. Treat
   breaking changes upstream as likely, not hypothetical.

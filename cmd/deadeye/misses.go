@@ -88,7 +88,7 @@ func runMisses() {
 		isFix = func(subject string) bool {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			yes, _, ok := layaYes(ctx, c, subject, "Does this git commit message describe fixing a bug, defect, or regression?", 0.5)
+			yes, _, _, ok := layaYes(ctx, c, subject, "Does this git commit message describe fixing a bug, defect, or regression?", 0.5)
 			if !ok {
 				return regexFixShaped(subject)
 			}

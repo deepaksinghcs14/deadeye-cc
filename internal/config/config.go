@@ -91,6 +91,13 @@ type Laya struct {
 	Endpoint  string `json:"endpoint"`
 	APIKeyEnv string `json:"api_key_env"`
 	TimeoutMS int    `json:"timeout_ms"`
+	// Checkpoint is the laya-serve checkpoint to ask for by short name.
+	// Defaults to "typed-decisions", the fine-tuned one: every question
+	// deadeye asks is a typed decision, and laya-serve's own router picks
+	// only by script and language, so left to itself it never reaches that
+	// checkpoint (unless the server runs with LAYA_AUTO_TASK=1). Empty
+	// leaves the choice to the server.
+	Checkpoint string `json:"checkpoint"`
 }
 
 // Coder configures the coder-mode persona (see internal/coder).
@@ -207,7 +214,7 @@ func Default() Config {
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
 		TierSample:            TierSample{Rate: 10},
-		Laya:                  Laya{Endpoint: "", APIKeyEnv: "LAYA_API_KEY", TimeoutMS: 1500},
+		Laya:                  Laya{Endpoint: "", APIKeyEnv: "LAYA_API_KEY", TimeoutMS: 1500, Checkpoint: "typed-decisions"},
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",

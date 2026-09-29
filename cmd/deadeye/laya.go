@@ -115,13 +115,13 @@ func layaClient(cfg config.Config) *laya.Client {
 	// The token is part of the identity but must not be the map key in
 	// clear text alongside everything else -- length is enough to
 	// distinguish "changed" without holding a second copy of a credential.
-	ck := fmt.Sprintf("%s|%d|%d", cfg.Laya.Endpoint, timeout, len(key))
+	ck := fmt.Sprintf("%s|%d|%d|%s", cfg.Laya.Endpoint, timeout, len(key), cfg.Laya.Checkpoint)
 	layaClientMu.Lock()
 	defer layaClientMu.Unlock()
 	if c, ok := layaClientCache[ck]; ok {
 		return c
 	}
-	c := laya.New(cfg.Laya.Endpoint, key, timeout)
+	c := laya.New(cfg.Laya.Endpoint, key, cfg.Laya.Checkpoint, timeout)
 	layaClientCache[ck] = c
 	return c
 }
@@ -138,18 +138,19 @@ func layaTimeout(cfg config.Config) time.Duration {
 // recordLayaVerdict stores what Laya said beside what deadeye did. This is
 // the whole point of the shadow rung: agreement is computable later without
 // having changed anything now.
-func (d *daemonState) recordLayaVerdict(site, shape, layaValue, actual, model, sessionID, cwd string) {
+func (d *daemonState) recordLayaVerdict(site, shape, layaValue, actual, model, checkpoint, sessionID, cwd string) {
 	d.recordOutcome(lessons.Outcome{
-		TS:        nowRFC3339(),
-		SessionID: sessionID,
-		Surface:   lessons.SurfaceRouting,
-		TaskShape: shape,
-		Model:     model,
-		Kind:      KindLayaVerdict,
-		Site:      site,
-		LayaValue: layaValue,
-		Actual:    actual,
-		Repo:      gitutil.ProjectKey(cwd),
+		TS:         nowRFC3339(),
+		SessionID:  sessionID,
+		Surface:    lessons.SurfaceRouting,
+		TaskShape:  shape,
+		Model:      model,
+		Kind:       KindLayaVerdict,
+		Site:       site,
+		LayaValue:  layaValue,
+		Actual:     actual,
+		Checkpoint: checkpoint,
+		Repo:       gitutil.ProjectKey(cwd),
 	})
 }
 
@@ -168,20 +169,20 @@ const tierInstructions = "Classify how much capability this software subtask nee
 
 // layaTier asks Laya for a tier. Returns (-1, false) on anything short of a
 // clean, parseable, sufficiently certain answer.
-func layaTier(ctx context.Context, c *laya.Client, prompt string) (int, float64, bool) {
-	a, ok := c.Choice(ctx, prompt, tierInstructions, tierCriteria)
+func layaTier(ctx context.Context, c *laya.Client, prompt string) (int, float64, string, bool) {
+	a, checkpoint, ok := c.Choice(ctx, prompt, tierInstructions, tierCriteria)
 	if !ok {
-		return -1, 0, false
+		return -1, 0, "", false
 	}
 	switch strings.TrimSpace(a.Choice) {
 	case "0":
-		return 0, a.Certainty(), true
+		return 0, a.Certainty(), checkpoint, true
 	case "1":
-		return 1, a.Certainty(), true
+		return 1, a.Certainty(), checkpoint, true
 	case "2":
-		return 2, a.Certainty(), true
+		return 2, a.Certainty(), checkpoint, true
 	}
-	return -1, a.Certainty(), false
+	return -1, a.Certainty(), checkpoint, false
 }
 
 // layaYes asks a yes/no proposition and reports whether P(true) clears
@@ -191,12 +192,12 @@ func layaTier(ctx context.Context, c *laya.Client, prompt string) (int, float64,
 // that check a service returning `{"answers":{"q":{}}}` -- any JSON
 // endpoint that isn't laya-serve -- yields Noul=0 with ok=true, which reads
 // as a CONFIDENT "no" and can suppress a gate on the authoritative rung.
-func layaYes(ctx context.Context, c *laya.Client, text, question string, bar float64) (bool, float64, bool) {
-	a, ok := c.YesNo(ctx, text, question)
+func layaYes(ctx context.Context, c *laya.Client, text, question string, bar float64) (bool, float64, string, bool) {
+	a, checkpoint, ok := c.YesNo(ctx, text, question)
 	if !ok || a.Certainty() <= 0 {
-		return false, 0, false
+		return false, 0, "", false
 	}
-	return a.Noul >= bar, a.Noul, true
+	return a.Noul >= bar, a.Noul, checkpoint, true
 }
 
 // isLoopbackEndpoint reports whether the configured endpoint points at this
@@ -274,6 +275,13 @@ func layaStatus(cfg config.Config) {
 		fmt.Println("  " + cWarn("            task descriptions will leave this machine to reach it"))
 	}
 	fmt.Printf("  timeout     %dms\n", layaTimeout(cfg).Milliseconds())
+	if cfg.Laya.Checkpoint == "" {
+		fmt.Printf("  checkpoint  %s %s\n", cWarn("server's choice"), cDim("(its router picks by language, never typed-decisions)"))
+	} else if cfg.Laya.Checkpoint == laya.CheckpointTypedDecisions {
+		fmt.Printf("  checkpoint  %s %s\n", cValue(cfg.Laya.Checkpoint), cDim("(the fine-tuned one)"))
+	} else {
+		fmt.Printf("  checkpoint  %s %s\n", cWarn(cfg.Laya.Checkpoint), cDim("(not the fine-tuned typed-decisions checkpoint)"))
+	}
 	keyState := cDim("not set")
 	if cfg.Laya.APIKeyEnv != "" {
 		if os.Getenv(cfg.Laya.APIKeyEnv) != "" {
@@ -305,7 +313,7 @@ func layaStatus(cfg config.Config) {
 // layaHealth returns a process exit code rather than calling os.Exit, so
 // the behavior is testable without killing the test binary.
 func layaHealth(cfg config.Config) int {
-	c := laya.New(cfg.Laya.Endpoint, os.Getenv(cfg.Laya.APIKeyEnv), layaTimeout(cfg))
+	c := laya.New(cfg.Laya.Endpoint, os.Getenv(cfg.Laya.APIKeyEnv), cfg.Laya.Checkpoint, layaTimeout(cfg))
 	if c == nil {
 		fmt.Println(cWarn("no endpoint configured") + " -- deadeye config set laya.endpoint " + laya.DefaultEndpoint)
 		return 1
@@ -325,7 +333,7 @@ func layaHealth(cfg config.Config) int {
 // so setup can be verified end to end, and so the answer's certainty is
 // visible before anyone promotes Laya up the ladder.
 func layaTest(cfg config.Config) int {
-	c := laya.New(cfg.Laya.Endpoint, os.Getenv(cfg.Laya.APIKeyEnv), 30*time.Second)
+	c := laya.New(cfg.Laya.Endpoint, os.Getenv(cfg.Laya.APIKeyEnv), cfg.Laya.Checkpoint, 30*time.Second)
 	if c == nil {
 		fmt.Println(cWarn("no endpoint configured") + " -- deadeye config set laya.endpoint " + laya.DefaultEndpoint)
 		return 1
@@ -336,7 +344,7 @@ func layaTest(cfg config.Config) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
 	defer cancel()
 	start := time.Now()
-	tier, certainty, ok := layaTier(ctx, c, probe)
+	tier, certainty, checkpoint, ok := layaTier(ctx, c, probe)
 	elapsed := time.Since(start)
 	if !ok {
 		// Distinguish "nothing is listening" from "answered, but not with a
@@ -356,6 +364,19 @@ func layaTest(cfg config.Config) int {
 		return 1
 	}
 	fmt.Printf("%s tier %s, certainty %.2f, %s\n", cGood("answered:"), cValue(fmt.Sprintf("%d", tier)), certainty, elapsed.Round(time.Millisecond))
+	// Which weights answered is the difference between 0.766 and 0.362 on
+	// exactly this kind of question, so setup has to show it rather than
+	// leave the user assuming they got what they asked for.
+	switch {
+	case checkpoint == "":
+		fmt.Println("  " + cDim("checkpoint: not reported by the server"))
+	case checkpoint == laya.CheckpointTypedDecisions:
+		fmt.Println("  " + cGood("checkpoint: "+checkpoint) + cDim("  (the fine-tuned one -- correct for deadeye)"))
+	default:
+		fmt.Println("  " + cWarn("checkpoint: "+checkpoint) + cDim("  -- NOT the fine-tuned typed-decisions one."))
+		fmt.Println("  " + cDim("  Restart laya-serve with LAYA_MODELS=english,typed-decisions"))
+		fmt.Println("  " + cDim("  (base weights score 0.362 on typed decisions, against 0.766)"))
+	}
 	fmt.Println(cDim("  A mechanical rename should come back tier 0. If it doesn't, Laya is"))
 	fmt.Println(cDim("  working but not accurate on this task yet -- leave mode at shadow."))
 	if elapsed > layaTimeout(cfg) {
@@ -384,10 +405,10 @@ func layaTest(cfg config.Config) int {
 // Returns the decision (possibly updated), Laya's tier, and whether Laya
 // answered at all. On the shadow and advise rungs the decision comes back
 // untouched apart from, on advise, a note in the visible reason.
-func (d *daemonState) layaRouting(cfg config.Config, decision kernel.Decision, prompt, shape, sessionID, cwd string) (kernel.Decision, int, bool) {
+func (d *daemonState) layaRouting(cfg config.Config, decision kernel.Decision, prompt, shape, sessionID, cwd string) (kernel.Decision, int, string, bool) {
 	c := layaClient(cfg)
 	if c == nil {
-		return decision, -1, false
+		return decision, -1, "", false
 	}
 	// Shadow changes nothing, so blocking a real tool call on it would buy
 	// measurement with the user's latency -- against a hook budget (INV-8)
@@ -404,13 +425,13 @@ func (d *daemonState) layaRouting(cfg config.Config, decision kernel.Decision, p
 		// now would compare Laya to a pre-judge guess the judge then
 		// overrode -- systematically marking Laya wrong whenever it agreed
 		// with the judge rather than the heuristics.
-		return decision, -1, false
+		return decision, -1, "", false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
 	defer cancel()
-	tier, certainty, ok := layaTier(ctx, c, prompt)
+	tier, certainty, checkpoint, ok := layaTier(ctx, c, prompt)
 	if !ok {
-		return decision, -1, false
+		return decision, -1, "", false
 	}
 	switch {
 	case layaDecides(cfg) && decision.Unsure:
@@ -426,7 +447,7 @@ func (d *daemonState) layaRouting(cfg config.Config, decision kernel.Decision, p
 	case cfg.Mode.Laya == layaAdvise:
 		decision.Reason += fmt.Sprintf(" [laya: tier %d, certainty %.2f -- recorded, not applied]", tier, certainty)
 	}
-	return decision, tier, ok
+	return decision, tier, checkpoint, ok
 }
 
 // gateConfirmBar is the P(true) a gate needs to survive suppression on the
@@ -447,11 +468,11 @@ func (d *daemonState) layaConfirmsGate(cfg config.Config, site, prompt, question
 	if c == nil {
 		return true
 	}
-	ask := func() (bool, bool) {
+	ask := func() (bool, string, bool) {
 		ctx, cancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
 		defer cancel()
-		yes, _, ok := layaYes(ctx, c, prompt, question, gateConfirmBar)
-		return yes, ok
+		yes, _, checkpoint, ok := layaYes(ctx, c, prompt, question, gateConfirmBar)
+		return yes, checkpoint, ok
 	}
 	// Below the authoritative rung the answer cannot change anything, so
 	// asking inline would add up to a full timeout to the user's own turn
@@ -459,13 +480,13 @@ func (d *daemonState) layaConfirmsGate(cfg config.Config, site, prompt, question
 	// off the critical path instead.
 	if !layaDecides(cfg) {
 		layaAsync(func() {
-			if yes, ok := ask(); ok {
-				d.recordLayaVerdict(site, shape, fmt.Sprintf("%t", yes), "true", "", sessionID, cwd)
+			if yes, checkpoint, ok := ask(); ok {
+				d.recordLayaVerdict(site, shape, fmt.Sprintf("%t", yes), "true", "", checkpoint, sessionID, cwd)
 			}
 		})
 		return true
 	}
-	yes, ok := ask()
+	yes, checkpoint, ok := ask()
 	if !ok {
 		return true
 	}
@@ -478,7 +499,7 @@ func (d *daemonState) layaConfirmsGate(cfg config.Config, site, prompt, question
 	// authoritative tautologically 100%: on that rung Laya IS the decision,
 	// so scoring it against itself would flatter it forever on the very
 	// report the ladder is promoted on.
-	d.recordLayaVerdict(site, shape, fmt.Sprintf("%t", yes), "true", "", sessionID, cwd)
+	d.recordLayaVerdict(site, shape, fmt.Sprintf("%t", yes), "true", "", checkpoint, sessionID, cwd)
 	return yes
 }
 
@@ -497,6 +518,10 @@ func layaAgreement(outcomesPath string, cfg config.Config, now time.Time) {
 	}
 	type stat struct{ agree, total int }
 	per := map[string]*stat{}
+	// Which weights answered, counted separately: base and fine-tuned
+	// differ by more than two to one on exactly this kind of question, so a
+	// rate that silently blends them is a number about neither.
+	checkpoints := map[string]int{}
 	total, agreed := 0, 0
 	for _, o := range outs {
 		if o.Kind != KindLayaVerdict {
@@ -512,6 +537,9 @@ func layaAgreement(outcomesPath string, cfg config.Config, now time.Time) {
 		}
 		s.total++
 		total++
+		if o.Checkpoint != "" {
+			checkpoints[o.Checkpoint]++
+		}
 		if o.LayaValue == o.Actual {
 			s.agree++
 			agreed++
@@ -569,6 +597,27 @@ func layaAgreement(outcomesPath string, cfg config.Config, now time.Time) {
 		fmt.Printf("    %-16s %s  %d/%d\n", site, label, s.agree, s.total)
 	}
 
+	if len(checkpoints) > 0 {
+		fmt.Println()
+		fmt.Println("  " + cHead("Checkpoint"))
+		names := make([]string, 0, len(checkpoints))
+		for n := range checkpoints {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		for _, n := range names {
+			label := cValue(n)
+			if n != laya.CheckpointTypedDecisions {
+				label = cWarn(n) + cDim("  (not the fine-tuned one -- 0.362 vs 0.766 on typed decisions)")
+			}
+			fmt.Printf("    %-18s %d verdict(s)\n", label, checkpoints[n])
+		}
+		if len(names) > 1 {
+			fmt.Println("  " + cWarn("  Mixed checkpoints in one window:") + cDim(" the combined rate above is a"))
+			fmt.Println("  " + cDim("  number about neither. Serve one checkpoint and let it re-accumulate."))
+		}
+	}
+
 	fmt.Println()
 	fmt.Println(cDim("  This is AGREEMENT, not accuracy. On shadow and advise, \"actual\" is"))
 	fmt.Println(cDim("  whatever the existing mechanism chose -- itself not ground truth, so"))
@@ -608,13 +657,13 @@ func (d *daemonState) layaShadowRecord(cfg config.Config, decision kernel.Decisi
 	layaAsync(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
 		defer cancel()
-		got, _, ok := layaTier(ctx, c, prompt)
+		got, _, checkpoint, ok := layaTier(ctx, c, prompt)
 		if !ok {
 			return
 		}
 		// The SESSION's cwd, carried into the closure: ProjectKey("") would
 		// resolve against the daemon's own working directory and file every
 		// verdict under the wrong repo.
-		d.recordLayaVerdict(siteJudge, shape, strconv.Itoa(got), strconv.Itoa(tier), model, sessionID, cwd)
+		d.recordLayaVerdict(siteJudge, shape, strconv.Itoa(got), strconv.Itoa(tier), model, checkpoint, sessionID, cwd)
 	})
 }

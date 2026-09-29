@@ -258,6 +258,17 @@
           "minimum": 1,
           "default": 1500,
           "description": "Per-call deadline in milliseconds. Four call sites sit on the PreToolUse path that gates a real tool call, so this is deliberately generous enough for resident CPU inference (Laya is 193-464ms per call on CPU; the widely-quoted 32.8ms is a T4 GPU figure) and far too short for a cold checkpoint load, which costs seconds -- a server still loading loses the race and the call site falls back rather than stalling your tool call."
+        },
+        "checkpoint": {
+          "type": "string",
+          "enum": [
+            "typed-decisions",
+            "english",
+            "multilingual",
+            ""
+          ],
+          "default": "typed-decisions",
+          "description": "Which laya-serve checkpoint to ask for, by short name. Every question deadeye asks -- tier choice, plan-needed, workflow-shaped, is-this-a-bug-fix, complexity -- is a typed decision, and upstream's own benchmark puts the base checkpoint at 0.362 against 0.766 for typed-decisions (\"all of the capability on this benchmark comes from fine-tuning\"). laya-serve's router picks only by script and language, so it never reaches typed-decisions on its own unless the server runs with LAYA_AUTO_TASK=1 -- which is why deadeye names the checkpoint per request instead. The server must have it available: start it with LAYA_MODELS including typed-decisions. Empty leaves the choice to the server's router."
         }
       },
       "description": "Connection settings for the optional Laya decision model. See mode.laya."

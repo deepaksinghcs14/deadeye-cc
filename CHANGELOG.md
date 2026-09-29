@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.66.3
+
+**deadeye was asking the wrong Laya model.** The setup shipped in 0.66.0
+started `laya-serve` with no checkpoint named, so the server's router picked
+one — and that router chooses only by script and language, between
+`english` and `multilingual`. It never reaches `typed-decisions` on its own
+unless the server runs with `LAYA_AUTO_TASK=1`.
+
+Every question deadeye asks is a typed decision: the tier choice, plan-
+needed, workflow-shaped, is-this-a-bug-fix, and the complexity score.
+Upstream's own benchmark puts the base checkpoint at **0.362** on typed
+decisions against **0.766** for `typed-decisions`, and states plainly that
+"all of the capability on this benchmark comes from fine-tuning". So the
+ladder was being asked to earn trust using the weakest available weights for
+the exact task at hand, and the near-chance accuracy the docs kept warning
+about was partly self-inflicted.
+
+Three fixes, at three levels:
+
+- **deadeye names the checkpoint on every request.** `laya-serve` honours a
+  client `model` field when it names a checkpoint, so this doesn't depend on
+  how the server was started. New `laya.checkpoint` setting, default
+  `typed-decisions`; empty leaves the choice to the server.
+- **The setup serves it.** `/deadeye-laya`, the README and the site page now
+  start the server with `LAYA_MODELS=typed-decisions`, and explain why in
+  the place where someone is deciding what to run.
+- **Every verdict records which checkpoint answered.** `deadeye laya test`
+  prints it and flags a non-fine-tuned one with the fix; `deadeye laya
+  status` shows which one will be asked for; `/deadeye-stats laya` breaks
+  agreement down per checkpoint and warns when a window mixes two — a rate
+  that blends base and fine-tuned weights is a number about neither. The
+  skill will not recommend promoting past `shadow` while the wrong
+  checkpoint is answering, because agreement collected on base weights says
+  nothing about the fine-tuned ones.
+
+Also fixed while in here: a non-2xx response was returned without draining
+the body, discarding the pooled connection the client cache exists to keep.
+
 ## 0.66.2
 
 A hostile review of 0.66.0/0.66.1's Laya flow, plus manual probing against

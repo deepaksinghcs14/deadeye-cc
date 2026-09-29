@@ -396,12 +396,27 @@ Or by hand:
 ```bash
 python3 -m venv ~/.deadeye/laya-venv
 ~/.deadeye/laya-venv/bin/pip install "laya[serve]"
-LAYA_PRELOAD=1 ~/.deadeye/laya-venv/bin/laya-serve     # binds 0.0.0.0:8000, leave it running
+
+# Serve the typed-decisions checkpoint -- see below for why this matters
+LAYA_MODELS=typed-decisions LAYA_PRELOAD=1 ~/.deadeye/laya-venv/bin/laya-serve
 
 deadeye config set laya.endpoint http://127.0.0.1:8000
 deadeye config set mode.laya shadow
 deadeye laya health && deadeye laya test
 ```
+
+**Serve the right checkpoint.** Laya ships three — `english`,
+`multilingual`, `typed-decisions` — and its router only chooses between the
+first two, by script and language. It never reaches `typed-decisions` on its
+own. Every question deadeye asks is a typed decision, and upstream's own
+benchmark puts the base checkpoint at **0.362** against **0.766** for
+`typed-decisions` ("all of the capability on this benchmark comes from
+fine-tuning"). deadeye names the checkpoint on every request
+(`laya.checkpoint`, default `typed-decisions`) so it doesn't depend on the
+server's routing — but the server still has to have it loaded, which is what
+`LAYA_MODELS` does. `deadeye laya test` prints which checkpoint actually
+answered, and `/deadeye-stats laya` records it per verdict, because an
+agreement rate that mixes two checkpoints is a number about neither.
 
 ### The ladder, and why it exists
 

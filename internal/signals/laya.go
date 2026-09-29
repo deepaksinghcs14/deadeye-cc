@@ -57,7 +57,7 @@ func (l LayaComplexity) Assess(ctx context.Context, s Scope) (Evidence, error) {
 	if l.Client == nil || s.Prompt == "" {
 		return Evidence{}, fmt.Errorf("laya: not configured")
 	}
-	a, ok := l.Client.Score(ctx, s.Prompt, "How much engineering capability does this software task need?", layaLevels)
+	a, checkpoint, ok := l.Client.Score(ctx, s.Prompt, "How much engineering capability does this software task need?", layaLevels)
 	if !ok {
 		return Evidence{}, fmt.Errorf("laya: no answer")
 	}
@@ -89,10 +89,11 @@ func (l LayaComplexity) Assess(ctx context.Context, s Scope) (Evidence, error) {
 		Complexity: complexity,
 		Confidence: confidence,
 		Facts: map[string]any{
-			"score":     a.Score,
-			"certainty": certainty,
-			"levels":    len(layaLevels),
-			"source":    "laya (local classifier)",
+			"score":      a.Score,
+			"certainty":  certainty,
+			"levels":     len(layaLevels),
+			"checkpoint": checkpoint,
+			"source":     "laya (local classifier)",
 		},
 	}, nil
 }

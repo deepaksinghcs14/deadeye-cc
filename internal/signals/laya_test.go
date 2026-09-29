@@ -18,7 +18,7 @@ func layaStub(t *testing.T, body string) *laya.Client {
 		fmt.Fprint(w, body)
 	}))
 	t.Cleanup(srv.Close)
-	return laya.New(srv.URL, "", 2*time.Second)
+	return laya.New(srv.URL, "", "typed-decisions", 2*time.Second)
 }
 
 func TestLayaComplexityIsNotABuiltin(t *testing.T) {
@@ -118,7 +118,7 @@ func TestLayaComplexityCapsConfidenceAtCeiling(t *testing.T) {
 func TestLayaComplexityFailsOpen(t *testing.T) {
 	cases := map[string]LayaComplexity{
 		"nil client":  {Client: nil},
-		"unreachable": {Client: laya.New("http://127.0.0.1:1", "", 200*time.Millisecond)},
+		"unreachable": {Client: laya.New("http://127.0.0.1:1", "", "typed-decisions", 200*time.Millisecond)},
 	}
 	for name, p := range cases {
 		if _, err := p.Assess(context.Background(), Scope{Prompt: "task"}); err == nil {
@@ -138,7 +138,7 @@ func TestAssessAllUnaffectedByASilentLaya(t *testing.T) {
 	scope := Scope{Prompt: "add a field to the config struct", Files: []string{"a.go"}}
 	base := AssessAll(context.Background(), scope, Builtins())
 
-	dead := LayaComplexity{Client: laya.New("http://127.0.0.1:1", "", 100*time.Millisecond)}
+	dead := LayaComplexity{Client: laya.New("http://127.0.0.1:1", "", "typed-decisions", 100*time.Millisecond)}
 	with := AssessAll(context.Background(), scope, append(Builtins(), dead))
 
 	if len(with) != len(base) {

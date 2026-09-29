@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -89,8 +90,8 @@ func TestLayaLadderGating(t *testing.T) {
 }
 
 func TestLayaTierParsesChoice(t *testing.T) {
-	c := laya.New(layaServer(t, `{"answers":{"q":{"choice":"2","answer_confidence":0.77}}}`), "", time.Second)
-	tier, certainty, ok := layaTier(context.Background(), c, "rewrite the routing kernel")
+	c := laya.New(layaServer(t, `{"answers":{"q":{"choice":"2","answer_confidence":0.77}}}`), "", "typed-decisions", time.Second)
+	tier, certainty, _, ok := layaTier(context.Background(), c, "rewrite the routing kernel")
 	if !ok || tier != 2 || certainty != 0.77 {
 		t.Errorf("layaTier = %d,%v,%v; want 2,0.77,true", tier, certainty, ok)
 	}
@@ -105,8 +106,8 @@ func TestLayaTierRejectsUnknownLabel(t *testing.T) {
 		`{"answers":{"q":{"choice":"tier two"}}}`,
 		`{"answers":{"q":{"choice":""}}}`,
 	} {
-		c := laya.New(layaServer(t, body), "", time.Second)
-		if tier, _, ok := layaTier(context.Background(), c, "x"); ok || tier != -1 {
+		c := laya.New(layaServer(t, body), "", "typed-decisions", time.Second)
+		if tier, _, _, ok := layaTier(context.Background(), c, "x"); ok || tier != -1 {
 			t.Errorf("body %s: got tier %d ok=%v; want -1,false", body, tier, ok)
 		}
 	}
@@ -120,7 +121,7 @@ func TestLayaRoutingShadowIsAsyncAndChangesNothing(t *testing.T) {
 	cfg := layaCfg(layaShadow, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
 	before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "original reason", Unsure: true}
 
-	after, _, ok := st.layaRouting(cfg, before, "some task", "shape", "sess", t.TempDir())
+	after, _, _, ok := st.layaRouting(cfg, before, "some task", "shape", "sess", t.TempDir())
 	if ok {
 		t.Error("shadow answered inline; it must defer so the hook never waits")
 	}
@@ -176,7 +177,7 @@ func TestLayaRoutingAdviseAnnotatesOnly(t *testing.T) {
 	cfg := layaCfg(layaAdvise, layaServer(t, `{"answers":{"q":{"choice":"1","answer_confidence":0.8}}}`))
 	before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "original", Unsure: true}
 
-	after, _, _ := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
+	after, _, _, _ := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
 	if after.Model != before.Model || after.Effort != before.Effort || after.Unsure != before.Unsure {
 		t.Errorf("advise changed behavior: %+v", after)
 	}
@@ -192,7 +193,7 @@ func TestLayaRoutingAuthoritativeResolvesUnsure(t *testing.T) {
 	cfg := layaCfg(layaAuthoritative, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
 	before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "thin evidence", Unsure: true}
 
-	after, _, _ := st.layaRouting(cfg, before, "rename a variable", "shape", "sess", t.TempDir())
+	after, _, _, _ := st.layaRouting(cfg, before, "rename a variable", "shape", "sess", t.TempDir())
 	if after.Unsure {
 		t.Error("authoritative should resolve Unsure so the judge returns early")
 	}
@@ -211,7 +212,7 @@ func TestLayaRoutingAuthoritativeLeavesConfidentDecisionAlone(t *testing.T) {
 	cfg := layaCfg(layaAuthoritative, layaServer(t, `{"answers":{"q":{"choice":"0"}}}`))
 	before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "strong evidence", Confidence: 1, Unsure: false}
 
-	after, _, ok := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
+	after, _, _, ok := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
 	if !ok {
 		t.Fatal("expected Laya to answer")
 	}
@@ -233,7 +234,7 @@ func TestLayaRoutingFailsOpen(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			st, _ := sampleHarness(t, 0, true)
 			before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "r", Unsure: true}
-			after, _, ok := st.layaRouting(c.cfg, before, "task", "shape", "sess", t.TempDir())
+			after, _, _, ok := st.layaRouting(c.cfg, before, "task", "shape", "sess", t.TempDir())
 			if ok {
 				t.Error("expected no usable answer")
 			}
@@ -356,7 +357,7 @@ func TestEveryDocumentedOffSwitchWorks(t *testing.T) {
 		st, _ := sampleHarness(t, 0, true)
 		cfg := layaCfg(layaAuthoritative, "http://127.0.0.1:1")
 		before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "r", Unsure: true}
-		after, _, ok := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
+		after, _, _, ok := st.layaRouting(cfg, before, "task", "shape", "sess", t.TempDir())
 		if ok || after != before {
 			t.Error("a stopped laya-serve must leave the decision untouched")
 		}
@@ -847,5 +848,97 @@ func TestLayaTestDistinguishesUnreachableFromUnusable(t *testing.T) {
 	}
 	if strings.Contains(out, "answered, but not with a tier") {
 		t.Errorf("must not claim the endpoint answered when it refused:\n%s", out)
+	}
+}
+
+// The checkpoint is the difference between 0.766 and 0.362 on exactly the
+// questions deadeye asks. deadeye must NAME it per request rather than
+// trusting laya-serve's router, which only picks by script and language and
+// so never reaches typed-decisions on its own.
+func TestRequestNamesTheTypedDecisionsCheckpoint(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &got)
+		fmt.Fprint(w, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}},"routing":{"model":"typed-decisions"}}`)
+	}))
+	defer srv.Close()
+
+	cfg := layaCfg(layaShadow, srv.URL)
+	if cfg.Laya.Checkpoint != "typed-decisions" {
+		t.Fatalf("default checkpoint = %q, want typed-decisions", cfg.Laya.Checkpoint)
+	}
+	_, _, checkpoint, ok := layaTier(context.Background(), layaClient(cfg), "task")
+	if !ok {
+		t.Fatal("no answer")
+	}
+	if got["model"] != "typed-decisions" {
+		t.Errorf("request body model = %v, want typed-decisions -- the server's router would otherwise pick base weights", got["model"])
+	}
+	if checkpoint != "typed-decisions" {
+		t.Errorf("checkpoint = %q; the server's reported checkpoint must reach the caller", checkpoint)
+	}
+}
+
+// Config default must be the fine-tuned checkpoint, and the verdict must
+// carry whichever one actually answered -- an agreement rate that mixes two
+// checkpoints is a number about neither.
+func TestVerdictRecordsTheAnsweringCheckpoint(t *testing.T) {
+	st, outPath := sampleHarness(t, 0, true)
+	srv := layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}},"routing":{"model":"english"}}`)
+	cfg := layaCfg(layaShadow, srv)
+
+	st.layaShadowRecord(cfg, kernel.Decision{Model: "top-id"}, "task", "shape", "sess", t.TempDir())
+
+	outs, _ := lessons.Scan(outPath)
+	var v *lessons.Outcome
+	for i := range outs {
+		if outs[i].Kind == KindLayaVerdict {
+			v = &outs[i]
+		}
+	}
+	if v == nil {
+		t.Fatal("no verdict recorded")
+	}
+	if v.Checkpoint != "english" {
+		t.Errorf("Checkpoint = %q, want the one the server reported (english)", v.Checkpoint)
+	}
+}
+
+// `deadeye laya test` must call out the wrong checkpoint loudly: it's the
+// single most likely setup mistake, and silently collecting agreement on
+// base weights teaches the user nothing about the fine-tuned ones.
+func TestLayaTestFlagsTheWrongCheckpoint(t *testing.T) {
+	srv := layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}},"routing":{"model":"english"}}`)
+	out := captureStdout(t, func() { layaTest(layaCfg(layaShadow, srv)) })
+	if !strings.Contains(out, "NOT the fine-tuned") || !strings.Contains(out, "LAYA_MODELS") {
+		t.Errorf("must flag a non-typed-decisions checkpoint and say how to fix it:\n%s", out)
+	}
+
+	right := layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}},"routing":{"model":"typed-decisions"}}`)
+	out = captureStdout(t, func() { layaTest(layaCfg(layaShadow, right)) })
+	if strings.Contains(out, "NOT the fine-tuned") {
+		t.Errorf("must not warn when the right checkpoint answered:\n%s", out)
+	}
+}
+
+// Mixing checkpoints in one window makes the combined rate meaningless.
+// The report has to show which weights produced the verdicts and say so.
+func TestAgreementShowsCheckpointsAndFlagsMixing(t *testing.T) {
+	now := time.Now()
+	ts := now.Add(-time.Hour).Format(time.RFC3339)
+	op := writeOutcomes(t,
+		lessons.Outcome{TS: ts, Kind: KindLayaVerdict, Site: siteJudge, LayaValue: "1", Actual: "1", Checkpoint: "typed-decisions"},
+		lessons.Outcome{TS: ts, Kind: KindLayaVerdict, Site: siteJudge, LayaValue: "0", Actual: "1", Checkpoint: "english"},
+	)
+	out := captureStdout(t, func() { layaAgreement(op, layaCfg(layaShadow, "http://x"), now) })
+	if !strings.Contains(out, "Checkpoint") || !strings.Contains(out, "typed-decisions") || !strings.Contains(out, "english") {
+		t.Errorf("want a per-checkpoint breakdown:\n%s", out)
+	}
+	if !strings.Contains(out, "Mixed checkpoints") {
+		t.Errorf("mixing two checkpoints must be called out:\n%s", out)
+	}
+	if !strings.Contains(out, "not the fine-tuned one") {
+		t.Errorf("a base checkpoint must be flagged:\n%s", out)
 	}
 }

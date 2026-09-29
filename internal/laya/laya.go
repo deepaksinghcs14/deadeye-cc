@@ -34,6 +34,13 @@ import (
 // 0.0.0.0:8000; deadeye talks to it over loopback).
 const DefaultEndpoint = "http://127.0.0.1:8000"
 
+// CheckpointTypedDecisions is the fine-tuned checkpoint every question
+// deadeye asks belongs to. The server's own router only chooses by script
+// and language -- english vs multilingual -- so without asking for this one
+// by name deadeye gets base weights that upstream benchmarks at 0.362 on
+// typed decisions, against 0.766 here.
+const CheckpointTypedDecisions = "typed-decisions"
+
 // DefaultTimeout bounds one /predict call. Laya's own published latency is
 // 32.8ms on a T4 GPU but 193-464ms on CPU with the model already resident,
 // and a cold checkpoint load costs seconds. Four of deadeye's call sites
@@ -100,6 +107,18 @@ func (a Answer) Certainty() float64 {
 type request struct {
 	State     map[string]string   `json:"state"`
 	Questions map[string]Question `json:"questions"`
+	// Model names a checkpoint by its short name. laya-serve honours a
+	// client's model field when it names one ("english", "multilingual",
+	// "typed-decisions"); omitted, its router picks by SCRIPT AND LANGUAGE
+	// only -- which means it never reaches the typed-decisions checkpoint on
+	// its own unless the server was started with LAYA_AUTO_TASK=1.
+	//
+	// That default matters more than it sounds: every question deadeye asks
+	// is a typed decision, and upstream's own benchmark puts the base
+	// checkpoint at 0.362 against 0.766 for typed-decisions, with "all of
+	// the capability on this benchmark comes from fine-tuning". Asking the
+	// base weights a typed question is asking the wrong model.
+	Model string `json:"model,omitempty"`
 }
 
 type response struct {
@@ -110,13 +129,26 @@ type response struct {
 	} `json:"routing"`
 }
 
+// Result is one /predict response: the answers, plus which checkpoint
+// actually produced them.
+//
+// Checkpoint is load-bearing, not decoration. An agreement rate that mixes
+// two checkpoints is not a number about either of them, and a user who
+// changes LAYA_MODELS mid-window would otherwise have no way to know the
+// figure stopped meaning what it meant yesterday.
+type Result struct {
+	Answers    map[string]Answer
+	Checkpoint string
+}
+
 // Client talks to one laya-serve endpoint. A nil *Client is valid and
 // answers nothing -- call sites hold one unconditionally and don't branch
 // on configuration themselves.
 type Client struct {
-	endpoint string
-	apiKey   string
-	hc       *http.Client
+	endpoint   string
+	apiKey     string
+	checkpoint string
+	hc         *http.Client
 }
 
 // New returns nil when endpoint is empty, so "not configured" and "not
@@ -125,7 +157,9 @@ type Client struct {
 // apiKey is read from the environment by the caller, never from
 // config.json: LAYA_API_KEY is a bearer token, and a token in a config
 // file is a secret at rest that `deadeye config` would happily print.
-func New(endpoint, apiKey string, timeout time.Duration) *Client {
+// checkpoint is the short name to request per call ("typed-decisions" for
+// everything deadeye asks). Empty leaves the choice to the server's router.
+func New(endpoint, apiKey, checkpoint string, timeout time.Duration) *Client {
 	endpoint = strings.TrimRight(strings.TrimSpace(endpoint), "/")
 	if endpoint == "" {
 		return nil
@@ -134,10 +168,20 @@ func New(endpoint, apiKey string, timeout time.Duration) *Client {
 		timeout = DefaultTimeout
 	}
 	return &Client{
-		endpoint: endpoint,
-		apiKey:   apiKey,
-		hc:       &http.Client{Timeout: timeout},
+		endpoint:   endpoint,
+		apiKey:     apiKey,
+		checkpoint: strings.TrimSpace(checkpoint),
+		hc:         &http.Client{Timeout: timeout},
 	}
+}
+
+// Checkpoint reports the checkpoint this client asks for, or "" when it
+// leaves the choice to the server's router.
+func (c *Client) Checkpoint() string {
+	if c == nil {
+		return ""
+	}
+	return c.checkpoint
 }
 
 // Endpoint reports where this client points, for status/doctor output.
@@ -151,20 +195,21 @@ func (c *Client) Endpoint() string {
 // Ask is the one real entry point: several questions about one piece of
 // text in a single round trip, since Laya answers them in one forward pass
 // and a hook has budget for one call, not four.
-func (c *Client) Ask(ctx context.Context, text string, questions map[string]Question) (map[string]Answer, bool) {
+func (c *Client) Ask(ctx context.Context, text string, questions map[string]Question) (Result, bool) {
 	if c == nil || strings.TrimSpace(text) == "" || len(questions) == 0 {
-		return nil, false
+		return Result{}, false
 	}
 	body, err := json.Marshal(request{
 		State:     map[string]string{"task": text},
 		Questions: questions,
+		Model:     c.checkpoint,
 	})
 	if err != nil {
-		return nil, false
+		return Result{}, false
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint+"/predict", bytes.NewReader(body))
 	if err != nil {
-		return nil, false
+		return Result{}, false
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
@@ -172,48 +217,51 @@ func (c *Client) Ask(ctx context.Context, text string, questions map[string]Ques
 	}
 	resp, err := c.hc.Do(req)
 	if err != nil {
-		return nil, false
+		return Result{}, false
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, false
+		// Drain before closing so the pooled connection is reusable -- the
+		// whole point of holding one client per configuration.
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseBytes))
+		return Result{}, false
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
-		return nil, false
+		return Result{}, false
 	}
 	var out response
 	if json.Unmarshal(raw, &out) != nil || len(out.Answers) == 0 {
-		return nil, false
+		return Result{}, false
 	}
-	return out.Answers, true
+	return Result{Answers: out.Answers, Checkpoint: out.Routing.Model}, true
 }
 
 // Choice asks one labelled choice question. criteria maps each label to a
 // short description of what it means.
-func (c *Client) Choice(ctx context.Context, text, instructions string, criteria map[string]string) (Answer, bool) {
+func (c *Client) Choice(ctx context.Context, text, instructions string, criteria map[string]string) (Answer, string, bool) {
 	return c.one(ctx, text, Question{Type: TypeChoice, Instructions: instructions, Criteria: criteria})
 }
 
 // YesNo asks one proposition and returns Answer.Noul as P(true).
-func (c *Client) YesNo(ctx context.Context, text, instructions string) (Answer, bool) {
+func (c *Client) YesNo(ctx context.Context, text, instructions string) (Answer, string, bool) {
 	return c.one(ctx, text, Question{Type: TypeNoul, Instructions: instructions})
 }
 
 // Score asks one ordinal-rubric question; levels are lowest-first.
-func (c *Client) Score(ctx context.Context, text, instructions string, levels []string) (Answer, bool) {
+func (c *Client) Score(ctx context.Context, text, instructions string, levels []string) (Answer, string, bool) {
 	return c.one(ctx, text, Question{Type: TypeScore, Instructions: instructions, Criteria: levels})
 }
 
 const soleQuestion = "q"
 
-func (c *Client) one(ctx context.Context, text string, q Question) (Answer, bool) {
-	answers, ok := c.Ask(ctx, text, map[string]Question{soleQuestion: q})
+func (c *Client) one(ctx context.Context, text string, q Question) (Answer, string, bool) {
+	res, ok := c.Ask(ctx, text, map[string]Question{soleQuestion: q})
 	if !ok {
-		return Answer{}, false
+		return Answer{}, "", false
 	}
-	a, ok := answers[soleQuestion]
-	return a, ok
+	a, ok := res.Answers[soleQuestion]
+	return a, res.Checkpoint, ok
 }
 
 // Health probes the endpoint's /health. Reachability only: the endpoint's
