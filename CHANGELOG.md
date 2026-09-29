@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.67.3
+
+The transfer test, and it fails. 0.67.2's decomposition result does not
+survive real data. Nothing shipped to the product; this is the evidence that
+stops it being shipped.
+
+Dataset 1 was synthetic — one person wrote both the task texts and the labels
+— so a model fitted on it could be learning that phrasing rather than the
+property, which cross-validation cannot detect. Dataset 2 is the check: 70
+real Agent tool prompts harvested from Claude Code transcripts across four
+projects, the actual production distribution, written by nobody for this
+experiment, labelled by two independent annotators from the tier definitions
+alone.
+
+On the 43 cases both annotators agreed on:
+
+| | accuracy |
+|---|---|
+| baseline single-question | 23.3% (10/43) |
+| decomposed, fitted on dataset 1 | 27.9% (12/43) |
+
+**Both are below chance** for three classes. Dataset 1's 71.2% was an artifact.
+Decomposition still beats the baseline, and still wins where it was designed to
+(tier 2 recall 3/4 against 0/4), but beating a sub-chance baseline by 4.6
+points is not a result worth shipping. The baseline's tier-0 recall on real
+text is **1/29**.
+
+**The larger finding is the annotator agreement: 43/70, 61%.** Two annotators
+given identical definitions agreed on three-fifths of real tasks, and
+disagreed systematically rather than randomly — one labelled almost everything
+a tier lower. They agreed perfectly on tier 0 and diverged on 1 versus 2.
+
+That is a finding about the taxonomy, not about Laya. "Explore this repo and
+report" sits genuinely between a lookup (tier 0) and spanning unfamiliar code
+(tier 1), and the definitions do not settle it. 61% is therefore a ceiling on
+what any classifier can honestly be scored against on this distribution.
+
+It also raises a question upstream that this release does not answer: shadow
+mode scores Laya against the `claude -p` judge, and on these same boundary
+cases the judge's own labels may be no less arbitrary than two annotators who
+could not agree. The routing benchmark's six tasks have real ground truth
+(hidden tests); the agreement number does not, and should be read accordingly.
+
+`corpus/eval_wild.py` is committed so this check runs before anyone ships a
+classifier on dataset-1 numbers — including a future version of the author,
+who was one dataset away from doing exactly that.
+
 ## 0.67.2
 
 Decomposition, measured. No product behaviour changes — this is benchmark

@@ -241,3 +241,44 @@ and +8 points against a standard deviation of 11-15 is suggestive, not
 conclusive. Before any of this reaches the product, the weights need refitting
 on real traffic: `mode.laya=shadow` records exactly the `task -> actual tier`
 pairs required, which is the second reason to leave shadow running.
+
+
+### Dataset 2: the transfer test (`corpus/eval_wild.py`)
+
+Dataset 1 above is synthetic — one person wrote both the task texts and the
+labels — so a model fitted on it may be learning that person's phrasing rather
+than the underlying property. Cross-validation cannot detect that. Dataset 2 is
+the check: **70 real Agent tool prompts** harvested from Claude Code
+transcripts across four projects, i.e. the actual production distribution,
+written by nobody for this experiment. Two independent annotators labelled
+them from the tier definitions alone.
+
+```bash
+./corpus/eval_wild.py
+```
+
+**Result: decomposition does not transfer.**
+
+| | agreed cases (n=43) |
+|---|---|
+| baseline single-question | 23.3% |
+| decomposed, fitted on dataset 1 | 27.9% |
+
+Both are **below chance** (33% for three classes). Dataset 1's 71.2% was an
+artifact of the corpus. Decomposition still beats the baseline and still wins
+on tier 2 (3/4 vs 0/4), but beating a sub-chance baseline is not a result.
+
+**The more important number is the annotator agreement: 43/70 (61%).** Two
+annotators given identical definitions agreed on three-fifths of real tasks,
+and disagreed *systematically* — one labelled almost everything lower. They
+agreed perfectly on tier 0 and diverged on 1 vs 2.
+
+That is a finding about the taxonomy, not about Laya. "Explore this repo and
+report" is genuinely ambiguous between a lookup (tier 0) and spanning
+unfamiliar code (tier 1), and the definitions do not settle it. 61% is
+therefore the ceiling any classifier can honestly be scored against on this
+distribution — and it raises a question upstream, because shadow mode scores
+Laya against the `claude -p` judge, whose labels on these same boundaries may
+be no less arbitrary.
+
+Anyone tempted to ship a classifier on dataset-1 numbers should run this first.
