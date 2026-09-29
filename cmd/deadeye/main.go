@@ -12,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|doctor|config|route|audit|gain|context|lessons|receipt|misses|disagreement|adherence|report|vapt|init|capture|update|uninstall|version> [args]")
+		fmt.Fprintln(os.Stderr, "usage: deadeye <hook|daemon|status|doctor|config|route|audit|gain|context|lessons|receipt|misses|disagreement|adherence|laya|report|vapt|init|capture|update|uninstall|version> [args]")
 		os.Exit(2)
 	}
 
@@ -44,6 +44,8 @@ func main() {
 		runDisagreement()
 	case "adherence":
 		runAdherence()
+	case "laya":
+		runLaya(os.Args[2:])
 	case "report":
 		runReport(os.Args[2:])
 	case "capture":

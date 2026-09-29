@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 
@@ -62,12 +63,34 @@ func (d *daemonState) maybeSampleTier(cfg config.Config, decision kernel.Decisio
 	if !ok || tier < sampleTier {
 		return
 	}
-	rate := cfg.TierSample.Rate
-	if rate < 1 {
-		rate = 10
+	// With Laya configured, the sample rate stops being the cost control:
+	// a local classifier is free, so EVERY eligible decision gets screened
+	// and only the ones Laya thinks were over-routed cost a `claude -p`
+	// call to confirm. Two independent opinions before anything is
+	// recorded, and denser coverage than a 1-in-N sonnet sample could ever
+	// justify. Laya agreeing ends the check silently -- this report counts
+	// disagreements, and agreement is not evidence of correctness.
+	screened := false
+	if c := layaClient(cfg); c != nil {
+		sctx, scancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
+		layaT, _, lok := layaTier(sctx, c, prompt)
+		scancel()
+		if !lok {
+			return // classifier configured but silent: skip rather than fall back to paying
+		}
+		if layaT >= tier {
+			return
+		}
+		screened = true
 	}
-	if tierSampleSeen.Add(1)%uint64(rate) != 0 {
-		return
+	if !screened {
+		rate := cfg.TierSample.Rate
+		if rate < 1 {
+			rate = 10
+		}
+		if tierSampleSeen.Add(1)%uint64(rate) != 0 {
+			return
+		}
 	}
 
 	repo := gitutil.ProjectKey(cwd)

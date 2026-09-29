@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -405,7 +406,15 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	// hook (INV-5).
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
-	evidence := signals.AssessAll(ctx, scope, signals.Builtins())
+	providers := signals.Builtins()
+	// The optional seventh signal, only on the authoritative rung: a
+	// recorded-but-not-trusted classifier (shadow/advise) must never reach
+	// the kernel, and with Laya off the evidence set is bit-for-bit what it
+	// was before this existed.
+	if c := layaClient(cfg); c != nil && layaDecides(cfg) {
+		providers = append(providers, signals.LayaComplexity{Client: c})
+	}
+	evidence := signals.AssessAll(ctx, scope, providers)
 	shape := taskShapeKey(scope.Files, scope.Prompt, evidence)
 	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, state.outcomesSnapshot(), shape, time.Now())
 	decision := kernel.Decide(evidence, state.cat, threshold)
@@ -421,10 +430,23 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 		// interested in decisions the heuristics were confident about --
 		// re-judging one the judge just decided would only confirm itself.
 		confident := !decision.Unsure
+		// Laya first, when configured: on the authoritative rung it resolves
+		// exactly the case the judge would otherwise pay a model call for,
+		// leaving applyRoutingJudge to return early on !Unsure.
+		decision, layaTierAnswer, layaAnswered := state.layaRouting(cfg, decision, scope.Prompt)
 		// wait=false: a hook must never block a tool call on a model call
 		// (see judgeTierAsync) -- a pending verdict lands in the cache for
 		// the next identical spawn.
 		decision = applyRoutingJudge(cfg, decision, state.cat, scope.Prompt)
+		if layaAnswered {
+			// Recorded AFTER the judge so "actual" is the tier that really
+			// shipped, not a pre-judge guess that the judge then overrode.
+			actual := ""
+			if t, ok := state.cat.TierFor(decision.Model); ok {
+				actual = strconv.Itoa(t)
+			}
+			state.recordLayaVerdict(siteJudge, shape, strconv.Itoa(layaTierAnswer), actual, decision.Model, in.SessionID, in.Cwd)
+		}
 		if confident {
 			state.maybeSampleTier(cfg, decision, state.cat, shape, scope.Prompt, in.SessionID, in.Cwd)
 		}

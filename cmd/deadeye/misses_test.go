@@ -42,7 +42,7 @@ func writeOutcomes(t *testing.T, outs ...lessons.Outcome) string {
 
 func TestRenderMissesNoReceiptsExplainsGoingForward(t *testing.T) {
 	out := captureStdout(t, func() {
-		renderMisses(writeReceipts(t), writeOutcomes(t), "deadeye-cc", fakeGit{})
+		renderMisses(writeReceipts(t), writeOutcomes(t), "deadeye-cc", fakeGit{}, regexFixShaped)
 	})
 	if !strings.Contains(out, "No review receipts") {
 		t.Errorf("missing the empty-state line:\n%s", out)
@@ -69,7 +69,7 @@ func TestRenderMissesFindsCandidateOnLineOverlap(t *testing.T) {
 `,
 		"log -s --format=%H%x00%s -L11,12:internal/a.go land1111..HEAD": "fix22222\x00fix the thing that broke",
 	}}
-	out := captureStdout(t, func() { renderMisses(rp, writeOutcomes(t), "deadeye-cc", g) })
+	out := captureStdout(t, func() { renderMisses(rp, writeOutcomes(t), "deadeye-cc", g, regexFixShaped) })
 
 	if !strings.Contains(out, "Candidate misses") || !strings.Contains(out, "fix22222") {
 		t.Errorf("expected the fix commit as a candidate:\n%s", out)
@@ -108,7 +108,7 @@ func TestRenderMissesIgnoresNonFixCommits(t *testing.T) {
 `,
 		"log -s --format=%H%x00%s -L2,2:a.go land1111..HEAD": "ref33333\x00rename the helper for clarity",
 	}}
-	out := captureStdout(t, func() { renderMisses(rp, writeOutcomes(t), "deadeye-cc", g) })
+	out := captureStdout(t, func() { renderMisses(rp, writeOutcomes(t), "deadeye-cc", g, regexFixShaped) })
 	if !strings.Contains(out, "No candidate misses") {
 		t.Errorf("a non-fix commit must not be a candidate:\n%s", out)
 	}
@@ -122,7 +122,7 @@ func TestRenderMissesExcludesUnlandedWork(t *testing.T) {
 		TS: "2026-09-01T00:00:00Z", Repo: "deadeye-cc", Commit: "base0000",
 		Kind: receipts.KindReview, Scope: "diff", Paths: []string{"a.go"},
 	})
-	out := captureStdout(t, func() { renderMisses(rp, writeOutcomes(t), "deadeye-cc", fakeGit{}) })
+	out := captureStdout(t, func() { renderMisses(rp, writeOutcomes(t), "deadeye-cc", fakeGit{}, regexFixShaped) })
 	if !strings.Contains(out, "Pending") || !strings.Contains(out, "not counted as passes") {
 		t.Errorf("unlanded review should be reported as pending and excluded:\n%s", out)
 	}
@@ -138,7 +138,7 @@ func TestRenderMissesShowsDisputesAlongside(t *testing.T) {
 		lessons.Outcome{TS: "2026-09-02T00:00:00Z", Repo: "deadeye-cc", Kind: "review-false-positive", TaskShape: "correctness:race"},
 		lessons.Outcome{TS: "2026-09-02T00:00:00Z", Repo: "other-repo", Kind: "review-false-positive", TaskShape: "security:inject"},
 	)
-	out := captureStdout(t, func() { renderMisses(rp, op, "deadeye-cc", fakeGit{}) })
+	out := captureStdout(t, func() { renderMisses(rp, op, "deadeye-cc", fakeGit{}, regexFixShaped) })
 	if !strings.Contains(out, "False positives") || !strings.Contains(out, "1 finding") {
 		t.Errorf("want this repo's 1 dispute counted, not the other repo's:\n%s", out)
 	}
@@ -148,12 +148,12 @@ func TestFixShapedMatching(t *testing.T) {
 	yes := []string{"fix: nil deref", "Fix the parser", "hotfix for prod", "revert the bad commit", "this fixes #12", "bugfix", "fixed a bug"}
 	no := []string{"add prefix handling", "refactor the suffix parser", "add a feature", "docs: explain affix rules"}
 	for _, s := range yes {
-		if !fixShaped.MatchString(s) {
+		if !fixShapedRe.MatchString(s) {
 			t.Errorf("fixShaped(%q) = false, want true", s)
 		}
 	}
 	for _, s := range no {
-		if fixShaped.MatchString(s) {
+		if fixShapedRe.MatchString(s) {
 			t.Errorf("fixShaped(%q) = true, want false", s)
 		}
 	}

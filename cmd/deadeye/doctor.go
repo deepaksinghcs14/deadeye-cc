@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/laya"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
@@ -48,6 +50,7 @@ func runDoctor() {
 		checkSocketPath(),
 		checkDaemon(),
 		checkJudge(),
+		checkLaya(),
 		checkHooksManifest(),
 		checkHosts(),
 		checkStoreSizes(),
@@ -179,6 +182,32 @@ func checkJudge() checkResult {
 	}
 	return checkResult{"routing judge", "ok",
 		fmt.Sprintf("on (a first-seen subtask waits up to %v for it)", judgeTimeout), ""}
+}
+
+// checkLaya: mode.laya on any rung above off is worthless if the endpoint
+// isn't answering -- every call site falls back silently by design (INV-5),
+// so a dead laya-serve looks exactly like Laya being off. That's correct
+// behavior and a terrible thing to debug, which is what this row is for.
+func checkLaya() checkResult {
+	cfg := config.Load()
+	if !layaEnabled(cfg) {
+		detail := "off (mode.laya)"
+		if cfg.Mode.Laya != "" && cfg.Mode.Laya != layaOff && cfg.Laya.Endpoint == "" {
+			return checkResult{"laya", "warn",
+				"mode.laya=" + cfg.Mode.Laya + " but laya.endpoint is unset -- nothing calls it",
+				"deadeye config set laya.endpoint " + laya.DefaultEndpoint + ", or run /deadeye-laya"}
+		}
+		return checkResult{"laya", "ok", detail, ""}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := layaClient(cfg).Health(ctx); err != nil {
+		return checkResult{"laya", "warn",
+			"mode.laya=" + cfg.Mode.Laya + " but " + cfg.Laya.Endpoint + " is not answering -- every decision falls back",
+			"start it: LAYA_PRELOAD=1 laya-serve   (or /deadeye-laya verify)"}
+	}
+	return checkResult{"laya", "ok",
+		cfg.Mode.Laya + ", reachable at " + cfg.Laya.Endpoint, ""}
 }
 
 // checkHooksManifest: a matcher that doesn't list a tool the daemon

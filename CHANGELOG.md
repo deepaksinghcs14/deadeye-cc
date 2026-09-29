@@ -1,5 +1,99 @@
 # Changelog
 
+## 0.66.0
+
+Optional Laya support. [Laya](https://github.com/NandhaKishorM/laya)
+(Apache 2.0) is a small non-autoregressive classifier that answers typed
+choice/score/yes-no questions in one forward pass, locally. deadeye's
+routing judge asks exactly one typed question -- tier 0, 1 or 2 -- and
+answers it by shelling to `claude -p --model sonnet`, which is the only
+thing in this plugin that blocks a hook response on a model call. So Laya
+is a natural stand-in, and now an optional one.
+
+**deadeye does not ship, install, or supervise Laya.** Laya is Python;
+this is a single static Go binary with no runtime dependencies, and
+bundling an interpreter plus ~843MB of weights into six release binaries
+would trade that away for one optional feature (Apache 2.0 would permit
+redistribution -- the objection is practical, not legal). The whole
+contract is an endpoint: you run `laya-serve`, `laya.endpoint` points at
+it, and every call site falls back to its previous behavior on an unset
+endpoint, a connection error, a timeout, a non-2xx, malformed JSON, or a
+missing answer. With `mode.laya` at its default `off`, nothing calls out
+and every decision is bit-for-bit what it was in 0.65.0.
+
+`mode.laya` is a ladder rather than a switch -- `off`, `shadow`, `advise`,
+`authoritative` -- and the reason is specific, not ceremonial: Laya's
+UNTUNED accuracy on typed decisions is 0.362 on its vendor's own eval
+against ~0.33 for a three-way coin flip (0.766 fine-tuned, which needs
+~30k labelled examples and GPU hours). Every published figure for it is
+vendor-self-reported; no independent evaluation was found. `shadow` asks
+Laya and records the answer beside what deadeye actually did, changing
+nothing; `advise` also surfaces it in the visible decision reason;
+only `authoritative` lets it act. `/deadeye-stats laya` reports agreement
+per call site, labelled as agreement and never as accuracy -- on the lower
+rungs "actual" is whatever the existing mechanism chose, which is not
+ground truth either. Shadow mode also accumulates the labelled
+task-to-tier data that fine-tuning would need, which is the only real
+route to that 0.766 figure.
+
+Six call sites, all opt-in, all fail-open:
+
+- **Routing judge** -- on `authoritative`, resolves the Unsure case the
+  `claude -p` judge exists for, and the judge then returns early.
+- **Complexity signal** -- an optional seventh signal beside the six
+  heuristics, added only on `authoritative`. It is a quietSkipper and
+  skips below a certainty floor: kernel.Decide takes the MINIMUM
+  confidence across evidence, so a hedging classifier would otherwise drag
+  every decision's confidence down and silently make routing pricier.
+  Capped at MaxAchievableConfidence so that constant's meaning holds.
+- **Plan gate** and **workflow hint** -- may only CONFIRM or SUPPRESS a
+  gate the heuristic already fired, never fire one themselves. That bounds
+  the latency cost (asked only when the heuristic fired) and puts the
+  error in the cheap direction (a missed suggestion, not a spurious
+  interruption). The cost is that shadow-mode agreement data for these two
+  sites only covers prompts the heuristic flagged -- a real limit on what
+  the report can say about their precision, stated in the code.
+- **Tier-sample screen** -- a free local screen on every confident
+  high-tier route, escalating only disagreements to a paid `claude -p`
+  confirmation. Two independent opinions before anything is recorded, and
+  denser coverage than the 1-in-10 sonnet sample 0.65.0 shipped could
+  justify.
+- **`deadeye misses` commit classifier** -- "does this message describe
+  fixing a bug?" in place of a `fix|bugfix|revert` regex, catching the
+  fixes that never say "fix". Offline, so cold start and latency don't
+  matter: the lowest-risk site of the six.
+
+New `/deadeye-laya` skill does the whole setup and verification --
+prerequisites, a venv install, `laya-serve`, config, `deadeye laya
+health`, `deadeye laya test` -- and refuses to recommend a promotion
+without looking at the agreement number first. New `deadeye laya
+<status|health|test|agreement>` backs it, plus a `laya` row in `deadeye
+doctor`, because a dead endpoint looks exactly like Laya being off:
+correct fail-open behavior, and miserable to debug without a signal. A new
+[setup page](https://deepaksinghcs14.github.io/deadeye-cc/laya.html) on
+the site covers it end to end.
+
+A token is never stored in config: `laya.api_key_env` names an
+environment variable (default `LAYA_API_KEY`) and deadeye reads the value
+from the environment, because `deadeye config` prints what is in
+config.json.
+
+Numbers worth repeating wherever Laya is discussed, and carried in the
+skill's honesty boundaries: ~843MB of weights, 193-464ms per call on CPU
+with the model resident, and several seconds for a cold checkpoint load.
+The widely-quoted 32.8ms is a T4 GPU figure and is never presented as the
+expected latency. Upstream was released 2026-09-18 and has been shipping
+roughly three releases a day, so breaking changes are likely rather than
+hypothetical.
+
+Declined on purpose: bundling Laya or its weights into the release
+(size, and a CGo ONNX path would break the pure-Go static cross-compile
+for all six platforms); letting `shadow` or `advise` reach the kernel (a
+recorded-but-untrusted classifier must not be able to change a decision);
+and letting Laya fire a plan gate or workflow hint on its own, which would
+put a 200-464ms inference on every prompt for a suggestion the heuristic
+never flagged.
+
 ## 0.65.0
 
 deadeye makes three claims about itself — the reviewer is precise, the

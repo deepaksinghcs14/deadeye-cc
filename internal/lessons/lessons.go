@@ -50,7 +50,7 @@ type Outcome struct {
 	TaskShape string  `json:"task_shape"`
 	Model     string  `json:"model"`
 	Effort    string  `json:"effort"`
-	Kind      string  `json:"kind"` // "escalation" | "coder-miss" | "review-false-positive" | "external-miss" | "tier-disagreement"
+	Kind      string  `json:"kind"` // "escalation" | "coder-miss" | "review-false-positive" | "external-miss" | "tier-disagreement" | "laya-verdict"
 	Weight    float64 `json:"weight"`
 	// JudgedTier is the judge's own 0/1/2 classification, recorded only on
 	// "tier-disagreement": the routed model is in Model, and this is what
@@ -61,8 +61,17 @@ type Outcome struct {
 	// filters on Kind == "escalation", so a disagreement is inert there by
 	// construction -- routing stays one-directional (INV-1) until this
 	// measurement has been trusted for a while.
-	JudgedTier *int   `json:"judged_tier,omitempty"`
-	Repo       string `json:"repo,omitempty"` // gitutil.ProjectKey; "" means global (routing's shape already is)
+	JudgedTier *int `json:"judged_tier,omitempty"`
+	// Site, LayaValue and Actual are recorded only on "laya-verdict": which
+	// call site asked (judge, plan-gate, workflow-hint, tier-sample,
+	// fix-shaped, complexity), what Laya answered, and what deadeye itself
+	// did. Agreement is LayaValue == Actual, which is all
+	// `/deadeye-stats laya` needs to report -- comparable across sites
+	// whose answers are tiers, booleans or labels.
+	Site      string `json:"site,omitempty"`
+	LayaValue string `json:"laya_value,omitempty"`
+	Actual    string `json:"actual,omitempty"`
+	Repo      string `json:"repo,omitempty"` // gitutil.ProjectKey; "" means global (routing's shape already is)
 }
 
 // SurfaceRouting, SurfaceCoder, and SurfacePRReview are Outcome.Surface's

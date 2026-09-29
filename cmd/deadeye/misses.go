@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
 	"strings"
+	"time"
+
+	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
@@ -19,7 +23,13 @@ import (
 // ships as `likely` for a human to confirm.
 //
 // "prefix"/"suffix" don't match: \b needs a word boundary before "fix".
-var fixShaped = regexp.MustCompile(`(?i)^(fix|hotfix|bugfix|revert)\b|\bfix(es|ed)?\b|\bbug\b`)
+var fixShapedRe = regexp.MustCompile(`(?i)^(fix|hotfix|bugfix|revert)\b|\bfix(es|ed)?\b|\bbug\b`)
+
+// regexFixShaped is the default classifier: cheap, offline, and wrong in
+// both directions -- it misses a fix whose subject never says "fix"
+// ("handle nil case", "guard against empty input"). mode.laya at the
+// authoritative rung swaps in a yes/no classifier instead; see runMisses.
+func regexFixShaped(subject string) bool { return fixShapedRe.MatchString(subject) }
 
 // maxRangesPerReceipt bounds the git work one receipt can trigger. A
 // review of a 40-file diff otherwise fans out to hundreds of `git log -L`
@@ -68,10 +78,27 @@ func runMisses() {
 		fmt.Println("deadeye misses: not a git repository -- this report reads the repo's own history.")
 		return
 	}
-	renderMisses(meta.ReceiptsPath(), meta.OutcomesPath(), gitutil.ProjectKey(cwd), realGit{root: root})
+	cfg := config.Load()
+	isFix := regexFixShaped
+	// Offline report: cold start and per-call latency are irrelevant here,
+	// which makes this the lowest-risk place for Laya to act. Only the
+	// authoritative rung substitutes it; a classifier that is down or
+	// unsure falls straight back to the regex for that subject.
+	if c := layaClient(cfg); c != nil && layaDecides(cfg) {
+		isFix = func(subject string) bool {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			yes, _, ok := layaYes(ctx, c, subject, "Does this git commit message describe fixing a bug, defect, or regression?", 0.5)
+			if !ok {
+				return regexFixShaped(subject)
+			}
+			return yes
+		}
+	}
+	renderMisses(meta.ReceiptsPath(), meta.OutcomesPath(), gitutil.ProjectKey(cwd), realGit{root: root}, isFix)
 }
 
-func renderMisses(receiptsPath, outcomesPath, repo string, g gitReader) {
+func renderMisses(receiptsPath, outcomesPath, repo string, g gitReader, isFix func(string) bool) {
 	all, err := receipts.Scan(receiptsPath)
 	if err != nil {
 		fmt.Println("deadeye misses:", err)
@@ -115,7 +142,7 @@ func renderMisses(receiptsPath, outcomesPath, repo string, g gitReader) {
 				}
 				budget--
 				for _, c := range logLineRange(g, path, lr, landing.SHA) {
-					if seen[c.SHA] || !fixShaped.MatchString(c.Subject) {
+					if seen[c.SHA] || !isFix(c.Subject) {
 						continue
 					}
 					seen[c.SHA] = true

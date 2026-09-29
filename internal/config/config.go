@@ -29,6 +29,23 @@ type Modes struct {
 	UpdateCheck  string `json:"update_check"`
 	RoutingJudge string `json:"routing_judge"`
 	CatalogCheck string `json:"catalog_check"`
+	// Laya (off|shadow|advise|authoritative) governs the optional local
+	// Laya decision model (see internal/laya). A ladder, not a switch,
+	// because Laya's untuned accuracy on typed decisions is close to chance
+	// on its vendor's own eval -- so it earns authority here instead of
+	// being granted it:
+	//   off           -- never called. The default; behavior identical to
+	//                    every release before it existed.
+	//   shadow        -- called, and its verdict RECORDED beside what
+	//                    deadeye actually did. Changes nothing.
+	//   advise        -- verdict recorded and surfaced in the decision's
+	//                    visible reason. Still changes nothing.
+	//   authoritative -- verdict is USED, replacing the mechanism it stands
+	//                    in for (the claude -p judge call, a gate
+	//                    threshold, a commit-subject regex).
+	// `/deadeye-stats laya` shows the agreement rate that makes promoting
+	// up this ladder an evidence-based decision.
+	Laya string `json:"laya"`
 	// TierSample (off|on) samples CONFIDENT high-tier routing decisions
 	// through the judge, which the live path otherwise never second-guesses
 	// (applyRoutingJudge returns early unless a decision is Unsure). It
@@ -61,6 +78,19 @@ type PlanGate struct {
 // 100%.
 type TierSample struct {
 	Rate int `json:"rate"`
+}
+
+// Laya configures the optional local decision model. deadeye never
+// installs or supervises it -- see internal/laya for why an endpoint is
+// the whole contract.
+//
+// APIKeyEnv names an environment variable, never the token itself:
+// laya-serve's LAYA_API_KEY is a bearer token, and a token written into
+// config.json is a secret at rest that `deadeye config` would print.
+type Laya struct {
+	Endpoint  string `json:"endpoint"`
+	APIKeyEnv string `json:"api_key_env"`
+	TimeoutMS int    `json:"timeout_ms"`
 }
 
 // Coder configures the coder-mode persona (see internal/coder).
@@ -121,6 +151,7 @@ type Config struct {
 	Preprocess            Preprocess `json:"preprocess"`
 	PlanGate              PlanGate   `json:"plan_gate"`
 	TierSample            TierSample `json:"tier_sample"`
+	Laya                  Laya       `json:"laya"`
 	Coder                 Coder      `json:"coder"`
 	Security              Security   `json:"security"`
 }
@@ -170,11 +201,13 @@ func Default() Config {
 			RoutingJudge: "on", // the LLM judge calls claude -p (sonnet) on unsure cases -- deliberately trades zero-network for accuracy; off restores pure heuristics
 			CatalogCheck: "on",
 			TierSample:   "off", // spends a judge call purely to measure; opt in
+			Laya:         "off", // needs a laya-serve endpoint; opt in, then earn authority
 		},
 		DownshiftThreshold:    0.8,
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
 		TierSample:            TierSample{Rate: 10},
+		Laya:                  Laya{Endpoint: "", APIKeyEnv: "LAYA_API_KEY", TimeoutMS: 1500},
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",

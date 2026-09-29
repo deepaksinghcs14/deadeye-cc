@@ -63,6 +63,15 @@ func decideWorkflowHint(in hookio.Input, cfg config.Config, clientVersion, host 
 	}
 
 	marker := truncatedMarker(in.Prompt)
+	// Same confirmer-not-trigger contract as the plan gate: asked only when
+	// looksFanOutShaped already fired, and able only to suppress. Checked
+	// BEFORE markSuggestedIfFirst so a suppressed hint doesn't burn the
+	// dedup key for a later prompt that deserves it.
+	if keep := state.layaConfirmsGate(cfg, siteWorkflowHint, in.Prompt,
+		"Is this request genuinely many independent units of work that could run in parallel?",
+		marker, in.SessionID, in.Cwd); !keep {
+		return "", false
+	}
 	if !state.markSuggestedIfFirst(in.SessionID, "workflow:"+marker) {
 		return "", false
 	}
