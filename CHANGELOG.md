@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.68.0
+
+The taxonomy experiment, and a correction that invalidates several earlier
+numbers of mine.
+
+61% annotator agreement suggested the tier definitions were the binding
+constraint, so `corpus/tiers_v2.md` rewrote them to settle the four
+ambiguities the disagreements clustered into, and both annotators relabelled
+the same 70 real prompts from v2 alone.
+
+**Agreement got worse: 61% -> 50%.** Sharpening relocated the ambiguity rather
+than removing it — the new "retrieve a specific thing (0) vs open-ended
+investigation (1)" line split the annotators 23 times by itself, and one
+annotator then collapsed toward a constant (49 of 70 labelled tier 1).
+
+**The correction.** Every Laya accuracy figure in this project was compared
+against "chance = 33.3%". That is the right null only for a balanced set, and
+none of these are balanced. The honest null is the majority class:
+
+| | accuracy | majority-class null | vs null |
+|---|---|---|---|
+| v1 labels | 23.3% | 67.4% | **-44.2** |
+| v2 labels | 62.9% | 62.9% | **+0.0** |
+
+The v2 result looked like a +39.6 point jump. It is a class-balance artifact:
+the evaluation set shifted toward tier 1, and the classifier answers tier 1 on
+33 of 35 cases. It beats a constant by exactly nothing. `eval_taxonomy.py`
+originally printed that as success, which is why it now computes the
+majority-class null and reports every score relative to it.
+
+**This closes the routing question.** On real traffic Laya's tier
+classification carries no information — a constant answer does as well or
+better under both label sets. The taxonomy is not the bottleneck; better
+labels do not rescue it; and fine-tuning would mean training on a task the
+model shows no signal on, which is not a data problem that more data fixes.
+
+Unaffected: the `deadeye misses` commit classifier, which asks a different
+(binary) question and was measured separately at 14/22 against the regex's
+11/22. That remains the one place Laya earns its keep, and per-site
+enablement remains the sensible next build.
+
+Product behaviour is unchanged and remains `mode.laya=off` by default.
+
 ## 0.67.4
 
 Can we tell in advance whether fine-tuning would help? Yes, for free — Convai

@@ -315,3 +315,47 @@ edges it (27.9% vs 23.3%). The default is unchanged because n=43 and a
 4.7-point gap is two cases with both below chance — but it is an argued
 default, not a measured one, and should be revisited against any real
 ground-truth set.
+
+
+### Taxonomy experiment, and a correction to every number above
+
+The 61% annotator agreement suggested the tier definitions were the binding
+constraint. `corpus/tiers_v2.md` rewrote them to settle the four ambiguities
+the disagreements clustered into, and both annotators relabelled the same 70
+prompts from v2 alone (`corpus/eval_taxonomy.py`).
+
+**It failed, in an instructive way.**
+
+| | v1 | v2 |
+|---|---|---|
+| annotator agreement | 61% | **50%** |
+| baseline vs majority-class null | −44.2 | **+0.0** |
+| decomposed vs null | −39.5 | −34.3 |
+
+Sharpening did not remove the ambiguity, it *relocated* it: the new
+"retrieve a specific thing (0) vs open-ended investigation (1)" line split the
+annotators 23 times on its own. One annotator then collapsed toward a constant
+(49 of 70 labelled tier 1), which is why agreement fell.
+
+**The correction that matters more.** Every earlier figure in this README was
+compared against "chance = 33.3%". That is the right null only for a balanced
+set, and none of these sets are balanced. The honest null is the **majority
+class**, and against it:
+
+- v1: the baseline scores 23.3% where always-answering-0 scores 67.4% — it is
+  **44 points worse than a constant**.
+- v2: the baseline scores 62.9% where always-answering-1 scores 62.9% — it
+  predicts tier 1 on 33 of 35 cases and beats the constant by **exactly
+  nothing**.
+
+So the v2 "+39.6 point improvement" was entirely a class-balance artifact: the
+evaluation set shifted toward the one answer the classifier always gives. The
+verdict function in `eval_taxonomy.py` originally reported that as success,
+which is why it now computes the majority-class null instead.
+
+**Conclusion.** On real traffic, Laya's tier classification carries no
+information: a constant answer does as well or better under both label sets.
+The taxonomy is not the bottleneck, better labels do not rescue it, and
+fine-tuning would mean training on a task the model shows no signal on. This
+closes the routing use — the commit classifier (a different question, measured
+separately at 14/22 against a regex's 11/22) is unaffected.
