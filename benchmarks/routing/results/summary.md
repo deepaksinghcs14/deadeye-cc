@@ -54,3 +54,35 @@ Each task ran on all three tiers in an isolated clean tree, graded by a hidden t
 
 - Every task picked the same tier on every trial in this run. That is one sample, not a guarantee: `claude -p` exposes no temperature/seed control, so stability has to be re-measured, never assumed.
 - The realized number is what to quote for "what does deadeye save". The oracle is the ceiling it's trying to reach.
+
+## Laya arm (optional local classifier)
+
+On the 6 benchmark tasks, a `mode.laya=authoritative` router would have spent **$1.4061** against **$1.7962** for all-opus (**21.7%** saved), and the tier it picked passed its hidden test on **5/6**. Same accounting as the router arm above: a wrong-cheap route pays for the re-run.
+
+| task | laya | passed? | realized cost |
+|---|---|---|---|
+| h4-semver | sonnet | yes | $0.1661 |
+| h5-expr | sonnet | **NO** | $0.6457 |
+| h6-counter | sonnet | yes | $0.2506 |
+| m1-clamp | sonnet | yes | $0.0704 |
+| s2-wordwrap | sonnet | yes | $0.1316 |
+| s3-csv | sonnet | yes | $0.1417 |
+
+### Discrimination probes
+
+| probe | want | got | |
+|---|---|---|---|
+| architecture | 2 | 2 | ok |
+| cross-file refactor | 1 | 1 | ok |
+| security-critical | 2 | 1 | **miss** |
+| specified single file | 0 | 1 | **miss** |
+| subtle debugging | 2 | 2 | ok |
+| trivial rename | 0 | 0 | ok |
+| underspecified integration | 1 | 1 | ok |
+
+**5/7** probes classified as expected.
+
+Latency over 39 local calls (checkpoint already resident): p50 **71ms**, p95 **115ms**, min 50ms, max 406ms.
+
+- Every item picked the same tier on every trial. Laya is a single forward pass with no sampling, so this is expected rather than lucky -- it means a wrong answer is wrong the same way every time, not noise to average out.
+- This is six tasks and seven probes. It shows a DIRECTION, not an accuracy rate. The grid's ground truth is real (hidden tests the model never saw), but no sample this size supports a percentage anyone should act on.

@@ -1,0 +1,39 @@
+{"kind": "task", "id": "h4-semver", "trial": 1, "want": "0", "ok": true, "tier": 1, "certainty": 0.4454, "checkpoint": "typed-decisions", "ms": 406}
+{"kind": "task", "id": "h4-semver", "trial": 2, "want": "0", "ok": true, "tier": 1, "certainty": 0.4454, "checkpoint": "typed-decisions", "ms": 99}
+{"kind": "task", "id": "h4-semver", "trial": 3, "want": "0", "ok": true, "tier": 1, "certainty": 0.4454, "checkpoint": "typed-decisions", "ms": 107}
+{"kind": "task", "id": "h5-expr", "trial": 1, "want": "0", "ok": true, "tier": 1, "certainty": 0.5071, "checkpoint": "typed-decisions", "ms": 98}
+{"kind": "task", "id": "h5-expr", "trial": 2, "want": "0", "ok": true, "tier": 1, "certainty": 0.5071, "checkpoint": "typed-decisions", "ms": 83}
+{"kind": "task", "id": "h5-expr", "trial": 3, "want": "0", "ok": true, "tier": 1, "certainty": 0.5071, "checkpoint": "typed-decisions", "ms": 87}
+{"kind": "task", "id": "h6-counter", "trial": 1, "want": "0", "ok": true, "tier": 1, "certainty": 0.4873, "checkpoint": "typed-decisions", "ms": 95}
+{"kind": "task", "id": "h6-counter", "trial": 2, "want": "0", "ok": true, "tier": 1, "certainty": 0.4873, "checkpoint": "typed-decisions", "ms": 83}
+{"kind": "task", "id": "h6-counter", "trial": 3, "want": "0", "ok": true, "tier": 1, "certainty": 0.4873, "checkpoint": "typed-decisions", "ms": 82}
+{"kind": "task", "id": "m1-clamp", "trial": 1, "want": "0", "ok": true, "tier": 1, "certainty": 0.487, "checkpoint": "typed-decisions", "ms": 96}
+{"kind": "task", "id": "m1-clamp", "trial": 2, "want": "0", "ok": true, "tier": 1, "certainty": 0.487, "checkpoint": "typed-decisions", "ms": 82}
+{"kind": "task", "id": "m1-clamp", "trial": 3, "want": "0", "ok": true, "tier": 1, "certainty": 0.487, "checkpoint": "typed-decisions", "ms": 71}
+{"kind": "task", "id": "s2-wordwrap", "trial": 1, "want": "0", "ok": true, "tier": 1, "certainty": 0.5414, "checkpoint": "typed-decisions", "ms": 101}
+{"kind": "task", "id": "s2-wordwrap", "trial": 2, "want": "0", "ok": true, "tier": 1, "certainty": 0.5414, "checkpoint": "typed-decisions", "ms": 96}
+{"kind": "task", "id": "s2-wordwrap", "trial": 3, "want": "0", "ok": true, "tier": 1, "certainty": 0.5414, "checkpoint": "typed-decisions", "ms": 92}
+{"kind": "task", "id": "s3-csv", "trial": 1, "want": "0", "ok": true, "tier": 1, "certainty": 0.4592, "checkpoint": "typed-decisions", "ms": 99}
+{"kind": "task", "id": "s3-csv", "trial": 2, "want": "0", "ok": true, "tier": 1, "certainty": 0.4592, "checkpoint": "typed-decisions", "ms": 83}
+{"kind": "task", "id": "s3-csv", "trial": 3, "want": "0", "ok": true, "tier": 1, "certainty": 0.4592, "checkpoint": "typed-decisions", "ms": 85}
+{"kind": "probe", "id": "trivial rename", "trial": 1, "want": "0", "ok": true, "tier": 0, "certainty": 0.4283, "checkpoint": "typed-decisions", "ms": 60}
+{"kind": "probe", "id": "trivial rename", "trial": 2, "want": "0", "ok": true, "tier": 0, "certainty": 0.4283, "checkpoint": "typed-decisions", "ms": 62}
+{"kind": "probe", "id": "trivial rename", "trial": 3, "want": "0", "ok": true, "tier": 0, "certainty": 0.4283, "checkpoint": "typed-decisions", "ms": 66}
+{"kind": "probe", "id": "specified single file", "trial": 1, "want": "0", "ok": true, "tier": 1, "certainty": 0.53, "checkpoint": "typed-decisions", "ms": 133}
+{"kind": "probe", "id": "specified single file", "trial": 2, "want": "0", "ok": true, "tier": 1, "certainty": 0.53, "checkpoint": "typed-decisions", "ms": 66}
+{"kind": "probe", "id": "specified single file", "trial": 3, "want": "0", "ok": true, "tier": 1, "certainty": 0.53, "checkpoint": "typed-decisions", "ms": 66}
+{"kind": "probe", "id": "cross-file refactor", "trial": 1, "want": "1", "ok": true, "tier": 1, "certainty": 0.5428, "checkpoint": "typed-decisions", "ms": 115}
+{"kind": "probe", "id": "cross-file refactor", "trial": 2, "want": "1", "ok": true, "tier": 1, "certainty": 0.5428, "checkpoint": "typed-decisions", "ms": 66}
+{"kind": "probe", "id": "cross-file refactor", "trial": 3, "want": "1", "ok": true, "tier": 1, "certainty": 0.5428, "checkpoint": "typed-decisions", "ms": 61}
+{"kind": "probe", "id": "underspecified integration", "trial": 1, "want": "1", "ok": true, "tier": 1, "certainty": 0.5838, "checkpoint": "typed-decisions", "ms": 70}
+{"kind": "probe", "id": "underspecified integration", "trial": 2, "want": "1", "ok": true, "tier": 1, "certainty": 0.5838, "checkpoint": "typed-decisions", "ms": 56}
+{"kind": "probe", "id": "underspecified integration", "trial": 3, "want": "1", "ok": true, "tier": 1, "certainty": 0.5838, "checkpoint": "typed-decisions", "ms": 54}
+{"kind": "probe", "id": "subtle debugging", "trial": 1, "want": "2", "ok": true, "tier": 2, "certainty": 0.3952, "checkpoint": "typed-decisions", "ms": 70}
+{"kind": "probe", "id": "subtle debugging", "trial": 2, "want": "2", "ok": true, "tier": 2, "certainty": 0.3952, "checkpoint": "typed-decisions", "ms": 64}
+{"kind": "probe", "id": "subtle debugging", "trial": 3, "want": "2", "ok": true, "tier": 2, "certainty": 0.3952, "checkpoint": "typed-decisions", "ms": 54}
+{"kind": "probe", "id": "security-critical", "trial": 1, "want": "2", "ok": true, "tier": 1, "certainty": 0.4241, "checkpoint": "typed-decisions", "ms": 58}
+{"kind": "probe", "id": "security-critical", "trial": 2, "want": "2", "ok": true, "tier": 1, "certainty": 0.4241, "checkpoint": "typed-decisions", "ms": 66}
+{"kind": "probe", "id": "security-critical", "trial": 3, "want": "2", "ok": true, "tier": 1, "certainty": 0.4241, "checkpoint": "typed-decisions", "ms": 53}
+{"kind": "probe", "id": "architecture", "trial": 1, "want": "2", "ok": true, "tier": 2, "certainty": 0.4459, "checkpoint": "typed-decisions", "ms": 63}
+{"kind": "probe", "id": "architecture", "trial": 2, "want": "2", "ok": true, "tier": 2, "certainty": 0.4459, "checkpoint": "typed-decisions", "ms": 64}
+{"kind": "probe", "id": "architecture", "trial": 3, "want": "2", "ok": true, "tier": 2, "certainty": 0.4459, "checkpoint": "typed-decisions", "ms": 50}

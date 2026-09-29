@@ -491,9 +491,21 @@ Six sites, all opt-in, all fail-open:
   bug fix?" instead of a `fix|bugfix|revert` regex, catching the fixes that
   never say "fix". Offline, so latency is irrelevant — the lowest-risk site.
 
-Cost, stated plainly: ~843MB of weights, **193–464ms** per call on CPU with
-the model resident (the widely-quoted 32.8ms is a T4 GPU figure), and
-several seconds for a cold checkpoint load. Full setup guide:
+Cost, stated plainly: ~843MB of weights, and several seconds for a cold
+checkpoint load. Per-call latency with the model resident measured **p50
+71ms / p95 115ms** on Apple Silicon in this repo's own benchmark; upstream
+quotes 193–464ms on CPU and 32.8ms on a T4 GPU.
+
+**Benchmarked, and it does not currently pay.** `benchmarks/routing/laya-probe.sh`
+runs the classifier against the same six tasks and the same hidden-test ground
+truth as the router benchmark, with the same accounting (a wrong-cheap route
+pays for the re-run). On that set deadeye's existing router realizes **48%**
+savings against all-opus; a `mode.laya=authoritative` router realizes **21.7%**
+— it rated every one of the six self-contained tasks a tier too high. It also
+missed 2 of 7 discrimination probes, including rating a security-critical task
+tier 1. Six tasks and seven probes show a direction, not an accuracy rate, but
+the direction is clear enough that `off` remains the default and `shadow` the
+place to start. Full setup guide:
 [deadeye.dev/laya](https://deepaksinghcs14.github.io/deadeye-cc/laya.html).
 
 ## Development

@@ -992,3 +992,29 @@ func TestJudgeVerdictReachesTheAdvisory(t *testing.T) {
 		}
 	}
 }
+
+// benchmarks/routing/laya-probe.sh parses this JSON. A silent field rename
+// would leave the benchmark reporting nulls that look like "no answer"
+// rather than failing loudly.
+func TestClassifyJSONContract(t *testing.T) {
+	srv := layaServer(t, `{"answers":{"q":{"choice":"2","answer_confidence":0.81}},"routing":{"model":"typed-decisions"}}`)
+	out := captureStdout(t, func() { layaClassify(layaCfg(layaShadow, srv), []string{"--json", "design", "a", "thing"}) })
+
+	var got map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &got); err != nil {
+		t.Fatalf("classify --json did not emit JSON: %v\n%s", err, out)
+	}
+	for _, k := range []string{"ok", "tier", "certainty", "checkpoint", "ms"} {
+		if _, present := got[k]; !present {
+			t.Errorf("missing field %q in %v", k, got)
+		}
+	}
+	if got["ok"] != true || got["tier"].(float64) != 2 || got["checkpoint"] != "typed-decisions" {
+		t.Errorf("wrong values: %v", got)
+	}
+	// A failure must still be machine-readable, not a bare error line.
+	out = captureStdout(t, func() { layaClassify(layaCfg(layaShadow, "http://127.0.0.1:1"), []string{"--json", "x"}) })
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &got); err != nil || got["ok"] != false {
+		t.Errorf("a failed classify must emit {\"ok\":false,...}, got: %s", out)
+	}
+}

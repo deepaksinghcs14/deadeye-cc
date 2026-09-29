@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.67.0
+
+Laya, benchmarked against the same ground truth as the router it would
+replace. The answer, on this evidence, is that it does not currently pay --
+which is what the trust ladder was built to let anyone find out.
+
+New `benchmarks/routing/laya-probe.sh` runs the classifier over the six
+benchmark tasks and the seven discrimination probes, joined by
+`summarize.py` against the existing pass/cost grid (real hidden tests the
+model never saw) using the SAME accounting as the router arm: a wrong-cheap
+route pays for the re-run, so a "saving" from a tier that then failed is not
+counted. Free to run -- every call is local, no `claude -p`, no tokens.
+
+On that set:
+
+| arm | realized | vs all-opus | passed |
+|---|---|---|---|
+| deadeye router (judge) | $0.931 | **48%** saved | 5/6 |
+| laya authoritative | $1.406 | 21.7% saved | 5/6 |
+
+Laya rated **every one** of the six self-contained, fully-specified tasks a
+tier too high -- sonnet where haiku demonstrably passed. It missed 2 of 7
+discrimination probes, and the one that matters is rating a security-critical
+task tier 1 instead of tier 2: routing genuinely hard work to a cheaper model
+is the expensive direction to be wrong in. Every answer was identical across
+all three trials, which is expected rather than lucky -- a single forward
+pass with no sampling means a wrong answer is wrong the same way every time,
+not noise to average out.
+
+Six tasks and seven probes show a DIRECTION, not an accuracy rate, and the
+report says so. But the direction is clear enough that `off` stays the
+default and `shadow` stays the recommended resting state.
+
+New `deadeye laya classify [--json] <prompt>` backs the benchmark, so it
+measures the exact question production asks -- same instructions, same
+criteria, same checkpoint -- rather than a copy of the prompt in a shell
+script that drifts the moment either side is edited. A benchmark measuring a
+slightly different prompt than the product sends is worse than none, because
+it looks authoritative. Its JSON contract is pinned by a test, including the
+failure shape, since the probe script parses it.
+
+Latency corrected from measurement rather than the vendor's figure: **p50
+71ms, p95 115ms** over 39 local calls on Apple Silicon with the checkpoint
+resident. Upstream quotes 193-464ms on CPU and 32.8ms on a T4 GPU; the docs
+now name which number is which and where ours came from. A checkpoint reload
+still costs seconds, so the first call after a restart is not representative
+and the benchmark warms up before timing anything.
+
 ## 0.66.4
 
 Setting Laya up for real, on a real machine, against a real `laya-serve`.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -252,8 +253,12 @@ func runLaya(args []string) {
 		}
 	case "agreement":
 		layaAgreement(meta.OutcomesPath(), cfg, time.Now())
+	case "classify":
+		if code := layaClassify(cfg, args[1:]); code != 0 {
+			os.Exit(code)
+		}
 	default:
-		fmt.Fprintln(os.Stderr, "usage: deadeye laya <status|health|test|agreement>")
+		fmt.Fprintln(os.Stderr, "usage: deadeye laya <status|health|test|agreement|classify [--json] <prompt>>")
 		os.Exit(2)
 	}
 }
@@ -666,4 +671,60 @@ func (d *daemonState) layaShadowRecord(cfg config.Config, decision kernel.Decisi
 		// verdict under the wrong repo.
 		d.recordLayaVerdict(siteJudge, shape, strconv.Itoa(got), strconv.Itoa(tier), model, checkpoint, sessionID, cwd)
 	})
+}
+
+// layaClassify asks Laya to tier one arbitrary prompt and prints the result,
+// optionally as JSON.
+//
+// It exists so benchmarks/routing/laya-probe.sh measures the EXACT question
+// production asks -- same instructions, same criteria, same checkpoint --
+// rather than a copy in a shell script that drifts the moment either side is
+// edited. A benchmark measuring a slightly different prompt than the product
+// sends is worse than no benchmark, because it looks authoritative.
+func layaClassify(cfg config.Config, args []string) int {
+	asJSON := false
+	var prompt []string
+	for _, a := range args {
+		if a == "--json" {
+			asJSON = true
+			continue
+		}
+		prompt = append(prompt, a)
+	}
+	text := strings.TrimSpace(strings.Join(prompt, " "))
+	if text == "" {
+		fmt.Fprintln(os.Stderr, "usage: deadeye laya classify [--json] <prompt>")
+		return 2
+	}
+	// Deliberately generous, unlike the hook path's budget: a benchmark
+	// wants the answer even when a cold checkpoint load costs seconds, and
+	// it measures the latency rather than racing it.
+	c := laya.New(cfg.Laya.Endpoint, os.Getenv(cfg.Laya.APIKeyEnv), cfg.Laya.Checkpoint, 60*time.Second)
+	if c == nil {
+		fmt.Fprintln(os.Stderr, "no laya endpoint configured")
+		return 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 65*time.Second)
+	defer cancel()
+	start := time.Now()
+	tier, certainty, checkpoint, ok := layaTier(ctx, c, text)
+	ms := time.Since(start).Milliseconds()
+	if !ok {
+		if asJSON {
+			fmt.Printf(`{"ok":false,"ms":%d}`+"\n", ms)
+		} else {
+			fmt.Println(cWarn("no usable answer"))
+		}
+		return 1
+	}
+	if asJSON {
+		b, _ := json.Marshal(map[string]any{
+			"ok": true, "tier": tier, "certainty": certainty,
+			"checkpoint": checkpoint, "ms": ms,
+		})
+		fmt.Println(string(b))
+		return 0
+	}
+	fmt.Printf("tier %d  certainty %.2f  checkpoint %s  %dms\n", tier, certainty, checkpoint, ms)
+	return 0
 }

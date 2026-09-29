@@ -212,5 +212,107 @@ if rrows:
     out.append("- The realized number is what to quote for \"what does deadeye save\". "
                "The oracle is the ceiling it's trying to reach.")
 
+
+# ------------------------------------------------------------------ laya arm
+# What the OPTIONAL local Laya classifier would have picked, against the same
+# ground truth. Written by laya-probe.sh; absent until it's been run.
+#
+# Two things this arm can establish and one it cannot. It CAN show cost and
+# whether the tier it picked actually passed, because both come from the grid
+# above. It CANNOT produce a trustworthy accuracy number from six tasks -- the
+# direction of the error is the finding, not its magnitude.
+laya_path = os.path.join(HERE, "results/laya.jsonl")
+lrows = [json.loads(l) for l in open(laya_path) if l.strip()] if os.path.exists(laya_path) else []
+
+if lrows:
+    out.append("")
+    out.append("## Laya arm (optional local classifier)")
+    out.append("")
+
+    def majority(vals):
+        return max(set(vals), key=vals.count) if vals else None
+
+    lpicks, lunstable = {}, []
+    for t in tasks:
+        votes = [r["tier"] for r in lrows if r["kind"] == "task" and r["id"] == t and r["tier"] is not None]
+        if not votes:
+            continue
+        top = majority(votes)
+        lpicks[t] = top
+        if votes.count(top) < len(votes):
+            lunstable.append((t, votes))
+
+    lscored = [t for t in tasks if t in lpicks]
+
+    def lrealized(task):
+        """Identical convention to the router arm's realized(): pay the chosen
+        tier, then each higher tier until one passes. Using a cheaper
+        accounting here (just the picked tier) would make Laya look better
+        than the router for the same mistake, which is the one comparison
+        this section exists to make."""
+        total, start = 0.0, lpicks[task]
+        for tier in TIERS[start:]:
+            total += cost(task, tier)
+            if passed(task, tier):
+                return total, True
+        return total, False
+
+    lcost = sum(lrealized(t)[0] for t in lscored)
+    lpassed = sum(1 for t in lscored if lrealized(t)[1])
+    baseline = sum(cost(t, "opus") for t in lscored)
+
+    out.append(f"On the {len(lscored)} benchmark tasks, a `mode.laya=authoritative` router would "
+               f"have spent **${lcost:.4f}** against **${baseline:.4f}** for all-opus "
+               f"(**{100 * (1 - lcost / baseline):.1f}%** saved), and the tier it picked passed "
+               f"its hidden test on **{lpassed}/{len(lscored)}**. Same accounting as the router "
+               f"arm above: a wrong-cheap route pays for the re-run.")
+    out.append("")
+    out.append("| task | laya | passed? | realized cost |")
+    out.append("|---|---|---|---|")
+    for t in lscored:
+        c, ok = lrealized(t)
+        out.append(f"| {t} | {TIERS[lpicks[t]]} | {'yes' if ok else '**NO**'} | ${c:.4f} |")
+
+    # Discrimination is the half that matters: every benchmark task above is
+    # self-contained specified work that should route tier 0, so a classifier
+    # collapsed to a single answer scores well there and fails here.
+    probes = [r for r in lrows if r["kind"] == "probe"]
+    if probes:
+        out.append("")
+        out.append("### Discrimination probes")
+        out.append("")
+        out.append("| probe | want | got | |")
+        out.append("|---|---|---|---|")
+        hits = 0
+        for label in sorted({r["id"] for r in probes}):
+            v = [r["tier"] for r in probes if r["id"] == label and r["tier"] is not None]
+            want = int([r["want"] for r in probes if r["id"] == label][0])
+            got = majority(v)
+            ok = got == want
+            hits += 1 if ok else 0
+            out.append(f"| {label} | {want} | {got} | {'ok' if ok else '**miss**'} |")
+        out.append("")
+        out.append(f"**{hits}/{len({r['id'] for r in probes})}** probes classified as expected.")
+
+    lat = sorted(r["ms"] for r in lrows if r.get("ok") and r.get("ms") is not None)
+    if lat:
+        out.append("")
+        p50 = lat[len(lat) // 2]
+        p95 = lat[max(0, int(len(lat) * 0.95) - 1)]
+        out.append(f"Latency over {len(lat)} local calls (checkpoint already resident): "
+                   f"p50 **{p50}ms**, p95 **{p95}ms**, min {lat[0]}ms, max {lat[-1]}ms.")
+
+    out.append("")
+    if lunstable:
+        out.append(f"- {len(lunstable)} task(s) picked different tiers across trials: " +
+                   ", ".join(f"{t} {v}" for t, v in lunstable))
+    else:
+        out.append("- Every item picked the same tier on every trial. Laya is a single forward "
+                   "pass with no sampling, so this is expected rather than lucky -- it means a "
+                   "wrong answer is wrong the same way every time, not noise to average out.")
+    out.append("- This is six tasks and seven probes. It shows a DIRECTION, not an accuracy "
+               "rate. The grid's ground truth is real (hidden tests the model never saw), but "
+               "no sample this size supports a percentage anyone should act on.")
+
 open(os.path.join(HERE, "results/summary.md"), "w").write("\n".join(out) + "\n")
 print("\n".join(out))

@@ -157,3 +157,32 @@ should be expected to come in lower there.
   similar across tiers, so it *dilutes* the headline %. The model-priced delta
   is the real lever; a subagent-heavy real workload sees a larger effect than
   these single-shot tasks.
+
+
+## Laya arm (`laya-probe.sh`)
+
+deadeye can optionally route through a local [Laya](https://github.com/NandhaKishorM/laya)
+classifier instead of the `claude -p` judge (`mode.laya`). This arm measures
+what that would pick, against the same ground truth and the same accounting as
+the router arm — so the two numbers are directly comparable.
+
+```bash
+./laya-probe.sh 3        # needs a running laya-serve; free, no model spend
+./summarize.py
+```
+
+It calls `deadeye laya classify`, the same code path production uses, rather
+than re-stating the classifier's prompt in a shell script. A benchmark that
+measures a slightly different prompt than the product sends is worse than no
+benchmark, because it looks authoritative.
+
+**Two arms, and the second is the one that matters.** All six benchmark tasks
+are self-contained, fully-specified work that should route tier 0, so a
+classifier collapsed to a single answer can score well on them. The
+discrimination probes — the same list `judge-probe.sh` uses, spanning all three
+tiers — are where that shows up.
+
+**What it can and cannot establish.** It can report real cost and whether the
+tier it picked actually passed, because both come from the pass/cost grid. It
+cannot produce a trustworthy accuracy rate from six tasks and seven probes. The
+direction of the error is the finding; the magnitude is not.

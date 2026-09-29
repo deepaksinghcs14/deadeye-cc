@@ -72,10 +72,10 @@ risk, before anything routes on it.
 
    Tell the user the real cost before they commit: the install pulls
    **torch, transformers and their dependencies (multiple GB)**, then
-   **~843MB** of weights per checkpoint on first load. On CPU, inference
-   runs **193-464ms** per call with the model resident (the widely-quoted
-   32.8ms is a T4 GPU figure), and a cold checkpoint load costs several
-   seconds.
+   **~843MB** of weights per checkpoint on first load. Per-call latency with the model
+   resident: measured p50 **71ms** / p95 **115ms** on Apple Silicon with the checkpoint resident (39 local calls, `benchmarks/routing/laya-probe.sh`); upstream quotes 193-464ms on CPU and 32.8ms on a T4 GPU. A cold checkpoint load costs several seconds, and
+   a reload can cost ~6s, so the first call after a restart is not
+   representative.
 2. **Install into a venv, never system Python** (substituting the
    interpreter found above for `python3.12`):
    ```bash
@@ -289,7 +289,8 @@ Six sites, all opt-in, all fail-open:
 - Never present Laya as bundled with deadeye, or imply deadeye manages its
   lifecycle. The user owns that process.
 - Never quote 32.8ms as the expected latency without saying it's a T4 GPU
-  number; CPU is 193-464ms resident.
+  number. This repo's own measurement is p50 71ms / p95 115ms on Apple
+  Silicon; upstream quotes 193-464ms on CPU. Say which number you mean.
 - Never say Laya slows things down on `shadow` -- it doesn't, it's off the
   critical path there. And never imply a remote endpoint is equivalent to a
   local one; it isn't, and doctor says so.

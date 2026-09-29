@@ -167,10 +167,11 @@ pre code{background:none;padding:0;font-size:inherit;border-radius:0;}
       stops answering. With <code>mode.laya</code> at its default <code>off</code>, nothing here
       runs and deadeye behaves bit-for-bit as it did before this existed.</p>
       <div class="callout">
-        <p><strong>Cost, stated plainly.</strong> ~843MB of weights for the English checkpoint.
-        <strong>193&ndash;464ms</strong> per call on CPU with the model resident &mdash; the widely
-        quoted 32.8ms is a T4 GPU figure. A cold checkpoint load costs several seconds, which is why
-        the server has to stay running.</p>
+        <p><strong>Cost, stated plainly.</strong> ~843MB of weights per checkpoint. Per-call
+        latency with the model resident, measured in this repo's own benchmark on Apple Silicon:
+        <strong>p50 71ms, p95 115ms</strong>. Upstream quotes 193&ndash;464ms on CPU and 32.8ms on
+        a T4 GPU. A cold checkpoint load costs several seconds, which is why the server has to stay
+        running.</p>
       </div>
     </div>
   </section>
@@ -266,6 +267,35 @@ deadeye laya test     # one real tier question, end to end</code></pre>
       real route to the 0.766 figure, and you can't invent the dataset.</p>
       <p>Demoting costs nothing and loses no recorded data:</p>
       <pre><code>deadeye config set mode.laya shadow</code></pre>
+    </div>
+  </section>
+
+  <section>
+    <h2>does it pay?</h2>
+    <h3 class="section-title">Benchmarked against the same ground truth as the router</h3>
+    <div class="prose">
+      <p><code>benchmarks/routing/laya-probe.sh</code> runs the classifier over the same six tasks
+      as deadeye's routing benchmark, scored against hidden tests the model never saw, with the
+      same accounting the router arm uses &mdash; a wrong-cheap route pays for the re-run.</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>arm</th><th>realized cost</th><th>vs all-opus</th><th>passed</th></tr></thead>
+        <tbody>
+          <tr><td class="t">deadeye router (judge)</td><td>$0.931</td><td><strong>48%</strong> saved</td><td>5/6</td></tr>
+          <tr><td class="t">laya authoritative</td><td>$1.406</td><td>21.7% saved</td><td>5/6</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Laya rated <em>every one</em> of the six self-contained, fully-specified tasks a tier too
+      high &mdash; sonnet where haiku passed. It also missed 2 of 7 discrimination probes, one of
+      them rating a security-critical task tier 1 instead of tier 2, which is the expensive
+      direction to be wrong in. Answers were identical across all three trials: a single forward
+      pass with no sampling, so a wrong answer is wrong the same way every time rather than noise
+      to average out.</p>
+      <p>Six tasks and seven probes show a <em>direction</em>, not an accuracy rate. But it is
+      direction enough that <code>off</code> stays the default and <code>shadow</code> is where to
+      start &mdash; and it is exactly the kind of thing the ladder exists to let you find out on
+      your own traffic before anything routes on it.</p>
     </div>
   </section>
 
