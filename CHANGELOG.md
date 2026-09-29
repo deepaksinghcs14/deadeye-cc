@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.64.0
+
+`/deadeye-vapt` gets a depth pass, reviewed by a third party and verified
+against the primary sources before adopting anything. One real bug: the
+ASVS chapter references were stale 4.0.3 numbering (`V2 Authentication`,
+`V4 Access Control`, ...) cited as if current — ASVS 5.0 renumbered and
+expanded to 17 chapters, confirmed against OWASP's own repo, and every
+reference now points at the right one (Authentication is V6, Authorization
+is V8, Validation is V2, and so on).
+
+New depth: a role×endpoint authz table in Phase 1 (BOLA/BFLA is the most
+common real API defect and now gets a systematic pass, not ad hoc
+grepping), a one-line abuse-case pass in Phase 2 (Insecure Design hides
+behind code that runs correctly — grepping alone won't surface it),
+git-history secret scanning alongside the working-tree grep `secret:`
+already did (a credential rotated out of a file is often still reachable
+in `git log`), a concrete "needs live validation" list naming exactly
+what a source-only pass can't establish (edge TLS/headers, WAF/rate-limit
+enforcement, runtime IAM, DNS/subdomain takeover, cache behavior, timing
+channels), and Kubernetes pod-security specifics (`hostPath` mounts,
+`runAsUser: 0`, missing `securityContext`, no `NetworkPolicy`) alongside
+the existing wildcard-IAM/privileged-container checks.
+
+Every finding now also carries `prereq:` (what the attacker needs to
+reach it — severity is uncalibratable without this) and, when one clearly
+applies, `cwe:`; `proof:` gets the same `(confirmed)` convention
+`/deadeye-review` and `/deadeye-guard` already use. A new dedup rule:
+the same root cause reachable through several endpoints is one finding
+with every endpoint listed, not N near-duplicates filling the cap. The
+bug-class reference grew (CSV/formula injection, leaked source maps,
+HTTP parameter pollution, MFA/2FA bypass shapes, nested mass assignment,
+SSRF allow-list encoding bypasses) along with an agentic/MCP checklist
+under the existing `llm:` tag (tool-description injection, confused
+deputy across chained tool calls, over-broad tool scope) — the dominant
+2025/26 real-world LLM finding class, previously only folded abstractly
+into LLM06.
+
+Declined from the same review, on purpose: a fifth severity band (breaks
+the severity vocabulary shared with every other deadeye command), Mobile/
+Kubernetes/IoT Top 10 as full separate taxonomies plus a second ASVS
+coverage matrix (the rubric already states ASVS is "referenced per-
+finding, never enumerated wholesale" — exhaustive taxonomy-stacking is
+the same noise this product's precision-first design exists to avoid),
+and four more best-effort tool integrations (semgrep, checkov/tfsec,
+trivy, syft) bundled in one patch with none of them live-tested.
+
+Windsurf's cap had 22 runes of headroom going in. The new phase-level
+depth (real instruction, not reference prose) blew it to ~13000 runes;
+new Windsurf-specific cuts bring it back to ~11680, same trade-off this
+rubric already applies to Rigor and the worked example — most valuable
+on a host that can actually spend the budget on it.
+
 ## 0.63.0
 
 `/deadeye-pr` and `/deadeye-review` ask a fifth question none of the four

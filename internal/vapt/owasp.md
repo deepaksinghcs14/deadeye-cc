@@ -29,7 +29,7 @@ others rather than carried forward unchanged, noted below):
 | A06:2025 | Insecure Design | `bizlogic:` |
 | A07:2025 | Authentication Failures | `authn:` |
 | A08:2025 | Software or Data Integrity Failures | `integrity:` |
-| A09:2025 | Security Logging & Alerting Failures | `logging:` |
+| A09:2025 | Security Logging & Alerting Failures (alerting on an auth failure counts, not just logging it) | `logging:` |
 | A10:2025 | Mishandling of Exceptional Conditions (new for 2025 — error handling and logic errors) | `exceptions:` |
 
 **OWASP API Security Top 10 2023:**
@@ -119,7 +119,7 @@ row — cite API7 alone, not A01; `dos:` likewise shares API4 with
 `ratelimit:` — cite API4, not a dedicated row). `llm:` always cites the
 LLM table regardless of the other two. `validation:` has no dedicated
 row anywhere in any of the three tables — cite the Top 10:2025 link
-generically and name the ASVS chapter (V5, below) in `fix:` instead of
+generically and name the ASVS chapter (V2, below) in `fix:` instead of
 forcing a citation that doesn't exist.
 
 **Beyond the Top 10** — classic pen-test findings with no standalone
@@ -131,14 +131,26 @@ TOCTOU race conditions and negative-quantity abuse (`bizlogic:`), ReDoS
 (`dos:`), pagination/batch amplification (`ratelimit:`), zip-slip and
 file-upload-to-RCE (`inject:`), prototype pollution (`inject:`), JWT
 `kid`/JWK confusion and OAuth/SAML flow flaws (`authn:`), GraphQL
-batching and field-level authz (`ratelimit:`/`authz:`), gRPC reflection
-and WebSocket origin checks (`config:`). Each one names its owning tag in
-the finding line, so the mapping stays explicit rather than implied.
+batching, introspection left enabled, and field-level authz
+(`ratelimit:`/`inventory:`/`authz:`), gRPC reflection and WebSocket
+origin checks (`config:`), CSV/formula injection in an export and
+HTTP parameter pollution (`inject:`), a leaked source map or committed
+build artifact (`inventory:`), MFA/2FA bypass — step-skipping,
+re-enrollment with no re-auth, OTP replay (`authn:`), a mass-assigned
+nested/associated model, not just a top-level field (`massassign:`), and
+an SSRF allow-list beaten by IP encoding (decimal/octal/hex) or a
+redirect chain (`ssrf:`). On an LLM/agent surface specifically: an MCP
+tool description that injects instructions, a confused deputy across
+chained tool calls, and a tool scoped wider than the task needs
+(`llm:`, LLM06). Each one names its owning tag in the finding line, so
+the mapping stays explicit rather than implied.
 
-**ASVS** (OWASP Application Security Verification Standard) is the depth
-reference per tag — when a finding needs a stricter control statement
-than "this is wrong," name the relevant ASVS chapter (V2 Authentication,
-V4 Access Control, V5 Validation, V8 Data Protection, V10 Malicious Code,
-V13 API) in the fix. Referenced per-finding, never enumerated wholesale —
-350+ controls inlined would bury the rubric a pen-tester needs to scan
-fast.
+**ASVS 5.0** (OWASP Application Security Verification Standard — the
+17-chapter 5.0 edition; its numbering moved from 4.0.3, so don't reuse an
+older chapter number from memory or a stale doc) is the depth reference
+per tag — when a finding needs a stricter control statement than "this is
+wrong," name the relevant chapter (V2 Validation and Business Logic, V4
+API and Web Service, V6 Authentication, V8 Authorization, V13
+Configuration, V14 Data Protection) in the fix. Referenced per-finding,
+never enumerated wholesale — 350+ controls inlined would bury the rubric
+a pen-tester needs to scan fast.

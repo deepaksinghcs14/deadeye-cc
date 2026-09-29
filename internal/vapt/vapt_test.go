@@ -354,3 +354,152 @@ func TestTrustBoundaryMapInterpolatedIntoWorkflowAgents(t *testing.T) {
 		t.Error(`rubric no longer instructs interpolating the trust-boundary map's text into each Workflow agent() call's prompt -- a fanned-out agent doesn't get it for free`)
 	}
 }
+
+// TestASVSNumberingIsCurrent pins a third-party-review fix: the rubric
+// used to cite ASVS 4.0.3 chapter numbers (a stale edition) as if they
+// were current. ASVS 5.0 renumbered and expanded to 17 chapters -- this
+// guards against silently reverting to the old numbers from memory.
+func TestASVSNumberingIsCurrent(t *testing.T) {
+	for _, must := range []string{"ASVS 5.0", "V6 Authentication", "V8 Authorization", "V2 Validation"} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the ASVS 5.0 numbering fix regressed", must)
+		}
+	}
+	if strings.Contains(Body(), "V2 Authentication") {
+		t.Error("rubric still cites ASVS 4.0.3's stale 'V2 Authentication' -- ASVS 5.0 moved Authentication to V6")
+	}
+}
+
+// TestReportFormatHasPrereqAndCWE pins two review-driven additions: a
+// finding's attacker-position (prereq:) and, when one applies, its CWE
+// id -- both needed to calibrate severity and feed a scanner/ticketing
+// system. Cut for Windsurf along with the rest of the field walkthrough,
+// same budget trade-off as owasp:/link:.
+func TestReportFormatHasPrereqAndCWE(t *testing.T) {
+	for _, must := range []string{"`prereq:`", "`cwe:`", "(confirmed)"} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the prereq:/cwe:/confirmed report-format fields regressed", must)
+		}
+	}
+	if strings.Contains(WindsurfBody(), "`prereq:`") {
+		t.Error("WindsurfBody() carries the prereq:/cwe: field walkthrough -- if that's now intentional, update vapt.go's doc comment")
+	}
+}
+
+// TestDedupByRootCause pins the fix for a real cap-filling failure mode:
+// the same root cause reachable through several endpoints must collapse
+// into one finding with every endpoint listed, not N near-duplicates.
+func TestDedupByRootCause(t *testing.T) {
+	const must = "Dedup by root cause"
+	if !strings.Contains(Body(), must) {
+		t.Errorf("rubric missing %q -- the root-cause dedup rule regressed", must)
+	}
+}
+
+// TestGitHistorySecretScan pins the fix for an honest gap: Phase 1's
+// secret: tag only grepped the working tree, so a credential rotated out
+// of a file but still reachable in git log was invisible by design.
+func TestGitHistorySecretScan(t *testing.T) {
+	for _, must := range []string{"gitleaks", "trufflehog", "still reachable in"} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the git-history secret scan step regressed", must)
+		}
+	}
+	if strings.Contains(WindsurfBody(), "gitleaks") {
+		t.Error("WindsurfBody() carries the git-history secret scan step -- Honesty boundaries is supposed to be fully cut there")
+	}
+}
+
+// TestRoleEndpointAuthzMatrix pins the systematic-BOLA/BFLA-check addition
+// to Phase 1: cross every route against every role that can reach it,
+// rather than relying on ad hoc grepping for the single most common real
+// API defect. Cut for Windsurf -- real depth, not filler, most valuable
+// on a host that can spend the budget on it (same reasoning as Rigor in
+// internal/prreview's Windsurf trim).
+func TestRoleEndpointAuthzMatrix(t *testing.T) {
+	const must = "role×endpoint table"
+	if !strings.Contains(Body(), must) {
+		t.Errorf("rubric missing %q -- the role×endpoint authz matrix instruction regressed", must)
+	}
+	if strings.Contains(WindsurfBody(), must) {
+		t.Error("WindsurfBody() carries the role×endpoint matrix instruction -- if that's now intentional, update vapt.go's doc comment")
+	}
+}
+
+// TestAbuseCasePass pins the addition that forces one pass of "what does
+// a malicious authenticated user want" per surface -- the gap that lets
+// Insecure Design (bizlogic:, A06) hide behind code that runs correctly
+// and would otherwise only surface by luck during Phase 4 verification.
+func TestAbuseCasePass(t *testing.T) {
+	const must = "One abuse-case pass"
+	if !strings.Contains(Body(), must) {
+		t.Errorf("rubric missing %q -- the abuse-case pass regressed", must)
+	}
+	if strings.Contains(WindsurfBody(), must) {
+		t.Error("WindsurfBody() carries the abuse-case pass -- if that's now intentional, update vapt.go's doc comment")
+	}
+}
+
+// TestNeedsLiveValidationDisclaimer pins the concrete version of the
+// existing "no traffic sent" boundary: naming exactly what a source read
+// cannot establish (edge TLS/headers, WAF/rate-limit enforcement, runtime
+// IAM, DNS/subdomain takeover, cache behavior, timing channels) rather
+// than leaving the gap abstract.
+func TestNeedsLiveValidationDisclaimer(t *testing.T) {
+	const must = "A source read can't establish"
+	if !strings.Contains(Body(), must) {
+		t.Errorf("rubric missing %q -- the needs-live-validation disclaimer regressed", must)
+	}
+	if strings.Contains(WindsurfBody(), must) {
+		t.Error("WindsurfBody() carries the needs-live-validation detail -- if that's now intentional, update vapt.go's doc comment")
+	}
+}
+
+// TestKubernetesPodSecuritySpecifics pins the pod-security depth added to
+// the Infrastructure/CI-CD surface beyond the pre-existing wildcard-IAM/
+// privileged-container/cluster-admin checks.
+func TestKubernetesPodSecuritySpecifics(t *testing.T) {
+	for _, must := range []string{"hostPath", "runAsUser: 0", "NetworkPolicy"} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the Kubernetes pod-security specifics regressed", must)
+		}
+	}
+	if strings.Contains(WindsurfBody(), "hostPath") {
+		t.Error("WindsurfBody() carries the Kubernetes pod-security specifics -- if that's now intentional, update vapt.go's doc comment")
+	}
+}
+
+// TestBeyondTop10CoversMCPAndNewBugClasses pins the bug-class examples
+// added to owasp.md's "Beyond the Top 10" paragraph: agentic/MCP tool
+// abuse (the dominant 2025/26 real-world LLM finding class, otherwise
+// only folded abstractly into LLM06) and a handful of classic pen-test
+// shapes the rubric had no worked example for (CSV/formula injection,
+// leaked source maps, MFA/2FA bypass, nested mass assignment, SSRF
+// allow-list encoding bypasses). This whole paragraph is fully cut for
+// Windsurf already (TestWindsurfDropsIDTables-adjacent trim), so these
+// additions cost that host nothing.
+func TestBeyondTop10CoversMCPAndNewBugClasses(t *testing.T) {
+	for _, must := range []string{
+		"tool description that injects instructions",
+		"confused deputy",
+		"CSV/formula injection",
+		"source map",
+		"MFA/2FA bypass",
+	} {
+		if !strings.Contains(Body(), must) {
+			t.Errorf("rubric missing %q -- the expanded Beyond-the-Top-10 bug-class list regressed", must)
+		}
+	}
+	if strings.Contains(WindsurfBody(), "tool description that injects instructions") {
+		t.Error("WindsurfBody() carries the Beyond-the-Top-10 paragraph -- that section is supposed to be fully cut there")
+	}
+}
+
+// TestA09CoversAlerting pins the one-clause fix noting A09:2025 covers
+// alerting on a security event, not just logging it.
+func TestA09CoversAlerting(t *testing.T) {
+	const must = "alerting on an auth failure"
+	if !strings.Contains(Body(), must) {
+		t.Errorf("rubric missing %q -- the A09 alerting clause regressed", must)
+	}
+}

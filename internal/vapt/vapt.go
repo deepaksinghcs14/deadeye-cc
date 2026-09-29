@@ -85,6 +85,19 @@ func cutSection(s, from, to string) string {
 // the pass still functions identically, just without the
 // illustrative/convenience/reinforcement/redundant extras.
 //
+// Five more, added when the rubric grew a third-party-review pass worth
+// of depth (a role x endpoint authz table, an abuse-case pass, the
+// needs-live-validation disclaimer detail, Kubernetes pod-security
+// specifics, and the prereq:/cwe: field mention) and immediately blew
+// the already-22-rune-thin cap: same trade-off as everything else in
+// this function, just applied to newer prose. The PHASE ITSELF and its
+// core instruction never move -- only this one add-on sentence or
+// paragraph per phase does, same as the worked example and field
+// walkthrough already were. A role x endpoint table and an abuse-case
+// pass are real depth, not filler; they're cut here for the same reason
+// Rigor is cut from prreview's Windsurf trim -- most valuable on a host
+// that can actually spend the budget on it.
+//
 // Three more go for reasons in the same spirit: "How this runs" describes
 // the Claude-Code-only Workflow fan-out (nothing to do on a host with no
 // Workflow tool), "Report generation" calls `deadeye vapt` (nothing to
@@ -103,9 +116,13 @@ func WindsurfBody() string {
 	// cutting it by its fence rather than by prose leaves no orphaned
 	// marker behind (which is what pushed this body 10 runes over its cap).
 	b := NonClaudeBody()
+	b = cutSection(b, "A source read can't establish edge", "Say this plainly")
 	b = cutSection(b, "**Scope is ambiguous", "\n\n**Phase 1 —")
-	b = cutSection(b, "Unlike Phase 3's ranking", "\n\n**Phase 3 — triage")
+	b = cutSection(b, "Cross every route against", "\n\nLLM/agent surface:")
+	b = cutSection(b, "On Kubernetes specifically", "\n\nReport the applicable")
+	b = cutSection(b, "This is the one durable", "\n\n**Phase 3 — triage")
 	b = cutSection(b, "Twenty tags —", "**Reference —")
+	b = cutSection(b, "Every finding\nalso carries", "```\n🔴 authz: IDOR")
 	b = cutSection(b, "## Report generation", "## Honesty boundaries")
 	b = cutSection(b, "## Honesty boundaries", "## Learning loop")
 	b = cutSection(b, "**OWASP Top 10:2025**", "## The twenty tags")

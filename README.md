@@ -16,6 +16,8 @@
   <img src="https://img.shields.io/github/v/release/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111&label=release" alt="Release">
   <img src="https://img.shields.io/github/license/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111" alt="MIT license">
   <img src="https://img.shields.io/github/go-mod/go-version/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111" alt="Go version">
+  <img src="https://img.shields.io/github/stars/deepaksinghcs14/deadeye-cc?style=flat-square&color=111111" alt="GitHub stars">
+  <img src="https://img.shields.io/github/downloads/deepaksinghcs14/deadeye-cc/total?style=flat-square&color=111111" alt="Total downloads">
   <img src="https://img.shields.io/badge/measured_reduction-79.6%E2%80%9399.5%25-C89A46?style=flat-square&labelColor=1B2127" alt="Measured token reduction 79.6 to 99.5 percent">
 </p>
 
