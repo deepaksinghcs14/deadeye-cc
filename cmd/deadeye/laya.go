@@ -141,7 +141,13 @@ func layaYes(ctx context.Context, c *laya.Client, text, question string, bar flo
 // the /deadeye-laya setup skill drives and verifies against. Deliberately
 // small: the skill does the explaining, this does the checking.
 func runLaya(args []string) {
-	cfg := config.Load()
+	// LoadFor with the env switches folded in, not plain Load: DEADEYE_LAYA=off
+	// is one of the four documented ways to turn Laya off, and a status
+	// command that reports "shadow" while the environment has disabled it is
+	// worse than no status at all. (config.Load applies no kill switches --
+	// that's the daemon's LoadFor path.)
+	cwd, _ := os.Getwd()
+	cfg := config.LoadFor(cwd, config.OffSwitches())
 	sub := "status"
 	if len(args) > 0 {
 		sub = args[0]
@@ -248,8 +254,16 @@ func layaTest(cfg config.Config) {
 		fmt.Println(cDim("  should be faster once the checkpoint is resident. Run this again."))
 	}
 	fmt.Println()
-	fmt.Println(cDim("  Recorded nothing -- this is a probe. Set mode.laya=shadow to start"))
-	fmt.Println(cDim("  collecting agreement data: ") + cValue("deadeye config set mode.laya shadow"))
+	// The next step depends on where the ladder already is -- telling someone
+	// already on shadow to "set mode.laya=shadow" reads as the tool not
+	// knowing its own state.
+	if cfg.Mode.Laya == layaOff || cfg.Mode.Laya == "" {
+		fmt.Println(cDim("  Recorded nothing -- this is a probe. Start collecting agreement data:"))
+		fmt.Println("  " + cValue("deadeye config set mode.laya shadow"))
+	} else {
+		fmt.Printf("%s\n", cDim("  Recorded nothing -- this is a probe. mode.laya is already "+cfg.Mode.Laya+";"))
+		fmt.Println(cDim("  real decisions are what populate ") + cValue("/deadeye-stats laya") + cDim("."))
+	}
 }
 
 // layaRouting asks Laya for a tier BEFORE the `claude -p` judge runs, so

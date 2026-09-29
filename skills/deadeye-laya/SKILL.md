@@ -24,7 +24,7 @@ the next step.
 - `install` → walk the prerequisites and the install, then verify
 - `verify` → `deadeye laya health` then `deadeye laya test`
 - `promote` / `demote` → move one rung on the ladder, with the evidence check below
-- `off` → `deadeye config set mode.laya off`
+- `off` → turn it off; see **Turning it off** below for all four ways
 
 Every `deadeye` invocation here is best-effort the same way the other
 skills' are: if it reports "command not found", retry once with
@@ -129,6 +129,40 @@ Demote on any sign of trouble — it costs nothing and loses no data:
 deadeye config set mode.laya shadow
 ```
 
+## Turning it off
+
+**Laya can always be turned off, instantly, and nothing is lost.** Recorded
+verdicts stay where they are, and deadeye goes back to behaving exactly as it
+did before Laya existed. There are four ways, and it's worth telling the user
+which one fits:
+
+1. **Back down the ladder** — the usual answer. Keeps collecting evidence
+   while nothing acts on it:
+   ```bash
+   deadeye config set mode.laya shadow
+   ```
+2. **Off entirely** — stops calling Laya at all:
+   ```bash
+   deadeye config set mode.laya off
+   ```
+3. **Right now, without editing config** — an env kill switch, same family as
+   `DEADEYE_PREPROCESS=off` / `DEADEYE_CODER=off`. Good for one command or one
+   shell, and it wins over whatever `config.json` says:
+   ```bash
+   DEADEYE_LAYA=off claude      # this session only
+   export DEADEYE_LAYA=off      # this shell
+   ```
+   `DEADEYE=off` turns off everything including Laya.
+4. **Stop `laya-serve`** — deadeye fails open on an unreachable endpoint, so
+   killing the server disables every call site with no config change at all.
+   This is the one that needs saying out loud: a dead endpoint and a disabled
+   Laya are *indistinguishable in behavior* by design. That's why
+   `deadeye doctor` carries a `laya` row — otherwise "it stopped working" and
+   "it's off" look identical.
+
+Clearing the endpoint (`deadeye config set laya.endpoint ""`) also disables
+it, whatever `mode.laya` says.
+
 ## Where Laya gets used (only when configured)
 
 Six sites, all opt-in, all fail-open:
@@ -161,8 +195,10 @@ Six sites, all opt-in, all fail-open:
 - Always state the 0.362-vs-0.33 untuned figure when recommending a
   promotion past `shadow`, and that every published number for Laya is
   vendor-self-reported with no independent evaluation found.
+- Always tell the user how to turn it off when you turn it on. Four ways,
+  above; the env switch is the one to reach for in a hurry.
 - If the user asks for `authoritative` immediately, set it if they insist —
   it's their machine — but tell them once what shadow would have told them
   first, and don't repeat it afterwards.
-- Laya is 11 days old as of deadeye 0.66.0, with ~3 releases a day. Treat
+- Laya is 11 days old as of deadeye 0.66.1, with ~3 releases a day. Treat
   breaking changes upstream as likely, not hypothetical.

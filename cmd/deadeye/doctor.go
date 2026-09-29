@@ -189,7 +189,10 @@ func checkJudge() checkResult {
 // so a dead laya-serve looks exactly like Laya being off. That's correct
 // behavior and a terrible thing to debug, which is what this row is for.
 func checkLaya() checkResult {
-	cfg := config.Load()
+	// Same reasoning as runLaya: DEADEYE_LAYA=off must show up here, or
+	// doctor reports a configuration that the environment has overridden.
+	cwd, _ := os.Getwd()
+	cfg := config.LoadFor(cwd, config.OffSwitches())
 	if !layaEnabled(cfg) {
 		detail := "off (mode.laya)"
 		if cfg.Mode.Laya != "" && cfg.Mode.Laya != layaOff && cfg.Laya.Endpoint == "" {

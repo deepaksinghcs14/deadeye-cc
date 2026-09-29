@@ -258,9 +258,9 @@ never touches the others.
 
 Settings live in `~/.deadeye/config.json` (with an optional per-repo
 `.deadeye.json` override); full schema in
-[`schema/config.schema.json`](schema/config.schema.json). Four env vars are
+[`schema/config.schema.json`](schema/config.schema.json). Five env vars are
 kill switches: `DEADEYE=off` (everything), `DEADEYE_PREPROCESS=off`,
-`DEADEYE_GATE=off`, `DEADEYE_CODER=off`.
+`DEADEYE_GATE=off`, `DEADEYE_CODER=off`, `DEADEYE_LAYA=off`.
 
 Change any setting without editing JSON: **`/deadeye-config`** from chat (or
 just say what you want — "turn off the plan gate"), **`deadeye config`** for an
@@ -429,6 +429,22 @@ That's an *agreement* rate, not an accuracy rate — on `shadow` and `advise`
 "actual" is whatever the existing mechanism chose, which is not ground
 truth either. It also accumulates the labelled `task → tier` data that
 fine-tuning would need, which is the only real route to the 0.766 figure.
+
+### Turning it off
+
+Four ways, all instant, none of which lose recorded data:
+
+```bash
+deadeye config set mode.laya shadow   # back down the ladder, keep measuring
+deadeye config set mode.laya off      # stop calling it
+DEADEYE_LAYA=off claude               # env kill switch, wins over config
+```
+
+…or just stop `laya-serve`: deadeye fails open on an unreachable endpoint, so
+killing the server disables every call site with no config change. That last
+one is worth knowing precisely because a dead endpoint and a disabled Laya
+are indistinguishable in behavior — which is why `deadeye doctor` carries a
+`laya` row.
 
 ### Where it gets used
 

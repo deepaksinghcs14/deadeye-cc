@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>
+<title>deadeye — Laya setup</title>
 <meta name="description" content="Set up the optional local Laya decision model for deadeye: install laya-serve, point deadeye at it, and promote it up the trust ladder on evidence.">
 <meta property="og:title" content="deadeye — Laya setup">
 <meta property="og:description" content="Run a local classifier for deadeye's typed decisions. Opt-in, fail-open, and promoted on evidence rather than trust.">
@@ -238,6 +238,27 @@ deadeye laya test     # one real tier question, end to end</code></pre>
       real route to the 0.766 figure, and you can't invent the dataset.</p>
       <p>Demoting costs nothing and loses no recorded data:</p>
       <pre><code>deadeye config set mode.laya shadow</code></pre>
+    </div>
+  </section>
+
+  <section>
+    <h2>turning it off</h2>
+    <h3 class="section-title">Four ways, all instant, none lose data</h3>
+    <div class="prose">
+      <pre><code>deadeye config set mode.laya shadow   # back down the ladder, keep measuring
+deadeye config set mode.laya off      # stop calling it
+DEADEYE_LAYA=off claude               # env kill switch, wins over config.json</code></pre>
+      <p>Clearing the endpoint (<code>laya.endpoint</code>) disables it too, whatever
+      <code>mode.laya</code> says. And <code>DEADEYE=off</code> turns off everything deadeye does,
+      Laya included.</p>
+      <p>Or simply stop <code>laya-serve</code>: deadeye fails open on an unreachable endpoint, so
+      killing the server disables every call site with no config change at all. That one is worth
+      stating plainly &mdash; <strong>a dead endpoint and a disabled Laya are indistinguishable in
+      behavior</strong>, by design. It's also why <code>deadeye doctor</code> carries a
+      <code>laya</code> row: otherwise &ldquo;it stopped working&rdquo; and &ldquo;it's off&rdquo;
+      look the same.</p>
+      <p>Recorded verdicts survive all of these, so you can turn it off and still read
+      <code>/deadeye-stats laya</code> afterwards.</p>
     </div>
   </section>
 

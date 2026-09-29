@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.66.1
+
+Thorough testing of 0.66.0's Laya support found four real bugs, two of them
+shipped-broken instructions. Nothing here changes the design; it makes the
+documented commands work and the off switch real.
+
+**`deadeye config set` rejected the keys the docs told users to set.** The
+tunables whitelist is deliberate -- it refuses any key not listed, so a typo
+can't write a dead setting -- but `mode.laya`, `laya.endpoint`,
+`laya.api_key_env` and `laya.timeout_ms` were never added to it, so every
+setup instruction in the skill, the README and the site page failed. The same
+bug shipped in **0.65.0**: `mode.tier_sample` and `tier_sample.rate` were
+also missing, which means the over-route sampler documented in that release
+could never be turned on by the command its own CHANGELOG gave. All six keys
+are settable now, and `mode.laya`'s enum is validated to exactly the four
+rungs so a typo can't silently read as off.
+
+**Neither feature was in `schema/config.schema.json`**, which
+`docs/site/settings.html` is generated from -- so both were invisible on the
+published settings page. Both are documented there now, including why
+`laya.api_key_env` holds a variable NAME and never the token.
+
+A new test pins schema, CLI whitelist and the `Config` struct together:
+every `mode.*` axis must be settable and described, every top-level block
+must appear in the schema, and a tunable's enum must match the schema's. This
+class of bug was silently possible before and is now a build failure. A
+feature nobody can turn on is not shipped.
+
+**`DEADEYE_LAYA=off` is new**, joining `DEADEYE_PREPROCESS` / `DEADEYE_GATE`
+/ `DEADEYE_CODER`, and `DEADEYE=off` now covers Laya and tier sampling too.
+There are four ways to turn Laya off and all of them are now written down in
+the skill, the README and the site page: back down the ladder, set it off,
+the env switch, or just stop `laya-serve` -- deadeye fails open, so killing
+the server disables every call site with no config change. That last one
+needed saying explicitly, because a dead endpoint and a disabled Laya are
+indistinguishable in behavior by design, which is exactly why `deadeye
+doctor` carries a `laya` row.
+
+**`deadeye laya status` and `doctor` ignored the kill switch.**
+`config.Load()` applies none -- that folding happens in `LoadFor`, the daemon
+path -- so both reported the configured rung while the environment had
+disabled it. Both now load with the env switches folded in. Worth noting the
+same gap exists for the pre-existing rows (`deadeye status` doesn't reflect
+`DEADEYE_CODER=off` either); that's older behavior, left alone here rather
+than widened into this patch.
+
+Also fixed: `deadeye laya test` told users already on `shadow` to set
+`shadow`, and the new site page shipped with a mangled `<title>` (a stray
+substitution deleted the element, so the tab showed a bare filename).
+
+Test coverage for the Laya surface: the HTTP client against a stub server
+including every fail-open mode (nil client, unset endpoint, refused
+connection, non-2xx, malformed JSON, empty answers, mismatched answer key,
+blank text, timeout, unmodelled response fields); the signals provider
+(score normalization and clamping, the certainty floor, the
+MaxAchievableConfidence cap, and that a silent Laya leaves the evidence set
+byte-identical); the ladder's gating at every rung; the tier-sample screen
+suppressing a paid call on agreement, escalating on disagreement, skipping
+rather than paying when configured-but-silent, and behaving exactly as
+0.65.0 with Laya off; every documented off switch; and an end-to-end pass
+through the real `decideAgentRouting` hook handler against a stub
+`laya-serve`, asserting the verdict reaches `outcomes.jsonl`.
+
 ## 0.66.0
 
 Optional Laya support. [Laya](https://github.com/NandhaKishorM/laya)

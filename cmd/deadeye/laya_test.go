@@ -2,17 +2,22 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/laya"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
 )
 
 // layaServer stands in for laya-serve, always answering with the given
@@ -263,5 +268,345 @@ func TestLayaAgreementEmptyStatePointsAtSetup(t *testing.T) {
 	out := captureStdout(t, func() { layaAgreement(writeOutcomes(t), config.Default(), time.Now()) })
 	if !strings.Contains(out, "No Laya verdicts") || !strings.Contains(out, "/deadeye-laya") {
 		t.Errorf("empty state should point at the setup skill:\n%s", out)
+	}
+}
+
+// Every documented way to turn Laya off must actually work. These are the
+// instructions the /deadeye-laya skill, the README and the site page all
+// give, so a broken one is a broken promise.
+func TestEveryDocumentedOffSwitchWorks(t *testing.T) {
+	t.Run("mode.laya off", func(t *testing.T) {
+		cfg := layaCfg(layaOff, "http://127.0.0.1:8000")
+		if layaEnabled(cfg) || layaDecides(cfg) || layaClient(cfg) != nil {
+			t.Error("mode.laya=off did not disable Laya")
+		}
+	})
+	t.Run("clearing the endpoint", func(t *testing.T) {
+		cfg := layaCfg(layaAuthoritative, "")
+		if layaEnabled(cfg) || layaDecides(cfg) || layaClient(cfg) != nil {
+			t.Error("an empty endpoint did not disable Laya")
+		}
+	})
+	t.Run("DEADEYE_LAYA=off", func(t *testing.T) {
+		t.Setenv("DEADEYE_LAYA", "off")
+		off := config.OffSwitches()
+		found := false
+		for _, v := range off {
+			if v == "DEADEYE_LAYA" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("DEADEYE_LAYA is not a recognized kill switch")
+		}
+		cfg := config.LoadFor("", off)
+		if cfg.Mode.Laya != layaOff {
+			t.Errorf("mode.laya = %q under DEADEYE_LAYA=off, want off", cfg.Mode.Laya)
+		}
+	})
+	t.Run("DEADEYE=off covers it too", func(t *testing.T) {
+		t.Setenv("DEADEYE", "off")
+		cfg := config.LoadFor("", config.OffSwitches())
+		if cfg.Mode.Laya != layaOff || cfg.Mode.TierSample != "off" {
+			t.Errorf("total off left laya=%q tier_sample=%q", cfg.Mode.Laya, cfg.Mode.TierSample)
+		}
+	})
+	t.Run("stopping the server falls back", func(t *testing.T) {
+		// Nothing configured changes; the endpoint simply stops answering.
+		st, _ := sampleHarness(t, 0, true)
+		cfg := layaCfg(layaAuthoritative, "http://127.0.0.1:1")
+		before := kernel.Decision{Model: "top-id", Effort: "high", Reason: "r", Unsure: true}
+		after, _, ok := st.layaRouting(cfg, before, "task")
+		if ok || after != before {
+			t.Error("a stopped laya-serve must leave the decision untouched")
+		}
+	})
+}
+
+// Every key the docs tell a user to set must be settable, or the
+// instructions are broken. tier_sample is here because 0.65.0 shipped the
+// feature and documented the command without whitelisting the key.
+func TestDocumentedConfigKeysAreSettable(t *testing.T) {
+	for _, key := range []string{
+		"mode.laya", "laya.endpoint", "laya.api_key_env", "laya.timeout_ms",
+		"mode.tier_sample", "tier_sample.rate",
+	} {
+		if _, ok := findTunable(key); !ok {
+			t.Errorf("%s is documented but not settable via `deadeye config set`", key)
+		}
+	}
+}
+
+// The enum must accept exactly the four rungs and reject anything else, so a
+// typo can't write a dead value that silently reads as off.
+func TestLayaModeEnumIsTheFourRungs(t *testing.T) {
+	tn, ok := findTunable("mode.laya")
+	if !ok {
+		t.Fatal("mode.laya not settable")
+	}
+	want := map[string]bool{layaOff: true, layaShadow: true, layaAdvise: true, layaAuthoritative: true}
+	if len(tn.allowed) != len(want) {
+		t.Fatalf("allowed = %v, want the four rungs", tn.allowed)
+	}
+	for _, v := range tn.allowed {
+		if !want[v] {
+			t.Errorf("unexpected allowed value %q", v)
+		}
+	}
+}
+
+func TestLayaStatusAndAgreementRenderWithoutAnEndpoint(t *testing.T) {
+	// Both must be safe to run before anything is configured -- that's the
+	// first thing /deadeye-laya does.
+	out := captureStdout(t, func() { layaStatus(config.Default()) })
+	if !strings.Contains(out, "unset") || !strings.Contains(out, "off") {
+		t.Errorf("status should report an unset endpoint and off mode:\n%s", out)
+	}
+	if !strings.Contains(out, "never installs or runs it") {
+		t.Errorf("status must not imply deadeye manages laya:\n%s", out)
+	}
+}
+
+// The tier-sample screen: with Laya agreeing, no paid judge call happens and
+// nothing is recorded. This is the cost argument for the screen.
+func TestTierSampleLayaScreenSuppressesPaidCallOnAgreement(t *testing.T) {
+	st, outPath := sampleHarness(t, 0, true)
+	judgeCalls := 0
+	prev := judgeFunc
+	judgeFunc = func(string) (int, bool) { judgeCalls++; return 0, true }
+	t.Cleanup(func() { judgeFunc = prev })
+
+	// Laya says tier 2, matching the routed tier -> agreement -> stop.
+	cfg := layaCfg(layaShadow, layaServer(t, `{"answers":{"q":{"choice":"2","answer_confidence":0.9}}}`))
+	cfg.Mode.TierSample = "on"
+	cfg.Mode.RoutingJudge = "on"
+	cfg.TierSample.Rate = 1
+
+	st.maybeSampleTier(cfg, highTierDecision(t, st.cat), st.cat, "shape", "prompt", "sess", t.TempDir())
+
+	if judgeCalls != 0 {
+		t.Errorf("judge was called %d times despite Laya agreeing; the screen should have stopped it", judgeCalls)
+	}
+	if n := len(disagreements(t, outPath)); n != 0 {
+		t.Errorf("recorded %d outcomes on agreement, want 0", n)
+	}
+}
+
+// Laya disagreeing escalates to the paid judge, and only a second
+// disagreement is recorded -- two independent opinions before a claim.
+func TestTierSampleLayaScreenEscalatesOnDisagreement(t *testing.T) {
+	st, outPath := sampleHarness(t, 0, true)
+	judgeCalls := 0
+	prev := judgeFunc
+	judgeFunc = func(string) (int, bool) { judgeCalls++; return 0, true }
+	t.Cleanup(func() { judgeFunc = prev })
+
+	cfg := layaCfg(layaShadow, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`))
+	cfg.Mode.TierSample = "on"
+	cfg.Mode.RoutingJudge = "on"
+	cfg.TierSample.Rate = 1
+
+	st.maybeSampleTier(cfg, highTierDecision(t, st.cat), st.cat, "shape", "prompt", "sess", t.TempDir())
+
+	if judgeCalls != 1 {
+		t.Errorf("judge called %d times, want exactly 1 confirmation", judgeCalls)
+	}
+	if n := len(disagreements(t, outPath)); n != 1 {
+		t.Errorf("recorded %d outcomes, want 1 confirmed disagreement", n)
+	}
+}
+
+// A configured-but-silent classifier must not fall back to paying for the
+// sample: it was configured precisely to avoid that.
+func TestTierSampleSkipsWhenLayaConfiguredButSilent(t *testing.T) {
+	st, outPath := sampleHarness(t, 0, true)
+	judgeCalls := 0
+	prev := judgeFunc
+	judgeFunc = func(string) (int, bool) { judgeCalls++; return 0, true }
+	t.Cleanup(func() { judgeFunc = prev })
+
+	cfg := layaCfg(layaShadow, "http://127.0.0.1:1") // unreachable
+	cfg.Mode.TierSample = "on"
+	cfg.Mode.RoutingJudge = "on"
+	cfg.TierSample.Rate = 1
+
+	st.maybeSampleTier(cfg, highTierDecision(t, st.cat), st.cat, "shape", "prompt", "sess", t.TempDir())
+
+	if judgeCalls != 0 {
+		t.Errorf("judge called %d times; a silent configured classifier should skip, not pay", judgeCalls)
+	}
+	if n := len(disagreements(t, outPath)); n != 0 {
+		t.Errorf("recorded %d outcomes, want 0", n)
+	}
+}
+
+// With Laya off, the sampler must behave exactly as 0.65.0 did: rate-limited
+// and paying for its own samples.
+func TestTierSampleUnchangedWithLayaOff(t *testing.T) {
+	st, outPath := sampleHarness(t, 1, true)
+	cfg := layaCfg(layaOff, "")
+	cfg.Mode.TierSample = "on"
+	cfg.Mode.RoutingJudge = "on"
+	cfg.TierSample.Rate = 3
+	d := highTierDecision(t, st.cat)
+	for i := 0; i < 6; i++ {
+		st.maybeSampleTier(cfg, d, st.cat, "shape", "p"+string(rune('a'+i)), "sess", t.TempDir())
+	}
+	if n := len(disagreements(t, outPath)); n != 2 {
+		t.Errorf("got %d samples from 6 decisions at rate 3, want 2 (unchanged 0.65.0 behavior)", n)
+	}
+}
+
+// End-to-end through the real hook handler against a stub laya-serve. Unit
+// tests cover each piece; this is the only thing that proves the pieces are
+// actually wired into decideAgentRouting, that a verdict reaches
+// outcomes.jsonl, and that the advisory the user sees is coherent.
+func TestDecideAgentRoutingEndToEndWithLaya(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	prev := judgeFunc
+	judgeCalls := 0
+	judgeFunc = func(string) (int, bool) { judgeCalls++; return 2, true }
+	t.Cleanup(func() { judgeFunc = prev; judgeCache.Clear() })
+	judgeCache.Clear()
+
+	state := newDaemonState(testCatalogForLessons(), nil)
+	toolInput, err := json.Marshal(map[string]any{
+		"description": "rename a local variable",
+		"prompt":      "Rename the local variable tmp to buf in one Go function. Nothing else.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := hookio.Input{SessionID: "e2e", ToolName: "Agent", Cwd: t.TempDir(), ToolInput: toolInput}
+
+	cfg := layaCfg(layaAuthoritative, layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.91}}}`))
+	cfg.Mode.RoutingJudge = "on"
+
+	out := decideAgentRouting(in, cfg, state)
+
+	// This layer proves WIRING, not the override: whether Laya gets to
+	// change the model depends on the decision being Unsure, which in turn
+	// depends on what the six signals made of this particular scope. The
+	// override itself is pinned directly in TestLayaRoutingAuthoritative*
+	// against a constructed Unsure decision; forcing it through the real
+	// signal stack would make this test a hostage to signal tuning.
+	if out.HookSpecificOutput.AdditionalContext == "" {
+		t.Error("no advisory produced at all")
+	}
+	// Whatever the routing outcome, a configured Laya must never leave the
+	// advisory malformed or half-written.
+	if strings.Contains(out.HookSpecificOutput.AdditionalContext, "%!") {
+		t.Errorf("advisory has a botched format verb:\n%s", out.HookSpecificOutput.AdditionalContext)
+	}
+
+	// The verdict must have reached the outcomes store, with both sides.
+	outs, err := lessons.Scan(meta.OutcomesPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var v *lessons.Outcome
+	for i := range outs {
+		if outs[i].Kind == KindLayaVerdict && outs[i].Site == siteJudge {
+			v = &outs[i]
+		}
+	}
+	if v == nil {
+		t.Fatalf("no laya verdict recorded; got %+v", outs)
+	}
+	if v.LayaValue != "0" {
+		t.Errorf("LayaValue = %q, want 0", v.LayaValue)
+	}
+	if v.Actual == "" {
+		t.Error("Actual is empty -- agreement can't be computed without the tier that shipped")
+	}
+	_ = judgeCalls
+}
+
+// The same path with Laya off must be byte-identical to pre-0.66.0: the
+// judge runs, nothing is recorded, and no advisory mentions Laya.
+func TestDecideAgentRoutingUnchangedWithLayaOff(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	prev := judgeFunc
+	judgeCalls := 0
+	judgeFunc = func(string) (int, bool) { judgeCalls++; return 1, true }
+	t.Cleanup(func() { judgeFunc = prev; judgeCache.Clear() })
+	judgeCache.Clear()
+
+	state := newDaemonState(testCatalogForLessons(), nil)
+	toolInput, _ := json.Marshal(map[string]any{"description": "d", "prompt": "an ambiguous under-specified task"})
+	in := hookio.Input{SessionID: "off1", ToolName: "Agent", Cwd: t.TempDir(), ToolInput: toolInput}
+
+	cfg := config.Default() // mode.laya off, no endpoint
+	cfg.Mode.RoutingJudge = "on"
+	out := decideAgentRouting(in, cfg, state)
+
+	if strings.Contains(out.HookSpecificOutput.AdditionalContext, "laya") {
+		t.Errorf("advisory mentions laya with it off:\n%s", out.HookSpecificOutput.AdditionalContext)
+	}
+	outs, _ := lessons.Scan(meta.OutcomesPath())
+	for _, o := range outs {
+		if o.Kind == KindLayaVerdict {
+			t.Error("a laya verdict was recorded with laya off")
+		}
+	}
+	_ = judgeCalls // the judge only runs on an Unsure decision; not asserted here
+}
+
+// runLaya must honor the env kill switch, not just config.json. A status
+// command that says "shadow" while DEADEYE_LAYA=off has disabled it is
+// worse than no status at all -- and config.Load() applies no kill
+// switches, which is the trap this pins.
+func TestLayaStatusHonorsEnvKillSwitch(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".deadeye"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cfgJSON := `{"mode":{"laya":"authoritative"},"laya":{"endpoint":"http://127.0.0.1:8000","timeout_ms":1500}}`
+	if err := os.WriteFile(filepath.Join(home, ".deadeye", "config.json"), []byte(cfgJSON), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Matched on the "mode <value>" line only: the enum hint printed beside
+	// it lists every rung, so a naive Contains("authoritative") is true even
+	// when the mode is off.
+	modeLine := func(out string) string {
+		for _, l := range strings.Split(out, "\n") {
+			if f := strings.Fields(l); len(f) >= 2 && f[0] == "mode" {
+				return f[1]
+			}
+		}
+		return ""
+	}
+
+	out := captureStdout(t, func() { runLaya([]string{"status"}) })
+	if got := modeLine(out); got != layaAuthoritative {
+		t.Fatalf("baseline mode = %q, want authoritative:\n%s", got, out)
+	}
+
+	t.Setenv("DEADEYE_LAYA", "off")
+	out = captureStdout(t, func() { runLaya([]string{"status"}) })
+	if got := modeLine(out); got != layaOff {
+		t.Errorf("mode = %q under DEADEYE_LAYA=off, want off:\n%s", got, out)
+	}
+}
+
+// `deadeye laya test` must not tell someone already on shadow to set shadow.
+func TestLayaTestHintIsModeAware(t *testing.T) {
+	srv := layaServer(t, `{"answers":{"q":{"choice":"0","answer_confidence":0.9}}}`)
+
+	offCfg := layaCfg(layaOff, srv)
+	out := captureStdout(t, func() { layaTest(offCfg) })
+	if !strings.Contains(out, "config set mode.laya shadow") {
+		t.Errorf("with laya off, the hint should offer shadow:\n%s", out)
+	}
+
+	shadowCfg := layaCfg(layaShadow, srv)
+	out = captureStdout(t, func() { layaTest(shadowCfg) })
+	if strings.Contains(out, "config set mode.laya shadow") {
+		t.Errorf("already on shadow -- must not tell the user to set it again:\n%s", out)
+	}
+	if !strings.Contains(out, "already shadow") {
+		t.Errorf("should acknowledge the current rung:\n%s", out)
 	}
 }

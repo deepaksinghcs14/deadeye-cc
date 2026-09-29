@@ -357,6 +357,8 @@ func LoadFor(cwd string, off []string) Config {
 		cfg.Mode.Codemap = "off"
 		cfg.Coder.Disabled = true
 		cfg.Security.Exfil = "off" // total-off covers the exfil guard too
+		cfg.Mode.Laya = "off"      // and the optional classifier, like every other axis
+		cfg.Mode.TierSample = "off"
 	}
 	if isOff(off, "DEADEYE_PREPROCESS") {
 		cfg.Mode.Preprocess = "off"
@@ -366,6 +368,14 @@ func LoadFor(cwd string, off []string) Config {
 	}
 	if isOff(off, "DEADEYE_CODER") {
 		cfg.Coder.Disabled = true
+	}
+	// DEADEYE_LAYA=off is the instant, no-edit escape hatch for the optional
+	// classifier: one export disables every Laya call site for a shell or a
+	// single command, without touching config.json and without stopping
+	// laya-serve. Nothing is lost -- already-recorded verdicts stay, and
+	// unsetting it resumes at whatever rung config says.
+	if isOff(off, "DEADEYE_LAYA") {
+		cfg.Mode.Laya = "off"
 	}
 	return cfg
 }
@@ -492,7 +502,7 @@ func overlayProjectLocal(cfg *Config, path string) {
 
 // killSwitchVars is the fixed set of env-var kill switches checked by
 // OffSwitches.
-var killSwitchVars = []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE", "DEADEYE_CODER"}
+var killSwitchVars = []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE", "DEADEYE_CODER", "DEADEYE_LAYA"}
 
 // OffSwitches reports which of the three env-var kill switches are set to
 // exactly "off" in THIS process's environment. Meant to be called
