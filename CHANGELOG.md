@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.66.4
+
+Setting Laya up for real, on a real machine, against a real `laya-serve`.
+Two defects that no unit test could have caught, one of them serious and
+not about Laya at all.
+
+**The AI routing judge's verdict was being thrown away on every Agent call,
+since 0.66.0.** `decideAgentRouting` took Laya's extra return values with a
+four-value `:=` inside the `if ai.Model == ""` block. Three of the four
+names were new, so Go silently redeclared `decision` in that block's scope:
+the judge updated a block-scoped copy while the advisory text the user
+reads, `setLastRouting`, and enforce-mode's model rewrite all kept reading
+the raw pre-judge kernel decision. It compiled, `go vet` was silent (the
+shadow analyzer is not on by default), and every test passed. Caught only by
+comparing the advisory against the recorded outcome on a live run: the
+outcome said `claude-haiku-4-5`, the advisory the user actually saw said
+`claude-sonnet-5`. The judge is the feature benchmarked at 48% realized
+savings against 22% without it, so three releases of routing advice were
+running on heuristics alone. Fixed, with a regression test that asserts the
+advisory, the recorded outcome and `setLastRouting` all agree.
+
+**deadeye was POSTing to the wrong path, so Laya could never answer.**
+Upstream's README shows `curl localhost:8000/predict`; the shipped server
+(laya 0.3.21) exposes exactly two routes — `GET /health` and
+`POST /v1/systemone` — and serves the TypeSafe Jev wire protocol on the
+latter. `/predict` 404s, which surfaced as "the endpoint answered, but not
+with a tier": a live, correctly-configured server that could never produce a
+decision. The request and response bodies are exactly as documented; only
+the path was wrong. Verified against a running server's own
+`openapi.json` and `laya/serve.py` rather than the README, with the real
+response captured verbatim into a test.
+
+Everything else verified end to end against a live server: the per-request
+`model` field is honoured (`"reason": "explicit model='typed-decisions'"`),
+a variable rename classifies as tier 0 in ~360ms on CPU (inside the
+documented 193-464ms band), verdicts reach `outcomes.jsonl` with the right
+repo, task shape and checkpoint, and `/deadeye-stats laya` reports per-site
+and per-checkpoint agreement.
+
+Setup instructions corrected by walking them:
+
+- **`python3` is often too old.** macOS ships 3.9; Laya needs 3.10+. The
+  skill said to check, then used `python3` anyway to build the venv, which
+  fails with an unhelpful resolver error. It now finds an interpreter by
+  name and uses that one.
+- **Port 8000 is a busy default.** A dev server already there answers
+  `deadeye laya health` with a 404 and looks like a broken Laya — or answers
+  200 and looks like a working one. The skill now checks the port first and
+  uses `LAYA_PORT`.
+- **The binary can lag the plugin.** Updating the plugin refreshes the
+  instructions but not the compiled binary, so `deadeye laya ...` reports
+  `unknown command "laya"`. The skill now names that symptom and the fix.
+- **The install is multiple GB**, not the ~843MB of weights alone: torch and
+  transformers come first. Stated before the user commits.
+- `laya-serve` warns at startup that the `typed-decisions` checkpoint ships
+  invalid temperatures and its confidence is uncalibrated. deadeye gates on
+  certainty in three places; all of them fail toward doing nothing, but the
+  skill now says not to reason from the certainty figures.
+
 ## 0.66.3
 
 **deadeye was asking the wrong Laya model.** The setup shipped in 0.66.0

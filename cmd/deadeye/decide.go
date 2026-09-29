@@ -433,7 +433,23 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 		// Laya first, when configured: on the authoritative rung it resolves
 		// exactly the case the judge would otherwise pay a model call for,
 		// leaving applyRoutingJudge to return early on !Unsure.
-		decision, layaTierAnswer, layaCheckpoint, layaAnswered := state.layaRouting(cfg, decision, scope.Prompt, shape, in.SessionID, in.Cwd)
+		//
+		// The extra returns are declared SEPARATELY and `decision` assigned
+		// with `=`, not `:=`. A four-value `:=` here compiles happily and
+		// silently redeclares `decision` in this block's scope, because
+		// three of the four names are new -- which leaves the OUTER
+		// decision, the one the advisory text and setLastRouting and
+		// enforce-mode rewriting all read, holding the raw pre-judge kernel
+		// result. That shipped in 0.66.0 and threw away the AI judge's
+		// verdict on every Agent call for three releases: the recorded
+		// outcome said haiku, the advisory the user actually saw said
+		// sonnet. `go vet` does not flag shadowing by default.
+		var (
+			layaTierAnswer int
+			layaCheckpoint string
+			layaAnswered   bool
+		)
+		decision, layaTierAnswer, layaCheckpoint, layaAnswered = state.layaRouting(cfg, decision, scope.Prompt, shape, in.SessionID, in.Cwd)
 		// wait=false: a hook must never block a tool call on a model call
 		// (see judgeTierAsync) -- a pending verdict lands in the cache for
 		// the next identical spawn.

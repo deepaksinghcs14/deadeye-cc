@@ -250,7 +250,62 @@ func TestEndpointTrailingSlashNormalized(t *testing.T) {
 	}))
 	defer srv.Close()
 	New(srv.URL+"/", "", "typed-decisions", time.Second).YesNo(ctx(t), "x", "i")
-	if path != "/predict" {
-		t.Errorf("path = %q, want /predict (no doubled slash)", path)
+	if path != predictPath {
+		t.Errorf("path = %q, want %s (no doubled slash)", path, predictPath)
+	}
+}
+
+// The decision route is /v1/systemone, NOT the /predict the upstream README's
+// curl example shows. The shipped server exposes only GET /health and POST
+// /v1/systemone; pointing at /predict 404s, which surfaces as "the endpoint
+// answered, but not with a tier" -- a live server that can never answer.
+// Verified against a running laya-serve's own openapi.json.
+func TestDecisionPathIsSystemone(t *testing.T) {
+	if predictPath != "/v1/systemone" {
+		t.Errorf("predictPath = %q; the shipped server serves /v1/systemone", predictPath)
+	}
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.URL.Path
+		fmt.Fprint(w, `{"answers":{"q":{"choice":"0"}},"routing":{"model":"typed-decisions"}}`)
+	}))
+	defer srv.Close()
+	New(srv.URL, "", "typed-decisions", time.Second).Choice(ctx(t), "x", "i", map[string]string{"0": "easy"})
+	if got != "/v1/systemone" {
+		t.Errorf("posted to %q, want /v1/systemone", got)
+	}
+}
+
+// The real server's response shape, captured verbatim from a live
+// laya-serve answering deadeye's own tier question, so a future refactor
+// can't quietly stop parsing it.
+func TestParsesRealServerResponse(t *testing.T) {
+	real := `{
+  "model": "laya-rl-agent",
+  "answers": {"q": {"type": "choice", "choice": "0",
+    "probabilities": {"0": 0.573, "1": 0.2699, "2": 0.1571},
+    "confidence": 0.1231, "answer_confidence": 0.573,
+    "action": {"act_probability": 1.0}}},
+  "usage": {"input_tokens": 103, "output_tokens": 0},
+  "routing": {"model": "typed-decisions", "repo": "convaiinnovations/laya/typed-decisions",
+    "reason": "explicit model='typed-decisions'", "detection": null, "workflow": null}
+}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, real)
+	}))
+	defer srv.Close()
+	a, checkpoint, ok := New(srv.URL, "", "typed-decisions", time.Second).
+		Choice(ctx(t), "rename a variable", "tier?", map[string]string{"0": "easy"})
+	if !ok {
+		t.Fatal("failed to parse a real server response")
+	}
+	if a.Choice != "0" || a.AnswerConfidence != 0.573 || a.Confidence != 0.1231 {
+		t.Errorf("answer = %+v; want choice 0, answer_confidence 0.573, confidence 0.1231", a)
+	}
+	if a.Certainty() != 0.573 {
+		t.Errorf("Certainty() = %v, want the calibrated 0.573", a.Certainty())
+	}
+	if checkpoint != "typed-decisions" {
+		t.Errorf("checkpoint = %q, want typed-decisions", checkpoint)
 	}
 }

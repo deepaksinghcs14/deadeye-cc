@@ -30,6 +30,14 @@ Every `deadeye` invocation here is best-effort the same way the other
 skills' are: if it reports "command not found", retry once with
 `~/.deadeye/bin/deadeye` before concluding anything.
 
+**If `deadeye laya ...` reports `unknown command "laya"`, the BINARY is
+older than the plugin.** Updating the plugin refreshes these instructions
+but not the compiled binary, which self-installs on a hook invocation and
+can lag by a release. Check with `deadeye version`; if it's behind, either
+start a new Claude Code session (the SessionStart hook re-bootstraps it) or
+run the plugin's own `hooks/bootstrap.sh` directly. Don't work around it —
+every command below lives in that binary.
+
 ## The ladder (this is the whole design)
 
 `mode.laya` is four rungs, not a switch:
@@ -50,16 +58,32 @@ risk, before anything routes on it.
 
 ## install
 
-1. **Check prerequisites.** Python 3.10+ (`python3 --version`). Tell the
-   user the real cost before they commit: **~843MB** of weights per
-   checkpoint, and on CPU inference runs **193-464ms** per call with the
-   model resident (the widely-quoted 32.8ms is a T4 GPU figure). A cold
-   checkpoint load costs several seconds.
-2. **Install into a venv, never system Python:**
+1. **Check prerequisites.** Laya needs **Python 3.10+**, and `python3` is
+   often older than that — macOS still ships 3.9. Check what's actually
+   there before building anything:
    ```bash
-   python3 -m venv ~/.deadeye/laya-venv
-   ~/.deadeye/laya-venv/bin/pip install -q "laya[serve]"
+   python3 --version
+   for p in python3.13 python3.12 python3.11 python3.10; do command -v $p; done
    ```
+   Use the newest one you find, and use it BY NAME in the next step: a venv
+   built with a 3.9 `python3` fails at install with an unhelpful resolver
+   error rather than saying "wrong Python". If nothing 3.10+ exists, stop
+   and say so — installing a Python is the user's call, not this skill's.
+
+   Tell the user the real cost before they commit: the install pulls
+   **torch, transformers and their dependencies (multiple GB)**, then
+   **~843MB** of weights per checkpoint on first load. On CPU, inference
+   runs **193-464ms** per call with the model resident (the widely-quoted
+   32.8ms is a T4 GPU figure), and a cold checkpoint load costs several
+   seconds.
+2. **Install into a venv, never system Python** (substituting the
+   interpreter found above for `python3.12`):
+   ```bash
+   python3.12 -m venv ~/.deadeye/laya-venv
+   ~/.deadeye/laya-venv/bin/pip install "laya[serve]"
+   ```
+   Check the plan first with `pip install --dry-run "laya[serve]"` if the
+   user wants to see the size before committing.
 3. **Serve the `typed-decisions` checkpoint.** This is the step that
    matters, and the easiest one to get wrong:
    ```bash
@@ -80,7 +104,13 @@ risk, before anything routes on it.
    — but the server still has to have that checkpoint available, which is
    what `LAYA_MODELS` above does.
 
-   It binds `0.0.0.0:8000`. It must keep running — tell the user to leave it
+   **Check the port is free first** (`lsof -nP -iTCP:8000 -sTCP:LISTEN`).
+   8000 is a busy default — a dev server already sitting there will answer
+   `deadeye laya health` with a 404 and look like a broken Laya, or worse
+   answer 200 and look like a working one. Use `LAYA_PORT=8791` (or any
+   free port) and set `laya.endpoint` to match.
+
+   It binds `0.0.0.0:8000` by default. It must keep running — tell the user to leave it
    in its own terminal, or set it up under `launchd`/`systemd` themselves.
    Other env vars worth naming: `LAYA_DEVICE=cuda` if they have a GPU,
    `LAYA_PORT`, `LAYA_THREADS`, `LAYA_API_KEY` for a bearer token, and
@@ -128,8 +158,23 @@ Interpret it honestly for the user:
 - **Tier 1 or 2 returned** → the endpoint works but the classifier is wrong
   on an easy case. Say so directly and leave `mode.laya` at `shadow`.
 - **Slow first call** → expected, that's the cold load; run it again.
-- **Reachable but no usable answer** → the checkpoint probably hasn't
-  finished loading. Check the `laya-serve` output.
+- **Reachable but no usable answer** → either the checkpoint hasn't finished
+  loading, or `laya.endpoint` points at something that isn't laya-serve.
+  Check what owns that port before assuming the model is at fault.
+
+## A caveat about certainty
+
+`laya-serve` logs this at startup for the `typed-decisions` checkpoint:
+
+> this checkpoint ships invalid temperatures or values outside [0.5, 5] …
+> Treat confidence from the affected entries as uncalibrated.
+
+That matters here because deadeye gates on certainty in three places: the
+complexity signal's floor, the gate-confirmation bar, and the "no certainty
+means no answer" check. Uncalibrated confidence doesn't make those unsafe —
+they all fail toward doing nothing — but it does mean a high
+`answer_confidence` is not evidence of much. Mention it if a user starts
+reasoning from the certainty figures.
 
 ## promote / demote
 

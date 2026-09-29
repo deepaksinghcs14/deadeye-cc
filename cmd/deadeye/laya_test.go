@@ -942,3 +942,53 @@ func TestAgreementShowsCheckpointsAndFlagsMixing(t *testing.T) {
 		t.Errorf("a base checkpoint must be flagged:\n%s", out)
 	}
 }
+
+// The AI judge's verdict MUST reach the advisory the user sees.
+//
+// Regression test for the worst defect this feature shipped: a four-value
+// `:=` in decideAgentRouting silently redeclared `decision` inside the
+// `if ai.Model == ""` block, so the judge's result updated a block-scoped
+// copy while the advisory text, setLastRouting and enforce-mode rewriting
+// all kept reading the raw pre-judge kernel decision. It compiled, vet was
+// silent, every test passed, and the judge -- benchmarked at 48% realized
+// savings against 22% without it -- was thrown away on every Agent call for
+// three releases. Caught only by comparing the advisory against the
+// recorded outcome on a live run.
+func TestJudgeVerdictReachesTheAdvisory(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	prev := judgeFunc
+	judgeFunc = func(string) (int, bool) { return 0, true } // "tier 0" -> cheapest
+	t.Cleanup(func() { judgeFunc = prev; judgeCache.Clear() })
+	judgeCache.Clear()
+
+	state := newDaemonState(testCatalogForLessons(), nil)
+	toolInput, err := json.Marshal(map[string]any{
+		"description": "d",
+		"prompt":      "an ambiguous under-specified task the heuristics cannot place",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := hookio.Input{SessionID: "judge-adv", ToolName: "Agent", Cwd: t.TempDir(), ToolInput: toolInput}
+
+	cfg := config.Default()
+	cfg.Mode.RoutingJudge = "on"
+	out := decideAgentRouting(in, cfg, state)
+	advisory := out.HookSpecificOutput.AdditionalContext
+
+	cheapest, ok := state.cat.Cheapest()
+	if !ok {
+		t.Skip("test catalog has no cheapest model")
+	}
+	// Only assert when the judge actually had a case to resolve; if the
+	// heuristics were confident the judge correctly never ran.
+	if strings.Contains(advisory, "AI judge") && !strings.Contains(advisory, cheapest.ID) {
+		t.Errorf("advisory credits the judge but carries a different model than its verdict:\n%s", advisory)
+	}
+	// The decision the session remembers must be the same one it advised.
+	if lr := state.getLastRouting("judge-adv"); lr != nil {
+		if !strings.Contains(advisory, lr.model) {
+			t.Errorf("setLastRouting recorded %q but the advisory said:\n%s", lr.model, advisory)
+		}
+	}
+}

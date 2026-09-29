@@ -41,7 +41,18 @@ const DefaultEndpoint = "http://127.0.0.1:8000"
 // typed decisions, against 0.766 here.
 const CheckpointTypedDecisions = "typed-decisions"
 
-// DefaultTimeout bounds one /predict call. Laya's own published latency is
+// predictPath is laya-serve's decision route.
+//
+// It is NOT "/predict", which is what upstream's README curl example shows:
+// the shipped server (laya 0.3.21) exposes exactly two routes, GET /health
+// and POST /v1/systemone, and serves the TypeSafe Jev wire protocol on the
+// latter. Verified against a running server's own openapi.json and
+// laya/serve.py, not against the README -- the README's example 404s. The
+// request and response bodies ARE what the README documents; only the path
+// differs.
+const predictPath = "/v1/systemone"
+
+// DefaultTimeout bounds one decision call. Laya's own published latency is
 // 32.8ms on a T4 GPU but 193-464ms on CPU with the model already resident,
 // and a cold checkpoint load costs seconds. Four of deadeye's call sites
 // sit on the PreToolUse path that gates a real tool call (INV-8), so the
@@ -207,7 +218,7 @@ func (c *Client) Ask(ctx context.Context, text string, questions map[string]Ques
 	if err != nil {
 		return Result{}, false
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint+"/predict", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint+predictPath, bytes.NewReader(body))
 	if err != nil {
 		return Result{}, false
 	}
