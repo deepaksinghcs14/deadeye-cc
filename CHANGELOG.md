@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.68.1
+
+The proposed refactor, measured: **Laya as a signal source feeding a
+deterministic deadeye policy engine, with Laya never naming a model.**
+
+This is the one framing the earlier experiments missed. They asked whether
+Laya could DECIDE a tier (it cannot). This asks whether its evidence IMPROVES
+an engine that already has its own — a different question, with its own
+answer available.
+
+Scored against the majority-class null on both annotator-agreed label sets:
+
+| arm | v1 (n=43) | v2 (n=35) | tier-2 recall |
+|---|---|---|---|
+| A. deadeye kernel alone | 44.2% (-23.3) | **80.0% (+17.1)** | 100% |
+| B. + hard safety floor | 30.2% (-37.2) | 54.3% (-8.6) | 100% |
+| C. + Laya signals (LOO fit) | 44.2% (-23.3) | 71.4% (+8.6) | 100% |
+| D. + floor + Laya | 30.2% (-37.2) | 48.6% (-14.3) | 100% |
+| Laya alone (control) | 67.4% (**+0.0**) | 62.9% (**+0.0**) | **0%** |
+
+**Laya adds nothing as a contributor either.** Kernel+Laya is worse than
+kernel alone on v2 and identical on v1. Laya alone lands exactly on the null
+twice, with 0% tier-2 recall. The deterministic engine is best unaided, so the
+refactor is not implemented.
+
+**A correction to this session's own claim.** The hard safety floor was
+reported an hour earlier as the first clean win in the whole Laya arc — 100%
+tier-2 recall against Laya's 50%. That measurement was real but useless: the
+kernel ALREADY reaches 100% tier-2 recall unaided, so the rule adds only false
+positives and costs 8.6-37.2 points. Measuring a component's recall without
+checking whether the existing system already covers it is exactly how a
+redundant addition passes for an improvement.
+
+**And deadeye's heuristics come out better than this session had implicitly
+treated them** — +17.1 over the null on v2 with perfect tier-2 recall. That is
+label-set dependent (-23.3 on v1, whose agreed cases are 67% tier-0 against a
+kernel that picks sonnet 73% of the time), so it is not a claim to lean on.
+"Laya does not help" holds under both sets; "the kernel is good" does not.
+
+Product behaviour unchanged; mode.laya stays off by default.
+
 ## 0.68.0
 
 The taxonomy experiment, and a correction that invalidates several earlier

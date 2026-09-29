@@ -359,3 +359,44 @@ The taxonomy is not the bottleneck, better labels do not rescue it, and
 fine-tuning would mean training on a task the model shows no signal on. This
 closes the routing use — the commit classifier (a different question, measured
 separately at 14/22 against a regex's 11/22) is unaffected.
+
+
+### Laya as signal source, deadeye as decider (`corpus/policy_engine.py`)
+
+The architecture: Laya never names a model. It answers typed sub-questions;
+deadeye's deterministic engine combines those with its own evidence, hard
+safety rules and thresholds, and picks. This is the one framing the earlier
+experiments never tested — they asked whether Laya could *decide* the tier
+(no), not whether its evidence *improves* an engine that already has its own.
+
+| arm | v1 (n=43) | v2 (n=35) | tier-2 recall |
+|---|---|---|---|
+| **A. deadeye kernel alone** | 44.2% (−23.3) | **80.0% (+17.1)** | 100% |
+| B. + hard safety floor | 30.2% (−37.2) | 54.3% (−8.6) | 100% |
+| C. + Laya signals (LOO fit) | 44.2% (−23.3) | 71.4% (+8.6) | 100% |
+| D. + floor + Laya | 30.2% (−37.2) | 48.6% (−14.3) | 100% |
+| Laya alone (control) | 67.4% (**+0.0**) | 62.9% (**+0.0**) | **0%** |
+
+All scores against the majority-class null.
+
+**Laya adds nothing, as a contributor as well as a decider.** Kernel+Laya is
+worse than kernel alone on v2 and identical on v1; Laya alone lands on the
+null exactly, twice, with 0% tier-2 recall. That is the signature of a
+component carrying no information about this distribution.
+
+**The hard safety floor is redundant, not valuable.** Measured in isolation it
+looked like the first clean win — 100% tier-2 recall against Laya's 50%. But
+the kernel *already* reaches 100% tier-2 recall unaided, so the rule
+contributes only false positives and costs 8.6–37.2 points. Measuring a
+component's recall without checking whether the existing system already covers
+it is how a redundant addition looks like an improvement.
+
+**One caveat on the kernel.** It scores +17.1 on v2 and −23.3 on v1, and the
+difference is entirely the label set: v1's agreed cases are 67% tier-0 while
+the kernel picks sonnet 73% of the time. "The kernel is good" is label-
+dependent. "Laya does not help" is not — it holds under both.
+
+Note also that deadeye's own signals are nearly inert on harvested prompts:
+`taskspecificity` has spread 0.00 across all 70, `promptshape` 0.15, and the
+file-derived signals fire 5–6 times because these prompts carry no repo. In
+production those signals see real files. This corpus tests the text-only case.
