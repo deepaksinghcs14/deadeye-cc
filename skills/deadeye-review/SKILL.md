@@ -347,6 +347,23 @@ weighs that lens/tag accordingly:
 deadeye lessons record review-false-positive <lens>:<tag>
 ```
 
+**Record the receipt, always.** Once the pass is finished — findings or a
+clean verdict, either one — run this so the review can be checked against
+what actually happens to the code later:
+
+```bash
+deadeye receipt review --scope diff
+```
+
+Use `--scope staged` if you reviewed the staged diff, `--scope repo` in
+`--repo` mode. Same best-effort, retry-once contract as every other
+`deadeye` call here. It writes no findings and reads no code: it records
+this repo, the commit you reviewed against, and the changed paths (derived
+from git when you don't pass `--paths`), so `deadeye misses` can later look
+for fix-shaped commits landing on the lines this pass passed. A clean
+review is the MOST important one to record — an accuracy number built only
+from reviews that found something is not an accuracy number.
+
 ## Output
 
 Lead with a one-line header, then the four lens sections, then the

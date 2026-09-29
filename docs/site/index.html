@@ -671,6 +671,7 @@ FAIL</div>
         <tr><td class="axis">Output truncation</td><td class="desc">Native truncation is size-based at 30K chars. deadeye rewrites commands before they run so only failure context enters at all — and stacks under the native cap.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
         <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations — with an AI judge (<code>claude -p</code>, no API key, on by default) for the genuinely ambiguous cases.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
         <tr><td class="axis">Coding persona</td><td class="desc">No native equivalent — coder mode is deadeye's own ground.</td><td class="mode"><span class="pill">unique</span></td></tr>
+        <tr><td class="axis">No native equivalent</td><td class="desc">deadeye holds itself to its own claims, and publishes the answer either way. <code>/deadeye-stats accuracy</code> scans forward from every reviewed diff for a fix-shaped commit landing on the lines that review passed — a candidate false negative, labelled <em>likely</em> with the line range as its proof, shown beside the findings you disputed so precision and recall sit together. <code>disagreement</code> samples decisions the router was confident about and reports where the judge would have gone cheaper — a disagreement rate, never dressed up as a measured over-route rate, because a production subtask has no grader. <code>adherence</code> checks the coder ladder&rsquo;s mechanical rungs on shipped diffs. Each report names what it cannot measure, and measures going forward only: an empty one means &ldquo;not measured yet&rdquo;, never &ldquo;nothing wrong&rdquo;.</td><td class="mode"><span class="pill">unique</span></td></tr>
         <tr><td class="axis">Other hosts</td><td class="desc">Experimental: the same daemon serves OpenAI's Codex through its hooks — output trimming, coder persona, plan gate, decision log — via <code>deadeye init codex</code>. Gemini CLI gets the coder persona and session guidance now (<code>init gemini</code>); its tool-level engine waits on live schema verification. Cursor and Windsurf have no hook contract, so they get the coder persona alone as a rules file (<code>init cursor</code> / <code>init windsurf</code>). And all three on-demand review commands — <code>/deadeye-pr</code>, <code>/deadeye-review</code>, and <code>/deadeye-vapt</code> — install on all four via <code>init</code> in each host's native command format, experimental until live-verified.</td><td class="mode"><span class="pill soft">five hosts</span></td></tr>
       </tbody>
     </table>
@@ -973,7 +974,31 @@ Cross-check these figures against /usage's plugin attribution.</div>
         switch. Three small background checks send nothing of yours and
         never block a response — a release-tag check, an OSV.dev advisory
         lookup for flagged dependencies, and a refresh of the hosted
-        model/pricing catalog — each with its own off switch too.</p></details>
+        model/pricing catalog — each with its own off switch too.
+        One more, <em>off by default</em>: tier sampling
+        (<code>mode.tier_sample</code>) asks that same judge for a second
+        opinion on a fraction of decisions the heuristics were
+        <em>confident</em> about, purely to measure over-routing. Same
+        payload — a task description, never your code — and it runs after
+        the decision, so it never blocks anything. Its findings stay in
+        <code>~/.deadeye/</code> like everything else.</p></details>
+      <details><summary>Can I check whether any of this actually works?</summary>
+        <p>That's what <code>/deadeye-stats</code> is for, and three of its
+        views hold deadeye to its own claims rather than reporting its
+        activity. <code>accuracy</code> scans forward from each reviewed
+        diff for a fix-shaped commit landing on the exact lines that review
+        passed — every candidate is <em>likely</em>, never confirmed,
+        carrying the line range as its proof, and shown beside the findings
+        you disputed so both kinds of error are visible at once.
+        <code>disagreement</code> shows where the judge would have routed
+        cheaper than the heuristics did; it reports a disagreement rate, not
+        an over-route rate, because an arbitrary production subtask has no
+        grader — a second opinion, not a replay, and it changes no routing.
+        <code>adherence</code> checks the coder ladder's mechanical rungs on
+        diffs that shipped: new dependencies, files per change. All three
+        measure going forward from a local receipt, so an empty report means
+        "not measured yet", never "nothing wrong" — and each one says
+        which.</p></details>
       <details><summary>Will it make Claude dumber?</summary>
         <p>That's exactly the failure mode it's built to avoid. When it isn't
         confident about a task, it defaults to the more capable option —

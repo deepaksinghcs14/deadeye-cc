@@ -29,6 +29,15 @@ type Modes struct {
 	UpdateCheck  string `json:"update_check"`
 	RoutingJudge string `json:"routing_judge"`
 	CatalogCheck string `json:"catalog_check"`
+	// TierSample (off|on) samples CONFIDENT high-tier routing decisions
+	// through the judge, which the live path otherwise never second-guesses
+	// (applyRoutingJudge returns early unless a decision is Unsure). It
+	// exists to make over-routing visible: escalations already bias routing
+	// UP, and nothing measured the other direction. Default off -- unlike
+	// every other mode here, each sample spends a real `claude -p` call on
+	// a decision that was already made, buying measurement rather than a
+	// better answer for the call that pays for it.
+	TierSample string `json:"tier_sample"`
 }
 
 // Preprocess is per-rule config for internal/preprocess.
@@ -43,6 +52,15 @@ type Preprocess struct {
 // doesn't depend on; re-add the knob when that signal actually exists.)
 type PlanGate struct {
 	MinFiles int `json:"min_files"`
+}
+
+// TierSample tunes mode.tier_sample. Rate is 1-in-N: at the default 10,
+// one in ten eligible decisions is re-examined. A rate below 1 is read as
+// the default rather than as "every decision" -- a zero from an
+// unset/partial config file must not silently turn a paid sampler up to
+// 100%.
+type TierSample struct {
+	Rate int `json:"rate"`
 }
 
 // Coder configures the coder-mode persona (see internal/coder).
@@ -102,6 +120,7 @@ type Config struct {
 	InjectionBudgetTokens int        `json:"injection_budget_tokens"`
 	Preprocess            Preprocess `json:"preprocess"`
 	PlanGate              PlanGate   `json:"plan_gate"`
+	TierSample            TierSample `json:"tier_sample"`
 	Coder                 Coder      `json:"coder"`
 	Security              Security   `json:"security"`
 }
@@ -150,10 +169,12 @@ func Default() Config {
 			UpdateCheck:  "on",
 			RoutingJudge: "on", // the LLM judge calls claude -p (sonnet) on unsure cases -- deliberately trades zero-network for accuracy; off restores pure heuristics
 			CatalogCheck: "on",
+			TierSample:   "off", // spends a judge call purely to measure; opt in
 		},
 		DownshiftThreshold:    0.8,
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
+		TierSample:            TierSample{Rate: 10},
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",

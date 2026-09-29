@@ -104,6 +104,7 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 
 	state.setCoderLevel(in.SessionID, level)
 	writeCoderModeFile(in.SessionID, level)
+	writeCoderReceipt(in.Cwd, in.SessionID, level)
 
 	text := coder.Instructions(level)
 	reason := "coder ruleset injection"
@@ -241,6 +242,7 @@ func coderTracker(in hookio.Input, cfg config.Config, state *daemonState) string
 	case coder.KindSwitch, coder.KindReviewSwitch:
 		state.setCoderLevel(in.SessionID, cmd.Level)
 		writeCoderModeFile(in.SessionID, cmd.Level)
+		writeCoderReceipt(in.Cwd, in.SessionID, cmd.Level)
 		log("coder-switch", cmd.Level)
 		return "DEADEYE CODER CHANGED — level: " + cmd.Level
 	case coder.KindSwitchBad:
@@ -252,6 +254,7 @@ func coderTracker(in hookio.Input, cfg config.Config, state *daemonState) string
 		}
 		state.setCoderLevel(in.SessionID, level)
 		writeCoderModeFile(in.SessionID, level)
+		writeCoderReceipt(in.Cwd, in.SessionID, level)
 		log("coder-switch", level+" (unrecognized: "+cmd.Raw+")")
 		return "DEADEYE CODER CHANGED — level: " + level + " (didn't recognize \"" + cmd.Raw + "\")"
 	case coder.KindOff:

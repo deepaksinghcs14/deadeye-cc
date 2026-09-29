@@ -276,7 +276,7 @@ installs get a one-time welcome pointing at all of this.
 | `deadeye doctor` | Checks whether it's actually *working* — binary, permissions, config parse, socket, daemon, judge reachability, hook coverage, store sizes. Exits non-zero if anything failed |
 | `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — changes nothing, but an unsure decision spends one real judge call |
 | `/deadeye-config` | View or change any setting from chat, or interactively with `deadeye config` |
-| `/deadeye-stats [savings\|context]` | Decision-log reports: measured-impact scoreboard (default), token-savings, per-session context bytes — ends with a link to the full visual report |
+| `/deadeye-stats [savings\|context\|accuracy\|disagreement\|adherence]` | Every report deadeye computes about itself. Economics: measured-impact scoreboard (default), token-savings, per-session context bytes — ends with a link to the full visual report. Judgment: `accuracy` (candidate review misses from git, beside the findings you disputed), `disagreement` (where the judge would have routed cheaper), `adherence` (the coder ladder's checkable rungs on shipped diffs) |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
 | `/deadeye-review [--repo]` | Four-lens self-review (over-engineering, correctness, performance, security) of the working diff, or the whole repo with `--repo` — the same rubric `/deadeye-pr` runs, before a PR exists |
@@ -334,6 +334,39 @@ only ever raising the bar:
 
 `deadeye report` visualizes all three, including a trend chart for the
 repo's most-recurring coder-mode miss.
+
+## Checking its own claims
+
+Three claims sit at the centre of this plugin — the reviewer is precise,
+the router is thrifty, the coder persona keeps code lean — and until now
+none of them could be checked after the fact. The decision log is
+deliberately thin (no repo, no commit, no prompt), so nothing tied a review
+or a coder session to the code it touched. A local receipt
+(`~/.deadeye/receipts.jsonl`, written when a review or coder session runs)
+supplies that anchor, and three reports read it:
+
+- **`/deadeye-stats accuracy`** — for each reviewed diff, scans forward for
+  a fix-shaped commit landing on the very lines that review passed. Every
+  candidate is `likely`, never confirmed, and carries the line range as its
+  `proof:`. Nothing is recorded automatically; it sits beside the findings
+  you disputed, so both error directions are visible at once.
+- **`/deadeye-stats disagreement`** — the routing loop only ever learned in
+  one direction: an escalation says "too cheap" and raises the bar, while a
+  systematic *over*-route stayed invisible, because the judge is never
+  consulted on a decision the heuristics were confident about. Sampling
+  those (opt-in, `mode.tier_sample`, one judge call per sample) shows where
+  the judge would have gone cheaper. It reports a **disagreement rate, not
+  an over-route rate** — an arbitrary production subtask has no grader, so
+  this is a second opinion, not a replay, and it changes no routing.
+- **`/deadeye-stats adherence`** — the coder ladder's mechanically checkable
+  rungs on diffs that shipped: new dependencies (rung 5) and files-per-
+  change (rung 7). Signals, not verdicts, and explicitly not a
+  lines-not-written saving; rung 2 stays unmeasured because it would need a
+  symbol index this plugin doesn't build.
+
+All three measure **going forward** — they read receipts, and nothing
+before this existed left one. An empty report means "not measured yet",
+never "nothing wrong", and each one says which.
 
 ## Development
 

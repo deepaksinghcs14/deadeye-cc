@@ -174,6 +174,22 @@ many lower-severity ones were omitted.
 about..." — hedging isn't a finding. Name the path, the line, the
 reachable input, the fix, the proof.
 
+## Record the receipt
+
+Once the pass is finished — exposures or a clean verdict, either one — run
+this (best-effort: if `deadeye` isn't on PATH, retry once with
+`~/.deadeye/bin/deadeye`; if that also fails, carry on):
+
+```bash
+deadeye receipt review --scope guard
+```
+
+It writes no findings and reads no code. It records this repo, the commit
+you reviewed against, and the changed paths, so `deadeye misses` can later
+check whether a fix-shaped commit landed on lines this pass passed. A clean
+pass is the MOST important one to record — an accuracy number built only
+from passes that found something is not an accuracy number.
+
 ## Boundaries
 
 - Findings are a LIST. Do not apply them unless asked.

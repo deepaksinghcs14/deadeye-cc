@@ -487,3 +487,36 @@ func TestGuardTagsMatchLenses(t *testing.T) {
 		}
 	}
 }
+
+// TestReceiptInstructionPresentAndCutForWindsurf pins the review-receipt
+// call: every flagship host must ask for it (an accuracy report built from
+// a partial sample of reviews is worse than none), and Windsurf must not,
+// for the same reason the rest of the Learning loop is cut there -- it
+// shells to a `deadeye` binary that host has no guaranteed access to.
+func TestReceiptInstructionPresentAndCutForWindsurf(t *testing.T) {
+	const marker = "deadeye receipt review"
+	for _, c := range []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"pr Body", Body(), true},
+		{"review SelfBody", SelfBody(), true},
+		{"pr WindsurfBody", WindsurfBody(), false},
+		{"review SelfWindsurfBody", SelfWindsurfBody(), false},
+	} {
+		if got := strings.Contains(c.body, marker); got != c.want {
+			t.Errorf("%s contains %q = %v, want %v", c.name, marker, got, c.want)
+		}
+	}
+}
+
+// The clean-review case is the whole point: an accuracy number assembled
+// only from reviews that found something measures nothing.
+func TestReceiptInstructionDemandsCleanReviewsToo(t *testing.T) {
+	for _, body := range []string{Body(), SelfBody()} {
+		if !strings.Contains(body, "MOST important one to record") {
+			t.Error("rubric must say a clean review still records a receipt")
+		}
+	}
+}

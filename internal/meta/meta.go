@@ -23,7 +23,7 @@ const Name = "deadeye"
 // compiled-in dev string instead of the real tag on both, caught only by
 // checking the actual downloaded release binary's output, not by reading
 // this file.
-var Version = "0.64.0-dev"
+var Version = "0.65.0-dev"
 
 // StateDir returns ~/.deadeye, creating no directories itself.
 func StateDir() string {
@@ -74,6 +74,7 @@ func SkewWarnedPath() string       { return filepath.Join(StateDir(), "skew-warn
 func LockPath() string             { return filepath.Join(StateDir(), "deadeye.lock") }
 func LogPath() string              { return filepath.Join(StateDir(), "decisions.jsonl") }
 func OutcomesPath() string         { return filepath.Join(StateDir(), "outcomes.jsonl") }
+func ReceiptsPath() string         { return filepath.Join(StateDir(), "receipts.jsonl") }
 func CapturesDir() string          { return filepath.Join(StateDir(), "captures") }
 func ConfigPath() string           { return filepath.Join(StateDir(), "config.json") }
 func CatalogOverridePath() string  { return filepath.Join(StateDir(), "catalog.json") }

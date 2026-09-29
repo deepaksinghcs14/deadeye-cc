@@ -98,6 +98,21 @@ you didn't already report it, record it under the lens/tag it belongs to:
 deadeye lessons record external-miss <lens>:<tag>
 ```
 
+**Record the receipt, always.** Once the pass is finished — findings or a
+clean verdict, either one — run this so the review can be checked against
+what actually happens to the code later:
+
+```bash
+deadeye receipt review --scope pr --paths <the changed files, comma-separated>
+```
+
+Same best-effort, retry-once contract as every other `deadeye` call here.
+It writes no findings and reads no code: it records this repo, the commit
+you reviewed against, and the paths, so `deadeye misses` can later look for
+fix-shaped commits landing on the lines this pass passed. A clean review is
+the MOST important one to record — an accuracy number built only from
+reviews that found something is not an accuracy number.
+
 ## Activity tracking (for the report)
 
 Separately from the learning loop above, `deadeye report` builds a local

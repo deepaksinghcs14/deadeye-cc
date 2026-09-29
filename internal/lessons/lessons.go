@@ -50,9 +50,19 @@ type Outcome struct {
 	TaskShape string  `json:"task_shape"`
 	Model     string  `json:"model"`
 	Effort    string  `json:"effort"`
-	Kind      string  `json:"kind"` // "escalation" | "coder-miss" | "review-false-positive"
+	Kind      string  `json:"kind"` // "escalation" | "coder-miss" | "review-false-positive" | "external-miss" | "tier-disagreement"
 	Weight    float64 `json:"weight"`
-	Repo      string  `json:"repo,omitempty"` // gitutil.ProjectKey; "" means global (routing's shape already is)
+	// JudgedTier is the judge's own 0/1/2 classification, recorded only on
+	// "tier-disagreement": the routed model is in Model, and this is what
+	// the judge thought the task needed instead. Optional and omitempty, so
+	// every outcome written before this field existed still parses.
+	//
+	// It deliberately feeds no routing decision. AdjustedDownshiftThreshold
+	// filters on Kind == "escalation", so a disagreement is inert there by
+	// construction -- routing stays one-directional (INV-1) until this
+	// measurement has been trusted for a while.
+	JudgedTier *int   `json:"judged_tier,omitempty"`
+	Repo       string `json:"repo,omitempty"` // gitutil.ProjectKey; "" means global (routing's shape already is)
 }
 
 // SurfaceRouting, SurfaceCoder, and SurfacePRReview are Outcome.Surface's

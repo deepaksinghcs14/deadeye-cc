@@ -1,5 +1,86 @@
 # Changelog
 
+## 0.65.0
+
+deadeye makes three claims about itself — the reviewer is precise, the
+router is thrifty, the coder persona keeps code lean — and until now none
+of them could be checked after the fact. The decision log is deliberately
+thin (no repo, no cwd, no commit, no prompt), the coder-mode files on disk
+are display-only shared state a session toggling off can delete, and
+nothing anywhere read git history to ask whether a review had been right.
+So the claims were unfalsifiable, which for a plugin whose whole pitch is
+measured-not-asserted was the wrong kind of gap.
+
+A local receipt closes it: `~/.deadeye/receipts.jsonl` records that a
+review or a coder session happened in a given repo at a given base commit,
+written by `/deadeye-review`, `/deadeye-pr` and `/deadeye-guard` when a
+pass finishes and by coder mode at session start or level switch. Three new
+views on `/deadeye-stats` read it.
+
+`/deadeye-stats accuracy` scans forward from each reviewed diff for a
+fix-shaped commit landing on the exact lines that review passed — a
+candidate false negative with evidence attached. It uses `git log -L` so
+the line range follows later edits rather than intersecting stale offsets
+by hand. Every candidate prints as `likely`, never `(confirmed)`, carries
+the overlapping line range as its `proof:`, and is recorded by nobody: if
+one is genuinely a miss, you record it with `deadeye lessons record
+external-miss <lens>:<tag>`, the kind that already existed for exactly this
+and had no automatic writer. Reviewed work that hasn't been committed yet
+is reported as pending and excluded from the denominator rather than
+counted as a clean pass. Disputed findings appear beside the candidates, so
+neither error direction can be relayed as "accuracy" on its own.
+
+`/deadeye-stats disagreement` fills the routing loop's blind spot. An
+escalation says "routed too cheap" and raises the downshift bar; nothing
+ever said "routed too expensive", because `applyRoutingJudge` returns early
+unless a decision is `Unsure` — a confident high-tier route is never
+second-guessed, so a systematic over-route would stay invisible forever.
+The new opt-in `mode.tier_sample` (1-in-10 by default) asks the existing
+judge for a second opinion on a sample of those, asynchronously in the
+daemon so nothing is added to the PreToolUse path that gates a real tool
+call. It reports a **disagreement rate, not an over-route rate**: an
+arbitrary production subtask has no grader, so the work cannot be replayed
+and scored — graded comparison stays in `benchmarks/routing/`, on fixtures
+that ship hidden tests. Off by default, because unlike every other mode it
+spends a real `claude -p` call to buy measurement rather than a better
+answer for the call paying for it.
+
+`/deadeye-stats adherence` measures the coder ladder on diffs that actually
+shipped: rung 5 (a new dependency, through the same manifest extractors
+`/deadeye-guard` already uses) and rung 7 (files and insertions per
+commit). Presented as signals, not verdicts — a wide commit can be the
+right shape, and a new dependency can be exactly what rung 5 asks for. It
+names what it does not measure: rung 2 (already in this codebase) would
+need a function-level symbol index this plugin doesn't build, rungs 1/3/4/6
+are judgment calls, and lines-not-written has no baseline at all — the same
+boundary `deadeye gain` has carried in code all along.
+
+Honesty carried in the output, not just the docs: all three measure going
+forward, since no receipt existed before this release, and each says so
+rather than letting an empty report read as a clean bill of health. Tests
+pin the language — a candidate can never print as confirmed, the reports
+must state what they can't measure, and a `tier-disagreement` outcome must
+leave `AdjustedDownshiftThreshold` untouched, so a new measurement can't
+quietly start steering routing before anyone trusts it (INV-1 stays
+one-directional).
+
+Declined on purpose: replaying logged decisions at a cheaper tier (the log
+retains no prompt, and a production task has no grader — two independent
+reasons, either fatal); backfilling accuracy from history (no receipts
+existed, and mining Claude Code transcripts for past review runs depends on
+an undocumented format); auto-recording a git-derived miss into the
+learning loop (a heuristic must not poison the signal reviews read back);
+and making routing feedback bidirectional in the same release that first
+measures the other direction.
+
+One correction found while building: `signals.MaxAchievableConfidence` is
+0.8 and the default `downshift_threshold` is also 0.8, so
+`AdjustedDownshiftThreshold` returns the base unchanged at stock settings —
+documented behavior ("a base at or above the ceiling has no headroom"), but
+it means escalation bias is currently inert for anyone who hasn't lowered
+the threshold. Noted here rather than quietly changed; recalibrating that
+is its own patch, with its own measurement.
+
 ## 0.64.0
 
 `/deadeye-vapt` gets a depth pass, reviewed by a third party and verified

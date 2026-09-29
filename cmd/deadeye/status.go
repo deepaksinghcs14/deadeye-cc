@@ -58,6 +58,7 @@ func runStatus() {
 	srow("codemap", cfg.Mode.Codemap, "mode.codemap", "off · on")
 	srow("update check", cfg.Mode.UpdateCheck, "mode.update_check", "off · on")
 	srow("routing judge", cfg.Mode.RoutingJudge, "mode.routing_judge", "off · on")
+	srow("tier sample", cfg.Mode.TierSample, "mode.tier_sample", "off · on  (spends a judge call per sample)")
 	srow("catalog refresh", cfg.Mode.CatalogCheck, "mode.catalog_check", "off · on")
 	fmt.Println()
 
