@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.69.1
+
+Restores the regression guard for the judge-shadowing bug, which 0.69.0
+deleted by accident: it lived in `cmd/deadeye/laya_test.go`, and that file was
+removed wholesale with the Laya integration.
+
+The bug itself is absent — verified in the shipped binary by comparing the
+advisory against the decision log on a live Agent call, and by reading the
+code: `decision = applyRoutingJudge(...)` is a plain assignment again, since
+the multi-return call that caused the shadowing went away with Laya. But the
+only thing standing between that and a silent reappearance was a test that no
+longer existed.
+
+`TestJudgeVerdictReachesTheAdvisory` is back, asserting at the
+`decideAgentRouting` boundary rather than on `applyRoutingJudge` in isolation
+— the existing unit test passed happily for all three releases the bug was
+live, because the defect was in how the CALLER used the return value.
+
+**The first version of the restored test was also useless, and that is worth
+recording.** It gated its assertion on the advisory containing "AI judge" —
+but when the bug is present the advisory does not mention the judge, so the
+check short-circuited and the test passed with the defect deliberately
+reintroduced. It now counts judge invocations and asserts that a judge which
+actually ran must have its verdict reach the advisory. A discarded verdict
+leaves no trace in the text it was discarded from, so the assertion cannot key
+off that text.
+
+Both states are now proven: the test passes on the current code and fails,
+naming the discarded model, when the `:=` shadowing is put back.
+
 ## 0.69.0
 
 Laya is removed. It was measured across six call sites over ten releases and
