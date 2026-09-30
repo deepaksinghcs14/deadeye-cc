@@ -258,9 +258,9 @@ never touches the others.
 
 Settings live in `~/.deadeye/config.json` (with an optional per-repo
 `.deadeye.json` override); full schema in
-[`schema/config.schema.json`](schema/config.schema.json). Five env vars are
+[`schema/config.schema.json`](schema/config.schema.json). Four env vars are
 kill switches: `DEADEYE=off` (everything), `DEADEYE_PREPROCESS=off`,
-`DEADEYE_GATE=off`, `DEADEYE_CODER=off`, `DEADEYE_LAYA=off`.
+`DEADEYE_GATE=off`, `DEADEYE_CODER=off`.
 
 Change any setting without editing JSON: **`/deadeye-config`** from chat (or
 just say what you want — "turn off the plan gate"), **`deadeye config`** for an
@@ -276,7 +276,7 @@ installs get a one-time welcome pointing at all of this.
 | `deadeye doctor` | Checks whether it's actually *working* — binary, permissions, config parse, socket, daemon, judge reachability, hook coverage, store sizes. Exits non-zero if anything failed |
 | `/deadeye-route [task]` | Shows what deadeye *would* decide for a task, and why — changes nothing, but an unsure decision spends one real judge call |
 | `/deadeye-config` | View or change any setting from chat, or interactively with `deadeye config` |
-| `/deadeye-stats [savings\|context\|accuracy\|disagreement\|adherence]` | Every report deadeye computes about itself. Economics: measured-impact scoreboard (default), token-savings, per-session context bytes — ends with a link to the full visual report. Judgment: `accuracy` (candidate review misses from git, beside the findings you disputed), `disagreement` (where the judge would have routed cheaper), `adherence` (the coder ladder's checkable rungs on shipped diffs), `laya` (agreement between the optional local classifier and what deadeye actually did) |
+| `/deadeye-stats [savings\|context\|accuracy\|disagreement\|adherence]` | Every report deadeye computes about itself. Economics: measured-impact scoreboard (default), token-savings, per-session context bytes — ends with a link to the full visual report. Judgment: `accuracy` (candidate review misses from git, beside the findings you disputed), `disagreement` (where the judge would have routed cheaper), `adherence` (the coder ladder's checkable rungs on shipped diffs) |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advisories and nags for this session (rewrites keep working) |
 | `/deadeye-review [--repo]` | Four-lens self-review (over-engineering, correctness, performance, security) of the working diff, or the whole repo with `--repo` — the same rubric `/deadeye-pr` runs, before a PR exists |
@@ -284,7 +284,6 @@ installs get a one-time welcome pointing at all of this.
 | `/deadeye-vapt` | Whole-service pen-test/VAPT pass — complete OWASP Top 10:2025, API Security Top 10 2023, and LLM Top 10:2025 coverage, ranked worst-first, every finding linked to its source |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses; prints locally, opt-in to post to the PR. Findings with a mechanical fix get a code snippet (a GitHub suggestion block when posted), plus a closing paste-ready block for a coding agent. On Codex, invoke the installed skill as `$deadeye-pr`. Huge PRs fan out to parallel subagents where the host supports them. |
 | `/deadeye-sweep [--repo\|--pr [<PR>]] [<max-passes>] [--commit] [--all]` | Applies the 🔴/🟠 findings from `/deadeye-review`, `/deadeye-pr`, and `/deadeye-guard` (all four severities with `--all`), verifies the build, and re-scans until clean (capped at 5 passes). In `--pr` mode, also answers the PR's own open review threads — fixes, replies like a person, resolves. One confirmation up front, then unattended; never pushes, replies, or resolves without asking. |
-| `/deadeye-laya` | Set up, verify, and tune the optional local Laya decision model — install, point deadeye at it, and promote it up the trust ladder on evidence |
 | `/deadeye-debt` | Ledger of every `deadeye:` shortcut marker in the repo |
 | `/deadeye-help` | Quick-reference card for all of the above |
 | `deadeye update` | Update the managed binary (sha256-verified, atomic) — for Codex-only installs |
@@ -369,147 +368,6 @@ All three measure **going forward** — they read receipts, and nothing
 before this existed left one. An empty report means "not measured yet",
 never "nothing wrong", and each one says which.
 
-## Laya: an optional local decision model
-
-deadeye's routing judge answers one typed question — how much capability
-does this subtask need, tier 0, 1 or 2 — and it answers it by shelling to
-`claude -p --model sonnet`. That call is the only thing in deadeye that
-blocks a hook response on a model call. [Laya](https://github.com/NandhaKishorM/laya)
-(Apache 2.0) is a small non-autoregressive classifier that answers typed
-choice/score/yes-no questions locally, which makes it a natural stand-in.
-
-**deadeye does not ship, install, or supervise Laya.** Laya is Python;
-deadeye is a single static Go binary with no runtime dependencies, and
-bundling an interpreter plus ~843MB of weights into six release binaries
-would trade that away for one optional feature. The whole contract is an
-endpoint: you run `laya-serve`, deadeye points at it, and **every call site
-falls back to today's exact behavior** the moment it stops answering.
-
-The easiest path is the skill, which walks the install and verifies it:
-
-```
-/deadeye-laya install
-```
-
-Or by hand:
-
-```bash
-python3 -m venv ~/.deadeye/laya-venv
-~/.deadeye/laya-venv/bin/pip install "laya[serve]"
-
-# Serve the typed-decisions checkpoint -- see below for why this matters
-LAYA_MODELS=typed-decisions LAYA_PRELOAD=1 ~/.deadeye/laya-venv/bin/laya-serve
-
-deadeye config set laya.endpoint http://127.0.0.1:8000
-deadeye config set mode.laya shadow
-deadeye laya health && deadeye laya test
-```
-
-**Serve the right checkpoint.** Laya ships three — `english`,
-`multilingual`, `typed-decisions` — and its router only chooses between the
-first two, by script and language. It never reaches `typed-decisions` on its
-own. Every question deadeye asks is a typed decision, and upstream's own
-benchmark puts the base checkpoint at **0.362** against **0.766** for
-`typed-decisions` ("all of the capability on this benchmark comes from
-fine-tuning"). deadeye names the checkpoint on every request
-(`laya.checkpoint`, default `typed-decisions`) so it doesn't depend on the
-server's routing — but the server still has to have it loaded, which is what
-`LAYA_MODELS` does. `deadeye laya test` prints which checkpoint actually
-answered, and `/deadeye-stats laya` records it per verdict, because an
-agreement rate that mixes two checkpoints is a number about neither.
-
-### The ladder, and why it exists
-
-`mode.laya` has four rungs, not two:
-
-| Rung | Asked | Recorded | Acted on |
-|---|---|---|---|
-| `off` (default) | no | — | — |
-| `shadow` | yes | yes | **no** |
-| `advise` | yes | yes | no (shown in decision reasons) |
-| `authoritative` | yes | yes | **yes** |
-
-Start at `shadow` and promote on evidence, because the honest number is
-unflattering: Laya's **untuned** accuracy on typed decisions is **0.362 on
-its vendor's own eval, against ~0.33 for a three-way coin flip** (0.766
-fine-tuned, which needs ~30k labelled examples and GPU hours). Every
-published figure for it is vendor-self-reported; no independent evaluation
-exists. Shadow mode lets you find out on your own traffic at zero risk:
-
-```
-/deadeye-stats laya     # agreement per call site, 30-day window
-```
-
-That's an *agreement* rate, not an accuracy rate — on `shadow` and `advise`
-"actual" is whatever the existing mechanism chose, which is not ground
-truth either. It also accumulates the labelled `task → tier` data that
-fine-tuning would need, which is the only real route to the 0.766 figure.
-
-**Only the rungs that act on an answer wait for it.** On `shadow` — the rung
-everyone starts on — routing and both gate checks ask Laya off the critical
-path and record the answer when it arrives, so nothing you do is ever delayed
-to collect a measurement. `advise` waits on the routing question (it prints
-the answer in the reason you read); `authoritative` waits wherever the answer
-decides something. And keep the endpoint on loopback: a remote one sends every
-classified task description off your machine, which `deadeye doctor` warns
-about.
-
-### Turning it off
-
-Four ways, all instant, none of which lose recorded data:
-
-```bash
-deadeye config set mode.laya shadow   # back down the ladder, keep measuring
-deadeye config set mode.laya off      # stop calling it
-DEADEYE_LAYA=off claude               # env kill switch, wins over config
-```
-
-…or just stop `laya-serve`: deadeye fails open on an unreachable endpoint, so
-killing the server disables every call site with no config change. That last
-one is worth knowing precisely because a dead endpoint and a disabled Laya
-are indistinguishable in behavior — which is why `deadeye doctor` carries a
-`laya` row.
-
-### Where it gets used
-
-Six sites, all opt-in, all fail-open:
-
-- **Routing judge** — on `authoritative`, replaces the `claude -p` call for
-  exactly the ambiguous cases that call exists for.
-- **Complexity signal** — an optional seventh signal beside the six
-  heuristics, added only on `authoritative`, and skipped quietly below a
-  certainty floor so a hedging classifier can't drag a decision's
-  confidence down and silently make every route pricier.
-- **Plan gate** / **workflow hint** — may only CONFIRM or SUPPRESS a gate
-  the heuristic already fired, never fire one itself. Suppression is the
-  direction where being wrong is cheap.
-- **Tier-sample screen** — a free local screen on every confident
-  high-tier route, escalating only disagreements to a paid confirmation.
-  This is what makes `/deadeye-stats disagreement` dense rather than a
-  1-in-10 sample.
-- **`deadeye misses` commit classifier** — "does this message describe a
-  bug fix?" instead of a `fix|bugfix|revert` regex, catching the fixes that
-  never say "fix". Offline, so latency is irrelevant — the lowest-risk site.
-
-Cost, stated plainly: ~843MB of weights, and several seconds for a cold
-checkpoint load. Per-call latency with the model resident measured **p50
-71ms / p95 115ms** on Apple Silicon in this repo's own benchmark; upstream
-quotes 193–464ms on CPU and 32.8ms on a T4 GPU.
-
-**Benchmarked, and it does not currently pay.** `benchmarks/routing/laya-probe.sh`
-runs the classifier against the same six tasks and the same hidden-test ground
-truth as the router benchmark, with the same accounting (a wrong-cheap route
-pays for the re-run). Classification is counted on both sides — a judge call is a measured **$0.051**
-and ~2s of hook-blocking latency; Laya's is $0.00 at ~71ms. On that set the
-existing router realizes **31.2%** savings against all-opus and a
-`mode.laya=authoritative` router **21.7%**: Laya rated every one of the six
-self-contained tasks a tier too high, costing $0.079/task more to execute while
-saving $0.051/task to classify — net **$0.028/task** behind. On a held-out
-nine-case set it scores **8/9**, so it is weak at one specific shape rather than
-weak generally. Prompt-level tuning does not fix it: a criteria rewrite scored
-1/9→5/9 on the cases it was tuned on and 8/9→6/9 on held-out ones. `off` remains
-the default and `shadow` the place to start. Full setup guide:
-[deadeye.dev/laya](https://deepaksinghcs14.github.io/deadeye-cc/laya.html).
 
 ## Development
 

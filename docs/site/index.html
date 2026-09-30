@@ -411,7 +411,6 @@ a.chip:hover .k{color:var(--brass-dim)}
       <a href="#install">Install</a>
       <a href="benchmark.html">Benchmark</a>
       <a href="settings.html">Settings</a>
-      <a href="laya.html">Laya</a>
       <a href="soon.html" class="nav-soon">Soon</a>
       <a href="https://github.com/deepaksinghcs14/deadeye-cc">GitHub</a>
     </div>
@@ -959,8 +958,7 @@ Cross-check these figures against /usage's plugin attribution.</div>
       <div class="term"><span class="m">DEADEYE=off</span>              everything
 <span class="m">DEADEYE_PREPROCESS=off</span>   context hygiene
 <span class="m">DEADEYE_GATE=off</span>         plan gate
-<span class="m">DEADEYE_CODER=off</span>        coder persona
-<span class="m">DEADEYE_LAYA=off</span>         <a href="laya.html">laya classifier</a></div>
+<span class="m">DEADEYE_CODER=off</span>        coder persona</div>
     </div>
 
     <div class="faq">
@@ -983,16 +981,7 @@ Cross-check these figures against /usage's plugin attribution.</div>
         <em>confident</em> about, purely to measure over-routing. Same
         payload — a task description, never your code — and it runs after
         the decision, so it never blocks anything. Its findings stay in
-        <code>~/.deadeye/</code> like everything else.</p>
-        <p>Separately, and also off by default, deadeye can talk to a
-        <a href="laya.html">locally-run Laya classifier</a> instead of calling
-        <code>claude -p</code> for those typed decisions &mdash; pointed at a loopback
-        address, that means the text stays on your machine entirely. What it sends is the
-        task description or the prompt being classified, which on the plan-gate and
-        workflow-hint checks is your prompt as you typed it, so it can contain whatever you
-        put there. <code>deadeye doctor</code> warns if the endpoint isn't loopback, since
-        a remote one would send that text off-box. deadeye doesn't ship or run Laya; you do,
-        and it falls back the moment it stops answering.</p></details>
+        <code>~/.deadeye/</code> like everything else.</p></details>
       <details><summary>Can I check whether any of this actually works?</summary>
         <p>That's what <code>/deadeye-stats</code> is for, and three of its
         views hold deadeye to its own claims rather than reporting its

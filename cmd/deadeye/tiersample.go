@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"sync/atomic"
 	"time"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/kernel"
-	"github.com/deepaksinghcs14/deadeye-cc/internal/laya"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 )
 
@@ -64,54 +62,16 @@ func (d *daemonState) maybeSampleTier(cfg config.Config, decision kernel.Decisio
 	if !ok || tier < sampleTier {
 		return
 	}
-	// With Laya configured, the sample rate stops being the cost control:
-	// a local classifier is free, so EVERY eligible decision gets screened
-	// and only the ones Laya thinks were over-routed cost a `claude -p`
-	// call to confirm. Two independent opinions before anything is
-	// recorded, and denser coverage than a 1-in-N sonnet sample could ever
-	// justify. Laya agreeing ends the check silently -- this report counts
-	// disagreements, and agreement is not evidence of correctness.
-	// The screen is measurement, never a decision, so it belongs entirely
-	// off the hook path -- an earlier version ran it inline here and could
-	// add a full Laya timeout to every eligible Agent call on top of the
-	// routing call's own. The rate check moves inside too, so the counter
-	// only advances on samples that actually proceed.
-	// Only the authoritative rung screens. On shadow and advise, Laya is
-	// explicitly not allowed to change behavior -- and letting it decide
-	// which decisions get sampled IS a behavior change, one that silently
-	// replaced the documented 1-in-N sampler the moment an endpoint was
-	// configured.
-	var layaScreen *laya.Client
-	if layaDecides(cfg) {
-		layaScreen = layaClient(cfg)
-	}
-	rateCheck := func() bool {
-		rate := cfg.TierSample.Rate
-		if rate < 1 {
-			rate = 10
-		}
-		return tierSampleSeen.Add(1)%uint64(rate) == 0
+	// The sampler is measurement, never a decision, so it belongs entirely off
+	// the hook path -- the rate check included, so the counter only advances on
+	// samples that actually proceed.
+	rate := cfg.TierSample.Rate
+	if rate < 1 {
+		rate = 10
 	}
 	repo := gitutil.ProjectKey(cwd)
 	tierSampleAsync(func() {
-		screened := false
-		if layaScreen != nil {
-			sctx, scancel := context.WithTimeout(context.Background(), layaTimeout(cfg))
-			layaT, _, _, lok := layaTier(sctx, layaScreen, prompt)
-			scancel()
-			switch {
-			case !lok:
-				// Configured but silent. Falling through to the paid sampler
-				// is the fail-open answer (INV-5): a stopped laya-serve must
-				// degrade to the PRIOR behavior, not switch measurement off
-				// entirely and report zero disagreements forever.
-			case layaT >= tier:
-				return // the two agree; nothing to confirm and nothing to record
-			default:
-				screened = true
-			}
-		}
-		if !screened && !rateCheck() {
+		if tierSampleSeen.Add(1)%uint64(rate) != 0 {
 			return
 		}
 		judged, ok := judgeTierCached(prompt)

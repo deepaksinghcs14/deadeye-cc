@@ -105,17 +105,6 @@
           ],
           "default": "off",
           "description": "Sample CONFIDENT high-tier routing decisions through the AI judge, which the live path never second-guesses (applyRoutingJudge only runs on an unsure decision). Exists to make over-routing visible: an escalation already biases routing UP, and nothing measured the other direction. Reports a judge-DISAGREEMENT rate, not an over-route rate -- an arbitrary production subtask has no grader, so the work can't be replayed and scored. Off by default because, unlike every other mode here, each sample spends a real `claude -p` call to buy measurement rather than a better answer for the call paying for it. See /deadeye-stats disagreement."
-        },
-        "laya": {
-          "type": "string",
-          "enum": [
-            "off",
-            "shadow",
-            "advise",
-            "authoritative"
-          ],
-          "default": "off",
-          "description": "Optional local Laya decision model (github.com/NandhaKishorM/laya, Apache 2.0), used for deadeye's typed decisions instead of a `claude -p` call. deadeye never installs, bundles, or supervises Laya -- you run `laya-serve` and set laya.endpoint; every call site falls back to its previous behavior on an unset endpoint, connection error, timeout, non-2xx, malformed JSON, or missing answer. A LADDER, not a switch, because Laya's untuned accuracy on typed decisions is 0.362 on its vendor's own eval against ~0.33 for a three-way guess, all figures vendor-self-reported: shadow asks and records but changes nothing; advise also annotates the visible decision reason; only authoritative lets an answer act. off (the default) never calls it and behaves exactly as releases before it existed. Setting this to off, or stopping laya-serve, or clearing laya.endpoint, or exporting DEADEYE_LAYA=off all disable it immediately. See /deadeye-laya and /deadeye-stats laya."
         }
       }
     },
@@ -234,44 +223,10 @@
           "type": "integer",
           "minimum": 1,
           "default": 10,
-          "description": "Sample 1-in-N eligible decisions when mode.tier_sample is on. A value below 1 is read as the default rather than as 'every decision' -- a zero from a partial config file must not silently turn a paid sampler up to 100%. With mode.laya configured this stops being the cost control: the local classifier screens every eligible decision for free and only disagreements escalate to a paid confirmation."
+          "description": "Sample 1-in-N eligible decisions when mode.tier_sample is on. A value below 1 is read as the default rather than as 'every decision' -- a zero from a partial config file must not silently turn a paid sampler up to 100%."
         }
       },
       "description": "Tuning for mode.tier_sample."
-    },
-    "laya": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "endpoint": {
-          "type": "string",
-          "default": "",
-          "description": "Base URL of a locally-run `laya-serve` (it binds 0.0.0.0:8000; deadeye talks to it over loopback, e.g. http://127.0.0.1:8000). Empty means Laya is never called, whatever mode.laya says."
-        },
-        "api_key_env": {
-          "type": "string",
-          "default": "LAYA_API_KEY",
-          "description": "NAME of an environment variable holding laya-serve's bearer token -- never the token itself. laya-serve's LAYA_API_KEY is a credential, and a credential written into config.json is a secret at rest that `deadeye config` would print."
-        },
-        "timeout_ms": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 1500,
-          "description": "Per-call deadline in milliseconds. Four call sites sit on the PreToolUse path that gates a real tool call, so this is deliberately generous enough for resident CPU inference (Laya is 193-464ms per call on CPU; the widely-quoted 32.8ms is a T4 GPU figure) and far too short for a cold checkpoint load, which costs seconds -- a server still loading loses the race and the call site falls back rather than stalling your tool call."
-        },
-        "checkpoint": {
-          "type": "string",
-          "enum": [
-            "typed-decisions",
-            "english",
-            "multilingual",
-            ""
-          ],
-          "default": "typed-decisions",
-          "description": "Which laya-serve checkpoint to ask for, by short name. Every question deadeye asks -- tier choice, plan-needed, workflow-shaped, is-this-a-bug-fix, complexity -- is a typed decision, and upstream's own benchmark puts the base checkpoint at 0.362 against 0.766 for typed-decisions (\"all of the capability on this benchmark comes from fine-tuning\"). laya-serve's router picks only by script and language, so it never reaches typed-decisions on its own unless the server runs with LAYA_AUTO_TASK=1 -- which is why deadeye names the checkpoint per request instead. The server must have it available: start it with LAYA_MODELS including typed-decisions. Empty leaves the choice to the server's router."
-        }
-      },
-      "description": "Connection settings for the optional Laya decision model. See mode.laya."
     }
   }
 }

@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.69.0
+
+Laya is removed. It was measured across six call sites over ten releases and
+earned its keep at one of them, which did not justify a permanent 2.8GB Python
+service.
+
+What the measurements said, in the end:
+
+- **Routing** — on full untruncated prompts, judged against deadeye's own
+  `claude -p` judge, Laya agreed 71.4% of the time against a 72.9%
+  majority-class null. Below a constant answer. Its confidence barely predicted
+  agreement, so the abstention framing (use it only when sure, skip the judge
+  there) reached 95% agreement on just 6% of calls — about $0.27 saved.
+- **As a signal into the deterministic engine** rather than a decider: kernel
+  plus Laya scored worse than the kernel alone.
+- **Commit classification** in `deadeye misses` — the one win, 14/22 against
+  the regex's 11/22, on a hand-labelled set of 22.
+- **Plan gate and workflow hint** were never benchmarked; that run was stopped
+  once the decision was made rather than spend ~$9 measuring something being
+  removed.
+
+Removed: `internal/laya`, `cmd/deadeye/laya.go`, `signals.LayaComplexity`, the
+`mode.laya` ladder and `laya.*` config block, the `DEADEYE_LAYA` kill switch,
+the `deadeye laya` subcommand, the `/deadeye-laya` skill, the
+`/deadeye-stats laya` view, the doctor row, the status row, the schema entries,
+the site page, and the laya-only fields on `lessons.Outcome`. The plan gate,
+workflow hint and commit classifier revert to exactly their pre-0.66 behaviour;
+`AssessAll` is back to the six builtins; the tier sampler is back to the plain
+rate-limited form from 0.65.0.
+
+Kept deliberately: everything under `benchmarks/routing/` — the corpora, the
+harnesses (`laya-probe.sh`, `judge-cost.sh`, `coverage.py`, `policy_engine.py`,
+`eval_wild.py`, `checkpoint_ab.py`) and the written findings. That is the
+record of why this was dropped, and it is what stops the same ground being
+re-covered from scratch.
+
+What the detour left behind, all of it kept:
+
+- **A real bug in deadeye.** A four-value `:=` in `decideAgentRouting` shadowed
+  `decision`, silently discarding the AI judge's verdict on every Agent call
+  from 0.66.0 to 0.66.4 — the feature benchmarked at 48% realized savings
+  against 22% without it. Found only by cross-checking the advisory against the
+  recorded outcome on a live run.
+- **Honest benchmark accounting.** `judge-cost.sh` measures what classification
+  costs ($0.0666/call, 2399ms on real prompts); the router arm had been
+  charging execution only and treating the judge as free.
+- **A majority-class null** in every report, after several figures in this
+  project were quoted against "chance = 33.3%" on unbalanced sets — which made
+  a classifier that always answered "1" look like a +39.6 point improvement.
+
+Product behaviour returns to 0.65.0 semantics for every affected surface.
+
 ## 0.68.2
 
 The decisive Laya run, after fixing three flaws in this project's own method.

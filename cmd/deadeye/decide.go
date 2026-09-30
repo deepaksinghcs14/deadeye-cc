@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -406,15 +405,7 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 	// hook (INV-5).
 	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer cancel()
-	providers := signals.Builtins()
-	// The optional seventh signal, only on the authoritative rung: a
-	// recorded-but-not-trusted classifier (shadow/advise) must never reach
-	// the kernel, and with Laya off the evidence set is bit-for-bit what it
-	// was before this existed.
-	if c := layaClient(cfg); c != nil && layaDecides(cfg) {
-		providers = append(providers, signals.LayaComplexity{Client: c})
-	}
-	evidence := signals.AssessAll(ctx, scope, providers)
+	evidence := signals.AssessAll(ctx, scope, signals.Builtins())
 	shape := taskShapeKey(scope.Files, scope.Prompt, evidence)
 	threshold := lessons.AdjustedDownshiftThreshold(cfg.DownshiftThreshold, state.outcomesSnapshot(), shape, time.Now())
 	decision := kernel.Decide(evidence, state.cat, threshold)
@@ -430,43 +421,10 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 		// interested in decisions the heuristics were confident about --
 		// re-judging one the judge just decided would only confirm itself.
 		confident := !decision.Unsure
-		// Laya first, when configured: on the authoritative rung it resolves
-		// exactly the case the judge would otherwise pay a model call for,
-		// leaving applyRoutingJudge to return early on !Unsure.
-		//
-		// The extra returns are declared SEPARATELY and `decision` assigned
-		// with `=`, not `:=`. A four-value `:=` here compiles happily and
-		// silently redeclares `decision` in this block's scope, because
-		// three of the four names are new -- which leaves the OUTER
-		// decision, the one the advisory text and setLastRouting and
-		// enforce-mode rewriting all read, holding the raw pre-judge kernel
-		// result. That shipped in 0.66.0 and threw away the AI judge's
-		// verdict on every Agent call for three releases: the recorded
-		// outcome said haiku, the advisory the user actually saw said
-		// sonnet. `go vet` does not flag shadowing by default.
-		var (
-			layaTierAnswer int
-			layaCheckpoint string
-			layaAnswered   bool
-		)
-		decision, layaTierAnswer, layaCheckpoint, layaAnswered = state.layaRouting(cfg, decision, scope.Prompt, shape, in.SessionID, in.Cwd)
 		// wait=false: a hook must never block a tool call on a model call
 		// (see judgeTierAsync) -- a pending verdict lands in the cache for
 		// the next identical spawn.
 		decision = applyRoutingJudge(cfg, decision, state.cat, scope.Prompt)
-		// Shadow asks here, after the judge, so its comparison uses the tier
-		// that actually shipped.
-		state.layaShadowRecord(cfg, decision, scope.Prompt, shape, in.SessionID, in.Cwd)
-		if layaAnswered {
-			// Recorded AFTER the judge so "actual" is the tier that really
-			// shipped, not a pre-judge guess that the judge then overrode.
-			// A model the catalog doesn't know has no comparable tier, and
-			// recording an empty one would count as a disagreement against
-			// Laya that nothing actually establishes -- skip instead.
-			if t, ok := state.cat.TierFor(decision.Model); ok {
-				state.recordLayaVerdict(siteJudge, shape, strconv.Itoa(layaTierAnswer), strconv.Itoa(t), decision.Model, layaCheckpoint, in.SessionID, in.Cwd)
-			}
-		}
 		if confident {
 			state.maybeSampleTier(cfg, decision, state.cat, shape, scope.Prompt, in.SessionID, in.Cwd)
 		}

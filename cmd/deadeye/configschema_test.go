@@ -112,15 +112,3 @@ func TestTunableEnumsMatchSchema(t *testing.T) {
 		}
 	}
 }
-
-// Every kill switch must be documented in the schema text somewhere, since
-// that's the only place their interaction with config is written down.
-func TestLayaKillSwitchIsDocumented(t *testing.T) {
-	raw, err := os.ReadFile("../../schema/config.schema.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(raw), "DEADEYE_LAYA=off") {
-		t.Error("the DEADEYE_LAYA kill switch is not mentioned in the schema descriptions")
-	}
-}

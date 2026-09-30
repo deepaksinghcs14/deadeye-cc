@@ -29,7 +29,6 @@ Present this reference card, formatted cleanly:
 | `/deadeye-status` | Modes, coder level, kill switches, catalog, daemon health |
 | `/deadeye-config` | View or change any setting from chat (or just say what to change) |
 | `/deadeye-route [task]` | Dry-run the routing decision with full reasoning |
-| `/deadeye-stats [savings\|context\|accuracy\|disagreement\|adherence\|laya]` | Every report deadeye computes about itself: measured impact (default), token savings, per-session context bytes, plus reviewer accuracy, routing disagreement, coder-ladder adherence, and Laya agreement |
 | `/deadeye-coder [level]` | Switch/report the coder persona level |
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
 | `/deadeye-review [--repo]` | Four-lens self-review of the working diff, or the whole repo with `--repo` -- the pre-PR version of `/deadeye-pr` |
@@ -37,7 +36,7 @@ Present this reference card, formatted cleanly:
 | `/deadeye-vapt` | Whole-service pen-test/VAPT pass -- full OWASP Top 10:2025/API Security Top 10 2023/LLM Top 10:2025 coverage |
 | `/deadeye-pr [<PR>] [--post]` | PR review across four lenses -- over-engineering, correctness, performance, security |
 | `/deadeye-sweep [--repo\|--pr [<PR>]] [<N>] [--commit] [--all]` | Applies review/guard findings (crit/high, or every severity with `--all`), verifies the build, loops until clean (cap 5). `--pr` mode also fixes/replies/resolves the PR's own open review comments |
-| `/deadeye-laya` | Set up the optional local Laya decision model (opt-in; deadeye never installs or runs it) |
+| `/deadeye-stats [savings\|context\|accuracy\|disagreement\|adherence]` | Every report deadeye computes about itself: measured impact (default), token savings, per-session context bytes, plus reviewer accuracy, routing disagreement, and coder-ladder adherence |
 | `/deadeye-debt` | Ledger of `deadeye:` shortcut markers |
 | `/deadeye-help` | This card |
 

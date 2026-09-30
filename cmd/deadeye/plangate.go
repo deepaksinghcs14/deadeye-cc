@@ -123,21 +123,6 @@ func decidePlanGateSoft(in hookio.Input, cfg config.Config, state *daemonState) 
 	if !fire {
 		return "", false
 	}
-	// Laya, when configured, CONFIRMS or SUPPRESSES a gate the heuristic
-	// already fired -- it never fires one itself. Two reasons, both
-	// deliberate: asking on every prompt would put a 200-460ms CPU
-	// inference on the UserPromptSubmit path whether or not it could
-	// matter, and suppression is the direction where being wrong is cheap
-	// (a missed suggestion, not a spurious interruption). The cost of that
-	// choice is that shadow-mode agreement data for this site only covers
-	// prompts the heuristic flagged -- a real limit on what
-	// /deadeye-stats laya can say about plan-gate precision, not a
-	// representative sample of all prompts.
-	if keep := state.layaConfirmsGate(cfg, sitePlanGate, in.Prompt,
-		"Does this software request need a written plan before any code is changed?",
-		marker, in.SessionID, in.Cwd); !keep {
-		return "", false
-	}
 	if !state.markSuggestedIfFirst(in.SessionID, "plan:"+marker) {
 		return "", false
 	}

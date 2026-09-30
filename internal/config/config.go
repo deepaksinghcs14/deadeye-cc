@@ -29,23 +29,6 @@ type Modes struct {
 	UpdateCheck  string `json:"update_check"`
 	RoutingJudge string `json:"routing_judge"`
 	CatalogCheck string `json:"catalog_check"`
-	// Laya (off|shadow|advise|authoritative) governs the optional local
-	// Laya decision model (see internal/laya). A ladder, not a switch,
-	// because Laya's untuned accuracy on typed decisions is close to chance
-	// on its vendor's own eval -- so it earns authority here instead of
-	// being granted it:
-	//   off           -- never called. The default; behavior identical to
-	//                    every release before it existed.
-	//   shadow        -- called, and its verdict RECORDED beside what
-	//                    deadeye actually did. Changes nothing.
-	//   advise        -- verdict recorded and surfaced in the decision's
-	//                    visible reason. Still changes nothing.
-	//   authoritative -- verdict is USED, replacing the mechanism it stands
-	//                    in for (the claude -p judge call, a gate
-	//                    threshold, a commit-subject regex).
-	// `/deadeye-stats laya` shows the agreement rate that makes promoting
-	// up this ladder an evidence-based decision.
-	Laya string `json:"laya"`
 	// TierSample (off|on) samples CONFIDENT high-tier routing decisions
 	// through the judge, which the live path otherwise never second-guesses
 	// (applyRoutingJudge returns early unless a decision is Unsure). It
@@ -78,26 +61,6 @@ type PlanGate struct {
 // 100%.
 type TierSample struct {
 	Rate int `json:"rate"`
-}
-
-// Laya configures the optional local decision model. deadeye never
-// installs or supervises it -- see internal/laya for why an endpoint is
-// the whole contract.
-//
-// APIKeyEnv names an environment variable, never the token itself:
-// laya-serve's LAYA_API_KEY is a bearer token, and a token written into
-// config.json is a secret at rest that `deadeye config` would print.
-type Laya struct {
-	Endpoint  string `json:"endpoint"`
-	APIKeyEnv string `json:"api_key_env"`
-	TimeoutMS int    `json:"timeout_ms"`
-	// Checkpoint is the laya-serve checkpoint to ask for by short name.
-	// Defaults to "typed-decisions", the fine-tuned one: every question
-	// deadeye asks is a typed decision, and laya-serve's own router picks
-	// only by script and language, so left to itself it never reaches that
-	// checkpoint (unless the server runs with LAYA_AUTO_TASK=1). Empty
-	// leaves the choice to the server.
-	Checkpoint string `json:"checkpoint"`
 }
 
 // Coder configures the coder-mode persona (see internal/coder).
@@ -158,7 +121,6 @@ type Config struct {
 	Preprocess            Preprocess `json:"preprocess"`
 	PlanGate              PlanGate   `json:"plan_gate"`
 	TierSample            TierSample `json:"tier_sample"`
-	Laya                  Laya       `json:"laya"`
 	Coder                 Coder      `json:"coder"`
 	Security              Security   `json:"security"`
 }
@@ -208,13 +170,11 @@ func Default() Config {
 			RoutingJudge: "on", // the LLM judge calls claude -p (sonnet) on unsure cases -- deliberately trades zero-network for accuracy; off restores pure heuristics
 			CatalogCheck: "on",
 			TierSample:   "off", // spends a judge call purely to measure; opt in
-			Laya:         "off", // needs a laya-serve endpoint; opt in, then earn authority
 		},
 		DownshiftThreshold:    0.8,
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
 		TierSample:            TierSample{Rate: 10},
-		Laya:                  Laya{Endpoint: "", APIKeyEnv: "LAYA_API_KEY", TimeoutMS: 1500, Checkpoint: "typed-decisions"},
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",
@@ -364,7 +324,6 @@ func LoadFor(cwd string, off []string) Config {
 		cfg.Mode.Codemap = "off"
 		cfg.Coder.Disabled = true
 		cfg.Security.Exfil = "off" // total-off covers the exfil guard too
-		cfg.Mode.Laya = "off"      // and the optional classifier, like every other axis
 		cfg.Mode.TierSample = "off"
 	}
 	if isOff(off, "DEADEYE_PREPROCESS") {
@@ -375,14 +334,6 @@ func LoadFor(cwd string, off []string) Config {
 	}
 	if isOff(off, "DEADEYE_CODER") {
 		cfg.Coder.Disabled = true
-	}
-	// DEADEYE_LAYA=off is the instant, no-edit escape hatch for the optional
-	// classifier: one export disables every Laya call site for a shell or a
-	// single command, without touching config.json and without stopping
-	// laya-serve. Nothing is lost -- already-recorded verdicts stay, and
-	// unsetting it resumes at whatever rung config says.
-	if isOff(off, "DEADEYE_LAYA") {
-		cfg.Mode.Laya = "off"
 	}
 	return cfg
 }
@@ -509,7 +460,7 @@ func overlayProjectLocal(cfg *Config, path string) {
 
 // killSwitchVars is the fixed set of env-var kill switches checked by
 // OffSwitches.
-var killSwitchVars = []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE", "DEADEYE_CODER", "DEADEYE_LAYA"}
+var killSwitchVars = []string{"DEADEYE", "DEADEYE_PREPROCESS", "DEADEYE_GATE", "DEADEYE_CODER"}
 
 // OffSwitches reports which of the three env-var kill switches are set to
 // exactly "off" in THIS process's environment. Meant to be called

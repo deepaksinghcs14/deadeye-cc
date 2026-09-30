@@ -42,7 +42,6 @@ var tunables = []tunable{
 	{"mode.routing_judge", "AI routing judge", "enum", []string{"off", "on"}},
 	{"mode.catalog_check", "hosted catalog refresh", "enum", []string{"off", "on"}},
 	{"mode.tier_sample", "over-route sampling", "enum", []string{"off", "on"}},
-	{"mode.laya", "laya decision model", "enum", []string{"off", "shadow", "advise", "authoritative"}},
 	{"coder.default_level", "coder persona", "enum", []string{"off", "spotter", "marksman", "sniper"}},
 	{"coder.security", "coder security check", "enum", []string{"off", "advise", "ask"}},
 	{"coder.security_osv", "OSV dependency lookup", "bool", []string{"true", "false"}},
@@ -53,10 +52,6 @@ var tunables = []tunable{
 	{"coder.injection_budget_tokens", "coder injection budget (tokens)", "int", nil},
 	{"plan_gate.min_files", "plan gate min files", "int", nil},
 	{"tier_sample.rate", "over-route sample rate (1-in-N)", "int", nil},
-	{"laya.endpoint", "laya endpoint URL", "string", nil},
-	{"laya.api_key_env", "env var holding laya's bearer token", "string", nil},
-	{"laya.timeout_ms", "laya call timeout (ms)", "int", nil},
-	{"laya.checkpoint", "laya checkpoint", "enum", []string{"typed-decisions", "english", "multilingual", ""}},
 }
 
 func findTunable(key string) (tunable, bool) {

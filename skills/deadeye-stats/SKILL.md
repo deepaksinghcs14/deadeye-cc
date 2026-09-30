@@ -2,7 +2,7 @@
 name: deadeye-stats
 description: deadeye's own measurements in one place -- measured impact, token savings, per-session context breakdown, and whether its reviewer, router and coder persona hold up against what actually happened.
 license: MIT
-argument-hint: "[savings|context|impact|accuracy|disagreement|adherence|laya] [session-id]"
+argument-hint: "[savings|context|impact|accuracy|disagreement|adherence] [session-id]"
 ---
 
 # Deadeye Stats
@@ -22,7 +22,6 @@ outcomes store — deadeye checked against what actually happened:
 - `accuracy` → candidate review misses and recorded disputes (`deadeye misses`)
 - `disagreement` → where the judge would have routed cheaper (`deadeye disagreement`)
 - `adherence` → the coder ladder's checkable rungs on shipped diffs (`deadeye adherence`)
-- `laya` → agreement between the optional local Laya classifier and what deadeye actually did (`deadeye laya agreement`)
 
 The three judgment views measure GOING FORWARD only: they read receipts
 written when a review or coder session runs, and nothing before this
@@ -112,20 +111,6 @@ exactly when presenting any view:
 - Attribution is by time window (12h after a recorded coder session), not
   proof — git records no persona, so a commit written with coder mode off
   inside that window still counts. Say so if the figures are load-bearing.
-
-**laya (`deadeye laya agreement`)**
-- It is an AGREEMENT rate, never an accuracy rate. On the `shadow` and
-  `advise` rungs "actual" is whatever the existing mechanism chose, which is
-  itself not ground truth — two classifiers agreeing means they agree.
-- Always carry the untuned figure when the user is deciding whether to
-  promote: Laya's accuracy on typed decisions is 0.362 on its vendor's own
-  eval against ~0.33 for a three-way guess, and every published number for
-  it is vendor-self-reported with no independent evaluation found.
-- If `mode.laya` is `off`, say so — an empty report means "not measured",
-  not "the classifier agrees". Point at `/deadeye-laya` for setup.
-- Never imply deadeye ships, installs, or supervises Laya. The user runs
-  `laya-serve`; deadeye only talks to an endpoint and falls back when it
-  isn't answering.
 
 **context (`deadeye context`)**
 - "Injected by deadeye" figures are real byte measurements taken at

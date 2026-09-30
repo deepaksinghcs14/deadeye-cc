@@ -1,14 +1,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"regexp"
 	"strings"
-	"time"
-
-	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
@@ -27,8 +23,10 @@ var fixShapedRe = regexp.MustCompile(`(?i)^(fix|hotfix|bugfix|revert)\b|\bfix(es
 
 // regexFixShaped is the default classifier: cheap, offline, and wrong in
 // both directions -- it misses a fix whose subject never says "fix"
-// ("handle nil case", "guard against empty input"). mode.laya at the
-// authoritative rung swaps in a yes/no classifier instead; see runMisses.
+// ("handle nil case", "guard against empty input"). A local classifier was
+// measured against it in 0.66-0.68 and removed in 0.69.0: it was better here
+// (14/22 vs 11/22) but nowhere else, which did not justify a permanent 2.8GB
+// Python service. See benchmarks/routing/README.md.
 func regexFixShaped(subject string) bool { return fixShapedRe.MatchString(subject) }
 
 // maxRangesPerReceipt bounds the git work one receipt can trigger. A
@@ -78,24 +76,7 @@ func runMisses() {
 		fmt.Println("deadeye misses: not a git repository -- this report reads the repo's own history.")
 		return
 	}
-	cfg := config.Load()
-	isFix := regexFixShaped
-	// Offline report: cold start and per-call latency are irrelevant here,
-	// which makes this the lowest-risk place for Laya to act. Only the
-	// authoritative rung substitutes it; a classifier that is down or
-	// unsure falls straight back to the regex for that subject.
-	if c := layaClient(cfg); c != nil && layaDecides(cfg) {
-		isFix = func(subject string) bool {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			yes, _, _, ok := layaYes(ctx, c, subject, "Does this git commit message describe fixing a bug, defect, or regression?", 0.5)
-			if !ok {
-				return regexFixShaped(subject)
-			}
-			return yes
-		}
-	}
-	renderMisses(meta.ReceiptsPath(), meta.OutcomesPath(), gitutil.ProjectKey(cwd), realGit{root: root}, isFix)
+	renderMisses(meta.ReceiptsPath(), meta.OutcomesPath(), gitutil.ProjectKey(cwd), realGit{root: root}, regexFixShaped)
 }
 
 func renderMisses(receiptsPath, outcomesPath, repo string, g gitReader, isFix func(string) bool) {
