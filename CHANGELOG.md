@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.68.2
+
+The decisive Laya run, after fixing three flaws in this project's own method.
+
+**1. The corpus was truncated at 300 characters.** Real Agent prompts average
+2,697 and reach 10,470, so every measurement in 0.66-0.68.1 judged roughly 11%
+of each task. **2. The labels were unreliable** — 50-61% annotator agreement,
+and labeller A worked from a 150-char view while labeller B, Laya and the
+kernel all saw 300. **3. Argmax accuracy was the wrong metric** for the
+question that pays.
+
+This run drops annotator labels entirely and targets **the judge's own
+answer** — what deadeye does today, unambiguous, no taxonomy dispute — on
+**full untruncated prompts**, measured as **coverage at >=95% agreement**
+rather than accuracy: use Laya above a confidence cutoff, fall back below it,
+so nothing can regress on the fallback path.
+
+| | typed-decisions | english |
+|---|---|---|
+| agreement with judge (n=70) | 71.4% | 67.1% |
+| majority-class null | 72.9% | 72.9% |
+| coverage at >=95% agreement | **6%** (4/70) | **3%** (2/70) |
+
+Laya sits below a constant answer even on full text, and its confidence
+barely predicts agreement: 100% coverage gives 71%, squeezing to 26% coverage
+gives 78%, and 95% is only reached on 4 of 70 calls — about $0.27 saved for
+2.8GB of resident memory.
+
+Judge cost re-measured on full prompts: **$0.0666/call, 2399ms mean** (up from
+$0.0508 on the truncated set, because the prompts are 9x longer).
+
+**This closes the routing use properly.** The earlier negatives were real
+findings but not trustworthy ones — truncated text, disputed labels, wrong
+null. Correcting all three changed the answer not at all, which is the
+difference between "we could not make it work" and "it does not work."
+
+Memory, also measured after a report of machine slowdown: `laya-serve` held a
+**4.9GB physical footprint, 5.7GB peak, with 4.9GB swapped out** on a 16GB
+machine — because the checkpoint A/B loaded two checkpoints and the default
+keeps both resident. `LAYA_MAX_LOADED=1` brings it to **2.8GB**; bf16 autocast
+and concurrency caps change nothing, since the weights are already bf16 and
+the bulk is the PyTorch runtime. The honest cost of running Laya is ~2.8GB
+resident and permanent, not the 843MB download this project kept quoting.
+
+What survives, unchanged: the `deadeye misses` commit classifier (14/22
+against the regex's 11/22), a different and binary question. `mode.laya`
+remains off by default and no product behaviour changes here.
+
 ## 0.68.1
 
 The proposed refactor, measured: **Laya as a signal source feeding a

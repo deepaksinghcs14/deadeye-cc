@@ -400,3 +400,39 @@ Note also that deadeye's own signals are nearly inert on harvested prompts:
 `taskspecificity` has spread 0.00 across all 70, `promptshape` 0.15, and the
 file-derived signals fire 5–6 times because these prompts carry no repo. In
 production those signals see real files. This corpus tests the text-only case.
+
+
+### The decisive run: judge-agreement at coverage (`corpus/coverage.py`)
+
+Three flaws in everything above, all corrected here:
+
+1. **The corpus was truncated at 300 chars.** Real Agent prompts average 2,697
+   and reach 10,470 — so every earlier measurement judged ~11% of each task.
+   `corpus/full_sample.jsonl` carries untruncated prompts.
+2. **Annotator labels were unreliable** (50-61% agreement) *and* labeller A
+   worked from a 150-char view while B, Laya and the kernel saw 300. Dropped
+   entirely: this run uses **the judge's own answer** as ground truth — what
+   deadeye actually does today, no annotators, no taxonomy dispute.
+3. **Argmax accuracy was the wrong metric.** What matters economically is
+   whether Laya can *skip* judge calls: use it above a confidence cutoff, fall
+   back below. Nothing regresses on the fallback, so the question is only
+   whether the confident subset is accurate and large enough.
+
+| | typed-decisions | english |
+|---|---|---|
+| agreement with judge (n=70) | 71.4% | 67.1% |
+| majority-class null | 72.9% | 72.9% |
+| coverage at ≥95% agreement | **6%** (4/70) | **3%** (2/70) |
+
+Tightening the cutoff barely helps: 100% coverage gives 71% agreement, 26%
+coverage gives 78%. The confidence signal is only weakly informative, so there
+is no operating point worth having — the best one saves four judge calls
+(~$0.27) for 2.8 GB of resident memory.
+
+Judge cost on full prompts, re-measured: **$0.0666/call, 2399ms mean**.
+
+**This closes the routing use properly.** The earlier negatives were measured
+on truncated text against disputed labels with the wrong null — real
+conclusions, but not trustworthy ones. Correcting all three changed nothing,
+which is what makes this one load-bearing: not "we could not make it work" but
+"it does not work."
