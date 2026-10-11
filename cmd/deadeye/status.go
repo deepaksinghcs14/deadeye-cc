@@ -51,7 +51,7 @@ func runStatus() {
 
 	fmt.Println(cHead("Modes") + cDim("   change → deadeye config set <key> <value>"))
 	srow("routing", cfg.Mode.Routing, "mode.routing", "off · advise · enforce")
-	srow("effort", cfg.Mode.Effort, "mode.effort", "off · advise")
+	srow("effort", cfg.Mode.Effort, "mode.effort", "off · advise · enforce")
 	srow("preprocess", cfg.Mode.Preprocess, "mode.preprocess", "off · on")
 	srow("plan_gate", cfg.Mode.PlanGate, "mode.plan_gate", "off · soft · hard")
 	srow("workflow_hint", cfg.Mode.WorkflowHint, "mode.workflow_hint", "off · on")
@@ -111,10 +111,15 @@ func runStatus() {
 	fmt.Println(cDim("Change a setting:  deadeye config set <key> <value>   (interactive: deadeye config)"))
 	fmt.Println(cDim("All commands:      /deadeye-help"))
 
-	if level := os.Getenv("CLAUDE_EFFORT"); level != "" {
+	// CLAUDE_CODE_EFFORT_LEVEL, not CLAUDE_EFFORT: Claude Code sets the
+	// latter in every session to report the current level, and a per-call
+	// effort still applies under it. Only the former pins subagents
+	// (verified live: a subagent rewritten to "low" ran at "high" under
+	// CLAUDE_CODE_EFFORT_LEVEL=high).
+	if level := os.Getenv("CLAUDE_CODE_EFFORT_LEVEL"); level != "" {
 		fmt.Println()
-		fmt.Println(cWarn(fmt.Sprintf("CLAUDE_EFFORT=%s is set: the effort axis is inert for this session -- deadeye's", level)))
-		fmt.Println(cWarn("effort guidance is advisory only and cannot override a pinned level."))
+		fmt.Println(cWarn(fmt.Sprintf("CLAUDE_CODE_EFFORT_LEVEL=%s is set: it pins every subagent's effort for this session,", level)))
+		fmt.Println(cWarn("so deadeye's effort setting has no effect until it is unset."))
 	}
 }
 

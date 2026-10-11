@@ -34,7 +34,7 @@ Keys and allowed values (authoritative -- never invent others):
 | Key | Values |
 |---|---|
 | `mode.routing` | off · advise · enforce |
-| `mode.effort` | off · advise |
+| `mode.effort` | off · advise · enforce |
 | `mode.preprocess` | off · on |
 | `mode.plan_gate` | off · soft · hard |
 | `mode.workflow_hint` | off · on |

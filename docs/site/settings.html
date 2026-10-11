@@ -182,11 +182,13 @@ footer a{color:var(--brass);}
       </li>
       <li class="field">
         <div class="field-head"><span class="key">mode.effort</span><span class="default">default: <b>advise</b></span></div>
-        <div class="field-values">off · advise</div>
-        <p class="field-set">Set: <code>deadeye config set mode.effort advise</code></p>
-        <p class="field-desc">Effort-level guidance (low/medium/high/xhigh) alongside the
-          routing decision. Advisory only — the Agent tool has no effort parameter to
-          enforce, so there's no <code>enforce</code> mode here.</p>
+        <div class="field-values">off · advise · enforce</div>
+        <p class="field-set">Set: <code>deadeye config set mode.effort enforce</code></p>
+        <p class="field-desc">Effort level (low/medium/high/xhigh) alongside the routing
+          decision. <code>advise</code> suggests it; <code>enforce</code> sets it on Agent
+          calls that left effort unset. Enforcing needs Claude Code 2.1.292 or newer —
+          older clients keep getting advice. <code>CLAUDE_CODE_EFFORT_LEVEL</code>, if you
+          have it set, overrides both.</p>
       </li>
       <li class="field">
         <div class="field-head"><span class="key">mode.preprocess</span><span class="default">default: <b>on</b></span></div>

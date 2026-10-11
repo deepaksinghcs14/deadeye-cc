@@ -54,6 +54,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 
 	var in hookio.Input
 	_ = json.Unmarshal(req.Payload, &in)
+	in.ClientVersion = req.ClientVersion
 	cfg := config.LoadFor(in.Cwd, req.Off)
 
 	switch req.Event {
@@ -375,15 +376,37 @@ type agentInput struct {
 	Prompt       string `json:"prompt"`
 	SubagentType string `json:"subagent_type"`
 	Model        string `json:"model"`
+	Effort       string `json:"effort"`
+}
+
+// agentEffortMinVersion is the first Claude Code release whose Agent tool
+// takes an effort parameter. Below it the key fails schema validation and
+// takes the whole Agent call down with it (see HookSpecificOutput).
+const agentEffortMinVersion = "2.1.292"
+
+// agentEfforts is the subset of the Agent tool's effort enum the kernel may
+// emit. A value outside it would fail the same schema check.
+var agentEfforts = map[string]bool{"low": true, "medium": true, "high": true, "xhigh": true}
+
+// canRewriteAgentEffort reports whether effort is safe to put in an Agent
+// call's updatedInput. An unknown client version is a no: advising costs
+// nothing, a schema-invalid rewrite costs the user the delegation.
+func canRewriteAgentEffort(clientVersion, effort string) bool {
+	if _, ok := parseSemver(clientVersion); !ok {
+		return false
+	}
+	return agentEfforts[effort] && !semverNewer(agentEffortMinVersion, clientVersion)
 }
 
 // decideAgentRouting recommends (advise) or rewrites (enforce) the model
-// for a subagent delegation. Confirmed live (docs/verified.md §10.1/§10.2):
-// PreToolUse fires for the Agent tool call with full tool_input visible,
-// and the tool has no effort parameter at all -- only model, and only as
-// the short family alias (sonnet|opus|haiku|fable), not a full model id.
+// and effort for a subagent delegation. Confirmed live: PreToolUse fires
+// for the Agent tool call with full tool_input visible; model takes only
+// the short family alias (sonnet|opus|haiku|fable), not a full model id;
+// effort is accepted from Claude Code 2.1.292 (a subagent rewritten to
+// "low" under a "medium" parent reported "low" at SubagentStop).
 //
-// Enforce mode only fills in model when the caller left it unset. An
+// The two axes enforce independently (mode.routing, mode.effort), and each
+// only fills in a value the caller left unset. An
 // explicit caller-chosen model is never overridden -- PLAN.md's "enforce
 // may always raise, may lower only above the confidence threshold" is
 // about the kernel's own default (which is already threshold-gated
@@ -453,16 +476,23 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 		reason = fmt.Sprintf("deadeye recommends model=%s -- %s", decision.Model, decision.Reason)
 	}
 
+	rewrite := map[string]any{}
 	if cfg.Mode.Routing == "enforce" && ai.Model == "" {
 		if family, ok := state.cat.FamilyFor(decision.Model); ok {
-			updated, err := hookio.MergeToolInput(in.ToolInput, map[string]any{"model": family})
-			if err == nil {
-				out.HookSpecificOutput.UpdatedInput = updated
-				out.HookSpecificOutput.PermissionDecision = hookio.PermissionAllow
-				out.HookSpecificOutput.PermissionDecisionReason = reason
-				state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "enforce", Reason: decision.Reason, Model: decision.Model})
-				return out
-			}
+			rewrite["model"] = family
+		}
+	}
+	if cfg.Mode.Effort == "enforce" && ai.Effort == "" && canRewriteAgentEffort(in.ClientVersion, decision.Effort) {
+		rewrite["effort"] = decision.Effort
+	}
+	if len(rewrite) > 0 {
+		updated, err := hookio.MergeToolInput(in.ToolInput, rewrite)
+		if err == nil {
+			out.HookSpecificOutput.UpdatedInput = updated
+			out.HookSpecificOutput.PermissionDecision = hookio.PermissionAllow
+			out.HookSpecificOutput.PermissionDecisionReason = reason
+			state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Agent", Action: "enforce", Reason: decision.Reason, Model: decision.Model})
+			return out
 		}
 	}
 

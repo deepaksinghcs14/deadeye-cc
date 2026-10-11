@@ -249,7 +249,7 @@ never touches the others.
 | Coder persona | `off` / `spotter` / `marksman` / `sniper` | A lean-first coding discipline — including a live security check on what's written and its dependencies — injected each session and into subagents. |
 | Security | `off` / `advise` / `ask` | An exfiltration guard: a Read of a credential file, or a Bash command shipping one out, escalates to a permission prompt a prompt-injected model can't answer. Independent of the persona. |
 | Codebase map | `off` / `on` | A persistent per-project map — skeleton, most-touched files, exploration notes — injected once per session so a fresh session doesn't re-explore from scratch. |
-| Effort level | `off` / `advise` | Suggests lower effort for mechanical steps; no effect if `CLAUDE_EFFORT` is pinned. |
+| Effort level | `off` / `advise` / `enforce` | Suggests lower effort for mechanical steps. `enforce` sets it on subagent calls that didn't choose one (Claude Code 2.1.292+). No effect if `CLAUDE_CODE_EFFORT_LEVEL` is pinned. |
 | Model choice | `off` / `advise` / `enforce` | Picks the model for a subagent — only when you didn't already choose one. |
 | AI routing judge | `off` / `on` | **On by default.** When the cheap signals can't place a subtask, classify it with a `claude -p` call (sonnet, your own login, no API key) instead of defaulting a tier. A first-seen subtask waits ~5s for that answer; a repeat is served from cache. |
 | Plan-first gate | `off` / `soft` / `hard` | Suggests (or requires) a short plan before a risky multi-file edit. |

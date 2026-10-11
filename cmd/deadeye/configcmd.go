@@ -33,7 +33,7 @@ type tunable struct {
 // config.json edit -- a comma-splitting set is more surprising than helpful.
 var tunables = []tunable{
 	{"mode.routing", "routing", "enum", []string{"off", "advise", "enforce"}},
-	{"mode.effort", "effort", "enum", []string{"off", "advise"}},
+	{"mode.effort", "effort", "enum", []string{"off", "advise", "enforce"}},
 	{"mode.preprocess", "context hygiene", "enum", []string{"off", "on"}},
 	{"mode.plan_gate", "plan gate", "enum", []string{"off", "soft", "hard"}},
 	{"mode.workflow_hint", "workflow hints", "enum", []string{"off", "on"}},

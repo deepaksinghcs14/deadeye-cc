@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.70.0
+
+**deadeye can now set a subagent's effort level, not only suggest it.**
+`mode.effort` gains an `enforce` value: on an Agent call that leaves effort
+unset, deadeye fills in the level it would have recommended. The default
+stays `advise`.
+
+Claude Code 2.1.292 added an `effort` parameter to the Agent tool. Verified
+live before building on it: a subagent whose call was rewritten to `low`
+under a `medium` parent reported `low` when it finished.
+
+- **Only where it is safe.** A client older than 2.1.292 rejects the
+  parameter, and a rejected rewrite fails the whole Agent call. deadeye
+  rewrites only when it can read a client version at or above that, and
+  falls back to advice otherwise.
+- **Never over your choice.** A call that already names an effort is left
+  alone, the same rule model routing follows.
+- **Independent of routing.** `mode.effort` and `mode.routing` enforce
+  separately; either can be on without the other.
+
+**The pinned-effort warning named the wrong variable.** `/deadeye-status`
+and the docs said effort guidance is inert when `CLAUDE_EFFORT` is set. Claude
+Code sets `CLAUDE_EFFORT` in every session to report the current level, and a
+per-call effort still applies under it. The variable that pins subagents is
+`CLAUDE_CODE_EFFORT_LEVEL` -- verified live: with it set to `high`, a subagent
+rewritten to `low` still ran at `high`. The warning and the docs now name it.
+
+**The routing judge no longer consults the advisor.** A user-level
+`advisorModel` applied to the judge's nested session too, so a one-digit
+classification could bill a second, pricier model while the hook waited on
+it. The judge now runs with `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`.
+
+**Model catalog refreshed** for Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable
+5.1. Haiku 5.5 is priced at its base rate; its higher rate for prompts over
+100k tokens is not modelled.
+
 ## 0.69.1
 
 Restores the regression guard for the judge-shadowing bug, which 0.69.0

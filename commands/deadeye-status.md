@@ -14,7 +14,7 @@ Present the output to the user, organized under these headings: **Modes**
 (per-axis advise/enforce/off), **Kill switches** (flag any that are OFF),
 **Catalog** (tier table, source, build date -- flag if stale), **Daemon**
 (up/down), **Log** (path and record count). If the output includes a
-`CLAUDE_EFFORT` note, surface it prominently -- it means the effort axis is
+`CLAUDE_CODE_EFFORT_LEVEL` note, surface it prominently -- it means the effort axis is
 currently inert for this session, a real constraint, not decoration.
 
 If both invocations genuinely fail, tell the user the binary hasn't been

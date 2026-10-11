@@ -28,10 +28,11 @@
           "type": "string",
           "enum": [
             "off",
-            "advise"
+            "advise",
+            "enforce"
           ],
           "default": "advise",
-          "description": "Effort-level guidance (Phase 2). Advisory only -- the Agent tool has no effort parameter to enforce, so there is no enforce mode."
+          "description": "Subagent effort level. advise shows the recommendation; enforce fills it into Agent calls that leave effort unset (needs Claude Code 2.1.292 or newer; older clients fall back to advice)."
         },
         "preprocess": {
           "type": "string",
