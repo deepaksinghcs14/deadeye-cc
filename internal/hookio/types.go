@@ -34,6 +34,8 @@ type Input struct {
 	ToolUseID      string          `json:"tool_use_id,omitempty"`
 	AgentID        string          `json:"agent_id,omitempty"`
 	AgentType      string          `json:"agent_type,omitempty"`
+	// SubagentStop only: the subagent's own transcript.
+	AgentTranscriptPath string `json:"agent_transcript_path,omitempty"`
 
 	// ClientVersion is the host CLI's version, set by the daemon from the
 	// request envelope -- never part of the host's payload. "" = unknown.

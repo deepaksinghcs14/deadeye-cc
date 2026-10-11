@@ -79,6 +79,19 @@
         ]
       }
     ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/deadeye-hook.sh\" SubagentStop",
+            "commandWindows": "powershell -ExecutionPolicy Bypass -File \"$env:CLAUDE_PLUGIN_ROOT\\hooks\\deadeye-hook.ps1\" SubagentStop",
+            "timeout": 5,
+            "statusMessage": "deadeye: measuring subagent..."
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

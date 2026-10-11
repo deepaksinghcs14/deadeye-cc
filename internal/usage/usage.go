@@ -61,14 +61,34 @@ func ProjectDir(configDir, cwd string) string {
 type transcriptLine struct {
 	Type    string `json:"type"`
 	Message struct {
-		ID    string `json:"id"`
-		Usage struct {
-			InputTokens              int64 `json:"input_tokens"`
-			OutputTokens             int64 `json:"output_tokens"`
-			CacheReadInputTokens     int64 `json:"cache_read_input_tokens"`
-			CacheCreationInputTokens int64 `json:"cache_creation_input_tokens"`
-		} `json:"usage"`
+		ID    string       `json:"id"`
+		Model string       `json:"model"`
+		Usage messageUsage `json:"usage"`
 	} `json:"message"`
+}
+
+type messageUsage struct {
+	InputTokens              int64 `json:"input_tokens"`
+	OutputTokens             int64 `json:"output_tokens"`
+	CacheReadInputTokens     int64 `json:"cache_read_input_tokens"`
+	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens"`
+}
+
+func (t *Totals) add(u messageUsage, sign int64) {
+	t.InputTokens += sign * u.InputTokens
+	t.OutputTokens += sign * u.OutputTokens
+	t.CacheReadTokens += sign * u.CacheReadInputTokens
+	t.CacheCreationTokens += sign * u.CacheCreationInputTokens
+}
+
+// ScanTranscript sums one transcript's usage and reports the model its last
+// assistant turn ran on. It is the per-subagent counterpart to ScanProject:
+// a subagent's transcript is the only place its whole run's usage is
+// recorded (the Agent tool's own response carries none once agents launch
+// in the background). ok is false when the file held no assistant turn.
+func ScanTranscript(path string) (t Totals, model string, ok bool) {
+	ok = scanFile(path, map[string]messageUsage{}, &t, &model)
+	return t, model, ok
 }
 
 // ScanProject sums real usage across every transcript in cwd's project
@@ -83,12 +103,12 @@ func ScanProject(configDir, cwd string) Totals {
 	}
 
 	var t Totals
-	seen := map[string]bool{}
+	seen := map[string]messageUsage{}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".jsonl") {
 			continue
 		}
-		if scanFile(filepath.Join(ProjectDir(configDir, cwd), e.Name()), seen, &t) {
+		if scanFile(filepath.Join(ProjectDir(configDir, cwd), e.Name()), seen, &t, nil) {
 			t.Sessions++
 		}
 	}
@@ -96,8 +116,14 @@ func ScanProject(configDir, cwd string) Totals {
 }
 
 // scanFile folds one transcript's usage into t, returning whether it
-// contributed at least one not-yet-seen assistant turn.
-func scanFile(path string, seen map[string]bool, t *Totals) bool {
+// contributed at least one not-yet-seen assistant turn. model, when
+// non-nil, receives the last assistant turn's model.
+//
+// The LAST line of a message wins, not the first: a subagent transcript
+// records a turn's first content block with the output count as it stood
+// mid-stream (4 tokens against a final 37, seen live), so first-wins
+// under-counted output.
+func scanFile(path string, seen map[string]messageUsage, t *Totals, model *string) bool {
 	f, err := os.Open(path)
 	if err != nil {
 		return false
@@ -112,15 +138,16 @@ func scanFile(path string, seen map[string]bool, t *Totals) bool {
 		if json.Unmarshal(sc.Bytes(), &l) != nil || l.Type != "assistant" || l.Message.ID == "" {
 			continue
 		}
-		if seen[l.Message.ID] {
-			continue
+		if model != nil && l.Message.Model != "" {
+			*model = l.Message.Model
 		}
-		seen[l.Message.ID] = true
-		contributed = true
-		t.InputTokens += l.Message.Usage.InputTokens
-		t.OutputTokens += l.Message.Usage.OutputTokens
-		t.CacheReadTokens += l.Message.Usage.CacheReadInputTokens
-		t.CacheCreationTokens += l.Message.Usage.CacheCreationInputTokens
+		if prev, dup := seen[l.Message.ID]; dup {
+			t.add(prev, -1)
+		} else {
+			contributed = true
+		}
+		seen[l.Message.ID] = l.Message.Usage
+		t.add(l.Message.Usage, 1)
 	}
 	return contributed
 }

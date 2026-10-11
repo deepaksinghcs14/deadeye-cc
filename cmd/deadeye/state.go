@@ -39,6 +39,7 @@ type sessionState struct {
 	lastBashRetryKey    string            // normalized retry key of the previous Bash command (see normalizeBashRetryKey)
 	bashRetryCount      int               // consecutive same-retry-key runs, including the current one
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
+	pendingAgents       map[string]string // Agent tool_use_id -> recommended model id, consumed at PostToolUse to compare with the model that ran
 	fetchedURLs         map[string]bool   // normalized WebFetch URLs seen this session -- repeat-fetch advice
 	exploreStreak       int               // consecutive Read/Grep/Glob completions with no edit/run/prompt between -- delegate-explore advice
 	arrivalBytes        int               // cumulative tool-response bytes that entered context this accumulation cycle -- compact-timing advice
@@ -87,6 +88,7 @@ func (d *daemonState) getOrCreate(sessionID string) *sessionState {
 			suggested:       map[string]bool{},
 			readFiles:       map[string]int64{},
 			pendingRewrites: map[string]string{},
+			pendingAgents:   map[string]string{},
 			fetchedURLs:     map[string]bool{},
 		}
 		d.sessions[sessionID] = s
@@ -400,6 +402,37 @@ func (d *daemonState) consumePendingRewrite(sessionID, rewrittenCmd string) stri
 	rule := s.pendingRewrites[rewrittenCmd]
 	delete(s.pendingRewrites, rewrittenCmd)
 	return rule
+}
+
+// maxPendingAgents bounds pendingAgents: a denied or failed Agent call never
+// reaches PostToolUse, so its entry would otherwise live as long as the
+// session.
+const maxPendingAgents = 256
+
+// notePendingAgent remembers what deadeye recommended for one Agent call,
+// keyed by tool_use_id so parallel spawns don't cross.
+func (d *daemonState) notePendingAgent(sessionID, toolUseID, model string) {
+	if toolUseID == "" {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	if len(s.pendingAgents) >= maxPendingAgents {
+		clear(s.pendingAgents)
+	}
+	s.pendingAgents[toolUseID] = model
+}
+
+// consumePendingAgent returns (and forgets) the model recommended for an
+// Agent call, or "" if deadeye made no recommendation for it.
+func (d *daemonState) consumePendingAgent(sessionID, toolUseID string) string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	s := d.getOrCreate(sessionID)
+	model := s.pendingAgents[toolUseID]
+	delete(s.pendingAgents, toolUseID)
+	return model
 }
 
 // setCoderLevel records the session's coder-mode level ("" = unset, "off"

@@ -345,6 +345,10 @@ or a coder session to the code it touched. A local receipt
 (`~/.deadeye/receipts.jsonl`, written when a review or coder session runs)
 supplies that anchor, and three reports read it:
 
+- **`/deadeye-stats`** (the default scoreboard) — for subagents, what
+  actually ran rather than what was suggested: how many launched on the
+  model deadeye recommended, and each model's real token use, summed from
+  every subagent's own transcript when it finishes.
 - **`/deadeye-stats accuracy`** — for each reviewed diff, scans forward for
   a fix-shaped commit landing on the very lines that review passed. Every
   candidate is `likely`, never confirmed, and carries the line range as its

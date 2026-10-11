@@ -24,6 +24,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/proto"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/sessionmem"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/usage"
 )
 
 func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
@@ -80,6 +81,8 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 		out = decidePostToolUse(in, cfg, state)
 	case "SubagentStart":
 		out = decideSubagentStart(in, cfg, state)
+	case "SubagentStop":
+		out = decideSubagentStop(in, cfg, state)
 	case "Stop":
 		out = decideStop(in, cfg, state)
 	case "SessionEnd":
@@ -467,6 +470,8 @@ func decideAgentRouting(in hookio.Input, cfg config.Config, state *daemonState) 
 		}
 	}
 
+	state.notePendingAgent(in.SessionID, in.ToolUseID, decision.Model)
+
 	out := hookio.ForEvent("PreToolUse")
 	// mode.effort=off suppresses the effort half of the recommendation --
 	// previously the knob was printed by /deadeye-status but nothing ever
@@ -843,6 +848,10 @@ func decideWebFetchAdvice(in hookio.Input, cfg config.Config, state *daemonState
 }
 
 func decidePostToolUse(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	// Routing's own axis, so ahead of the preprocess gate below.
+	if in.ToolName == "Agent" && cfg.Mode.Routing != "off" {
+		recordResolvedAgentModel(in, state)
+	}
 	// The whole surface is context hygiene, so the preprocess switch
 	// governs it -- "every axis independently switchable" includes the
 	// observation logging, not just the surfaces that touch context.
@@ -943,6 +952,51 @@ func decideMCPOversize(in hookio.Input, cfg config.Config, state *daemonState) h
 // decision log will show inject-subagent firing either way, which is how
 // to correlate whether it lands. Gated under mode.preprocess -- context
 // hygiene, and every surface must have an off switch.
+// recordResolvedAgentModel logs the model an Agent call actually ran on next
+// to the one deadeye recommended for it. The recommendation is advice in
+// advise mode and a default in enforce mode, so the log is the only record
+// of whether it was followed.
+func recordResolvedAgentModel(in hookio.Input, state *daemonState) {
+	var resp struct {
+		ResolvedModel string `json:"resolvedModel"`
+	}
+	_ = json.Unmarshal(in.ToolResponse, &resp)
+	recommended := state.consumePendingAgent(in.SessionID, in.ToolUseID)
+	if resp.ResolvedModel == "" {
+		return
+	}
+	reason := ""
+	if recommended != "" {
+		reason = "recommended " + recommended
+	}
+	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PostToolUse/Agent", Action: "resolved", Reason: reason, Model: resp.ResolvedModel})
+}
+
+// decideSubagentStop records one finished subagent's real usage. It reads
+// the subagent's transcript because nothing else carries the total: Agent
+// calls launch in the background, so the tool's own response has the
+// resolved model but no token counts.
+func decideSubagentStop(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	if cfg.Mode.Routing == "off" || in.AgentTranscriptPath == "" {
+		return hookio.Empty()
+	}
+	t, model, ok := usage.ScanTranscript(in.AgentTranscriptPath)
+	if !ok {
+		return hookio.Empty()
+	}
+	reason := in.AgentType
+	if in.Effort != nil && in.Effort.Level != "" {
+		reason += " effort=" + in.Effort.Level
+	}
+	state.log(logstore.Record{
+		TS: nowRFC3339(), SessionID: in.SessionID, Surface: "SubagentStop", Action: "subagent-usage",
+		Reason: strings.TrimSpace(reason), Model: model,
+		InputTokens: t.InputTokens, OutputTokens: t.OutputTokens,
+		CacheReadTokens: t.CacheReadTokens, CacheCreationTokens: t.CacheCreationTokens,
+	})
+	return hookio.Empty()
+}
+
 func decideSubagentStart(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	const brevityNote = "deadeye: return terse, structured results -- your full output lands in the parent agent's context, so every byte of prose padding is paid for twice."
 	var parts []string

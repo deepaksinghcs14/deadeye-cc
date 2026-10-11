@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.71.0
+
+**deadeye now records what a subagent actually ran on, not only what it
+recommended.** Until now the decision log held the recommendation and
+nothing about the outcome, so there was no way to tell whether advice was
+followed or what the delegation cost.
+
+- **The model that ran.** When an Agent call returns, deadeye logs the
+  model Claude Code resolved it to next to its own recommendation for that
+  call. The two are joined by the call's id, so subagents launched in
+  parallel don't swap recommendations.
+- **The whole run's tokens.** A new `SubagentStop` hook sums the finished
+  subagent's usage from its own transcript and logs it with the model and
+  effort level it ran at. The Agent tool's response can't supply this:
+  agents launch in the background, so it carries the resolved model and no
+  token counts.
+- **In the scoreboard.** `/deadeye-stats` gains a Subagents section: how
+  many launched, how many on the recommended model, and measured tokens per
+  model.
+
+Token counts only -- no dollar figure. The catalog holds one input and one
+output price per model, and a subagent's bill is mostly cache writes and
+reads, which are priced differently per model.
+
+**Output tokens were under-counted in subagent transcripts.** A transcript
+repeats a turn's usage on each content block, and deadeye kept the first
+line it saw. In a subagent transcript the first line is written mid-stream:
+a real turn read 4 output tokens there and 37 on its last line. The last
+line now wins. Main-session transcripts were unaffected -- across 2,236
+turns of one, first and last agreed every time.
+
 ## 0.70.0
 
 **deadeye can now set a subagent's effort level, not only suggest it.**

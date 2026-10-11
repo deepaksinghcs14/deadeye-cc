@@ -31,6 +31,12 @@ type Record struct {
 	// decideAgentRouting) -- old rows simply deserialize with Model=="",
 	// no migration needed.
 	Model string `json:"model,omitempty"`
+	// Token counts, set only on Surface=="SubagentStop" rows: one subagent's
+	// whole run, summed from its transcript.
+	InputTokens         int64 `json:"input_tokens,omitempty"`
+	OutputTokens        int64 `json:"output_tokens,omitempty"`
+	CacheReadTokens     int64 `json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens int64 `json:"cache_creation_tokens,omitempty"`
 }
 
 const maxSizeBytes = 10 * 1024 * 1024

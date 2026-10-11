@@ -54,6 +54,11 @@ func renderGain(logPath string) {
 		coderInjects  int
 	)
 	perRuleMeasured := map[string][2]int{} // rule -> {runs, bytes}
+	var (
+		resolved, compared, followed int
+		subagentRuns                 = map[string]int{}      // model -> runs
+		subagentTokens               = map[string][2]int64{} // model -> {all tokens, output tokens}
+	)
 	for _, r := range records {
 		switch r.Action {
 		case "rewrite":
@@ -82,6 +87,20 @@ func renderGain(logPath string) {
 			}
 		case "coder-inject":
 			coderInjects++
+		case "resolved":
+			resolved++
+			if rec, ok := strings.CutPrefix(r.Reason, "recommended "); ok {
+				compared++
+				if rec == r.Model {
+					followed++
+				}
+			}
+		case "subagent-usage":
+			subagentRuns[r.Model]++
+			e := subagentTokens[r.Model]
+			e[0] += r.InputTokens + r.OutputTokens + r.CacheReadTokens + r.CacheCreationTokens
+			e[1] += r.OutputTokens
+			subagentTokens[r.Model] = e
 		}
 	}
 
@@ -108,6 +127,17 @@ func renderGain(logPath string) {
 	}
 	if coderInjects > 0 {
 		fmt.Printf("  %s        %s session injections\n", cHead("Coder mode"), cValue(fmt.Sprintf("%d", coderInjects)))
+	}
+	if resolved > 0 || len(subagentRuns) > 0 {
+		fmt.Printf("  %s         %s launched", cHead("Subagents"), cValue(fmt.Sprintf("%d", resolved)))
+		if compared > 0 {
+			fmt.Printf(", %d of %d on the model deadeye recommended", followed, compared)
+		}
+		fmt.Println()
+		for _, model := range slices.Sorted(maps.Keys(subagentRuns)) {
+			e := subagentTokens[model]
+			fmt.Printf("    %s        %-22s %dx  %s tokens %s\n", cGood("measured"), model, subagentRuns[model], fmtHuman(e[0]), cDim(fmt.Sprintf("(%s output; from each subagent's transcript)", fmtHuman(e[1]))))
+		}
 	}
 	fmt.Println()
 	fmt.Println(cDim("  No per-repo savings % is shown: the unbuilt version of your code was"))
