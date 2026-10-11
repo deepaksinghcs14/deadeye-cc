@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.71.1
+
+**Built with Go 1.27.2**, which fixes nine standard-library advisories
+present in go1.27.0 -- in `net/http`, its HTTP/2 implementation,
+`crypto/tls`, `net/textproto` and `html/template` (GO-2026-6599 through
+GO-2026-6617). deadeye's update check, catalog refresh and OSV lookup all go
+through `net/http`, so the 0.70.0 and 0.71.0 binaries carried them. No code
+change; `govulncheck` is clean again.
+
 ## 0.71.0
 
 **deadeye now records what a subagent actually ran on, not only what it
