@@ -71,9 +71,10 @@ deletion — lean code without its check is unfinished.
 Precision is the floor. Five habits separate a real review from a plausible one:
 
 - **Sweep every instance.** One leak, missing registration, or hollow test → check every sibling, in AND out of the diff. A fix with an unfixed twin is a half-fix — name the twin.
-- **Disprove your own mitigation.** "X covers it" isn't a pass until X provably runs on the failing path — an early `return`/guard that fires first makes X moot. For a branch gated on a non-null/present field, read the migration: is old data backfilled?
-- **The diff's own claims are claims.** A comment ("no-op if absent, still valid", "safe because of the guarantee above"), an assertion in the PR's tests, or "already validated" upstream is a premise to disprove, not evidence — read the validator it points at. For every new or rewritten condition, list the cases it does NOT take — the else, zero/absent, the default arm, the all-absent and one-present combos of a value merged from several optional sources — and follow one of each into its consumer. The bug lives in the case nobody wrote a test for.
+- **Disprove your own mitigation.** "X covers it" isn't a pass until X provably runs on the failing path — an early `return`/guard that fires first makes X moot. For a branch gated on a non-null/present field, read the migration: is old data backfilled? Deferred cleanup (mark now, close on the next acquire/release) covers only what reaches that later step: when a diff drops an owner from a cache/pool/registry, or swaps an eager close for a mark, name the line that closes what the owner still holds, on every return path — a mark honoured only on re-use leaks whatever is never re-used.
+- **The diff's own claims are claims.** A comment saying a case is harmless or already guaranteed, an assertion in the PR's tests, or "already validated" upstream is a premise to disprove, not evidence — read the validator it points at. For every new or rewritten condition, list the cases it does NOT take — the else, zero/absent, the default arm, the all-absent and one-present combos of a value merged from several optional sources — and follow one of each into its consumer. The bug lives in the case nobody wrote a test for.
 - **The bugs a scan slides past:** two arms handling one value (success/error) should mirror — flag the one missing a capture/close/guard; a rewritten condition must keep every predicate it AND-ed (a dropped `ok &&` re-admits what it rejected); a value can pass `isinstance`/`!= undefined`/`in` yet be wrong (`str` subclass, `null` vs `undefined`, a name that exists but isn't the type you assumed); an error branch returning a nil used later; in-place mutation of a list aliased from a default arg, shared config, or module cache; every `await` — can it never resolve, and does pre-await state still hold after (abort, concurrent completion)?
+- **A command that errored did not run.** A search that died on a shell glob, a usage error, or a missing path found nothing because it looked at nothing — rerun it, quoted, before a clean footer or a `proof:` rests on it. Cite line numbers from a numbered read of the file (`grep -n`, `sed -n`, a file read), never from text re-printed through `echo`, which can shift them.
 - **Sweep the cheap layer:** dead scaffolding, unused imports, placeholder secrets, unpinned deps, a `default:` giving a CPU host a GPU image; a test that mocks its own unit proves nothing.
 
 ## The four lenses
@@ -85,8 +86,19 @@ allocated), and at each ask what the worst chooser sends — absent, empty,
 the wrong type that still passes the check, the costliest to process. What
 breaks there is the finding, on the standard line with its tag. Four lenses
 are four questions at each consumer of ONE trace, not four passes; a clean
-footer names the value traced and the consumer that survived — "no known
-sink in the diff" earns nothing.
+footer names the value traced and the reader that survived, as `file:line`
+— "no known sink in the diff" earns nothing.
+
+A reader indexes, parses, matches, or compares the value; a line that
+stores it, forwards it, or puts it in a context is not one. No reader
+reached → the footer says `no reader traced`, never that the code reads
+correct.
+
+A replaced lookup is a newly trusted value. When the diff changes HOW a
+value or object is obtained — another global, registry, header, env var,
+config key, DOM accessor — trace what the new source can return that the old
+one could not, and say it in the footer. Presence (`in`, non-null) is not
+identity, and an unchanged sink clears nothing once its source changed.
 
 One line per finding, ranked most-severe first within each lens:
 
@@ -95,6 +107,8 @@ linter firing rules:
 
 `<glyph> path:line — <tag>: <what actually happens, concretely>. Fix: <fix>. proof: <evidence>.`
 
+- Exactly one `<tag>` per finding — the one whose fix you propose. Two bugs
+  are two findings; never `a:`/`b:`.
 - `<glyph>` carries the severity: 🔴 `critical` (exploitable now, data loss,
   breaks prod), 🟠 `high` (pre-merge), 🟡 `medium` (should fix), ⚪ `nit`
   (optional).
@@ -150,11 +164,13 @@ Rank by likelihood of actually firing. Footer: `<N> correctness risks.` or
 - `blocking:` — synchronous I/O or a lock held on a latency-sensitive path
 - `copy:` — a large value passed or returned by value where a reference would do
 
-Input size sets severity, not existence: a triple loop over three config
-keys is nothing when the fix costs more than it saves, a ⚪ when the fix is
-free; a second pass over data the code already scans once, whose fused form
-is shorter, is `shrink:` — hot path or not. Footer: `<N> perf risks.` or `No
-hot-path cost.`
+Input size and caller hotness set severity, not existence. A change that
+makes data be scanned, copied, or computed a second time is a finding — ⚪
+at minimum, `shrink:` when the fused form is shorter, `complexity:` or
+`alloc:` otherwise. Withhold it only by writing the fused form and showing
+it is impossible or worse. A triple loop over three config keys with
+no cheaper form is nothing. Footer: `<N> perf risks.` or `No added cost.` —
+never the latter beside an extra pass the review itself describes.
 
 ### Security
 
@@ -184,10 +200,10 @@ hot-path cost.`
 **No framing IS the finding.** A missing boundary is reportable without a
 payload in hand, the same way a missing authz check is. External/repo-derived
 content reaching an LLM's context (a hook point, a RAG result, a tool-output
-pass-through) with no untrusted-content framing is `llm:`. A fallback chain
-that can yield an empty or unchecked value which callers are told is always
-there is `validation:`/`contract:` — the consumer that panics on it may not
-be in this diff yet.
+pass-through) with no untrusted-content framing is `llm:`. A value
+callers are told is always present, on a path that can leave it empty or
+unchecked, is `validation:`/`contract:` — find its reader; it is often
+outside the diff.
 
 **A guard is only as good as its weakest path.** When the diff adds or hardens
 a check on a sink, grep the package for every other path to the same sink — a

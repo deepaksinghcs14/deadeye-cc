@@ -520,3 +520,22 @@ func TestReceiptInstructionDemandsCleanReviewsToo(t *testing.T) {
 		}
 	}
 }
+
+// The reader and replaced-lookup paragraphs are cut for Windsurf's budget only. If the
+// marker text drifts, cutSection silently cuts nothing there and every other
+// host keeps it -- so both directions are asserted.
+func TestTracePrecisionCutOnlyForWindsurf(t *testing.T) {
+	for name, body := range map[string]string{"Body": Body(), "SelfBody": SelfBody()} {
+		if !strings.Contains(body, tracePrecisionStart) {
+			t.Errorf("%s() lost the reader and replaced-lookup rules", name)
+		}
+	}
+	for name, body := range map[string]string{"WindsurfBody": WindsurfBody(), "SelfWindsurfBody": SelfWindsurfBody()} {
+		if strings.Contains(body, tracePrecisionStart) {
+			t.Errorf("%s() still carries the trace-precision paragraphs; the cut marker drifted", name)
+		}
+		if !strings.Contains(body, "One line per finding") {
+			t.Errorf("%s() lost the finding-format line the cut is supposed to stop at", name)
+		}
+	}
+}

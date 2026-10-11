@@ -138,12 +138,20 @@ func NonClaudeBody() string {
 // proof discipline, just not the Rigor upgrade, the Premise judgment, the
 // full pentest tag set, the toolchain-incompatibility flag, the
 // cross-session learning loop, or the fix-acceleration extras.
+// tracePrecisionStart opens the two paragraphs under The four lenses that
+// sharpen the trace: what counts as a reader, and that a replaced lookup is
+// a newly trusted value. Windsurf's two bodies cut both for budget, the same
+// call as Rigor -- the paragraph above them already requires the trace
+// ("each value the diff ... newly trusts ... follow it to every consumer").
+const tracePrecisionStart = "A reader indexes, parses,"
+
 func WindsurfBody() string {
 	// Start from NonClaudeBody: Windsurf has no subagents to fan out to,
 	// so the huge-PR fan-out paragraph was pure cost on the tightest
 	// budget of any host.
 	b := NonClaudeBody()
 	b = cutSection(b, "## Rigor", "## The four lenses")
+	b = cutSection(b, tracePrecisionStart, "One line per finding")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "- `incompat:`", "- `leak:`")
 	// This one cut spans the CI/CD checklist, the client-side/UI checklist,
@@ -172,6 +180,7 @@ func WindsurfBody() string {
 func SelfWindsurfBody() string {
 	b := selfBody
 	b = cutSection(b, "## Rigor", "## The four lenses")
+	b = cutSection(b, tracePrecisionStart, "One line per finding")
 	b = cutSection(b, "<!-- pentest-tags -->", "**A guard is only as good")
 	b = cutSection(b, "- `incompat:`", "- `leak:`")
 	// This one cut spans the CI/CD checklist, the client-side/UI checklist,

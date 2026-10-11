@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.76.0
+
+**The review rubric closes the exits real misses went through.** A content
+audit of every recorded run of the PR benchmark found the reviewer was
+weaker than its scores said: on four of five real bugs it had read the right
+lines and then talked itself out of the finding. Each change below removes
+one way it did that. They apply to `/deadeye-pr` and `/deadeye-review`.
+
+- **A clean verdict must cite a reader.** The footer names a line that
+  indexes, parses, matches or compares the traced value. A line that stores
+  or forwards it does not count, and with no reader found the footer says
+  `no reader traced`. A review had called a forwarding function "the
+  consumer that survived" while the real reader, which crashes on an empty
+  value, sat one package away.
+- **A command that errored did not run.** A search that died on a shell
+  glob looked at nothing; it gets re-run before a verdict or a proof rests
+  on it. The one search for that reader had failed this way, unnoticed.
+- **Line numbers come from a numbered read**, never from text re-printed
+  through `echo`. One review's citations were all five lines off.
+- **A replaced lookup is a newly trusted value.** When a diff changes how a
+  value is obtained -- another global, header, env var, DOM accessor -- the
+  review traces what the new source can return that the old one could not.
+  An unchanged sink clears nothing once its source changed.
+- **A second pass is a finding.** Data scanned, copied or computed a second
+  time is reported at the lowest severity or above; caller hotness and input
+  size set severity only. It may be withheld only by writing the fused form
+  and showing it is impossible or worse. The old wording excused it when the
+  fix "costs more than it saves", and reviews used that every time.
+- **Deferred cleanup must name its closer.** When a diff drops an owner
+  from a pool or registry, or swaps an eager close for a mark, the review
+  names the line that closes what the owner still holds, on every return
+  path.
+- **One tag per finding.**
+
+Two rubric passages quoted comments from one of the benchmark's own pull
+requests. They are restated as general rules.
+
+**Measured, on the five benchmark cases, three trials each, Opus 5.5:**
+7 of 15 caught, judged by reading each finding, against 0 of 5 for the
+previous rubric on the same model and grader.
+
+| Case | Before | After |
+|---|---|---|
+| netty double scan | missed | 3 of 3 |
+| redis-py connection leak | missed | 2 of 3 |
+| grpc-go empty `:authority` | missed | 1 of 3 |
+| PrismJS DOM clobbering | missed | 1 of 3 |
+| vllm ReDoS | missed | 0 of 3 |
+
+Read this as "the changes take effect", not as a recall figure: these five
+cases are the ones the changes were derived from, the baseline is a single
+run, and precision on the extra findings is not audited. Reviews also run
+longer, about $1.13 each against $0.82.
+
+Windsurf's size-capped variant gets every change except the reader and
+replaced-lookup paragraphs.
+
 ## 0.75.0
 
 **deadeye installs as a Codex plugin.**
