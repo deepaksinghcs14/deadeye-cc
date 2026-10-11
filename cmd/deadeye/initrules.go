@@ -21,11 +21,12 @@ var rulesFileRelPath = map[string]string{
 	"windsurf": filepath.Join(".windsurf", "rules", "deadeye.md"),
 }
 
-// runInitRules writes deadeye's coder ruleset as a static rules file for a
-// hook-less host (cursor, windsurf). Project-local: it lands under the
-// current directory, the project the user is setting up. Persona only --
-// no routing, security, preprocessing, or codemap engine.
-func runInitRules(host string, args []string) {
+// runInitRules writes deadeye's coder ruleset as a static rules file
+// (cursor, windsurf). Project-local: it lands under the current directory,
+// the project the user is setting up. The file itself is the persona only;
+// it reports whether it was written, so the caller can add what else the
+// host supports.
+func runInitRules(host string, args []string) bool {
 	rel, ok := rulesFileRelPath[host]
 	if !ok {
 		fmt.Fprintln(os.Stderr, initUsage)
@@ -56,17 +57,28 @@ func runInitRules(host string, args []string) {
 	}
 	body := coder.RulesetMarkdown(level)
 
-	fmt.Println(cHead("deadeye init "+host) + cDim("  (persona only -- "+host+" has no hook contract for the engine)"))
-	fmt.Println()
-	fmt.Println("Will write the coder ruleset (level " + cValue(level) + ") to " + cValue(path))
-	fmt.Println(cDim("The lean-coding discipline alone. Routing, security, and preprocessing need Claude Code, Codex, or Gemini CLI."))
+	if host == "cursor" {
+		fmt.Println(cHead("deadeye init cursor") + cDim("  (experimental -- built from Cursor's hook docs, not yet confirmed in a live Cursor)"))
+		fmt.Println()
+		fmt.Println("Will write the coder ruleset (level " + cValue(level) + ") to " + cValue(path))
+		if hooksPath, err := cursorHooksPath(); err == nil {
+			fmt.Println("and register deadeye's hooks in " + cValue(hooksPath) + cDim("  (your own entries are kept)"))
+		}
+		fmt.Println(cDim("Hooks add: session guidance and the codebase map at session start, trimmed command output,"))
+		fmt.Println(cDim("and the exfiltration guard. Not on Cursor: model routing, the plan gate, per-turn advice."))
+	} else {
+		fmt.Println(cHead("deadeye init "+host) + cDim("  (persona only -- "+host+" has no hook contract for the engine)"))
+		fmt.Println()
+		fmt.Println("Will write the coder ruleset (level " + cValue(level) + ") to " + cValue(path))
+		fmt.Println(cDim("The lean-coding discipline alone. Routing, security, and preprocessing need Claude Code, Codex, or Gemini CLI."))
+	}
 	fmt.Println()
 	if !assumeYes {
 		fmt.Print("Apply? [y/N] ")
 		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 		if l := strings.ToLower(strings.TrimSpace(line)); l != "y" && l != "yes" {
 			fmt.Println("Nothing written.")
-			return
+			return false
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -82,6 +94,7 @@ func runInitRules(host string, args []string) {
 		installCommand(cmd, host)
 	}
 	fmt.Println(cDim("Remove any time with: deadeye uninstall " + host))
+	return true
 }
 
 // rulesFileIsOursOrAbsent reports whether path is safe for init to write:

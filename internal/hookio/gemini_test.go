@@ -92,17 +92,17 @@ func TestMarshalForDialect(t *testing.T) {
 	out.HookSpecificOutput.PermissionDecisionReason = "r"
 
 	for _, host := range []string{"", "claude"} {
-		m := decode(t, MarshalFor(host, out))
+		m := decode(t, MarshalFor(host, "PreToolUse", out))
 		hs, _ := m["hookSpecificOutput"].(map[string]any)
 		if hs == nil || hs["permissionDecision"] != "ask" {
 			t.Errorf("host %q should keep Claude-dialect permissionDecision:ask, got %v", host, m)
 		}
 	}
-	if m := decode(t, MarshalFor("codex", out)); m["hookSpecificOutput"].(map[string]any)["permissionDecision"] != "deny" {
+	if m := decode(t, MarshalFor("codex", "PreToolUse", out)); m["hookSpecificOutput"].(map[string]any)["permissionDecision"] != "deny" {
 		t.Errorf("codex should translate ask+deny to nested permissionDecision:deny, got %v", m)
 	}
 	// Gemini translates ask+deny to a top-level deny.
-	if m := decode(t, MarshalFor("gemini", out)); m["decision"] != "deny" {
+	if m := decode(t, MarshalFor("gemini", "PreToolUse", out)); m["decision"] != "deny" {
 		t.Errorf("gemini should translate to decision:deny, got %v", m)
 	}
 }

@@ -118,9 +118,12 @@ func marshalOutput(out Output) []byte {
 	return b
 }
 
-// MarshalFor renders out in the given host's dialect.
-func MarshalFor(host string, out Output) []byte {
+// MarshalFor renders out in the given host's dialect. event is the host's
+// own name for the hook that asked, which only Cursor's dialect needs.
+func MarshalFor(host, event string, out Output) []byte {
 	switch host {
+	case "cursor":
+		return MarshalCursor(event, out)
 	case "gemini":
 		return MarshalGemini(out)
 	case "codex":

@@ -3,7 +3,9 @@
 // Codex and Gemini CLI are REDUCED hosts -- no Claude Agent-tool surface
 // to route models or suggest workflows on, and persona/context injected via
 // hookSpecificOutput.additionalContext rather than Claude's raw-stdout
-// SessionStart. Keeping the host checks here (not scattered `host ==
+// SessionStart. Cursor is reduced further still: its dialect is translated
+// on both sides (internal/hookio/cursor.go) and only its session-start and
+// post-tool hooks can carry context. Keeping the host checks here (not scattered `host ==
 // "codex"` string literals) means adding a reduced host is one place, and
 // each call site reads its actual reason.
 package hosts

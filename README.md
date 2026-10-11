@@ -180,17 +180,49 @@ plan gate). The tool-level features (exfil guard, output trimming, routing)
 wait on live schema verification rather than risk firing blind. Remove with
 `deadeye uninstall gemini`.
 
-### Cursor and Windsurf (persona only)
+### Cursor (experimental — guard tier)
 
-No hook contract, so these get the **coder persona only**, as a rules file:
+Install the binary, then, in the project you want it on:
 
 ```bash
-deadeye init cursor      # writes .cursor/rules/deadeye.md
+deadeye init cursor
+```
+
+It writes the coder persona as a rules file (`.cursor/rules/deadeye.md`) and
+registers deadeye's hooks in `~/.cursor/hooks.json`, after showing you both
+and asking. Entries you already have in that file are kept.
+
+| You get | Through |
+|---|---|
+| Coder persona | The rules file |
+| Session guidance, codebase map, session memory | `sessionStart` |
+| Trimmed command output | `preToolUse` on Shell |
+| Exfiltration guard on commands and credential files | `preToolUse` and `beforeReadFile` |
+| Advice on repeated commands and oversized MCP responses | `postToolUse` |
+| Decision log and `/deadeye-stats` | all of the above |
+
+Not on Cursor: model routing (a hook can see a subagent's model but not
+change it), the plan gate and per-turn advice (the prompt hook cannot inject
+context), and the persona inside subagents. The exfiltration guard blocks
+outright rather than asking, because Cursor does not enforce an "ask" on
+these hooks.
+
+Built from [Cursor's hook documentation](https://cursor.com/docs/hooks) and
+tested against its documented payloads; **not yet confirmed in a live
+Cursor**. If deadeye itself fails, the hooks answer "allow" — it never
+blocks a tool call by breaking. Remove with `deadeye uninstall cursor`.
+
+### Windsurf (persona only)
+
+Its hooks can only block, with no way to rewrite a command or add context,
+so it gets the **coder persona only**, as a rules file:
+
+```bash
 deadeye init windsurf    # writes .windsurf/rules/deadeye.md
 ```
 
 Level-filtered to your `coder.default_level`, and uninstall removes only
-what deadeye wrote. For the full engine, use Claude Code or Codex.
+what deadeye wrote. For the full engine, use Claude Code.
 
 ### Review commands on every host (experimental)
 

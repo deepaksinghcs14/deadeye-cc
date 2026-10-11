@@ -21,6 +21,9 @@ func runUninstall(args []string) {
 			return
 		}
 		if a == "cursor" || a == "windsurf" {
+			if a == "cursor" {
+				uninstallCursorHooks()
+			}
 			runUninstallRules(a)
 			return
 		}

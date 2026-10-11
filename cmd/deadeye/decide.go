@@ -53,6 +53,16 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 		}
 	}()
 
+	if req.Host == "cursor" {
+		// Cursor names its events and fields differently; everything below
+		// this line sees the canonical form.
+		event, payload, ok := hookio.CursorToCanonical(req.Event, req.Payload)
+		if !ok {
+			return out
+		}
+		req.Event, req.Payload = event, payload
+	}
+
 	var in hookio.Input
 	_ = json.Unmarshal(req.Payload, &in)
 	in.ClientVersion = req.ClientVersion
@@ -62,6 +72,15 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	switch req.Event {
 	case "SessionStart":
 		out = decideCoderSessionStart(in, cfg, req.PluginRoot, req.ConfigDir, req.Host, state)
+		if req.Host == "cursor" {
+			// Cursor's session start is the only hook that can inject
+			// context, and the rules file `init cursor` writes already
+			// carries the persona. So this slot delivers what every other
+			// host gets on the first prompt (session guidance, codebase
+			// map, session memory) instead of the persona a second time.
+			// decideCoderSessionStart still runs above for its bookkeeping.
+			out = decideUserPromptSubmit(in, cfg, req.ClientVersion, req.Host, state)
+		}
 	case "PostCompact":
 		in.Source = "compact"
 		if req.Host == "codex" {

@@ -163,7 +163,7 @@ func handleConn(conn net.Conn, state *daemonState, markStale func()) {
 	}
 	// Marshal in the host's dialect -- Gemini's response shape differs from
 	// Claude/Codex (see hookio.MarshalGemini).
-	conn.Write(hookio.MarshalFor(req.Host, out))
+	conn.Write(hookio.MarshalFor(req.Host, req.Event, out))
 }
 
 // acquireLock is deliberately NOT a full mutual-exclusion primitive: the

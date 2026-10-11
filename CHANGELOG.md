@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.74.0
+
+**Cursor moves from persona-only to a guard tier.** Cursor now has a hooks
+system that can rewrite a tool call, block it, and add context, so
+`deadeye init cursor` registers deadeye's hooks alongside the rules file it
+already wrote.
+
+**Experimental: built from [Cursor's hook documentation](https://cursor.com/docs/hooks)
+and tested against the payloads it documents, not yet confirmed in a live
+Cursor.**
+
+What Cursor gets, and through which hook:
+
+- **Trimmed command output** -- `preToolUse` on Shell rewrites verbose test,
+  build and install commands the same way it does on Claude Code.
+- **Exfiltration guard** -- a command that pairs a credential with a network
+  binary is denied at `preToolUse`; a read of a credential file is denied at
+  `beforeReadFile`. A deny, not a prompt: Cursor accepts "ask" on these
+  hooks but does not enforce it.
+- **Session guidance, codebase map and session memory** -- at
+  `sessionStart`, the only Cursor hook that can inject context. The persona
+  itself stays in the rules file and is not sent a second time.
+- **Advice on repeated commands and oversized MCP responses** -- at
+  `postToolUse`.
+- **The decision log**, so `/deadeye-stats` covers Cursor sessions.
+
+What it does not get, and why:
+
+- **Model routing.** `subagentStart` shows a subagent's model and can deny
+  the spawn, but cannot change the model.
+- **The plan gate and per-turn advice.** `beforeSubmitPrompt` can block a
+  prompt but cannot add context to it.
+- **The persona inside subagents.** `subagentStart` cannot inject context.
+
+Three things done to keep it safe on an unverified host:
+
+- **deadeye failing never blocks a tool call.** Cursor blocks an action
+  whose permission-hook response doesn't match its schema, so the adapter
+  answers an explicit `allow` on every failure path -- no binary, daemon
+  down, empty output -- instead of `{}`.
+- **Your hooks file is yours.** Registration adds deadeye's entries to
+  `~/.cursor/hooks.json` and leaves every other entry and key in place;
+  re-running it does not duplicate them; uninstall removes only deadeye's.
+  A file that isn't valid JSON is reported and left untouched.
+- **Only documented fields are relied on.** Cursor documents the Shell
+  tool's input but not the Read tool's, so reads are guarded through
+  `beforeReadFile`, whose file path is documented.
+
+No Cursor plugin package in this release. Cursor documents no command for
+installing a plugin from a repository, and does not say how a plugin's hook
+command paths resolve, so a manifest could not be tested here.
+`deadeye init cursor` is the install path.
+
+Windsurf stays persona-only: its hooks can block but cannot rewrite input or
+add context.
+
 ## 0.73.0
 
 **Each host now has its own model catalog.** There was one table, of Claude

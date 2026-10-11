@@ -86,7 +86,8 @@ func writeCodexAdapter(script string) error {
 }
 
 // runInit dispatches `deadeye init <host>`. codex is a full hook adapter
-// (below); cursor/windsurf are static rules files (initrules.go).
+// (below); cursor/windsurf are static rules files (initrules.go), and
+// cursor additionally gets its hooks registered (initcursor.go).
 func runInit(args []string) {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, initUsage)
@@ -96,7 +97,9 @@ func runInit(args []string) {
 	case "codex":
 		// falls through to the codex body below
 	case "cursor", "windsurf":
-		runInitRules(args[0], args[1:])
+		if runInitRules(args[0], args[1:]) && args[0] == "cursor" {
+			installCursorHooks()
+		}
 		return
 	case "gemini":
 		runInitGemini(args[1:])

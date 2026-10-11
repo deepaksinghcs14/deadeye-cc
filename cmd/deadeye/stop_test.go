@@ -36,7 +36,7 @@ func TestCodexStopOutputUsesCommonSchema(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, nil)
 	state.log(logstore.Record{SessionID: "s1", Surface: "PreToolUse/Bash", Action: "rewrite", BytesBeforeEst: 30000, BytesAfter: 9600})
 
-	b := hookio.MarshalFor("codex", decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state))
+	b := hookio.MarshalFor("codex", "Stop", decideStop(hookio.Input{SessionID: "s1"}, config.Default(), state))
 	if strings.Contains(string(b), "hookSpecificOutput") {
 		t.Fatalf("Codex Stop output should not include hookSpecificOutput: %s", b)
 	}

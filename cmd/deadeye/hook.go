@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
@@ -159,7 +160,8 @@ func requestDaemon(event string, raw []byte, host string) []byte {
 	conn, err := net.DialTimeout("unix", meta.SocketPath(), 50*time.Millisecond)
 	if err != nil {
 		spawnDaemonFn()
-		if event != "SessionStart" {
+		// EqualFold: Cursor's adapter passes its own event name, sessionStart.
+		if !strings.EqualFold(event, "SessionStart") {
 			return []byte("{}")
 		}
 		conn = awaitDaemon(sessionStartSpawnWait)
