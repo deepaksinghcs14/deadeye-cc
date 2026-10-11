@@ -76,6 +76,32 @@ deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.
 
 `TODO` is for work not done yet. Never use one for the other.
 
+## Model catalogs
+
+`scripts/gen-catalog.go` regenerates the compiled-in model/pricing table
+after editing its seed prices — a release-time step, since there's no
+reachable pricing API at runtime. It also writes `docs/site/catalog.json`,
+a hosted copy every install refreshes in the background (`mode.catalog_check`,
+~24h, read-only, toggle with `deadeye config set mode.catalog_check off`)
+and prefers over the compiled-in table
+when it's present and well-formed. That file can also be hand-edited
+directly and pushed — no release needed to roll out a new model or price,
+though the seed table should be brought back in sync before the next
+`go run` overwrites it.
+
+Each host has its own catalog, because a model id only means something to
+the host that runs it:
+
+| Host | Hosted file | Local override | Used for |
+|---|---|---|---|
+| Claude Code | `catalog.json` | `~/.deadeye/catalog.json` | Routing, advice, stats |
+| Codex CLI | `catalog-codex.json` | `~/.deadeye/catalog-codex.json` | Display and stats |
+| Gemini CLI | `catalog-gemini.json` | `~/.deadeye/catalog-gemini.json` | Display and stats |
+| Cursor | `catalog-cursor.json` | `~/.deadeye/catalog-cursor.json` | Display and stats |
+
+The Cursor table lists Cursor's own models only; it also resells the other
+vendors' models. `deadeye status` prints all four.
+
 ## Releases (maintainers)
 
 1. Move the `## Unreleased` notes in `CHANGELOG.md` under a new version

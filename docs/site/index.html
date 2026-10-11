@@ -303,6 +303,9 @@ td.mode{width:20%}
 .faq summary::after{content:"+";color:var(--brass);font-size:22px;line-height:1;flex:none}
 .faq details[open] summary::after{content:"−"}
 .faq p{color:var(--mute);margin:12px 0 0;max-width:70ch}
+.faq ul{color:var(--mute);margin:10px 0 0;padding-left:18px;max-width:70ch}
+.faq li{margin:6px 0}
+.faq li b{color:var(--bone);font-weight:500}
 
 /* ---------- footer ---------- */
 footer{border-top:1px solid var(--line);padding:44px 0 64px;color:var(--mute);
@@ -420,7 +423,7 @@ a.chip:hover .k{color:var(--brass-dim)}
       <a href="#manages">What it manages</a>
       <a href="#layers">What it adds</a>
       <a href="#measured">Measured</a>
-      <a href="#install">Install</a>
+      <a href="#hosts">Install</a>
       <a href="benchmark.html">Benchmark</a>
       <a href="settings.html">Settings</a>
       <a href="soon.html" class="nav-soon">Soon</a>
@@ -435,7 +438,7 @@ a.chip:hover .k{color:var(--brass-dim)}
         <p class="tagline">He doesn't waste shots.</p>
         <p class="sub">A plugin for your coding agent that fits the model, effort level, and context to each task — before the tokens are spent, not after. Built for Claude&nbsp;Code; a plugin for Codex too, and lighter tiers for Gemini&nbsp;CLI, Cursor &amp; Windsurf.</p>
 
-        <div class="host-chips">
+        <div class="host-chips" id="hosts">
           <button type="button" class="chip claude" data-host="claude" aria-pressed="true"><svg width="13" height="13" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Claude</title><path d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></svg><span><span class="k">built for</span> Claude Code</span></button><button type="button" class="chip" data-host="codex" aria-pressed="false"><svg width="13" height="13" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>OpenAI</title><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg><span><span class="k">plugin for</span> Codex CLI</span></button><button type="button" class="chip" data-host="gemini" aria-pressed="false"><svg width="13" height="13" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Gemini CLI</title><path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/></svg><span><span class="k">extension for</span> Gemini CLI</span></button><button type="button" class="chip" data-host="cursor" aria-pressed="false"><svg width="13" height="13" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Cursor</title><path d="M11.503.131 1.891 5.678a.84.84 0 0 0-.42.726v11.188c0 .3.162.575.42.724l9.609 5.55a1 1 0 0 0 .998 0l9.61-5.55a.84.84 0 0 0 .42-.724V6.404a.84.84 0 0 0-.42-.726L12.497.131a1.01 1.01 0 0 0-.996 0M2.657 6.338h18.55c.263 0 .43.287.297.515L12.23 22.918c-.062.107-.229.064-.229-.06V12.335a.59.59 0 0 0-.295-.51l-9.11-5.257c-.109-.063-.064-.23.061-.23"/></svg><span><span class="k">hooks for</span> Cursor</span></button><button type="button" class="chip" data-host="windsurf" aria-pressed="false"><svg width="13" height="13" aria-hidden="true" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Windsurf</title><path d="M23.55 5.067c-1.2038-.002-2.1806.973-2.1806 2.1765v4.8676c0 .972-.8035 1.7594-1.7597 1.7594-.568 0-1.1352-.286-1.4718-.7659l-4.9713-7.1003c-.4125-.5896-1.0837-.941-1.8103-.941-1.1334 0-2.1533.9635-2.1533 2.153v4.8957c0 .972-.7969 1.7594-1.7596 1.7594-.57 0-1.1363-.286-1.4728-.7658L.4076 5.1598C.2822 4.9798 0 5.0688 0 5.2882v4.2452c0 .2147.0656.4228.1884.599l5.4748 7.8183c.3234.462.8006.8052 1.3509.9298 1.3771.313 2.6446-.747 2.6446-2.0977v-4.893c0-.972.7875-1.7593 1.7596-1.7593h.003a1.798 1.798 0 0 1 1.4718.7658l4.9723 7.0994c.4135.5905 1.05.941 1.8093.941 1.1587 0 2.1515-.9645 2.1515-2.153v-4.8948c0-.972.7875-1.7594 1.7596-1.7594h.194a.22.22 0 0 0 .2204-.2202v-4.622a.22.22 0 0 0-.2203-.2203Z"/></svg><span><span class="k">coder persona</span> Windsurf</span></button>
         </div>
 
@@ -459,19 +462,19 @@ a.chip:hover .k{color:var(--brass-dim)}
             <div class="l"><span class="p">$</span> deadeye init gemini</div>
             <div class="l"><span class="p">$</span> gemini extensions install --path ~/.deadeye/gemini-extension</div>
           </div>
-          <div class="note"><b>Gemini CLI.</b> Needs the <a href="https://github.com/deepaksinghcs14/deadeye-cc/releases">deadeye binary</a> on your PATH first. Coder persona and session guidance. <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/README.md#gemini-cli-experimental--context-injection-tier">Details</a></div>
+          <div class="note"><b>Gemini CLI.</b> Needs the <a href="https://github.com/deepaksinghcs14/deadeye-cc/releases">deadeye binary</a> on your PATH first. Coder persona and session guidance. <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/README.md#gemini-cli">Details</a></div>
         </div>
         <div class="host-panel" data-host="cursor">
           <div class="install">
             <div class="l"><span class="p">$</span> deadeye init cursor</div>
           </div>
-          <div class="note"><b>Cursor.</b> Needs the <a href="https://github.com/deepaksinghcs14/deadeye-cc/releases">deadeye binary</a> on your PATH first; run it in your project. Adds the persona as a rules file, plus hooks for output trimming and the exfiltration guard. Experimental. <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/README.md#cursor-experimental--guard-tier">Details</a></div>
+          <div class="note"><b>Cursor.</b> Needs the <a href="https://github.com/deepaksinghcs14/deadeye-cc/releases">deadeye binary</a> on your PATH first; run it in your project. Adds the persona as a rules file, plus hooks for output trimming and the exfiltration guard. Experimental. <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/README.md#cursor">Details</a></div>
         </div>
         <div class="host-panel" data-host="windsurf">
           <div class="install">
             <div class="l"><span class="p">$</span> deadeye init windsurf</div>
           </div>
-          <div class="note"><b>Windsurf.</b> Needs the <a href="https://github.com/deepaksinghcs14/deadeye-cc/releases">deadeye binary</a> on your PATH first; run it in your project. The coder persona, as a rules file. <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/README.md#windsurf-persona-only">Details</a></div>
+          <div class="note"><b>Windsurf.</b> Needs the <a href="https://github.com/deepaksinghcs14/deadeye-cc/releases">deadeye binary</a> on your PATH first; run it in your project. The coder persona, as a rules file. <a href="https://github.com/deepaksinghcs14/deadeye-cc/blob/main/README.md#windsurf">Details</a></div>
         </div>
         </div>
       </div>
@@ -622,9 +625,9 @@ FAIL</div>
     <div>
       <ul class="dial">
         <li><b>Look</b><span>Which files are touched, recent git activity, whether tests exist nearby, how the wording reads, whether the task itself names something real — a file deadeye can verify actually exists, not just a plausible-looking string — and whether it's a read-only subagent. Six cheap signals — no LLM call, no network request.</span></li>
-        <li><b>Decide</b><span>Model and effort level matter together — a mid-tier model on high effort can match a top-tier model on low effort. deadeye works out the cheapest combination that should still clear the bar for this task, not a fixed tier picked by rule of thumb. When the six signals genuinely can't place a task, an AI judge classifies it instead of guessing — on by default, one config flag to turn off.</span></li>
+        <li><b>Decide</b><span>Model and effort level matter together — a mid-tier model on high effort can match a top-tier model on low effort. deadeye works out the cheapest combination that should still clear the bar for this task, not a fixed tier picked by rule of thumb.</span></li>
         <li><b>Apply</b><span>Picks the model and effort level when a subagent starts — but only where you didn't already pick one yourself. Trims noisy output before it enters context. Asks before a multi-file edit that skipped a plan.</span></li>
-        <li><b>Learn</b><span>If you manually pick a bigger model than it recommended, that gets logged and makes it more cautious for that kind of task next time. Detecting "this edit actually broke something later" is still on the roadmap.</span></li>
+        <li><b>Learn</b><span>Pick a bigger model than it recommended, and it gets more cautious for that kind of task next time.</span></li>
       </ul>
     </div>
     <div>
@@ -657,9 +660,9 @@ FAIL</div>
         cheapest model. When deadeye can't tell how big a change is, it defaults
         to a capable middle (sonnet-tier), reserving the top tier for genuinely
         hard work — picking cheaper always needs real evidence above a confidence
-        bar. An AI judge (<code>claude -p</code>, no API key, on by default
-        — one config flag to turn off) classifies the truly ambiguous cases
-        for a sharper call.</p>
+        bar. When the signals truly can't place a task, a routing judge
+        classifies it: one small <code>claude -p</code> call on your own
+        login, about half a cent, on by default, one setting to turn off.</p>
     </div>
     <div>
       <ul class="rules">
@@ -673,7 +676,7 @@ FAIL</div>
 </section>
 <section id="manages" class="reveal">
   <p class="eyebrow">Range card</p>
-  <h2>Nine things it manages</h2>
+  <h2>What it manages</h2>
   <p class="lede">Each one works on its own, has its own on/off setting, and
     can be switched off without touching the others.</p>
 
@@ -688,6 +691,7 @@ FAIL</div>
         <tr><td class="axis">Codebase map</td><td class="desc">A persistent per-project map — directory/package skeleton, most-touched files accumulated across every session, recent exploration notes — injected once per session so a fresh session doesn't re-explore the repo from scratch.</td><td class="mode"><span class="pill">on</span></td></tr>
         <tr><td class="axis">Effort</td><td class="desc">Suggests lower effort for mechanical steps, or sets it on subagent calls that didn't choose one. Has no effect if <code>CLAUDE_CODE_EFFORT_LEVEL</code> is pinned for the session — <code>/deadeye-status</code> tells you plainly if that's the case.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
         <tr><td class="axis">Model</td><td class="desc">Picks the model when a subagent starts. Prices come from a table built into the binary and refreshed from a hosted copy, so a new model or price reaches you without a release. Each host has its own table.</td><td class="mode"><span class="pill soft">advise</span></td></tr>
+        <tr><td class="axis">Routing judge</td><td class="desc">Classifies a subtask the cheap signals can't place, with one small <code>claude -p</code> call on your own login: about half a cent, about 2.5 seconds, cached per task.</td><td class="mode"><span class="pill">on</span></td></tr>
         <tr><td class="axis">Plan gate</td><td class="desc">Asks once before a multi-file edit that skipped writing a plan first, then stays quiet for the rest of that task.</td><td class="mode"><span class="pill soft">soft</span></td></tr>
         <tr><td class="axis">Workflow</td><td class="desc">Suggests the <code>ultracode</code> keyword when a task looks like genuine parallel/fan-out work. Only ever suggests it — never starts one for you.</td><td class="mode"><span class="pill">on</span></td></tr>
       </tbody>
@@ -699,22 +703,21 @@ FAIL</div>
   <h2>Covers what Claude Code doesn't</h2>
   <p class="lede">Claude Code ships its own reviews, plan mode, and
     size-based output truncation. deadeye doesn't compete — it layers
-    under and around them. The three deepest — coder mode, security, and the codebase map — expand below.</p>
+    under and around them. Coder mode, security and the codebase map open up below the table.</p>
   <div class="card">
     <div class="card-top"><span>Built-in</span><span>what deadeye adds</span></div>
     <table>
       <tbody>
-        <tr><td class="axis">/code-review, /simplify</td><td class="desc">Different shape, not just a faster version. Native review is open-ended and conversational; deadeye-review runs a fixed four-lens taxonomy — over-engineering, correctness, performance, security — where every finding is a tagged one-liner (<code>race:</code>, <code>inject:</code>, <code>nplus1:</code>…) that must carry its own proof or get dropped. And it remembers: a confirmed finding gets recorded so next session's coder mode is reminded of that lens/tag in this repo, and a disputed one raises the bar before it's reported again — no memory between sessions natively. Scoped to the working diff by default or the whole repo with <code>--repo</code>; it's the pre-PR version of deadeye-pr, catching it before a PR (or a bot) does. Instant, repeatable, near-zero cost; escalate to native review or ultra for deeper exploratory reads.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
-        <tr><td class="axis">/security-review</td><td class="desc">deadeye-guard is the diff-scoped lean pass: live regex/manifest advisories while you type, then a verify-before-report deep check on demand across full OWASP-mapped coverage (Top 10:2025, API Security Top 10 2023, LLM Top 10:2025 when relevant) — with native-auditor (govulncheck / OSV) coverage. Escalate to /security-review for the full audit.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
-        <tr><td class="axis">No native equivalent</td><td class="desc">deadeye-vapt is a whole-service pen-test/VAPT pass, not a diff review: attack-surface inventory first, then every finding mapped to a real OWASP category — all ten of Top 10:2025, all ten of API Security Top 10 2023, all ten of the LLM Top 10:2025 when there's an LLM surface — with a mandatory coverage matrix so no category goes silently unchecked, and every finding linked to its source standard. Static and source-only by design; says so in the output, never implies live traffic.</td><td class="mode"><span class="pill">unique</span></td></tr>
-        <tr><td class="axis">PR review</td><td class="desc">deadeye-pr runs a whole PR through four lenses — over-engineering, correctness, performance, security — as terse tagged findings, each carrying its proof and confirmed against the repo's own tools and tests. Severity-ranked; prints locally, opt-in <code>--post</code> for inline per-line comments — mechanical fixes get a code snippet, rendered as a one-click GitHub suggestion when posted, plus a closing paste-ready block for a coding agent. Findings the review misses that another reviewer catches, and any you dispute, bias the next review on this repo. Huge PRs fan out to parallel subagents — each spawned at the cheapest model tier its cluster needs, the top tier reserved for risky surfaces — so nothing is truncated and the review stays cheap.</td><td class="mode"><span class="pill soft">four lenses</span></td></tr>
-        <tr><td class="axis">No native equivalent</td><td class="desc">deadeye-sweep is the fix half of the rubric above: it runs deadeye-review, deadeye-pr, or deadeye-guard, audits each finding's premise against the code before touching anything, applies only what's 🔴/🟠 and in reach, verifies the build, and re-scans the changed code — looping until a pass comes back clean or a 5-pass cap is hit. One confirmation up front, then unattended; never pushes or comments on a PR without asking first.</td><td class="mode"><span class="pill">unique</span></td></tr>
-        <tr><td class="axis">Plan mode</td><td class="desc">Native plan mode exists but nothing triggers it — deadeye's gate notices a risky multi-file edit coming and nudges into it.</td><td class="mode"><span class="pill soft">triggers</span></td></tr>
-        <tr><td class="axis">Output truncation</td><td class="desc">Native truncation is size-based at 30K chars. deadeye rewrites commands before they run so only failure context enters at all — and stacks under the native cap.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
-        <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations — with an AI judge (<code>claude -p</code>, no API key, about half a cent a call, on by default) for the genuinely ambiguous cases. It can set the model and effort itself (<code>enforce</code>), and <code>/deadeye-stats</code> shows what each subagent actually ran on and the tokens it used.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
-        <tr><td class="axis">Coding persona</td><td class="desc">No native equivalent — coder mode is deadeye's own ground.</td><td class="mode"><span class="pill">unique</span></td></tr>
-        <tr><td class="axis">No native equivalent</td><td class="desc">deadeye holds itself to its own claims, and publishes the answer either way. <code>/deadeye-stats accuracy</code> scans forward from every reviewed diff for a fix-shaped commit landing on the lines that review passed — a candidate false negative, labelled <em>likely</em> with the line range as its proof, shown beside the findings you disputed so precision and recall sit together. <code>disagreement</code> samples decisions the router was confident about and reports where the judge would have gone cheaper — a disagreement rate, never dressed up as a measured over-route rate, because a production subtask has no grader. <code>adherence</code> checks the coder ladder&rsquo;s mechanical rungs on shipped diffs. Each report names what it cannot measure, and measures going forward only: an empty one means &ldquo;not measured yet&rdquo;, never &ldquo;nothing wrong&rdquo;.</td><td class="mode"><span class="pill">unique</span></td></tr>
-        <tr><td class="axis">Other hosts</td><td class="desc">The same daemon serves OpenAI's Codex through its hooks — output trimming, exfiltration guard, coder persona, plan gate, decision log; no model or effort routing — installed as a Codex plugin or via <code>deadeye init codex</code>. Gemini CLI gets the coder persona and session guidance now (<code>init gemini</code>); its tool-level engine waits on live schema verification. Cursor gets the persona as a rules file plus hooks for session guidance, output trimming and the exfiltration guard (<code>init cursor</code>) — built from its hook documentation, not yet confirmed in a live Cursor. Windsurf's hooks can only block, so it gets the coder persona alone as a rules file (<code>init windsurf</code>). And all three on-demand review commands — <code>/deadeye-pr</code>, <code>/deadeye-review</code>, and <code>/deadeye-vapt</code> — install on all four via <code>init</code> in each host's native command format, experimental until live-verified.</td><td class="mode"><span class="pill soft">five hosts</span></td></tr>
+        <tr><td class="axis">/code-review, /simplify</td><td class="desc">Native review is open-ended and conversational. <code>/deadeye-review</code> runs four fixed lenses — over-engineering, correctness, performance, security — and drops any finding that can't show its proof. Confirmed findings feed next session's coder mode.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
+        <tr><td class="axis">/security-review</td><td class="desc"><code>/deadeye-guard</code> is the quick pass on the current diff, OWASP-mapped, with dependency audits. Escalate to <code>/security-review</code> for the full audit.</td><td class="mode"><span class="pill soft">layers</span></td></tr>
+        <tr><td class="axis">PR review</td><td class="desc"><code>/deadeye-pr</code> puts a whole PR through the same four lenses, ranked by severity. Prints locally; <code>--post</code> adds inline comments with one-click suggestions.</td><td class="mode"><span class="pill soft">four lenses</span></td></tr>
+        <tr><td class="axis">Plan mode</td><td class="desc">Native plan mode exists, but nothing triggers it. deadeye's gate notices a risky multi-file edit coming and nudges into it.</td><td class="mode"><span class="pill soft">triggers</span></td></tr>
+        <tr><td class="axis">Output truncation</td><td class="desc">Native truncation cuts by size, at 30K characters. deadeye rewrites the command before it runs, so only the failure context enters at all.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
+        <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, or sets it for you, and <code>/deadeye-stats</code> shows what each subagent actually ran on.</td><td class="mode"><span class="pill soft">routes</span></td></tr>
+        <tr><td class="axis">No native equivalent</td><td class="desc"><code>/deadeye-vapt</code>: a whole-service pen-test pass with full OWASP coverage, ranked worst-first, every finding linked to its source standard.</td><td class="mode"><span class="pill">unique</span></td></tr>
+        <tr><td class="axis">No native equivalent</td><td class="desc"><code>/deadeye-sweep</code>: applies the serious findings from the reviews above, verifies the build, and re-scans until clean. Never pushes or comments without asking.</td><td class="mode"><span class="pill">unique</span></td></tr>
+        <tr><td class="axis">No native equivalent</td><td class="desc">Coder mode: a lean-first coding discipline injected every session. Expands below.</td><td class="mode"><span class="pill">unique</span></td></tr>
+        <tr><td class="axis">No native equivalent</td><td class="desc">It checks its own claims: <code>/deadeye-stats accuracy</code>, <code>disagreement</code> and <code>adherence</code> report where the reviewer, the router and the persona fell short.</td><td class="mode"><span class="pill">unique</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -878,7 +881,7 @@ Read .env.example
     </div>
     <div>
       <div class="card">
-        <div class="card-top"><span>The rest of the security surface</span><span>0.17</span></div>
+        <div class="card-top"><span>The rest of the security surface</span><span>security.*</span></div>
         <table>
           <tbody>
             <tr><td class="axis">Its own axis</td><td class="desc">The exfil guard is <code>security.exfil</code>, not part of coder mode — turning the persona off never turns it off. Only <code>DEADEYE=off</code> or <code>security.exfil: "off"</code> does.</td><td class="mode"><span class="pill">ask</span></td></tr>
@@ -972,98 +975,82 @@ internal/coder/          4 files  .go   the lean-first
   total               ~45,000 → ~19,200 bytes <span class="g">(~25,800 saved)</span>
 
 Cross-check these figures against /usage's plugin attribution.</div>
-  <p class="note" style="margin-top:16px">Unedited output from a real feature task run through the installed plugin — a cheaper model suggested before a subagent started, both commands trimmed, an end-of-turn savings summary. The 25,800 figure is each rule’s own labelled estimate; the <code>485 → 99</code> and <code>10,301 → 55</code> numbers up top are the measured ones. Yours shows whatever your log holds — and quiet <code>noop</code> rows (95% of events) aren’t logged at all.</p>
+  <p class="note" style="margin-top:16px">Unedited output from a real feature task run through the installed plugin — a cheaper model suggested before a subagent started, both commands trimmed, an end-of-turn savings summary. The 25,800 figure is each rule’s own labelled estimate; the <code>485 → 99</code> and <code>10,301 → 55</code> numbers up top are the measured ones. Captured before quiet no-op rows stopped being logged (0.7.0), so yours will show no <code>noop</code> line, and adds a Subagents section.</p>
 </section>
 <section id="install" class="reveal">
-  <p class="eyebrow">Install</p>
-  <h2>Two commands</h2>
+  <p class="eyebrow">After installing</p>
+  <h2>Check it, switch it off, ask it questions</h2>
+  <p class="lede">The install commands for each host are <a href="#hosts">at the top of the page</a>: pick your host there.</p>
   <div class="two">
     <div>
-      <div class="term"><span class="c">/plugin</span> marketplace add deepaksinghcs14/deadeye-cc
-<span class="c">/plugin</span> install deadeye@deadeye</div>
-      <p class="note" style="margin-top:14px">macOS and Linux need nothing else.
-        Windows: grab the binary from Releases first — self-bootstrap there
-        isn't built yet.</p>
-
-      <h3 style="margin-top:34px">Is it working?</h3>
+      <h3>Is it working?</h3>
       <div class="term"><span class="c">deadeye</span> doctor</div>
       <p class="note" style="margin-top:14px">One read-only pass over the
-        plumbing: binary resolution, whether <code>~/.deadeye</code> is
-        private, whether <code>config.json</code> parses, the socket, the
-        daemon, whether the routing judge can reach <code>claude</code>, and
-        whether the hook manifest covers every tool it dispatches. Each
-        failure prints the command that fixes it. Reach for it when deadeye
-        seems to be doing nothing — settings can look perfect while the
-        plumbing underneath them is broken.</p>
+        plumbing: the binary, whether <code>~/.deadeye</code> is private,
+        whether <code>config.json</code> parses, the daemon, whether the
+        routing judge can reach <code>claude</code>, and whether the hooks
+        cover every tool deadeye handles. Each failure prints the command
+        that fixes it.</p>
 
       <h3 style="margin-top:34px">Turn it off</h3>
       <div class="term"><span class="m">DEADEYE=off</span>              everything
 <span class="m">DEADEYE_PREPROCESS=off</span>   context hygiene
 <span class="m">DEADEYE_GATE=off</span>         plan gate
 <span class="m">DEADEYE_CODER=off</span>        coder persona</div>
+      <p class="note" style="margin-top:14px">Every control also has its own
+        switch on the <a href="settings.html">settings page</a>.</p>
     </div>
 
     <div class="faq">
       <details open><summary>Does it phone home?</summary>
-        <p>No telemetry, no API keys, no third-party service. Everything it
-        remembers lives in one file at <code>~/.deadeye/</code>. Two things
-        leave your machine, both through <em>your own</em> Claude login: the
-        AI routing judge (on by default) sends an ambiguous task's
-        description — never your code — to <code>claude -p</code> to
-        classify it, only when the free signals below can't confidently
-        place it themselves; it's the one thing here that blocks a hook
-        response (up to 30s, on an uncached unsure task), and it has an off
-        switch. Three small background checks send nothing of yours and
-        never block a response — a release-tag check, an OSV.dev advisory
-        lookup for flagged dependencies, and a refresh of the hosted
-        model/pricing catalog — each with its own off switch too.
-        One more, <em>off by default</em>: tier sampling
-        (<code>mode.tier_sample</code>) asks that same judge for a second
-        opinion on a fraction of decisions the heuristics were
-        <em>confident</em> about, purely to measure over-routing. Same
-        payload — a task description, never your code — and it runs after
-        the decision, so it never blocks anything. Its findings stay in
-        <code>~/.deadeye/</code> like everything else.</p></details>
+        <p>No telemetry, no API keys, no deadeye-run service. Everything it
+        remembers lives in one local folder, <code>~/.deadeye/</code>. Two
+        kinds of traffic leave your machine, each with its own off switch:</p>
+        <ul>
+          <li><b>The routing judge</b> (on by default) sends an ambiguous
+          task's description, never your code, to <code>claude -p</code> on
+          your own login. It is the one thing that blocks a hook: about 2.5
+          seconds on a first-seen unsure task, 10 at most, then it fails
+          open.</li>
+          <li><b>Three background checks</b> send nothing of yours and never
+          block: a release check, an OSV.dev lookup for flagged
+          dependencies, and a refresh of the model catalog.</li>
+        </ul>
+        <p>Off by default: tier sampling (<code>mode.tier_sample</code>) asks
+        the judge for a second opinion on some confident decisions, to
+        measure over-routing. Same payload, and it runs after the decision.</p></details>
       <details><summary>Can I check whether any of this actually works?</summary>
-        <p>That's what <code>/deadeye-stats</code> is for, and three of its
-        views hold deadeye to its own claims rather than reporting its
-        activity. <code>accuracy</code> scans forward from each reviewed
-        diff for a fix-shaped commit landing on the exact lines that review
-        passed — every candidate is <em>likely</em>, never confirmed,
-        carrying the line range as its proof, and shown beside the findings
-        you disputed so both kinds of error are visible at once.
-        <code>disagreement</code> shows where the judge would have routed
-        cheaper than the heuristics did; it reports a disagreement rate, not
-        an over-route rate, because an arbitrary production subtask has no
-        grader — a second opinion, not a replay, and it changes no routing.
-        <code>adherence</code> checks the coder ladder's mechanical rungs on
-        diffs that shipped: new dependencies, files per change. All three
-        measure going forward from a local receipt, so an empty report means
-        "not measured yet", never "nothing wrong" — and each one says
-        which.</p></details>
+        <p><code>/deadeye-stats</code> has three views that hold deadeye to
+        its own claims:</p>
+        <ul>
+          <li><code>accuracy</code>: reviewed diffs where a later fix landed
+          on lines the review passed, beside the findings you disputed.</li>
+          <li><code>disagreement</code>: where the judge would have routed
+          cheaper than the heuristics did. A second opinion, not a replay.</li>
+          <li><code>adherence</code>: the coder ladder's checkable rungs on
+          shipped diffs: new dependencies, files per change.</li>
+        </ul>
+        <p>They measure going forward, so an empty report means "not
+        measured yet", never "nothing wrong".</p></details>
       <details><summary>Will it make Claude dumber?</summary>
-        <p>That's exactly the failure mode it's built to avoid. When it isn't
-        confident about a task, it defaults to the more capable option —
-        picking something cheaper always needs real evidence first. If you
-        find a case where it under-powered a task, that's a bug — report it
-        along with the <code>/deadeye-route</code> output.</p></details>
+        <p>That's the failure it's built to avoid. When it isn't confident
+        about a task, it defaults to the more capable option; cheaper always
+        needs real evidence first. If it under-powers a task, that's a bug:
+        report it with the <code>/deadeye-route</code> output.</p></details>
       <details><summary>It rewrote a command and I needed the full output.</summary>
-        <p>Each rewrite rule is conservative by design, and every one of them
-        can be turned off individually in config. A rule that loses
-        information the agent actually needed is a bug in that rule —
-        please report it along with the command.</p></details>
+        <p>Every rewrite rule is conservative and can be turned off on its
+        own in config. A rule that loses information the agent needed is a
+        bug in that rule: report it with the command.</p></details>
       <details><summary>Can it change the model my main session is using?</summary>
-        <p>No — nothing can do that reliably partway through a session.
-        deadeye actually changes the model for subagents, where most of the
-        token spend happens, and only advises (never enforces) on the main
-        session.</p></details>
+        <p>No. Nothing can do that reliably partway through a session.
+        deadeye sets the model for subagents, where most of the tokens go,
+        and only advises on the main session.</p></details>
       <details><summary>Does coder mode cut corners on safety?</summary>
-        <p>No. The persona never simplifies away input validation at
-        trust boundaries, error handling that prevents data loss,
-        security measures, or accessibility basics — at any level. And
-        every deliberate shortcut it does take gets a
+        <p>No. At every level the persona keeps input validation at trust
+        boundaries, error handling that prevents data loss, security
+        measures and accessibility basics. Every deliberate shortcut gets a
         <code>deadeye:</code> marker with an upgrade trigger, so
-        <code>/deadeye-debt</code> can hold it accountable later.</p></details>
+        <code>/deadeye-debt</code> can hold it to account later.</p></details>
       <details><summary>Why "deadeye"?</summary>
         <p>Because efficiency isn't spending less — it's not missing.</p></details>
     </div>
