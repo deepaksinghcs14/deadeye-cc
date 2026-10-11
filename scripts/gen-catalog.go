@@ -38,13 +38,14 @@ type seedModel struct {
 // explicit choice here instead of an emergent side effect of a tier
 // number hardcoded in kernel.go.
 var seed = []seedModel{
-	{"claude-haiku-4-5-20251001", "haiku", 1, 5, ""},
-	{"claude-sonnet-5", "sonnet", 2, 10, "unsure_ceiling"},
-	{"claude-opus-5", "opus", 5, 25, "high_ceiling"},
-	{"claude-fable-5", "fable", 10, 50, ""},
+	// deadeye: haiku priced at its base rate only. ceiling: prompts over 100k tokens bill 5x ($0.50/$2.50), so savings on large-context haiku calls are overstated. upgrade: when the catalog carries more than one price per model.
+	{"claude-haiku-5-5", "haiku", 0.1, 0.5, ""},
+	{"claude-sonnet-5-5", "sonnet", 2, 10, "unsure_ceiling"},
+	{"claude-opus-5-5", "opus", 4, 20, "high_ceiling"},
+	{"claude-fable-5-1", "fable", 10, 50, ""},
 }
 
-const builtAt = "2026-08-02" // date the seed prices above were fetched
+const builtAt = "2026-10-11" // date the seed prices above were fetched
 const sourceURL = "https://platform.claude.com/docs/en/about-claude/pricing"
 
 func blended(m seedModel) float64 { return m.inputPrice + 4*m.outputPrice }

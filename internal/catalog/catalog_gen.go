@@ -3,18 +3,18 @@
 // re-run `go run ./scripts/gen-catalog.go`.
 //
 // Prices sourced from https://platform.claude.com/docs/en/about-claude/pricing,
-// fetched 2026-08-02. No reachable pricing API exists in the Claude Code
+// fetched 2026-10-11. No reachable pricing API exists in the Claude Code
 // hook environment (docs/verified.md V7), so this table has no automated
 // refresh; ~/.deadeye/catalog.json overrides it entirely if present.
 package catalog
 
 var builtin = Catalog{
-	BuiltAt: "2026-08-02",
+	BuiltAt: "2026-10-11",
 	Source:  "builtin",
 	Models: []Model{
-		{ID: "claude-haiku-4-5-20251001", Family: "haiku", InputPrice: 1, OutputPrice: 5, Tier: 0},
-		{ID: "claude-sonnet-5", Family: "sonnet", InputPrice: 2, OutputPrice: 10, Tier: 1, Role: "unsure_ceiling"},
-		{ID: "claude-opus-5", Family: "opus", InputPrice: 5, OutputPrice: 25, Tier: 2, Role: "high_ceiling"},
-		{ID: "claude-fable-5", Family: "fable", InputPrice: 10, OutputPrice: 50, Tier: 3},
+		{ID: "claude-haiku-5-5", Family: "haiku", InputPrice: 0.1, OutputPrice: 0.5, Tier: 0},
+		{ID: "claude-sonnet-5-5", Family: "sonnet", InputPrice: 2, OutputPrice: 10, Tier: 1, Role: "unsure_ceiling"},
+		{ID: "claude-opus-5-5", Family: "opus", InputPrice: 4, OutputPrice: 20, Tier: 2, Role: "high_ceiling"},
+		{ID: "claude-fable-5-1", Family: "fable", InputPrice: 10, OutputPrice: 50, Tier: 3},
 	},
 }

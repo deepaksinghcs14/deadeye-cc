@@ -158,7 +158,9 @@ func validTestCatalog() Catalog {
 	// Plausibly newer than the builtin, not absurdly so: Load refuses a
 	// hosted catalog dated implausibly far ahead, because BuiltAt is an
 	// unsigned string and ">=" alone let one claim permanent freshness.
-	return Catalog{BuiltAt: "2026-09-20", Models: []Model{
+	// Tied to builtin.BuiltAt (equal still counts as not-older) so a
+	// catalog regen can't silently age this fixture below the builtin.
+	return Catalog{BuiltAt: builtin.BuiltAt, Models: []Model{
 		{ID: "cheap", Family: "cheap-fam", InputPrice: 1, OutputPrice: 1, Tier: 0},
 		{ID: "mid", Family: "mid-fam", InputPrice: 2, OutputPrice: 2, Tier: 1, Role: RoleUnsureCeiling},
 		{ID: "top", Family: "top-fam", InputPrice: 5, OutputPrice: 5, Tier: 2, Role: RoleHighCeiling},
