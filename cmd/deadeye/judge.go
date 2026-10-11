@@ -168,7 +168,10 @@ func judgeTierClaude(task string) (int, bool) {
 	// so that window is now the common case rather than a rarity.
 	cmd := exec.CommandContext(ctx, "claude", "-p", "--model", "sonnet")
 	cmd.Stdin = strings.NewReader(judgePrompt + task)
-	cmd.Env = append(os.Environ(), "DEADEYE_JUDGE=1")
+	// Advisor off: the verdict is one digit, and a user-level advisorModel
+	// would let this call consult a second, pricier model while the hook
+	// waits on it.
+	cmd.Env = append(os.Environ(), "DEADEYE_JUDGE=1", "CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1")
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, false
