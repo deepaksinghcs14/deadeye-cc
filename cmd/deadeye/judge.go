@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -152,31 +154,84 @@ func judgeTierToModel(cat catalog.Catalog, tier int) (string, bool) {
 	return "", false
 }
 
-// judgeTierClaude runs the classification through `claude -p`. DEADEYE_JUDGE=1
-// is set so the nested session's own deadeye hooks no-op (see deadeye-hook.sh)
-// -- no recursion, no cost from the judge session itself.
+// judgeSystemPrompt replaces Claude Code's own system prompt for the judge
+// call. The classification instructions stay in the user message
+// (judgePrompt + task), exactly as benchmarks/routing calibrated them --
+// this only removes what the call never needed.
+const judgeSystemPrompt = "You are a classifier. Reply with a single digit."
+
+// judgeSlimArgs strips the judge session down to the prompt. Measured on
+// Claude Code 2.1.296 against the plain call: ~1.4k input tokens instead of
+// ~28k, $0.0055 instead of $0.065-0.072, ~0.9s instead of ~1.4s.
+//
+//   - --system-prompt drops the default prompt, --tools "" the built-in tool
+//     definitions.
+//   - --strict-mcp-config is the one that matters most: without it the
+//     user's MCP servers still load, and a cold call with only the first two
+//     flags cost MORE than the plain one (69k tokens, $0.28).
+//   - --no-session-persistence keeps judge calls out of the project's
+//     transcripts, which internal/usage sums.
+//
+// User settings are deliberately left loaded (no --setting-sources): that is
+// where a non-default login -- apiKeyHelper, a Bedrock or proxy env block --
+// lives, and dropping it would silently cost those users the judge.
+var judgeSlimArgs = []string{
+	"--system-prompt", judgeSystemPrompt,
+	"--tools", "",
+	"--strict-mcp-config",
+	"--disable-slash-commands",
+	"--no-session-persistence",
+}
+
+// judgeSlimUnsupported latches once a `claude` too old for judgeSlimArgs
+// rejects them, so later calls skip straight to the plain invocation.
+var judgeSlimUnsupported atomic.Bool
+
+// judgeTierClaude runs the classification through `claude -p`, slim first
+// and plain as the fallback for a CLI that predates the slim flags.
 func judgeTierClaude(task string) (int, bool) {
 	if _, err := exec.LookPath("claude"); err != nil {
 		return 0, false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), judgeTimeout)
 	defer cancel()
+	if !judgeSlimUnsupported.Load() {
+		out, err := runJudgeClaude(ctx, task, judgeSlimArgs...)
+		if err == nil {
+			return parseTier(out)
+		}
+		// Only an unknown-flag rejection is worth a second call: a timeout or
+		// an auth failure would fail the plain call the same way.
+		var ee *exec.ExitError
+		if !errors.As(err, &ee) || !strings.Contains(string(ee.Stderr), "unknown option") {
+			return 0, false
+		}
+		judgeSlimUnsupported.Store(true)
+	}
+	out, err := runJudgeClaude(ctx, task)
+	if err != nil {
+		return 0, false
+	}
+	return parseTier(out)
+}
+
+// runJudgeClaude makes one judge call. DEADEYE_JUDGE=1 is set so the nested
+// session's own deadeye hooks no-op (see deadeye-hook.sh) -- no recursion,
+// no cost from the judge session itself.
+func runJudgeClaude(ctx context.Context, task string, extra ...string) (string, error) {
 	// The prompt goes on STDIN, not argv: a subtask description is the
 	// user's own text, and an argv is world-readable through `ps` to every
 	// other process on the machine for the life of the call. Since 0.61.3
 	// this call sits on the critical path of every first-seen Agent call,
 	// so that window is now the common case rather than a rarity.
-	cmd := exec.CommandContext(ctx, "claude", "-p", "--model", "sonnet")
+	cmd := exec.CommandContext(ctx, "claude", append([]string{"-p", "--model", "sonnet"}, extra...)...)
 	cmd.Stdin = strings.NewReader(judgePrompt + task)
 	// Advisor off: the verdict is one digit, and a user-level advisorModel
 	// would let this call consult a second, pricier model while the hook
 	// waits on it.
 	cmd.Env = append(os.Environ(), "DEADEYE_JUDGE=1", "CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1")
 	out, err := cmd.Output()
-	if err != nil {
-		return 0, false
-	}
-	return parseTier(string(out))
+	return string(out), err
 }
 
 // parseTier reads the first 0/1/2 from the judge's output -- robust to a stray

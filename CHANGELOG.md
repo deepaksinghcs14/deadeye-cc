@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.72.0
+
+**The routing judge costs about a twelfth of what it did, and answers in
+roughly half the time.** The judge is a one-digit classification, but its
+`claude -p` call was carrying a whole Claude Code session with it: the
+default system prompt, every built-in tool definition, and every MCP server
+the user has configured -- about 28k input tokens to read a paragraph.
+
+It now runs with its own one-line system prompt, no tools, no MCP servers,
+no slash commands and no session file. Measured on Claude Code 2.1.296:
+
+| | Before | After |
+|---|---|---|
+| Input tokens per call | ~28,000 | ~1,400 |
+| Cost per call | $0.065-0.072 | ~$0.0055 |
+| Wall-clock wait | ~4.6s | ~2.5s |
+
+The classification prompt itself is unchanged and still goes in as the user
+message, so this changes what surrounds the question, not the question.
+Verdicts held: all seven discrimination probes route as before, and the six
+benchmark tasks got the same tier on every trial.
+
+- **MCP servers were the expensive part.** Dropping only the system prompt
+  and built-in tools made a cold call cost more than the original (69k
+  tokens, $0.28), because the user's MCP tool definitions still loaded.
+  `--strict-mcp-config` is what removes them.
+- **User settings stay loaded.** That is where a non-default login lives --
+  an `apiKeyHelper`, a Bedrock or proxy `env` block -- and dropping them
+  would have silently cost those users the judge.
+- **Older Claude Code still works.** A CLI that rejects the new flags gets
+  one retry with the previous invocation, and deadeye remembers not to try
+  the slim form again. Any other failure fails open as before, without a
+  second blocking call.
+- **Judge calls no longer leave session files** in the project's transcript
+  directory, where deadeye's own usage totals would count them.
+
+The model is unchanged (sonnet). Moving the judge to a cheaper model is a
+separate question and would need its own accuracy check.
+
 ## 0.71.1
 
 **Built with Go 1.27.2**, which fixes nine standard-library advisories
