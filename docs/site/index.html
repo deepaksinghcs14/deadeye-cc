@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>deadeye — he doesn't waste shots</title>
-<meta name="description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code — and Codex CLI (experimental).">
+<meta name="description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code and Codex CLI.">
 <meta property="og:title" content="deadeye — he doesn't waste shots">
-<meta property="og:description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code — and Codex CLI (experimental).">
+<meta property="og:description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code and Codex CLI.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://deepaksinghcs14.github.io/deadeye-cc/">
 <meta property="og:image" content="https://deepaksinghcs14.github.io/deadeye-cc/og.png">
@@ -14,7 +14,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="deadeye — he doesn't waste shots">
-<meta name="twitter:description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code — and Codex CLI (experimental).">
+<meta name="twitter:description" content="Fits the model, effort, and context to your coding agent's task. Fewer tokens, same quality. For Claude Code and Codex CLI.">
 <meta name="twitter:image" content="https://deepaksinghcs14.github.io/deadeye-cc/og.png">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -431,7 +431,12 @@ a.chip:hover .k{color:var(--brass-dim)}
           <div class="l"><span class="p">$</span> /plugin marketplace add deepaksinghcs14/deadeye-cc</div>
           <div class="l"><span class="p">$</span> /plugin install deadeye@deadeye</div>
         </div>
-        <div class="note">Hooks register themselves. Binary bootstraps on first use, sha256-verified.<br>Codex CLI &amp; Gemini CLI: install the binary, then <code>deadeye init codex</code> / <code>init gemini</code>. Cursor: <code>deadeye init cursor</code> adds the persona plus hooks for output trimming and the exfiltration guard. Windsurf gets the persona as a rules file: <code>deadeye init windsurf</code>.</div>
+        <div class="note">Codex CLI, as a plugin:</div>
+        <div class="install">
+          <div class="l"><span class="p">$</span> codex plugin marketplace add deepaksinghcs14/deadeye-cc</div>
+          <div class="l"><span class="p">$</span> codex plugin add deadeye@deadeye</div>
+        </div>
+        <div class="note">Hooks register themselves. Binary bootstraps on first use, sha256-verified.<br>Codex: then run <code>/hooks</code> in Codex and trust deadeye's hooks. Gemini CLI: install the binary, run <code>deadeye init gemini</code>, then <code>gemini extensions install --path ~/.deadeye/gemini-extension</code>. Cursor: <code>deadeye init cursor</code> adds the persona plus hooks for output trimming and the exfiltration guard. Windsurf gets the persona as a rules file: <code>deadeye init windsurf</code>.</div>
       </div>
 
       <div class="hero-art" aria-hidden="true">
@@ -672,7 +677,7 @@ FAIL</div>
         <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, says why, and learns from your escalations — with an AI judge (<code>claude -p</code>, no API key, on by default) for the genuinely ambiguous cases.</td><td class="mode"><span class="pill soft">advises</span></td></tr>
         <tr><td class="axis">Coding persona</td><td class="desc">No native equivalent — coder mode is deadeye's own ground.</td><td class="mode"><span class="pill">unique</span></td></tr>
         <tr><td class="axis">No native equivalent</td><td class="desc">deadeye holds itself to its own claims, and publishes the answer either way. <code>/deadeye-stats accuracy</code> scans forward from every reviewed diff for a fix-shaped commit landing on the lines that review passed — a candidate false negative, labelled <em>likely</em> with the line range as its proof, shown beside the findings you disputed so precision and recall sit together. <code>disagreement</code> samples decisions the router was confident about and reports where the judge would have gone cheaper — a disagreement rate, never dressed up as a measured over-route rate, because a production subtask has no grader. <code>adherence</code> checks the coder ladder&rsquo;s mechanical rungs on shipped diffs. Each report names what it cannot measure, and measures going forward only: an empty one means &ldquo;not measured yet&rdquo;, never &ldquo;nothing wrong&rdquo;.</td><td class="mode"><span class="pill">unique</span></td></tr>
-        <tr><td class="axis">Other hosts</td><td class="desc">Experimental: the same daemon serves OpenAI's Codex through its hooks — output trimming, coder persona, plan gate, decision log — via <code>deadeye init codex</code>. Gemini CLI gets the coder persona and session guidance now (<code>init gemini</code>); its tool-level engine waits on live schema verification. Cursor gets the persona as a rules file plus hooks for session guidance, output trimming and the exfiltration guard (<code>init cursor</code>) — built from its hook documentation, not yet confirmed in a live Cursor. Windsurf's hooks can only block, so it gets the coder persona alone as a rules file (<code>init windsurf</code>). And all three on-demand review commands — <code>/deadeye-pr</code>, <code>/deadeye-review</code>, and <code>/deadeye-vapt</code> — install on all four via <code>init</code> in each host's native command format, experimental until live-verified.</td><td class="mode"><span class="pill soft">five hosts</span></td></tr>
+        <tr><td class="axis">Other hosts</td><td class="desc">The same daemon serves OpenAI's Codex through its hooks — output trimming, exfiltration guard, coder persona, plan gate, decision log; no model or effort routing — installed as a Codex plugin or via <code>deadeye init codex</code>. Gemini CLI gets the coder persona and session guidance now (<code>init gemini</code>); its tool-level engine waits on live schema verification. Cursor gets the persona as a rules file plus hooks for session guidance, output trimming and the exfiltration guard (<code>init cursor</code>) — built from its hook documentation, not yet confirmed in a live Cursor. Windsurf's hooks can only block, so it gets the coder persona alone as a rules file (<code>init windsurf</code>). And all three on-demand review commands — <code>/deadeye-pr</code>, <code>/deadeye-review</code>, and <code>/deadeye-vapt</code> — install on all four via <code>init</code> in each host's native command format, experimental until live-verified.</td><td class="mode"><span class="pill soft">five hosts</span></td></tr>
       </tbody>
     </table>
   </div>

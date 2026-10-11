@@ -148,3 +148,55 @@ func TestUninstallCodexRemovesSidecarsWithoutHooksFile(t *testing.T) {
 		t.Errorf("PR-review skill survived uninstall without hooks.json (err=%v)", err)
 	}
 }
+
+// The plugin's hooks file and its manifest are checked-in copies of things
+// the code already knows. Regenerate with:
+//
+//	DEADEYE_REGEN=1 go test ./cmd/deadeye -run TestCodexPlugin
+func TestCodexPluginHooksCanary(t *testing.T) {
+	const path = "../../hooks/codex-hooks.json"
+	want := codexPluginHooksJSON()
+	if os.Getenv("DEADEYE_REGEN") == "1" {
+		if err := os.WriteFile(path, want, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Error("hooks/codex-hooks.json drifted from codexEvents -- a plugin install and `init codex` would register different hooks")
+	}
+}
+
+// Codex reads .codex-plugin/plugin.json ahead of .claude-plugin/plugin.json.
+// Its `hooks` key is what keeps Codex off hooks/hooks.json, which is
+// written in Claude Code's dialect -- so the key must be there, must point
+// at a real file, and the two manifests must not disagree on the version
+// (the release workflow only checks Claude's).
+func TestCodexPluginManifest(t *testing.T) {
+	read := func(path string) map[string]any {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(b, &m); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		return m
+	}
+	codex, claude := read("../../.codex-plugin/plugin.json"), read("../../.claude-plugin/plugin.json")
+	if codex["version"] != claude["version"] || codex["name"] != claude["name"] {
+		t.Errorf("manifests disagree: codex %v@%v, claude %v@%v", codex["name"], codex["version"], claude["name"], claude["version"])
+	}
+	hooks, _ := codex["hooks"].(string)
+	// Codex ignores a manifest path that doesn't start with "./".
+	if !strings.HasPrefix(hooks, "./") {
+		t.Fatalf("hooks = %q, want a ./-relative path", hooks)
+	}
+	if _, err := os.Stat(filepath.Join("../..", hooks)); err != nil {
+		t.Errorf("manifest points at a hooks file that isn't there: %v", err)
+	}
+}

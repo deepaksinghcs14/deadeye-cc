@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.75.0
+
+**deadeye installs as a Codex plugin.**
+
+```
+codex plugin marketplace add deepaksinghcs14/deadeye-cc
+codex plugin add deadeye@deadeye
+```
+
+Then run `/hooks` in Codex and trust deadeye's hooks -- Codex does not run a
+plugin's hooks until you have reviewed them.
+
+**This also fixes an install that already half-worked.** Codex reads Claude
+Code marketplaces, so those two commands succeeded before this release. But
+with no Codex manifest, Codex fell back to `hooks/hooks.json`, which is
+written for Claude Code: the persona went to a stream Codex does not read,
+and any hook that answered "ask" failed outright, since Codex accepts only
+allow and deny. Nothing warned about it.
+
+- **A Codex manifest** (`.codex-plugin/plugin.json`) now points Codex at its
+  own hooks file. Codex reads that manifest ahead of Claude's, and a
+  manifest that names its hooks replaces the default file.
+- **One list of hooks, two install paths.** The plugin's hooks file is
+  generated from the same table `deadeye init codex` registers from, and a
+  test fails if they differ.
+- **The binary bootstraps itself** on the first session of a plugin install
+  (macOS/Linux), as it does on Claude Code. After that, `deadeye update`
+  updates it.
+
+Verified: the manifest format and the hooks override against Codex's own
+source, and the install itself against Codex 0.162.1 in an isolated Codex
+home. Not verified: the hooks running in a live session, which needs them
+trusted through `/hooks`.
+
+`deadeye init codex` still works and is unchanged. Use one path or the
+other -- with both, every hook runs twice.
+
+Still not on Codex: model routing.
+
+The README and site now carry each host's install commands, including the
+`gemini extensions install` line that until now only `deadeye init gemini`
+printed.
+
 ## 0.74.0
 
 **Cursor moves from persona-only to a guard tier.** Cursor now has a hooks

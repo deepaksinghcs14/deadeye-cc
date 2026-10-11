@@ -134,6 +134,14 @@ Full breakdown by bug class: **[the benchmark page](https://deepaksinghcs14.gith
 deadeye is a Claude Code plugin at its core, and also runs — to varying
 depth — on four other hosts.
 
+| Host | Install | What you get |
+|---|---|---|
+| Claude Code | Plugin | The full engine, including model and effort routing |
+| Codex CLI | Plugin, or `deadeye init codex` | Most of the engine; no model or effort routing |
+| Gemini CLI | Extension built by `deadeye init gemini` | Coder persona and session guidance |
+| Cursor | `deadeye init cursor` | Persona, output trimming, exfiltration guard |
+| Windsurf | `deadeye init windsurf` | Coder persona |
+
 ### Claude Code
 
 ```
@@ -158,23 +166,51 @@ step after the two commands above:
 3. Run `deadeye version` to confirm it resolves. `/deadeye-status` flags a
    version mismatch if a stale copy shadows the plugin later.
 
-### Codex CLI (experimental)
+### Codex CLI
 
-Install the binary, then `deadeye init codex` — it shows the exact
-Codex hooks file changes (`$CODEX_HOME/hooks.json`, or `~/.codex/hooks.json`)
-and writes them only after you confirm
-(deadeye never edits another tool's config silently). You get output
-trimming, the coder persona, the plan gate, `/deadeye-mute`, and the full
-decision log; not Claude-style model routing. Older Codex builds may need
-`[features] hooks = true` in the Codex config. Init also installs the
-`$deadeye-pr`, `$deadeye-review`, and `$deadeye-vapt` user skills. Remove
-with `deadeye uninstall codex`.
+deadeye installs as a Codex plugin, from the same repository:
+
+```
+codex plugin marketplace add deepaksinghcs14/deadeye-cc
+```
+```
+codex plugin add deadeye@deadeye
+```
+
+Then start Codex, run `/hooks`, and trust deadeye's hooks. Codex does not
+run a plugin's hooks until you have reviewed them, and asks again whenever
+an update changes them. The binary bootstraps itself on the first session
+(macOS/Linux), sha256-verified, the same as on Claude Code.
+
+You get output trimming, the exfiltration guard, the coder persona, the plan
+gate, the codebase map, `/deadeye-mute`, and the full decision log. **Not on
+Codex yet: model routing** -- deadeye does not choose a subagent's model
+there.
+
+The plugin's hooks are the ones `deadeye init codex` has always registered,
+now addressed from the plugin. That path installs and loads in Codex 0.162;
+it has not yet been run end to end in a live session.
+
+**Without the plugin** (or on a Codex too old for plugins): install the
+binary, then `deadeye init codex`. It shows the exact changes to
+`$CODEX_HOME/hooks.json` (or `~/.codex/hooks.json`) and writes them only
+after you confirm, and also installs the `$deadeye-pr`, `$deadeye-review`
+and `$deadeye-vapt` user skills. Remove with `deadeye uninstall codex`. Use
+one path or the other -- with both, every hook runs twice.
 
 ### Gemini CLI (experimental — context-injection tier)
 
-`deadeye init gemini` writes a self-contained extension under
-`~/.deadeye/gemini-extension/` and prints the `gemini extensions install`
-command — deadeye never edits Gemini's own config. You get the coder
+Install the binary, then build and install deadeye's Gemini extension:
+
+```
+deadeye init gemini
+```
+```
+gemini extensions install --path ~/.deadeye/gemini-extension
+```
+
+The first command writes a self-contained extension to that directory; the
+second is yours to run — deadeye never edits Gemini's own config. You get the coder
 persona plus session guidance (codemap, vulnerable-dependency flag, soft
 plan gate). The tool-level features (exfil guard, output trimming, routing)
 wait on live schema verification rather than risk firing blind. Remove with

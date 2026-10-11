@@ -1,0 +1,86 @@
+{
+  "hooks": {
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "command": "\"${PLUGIN_ROOT}/hooks/deadeye-codex-hook.sh\" PostCompact",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "\"${PLUGIN_ROOT}/hooks/deadeye-codex-hook.sh\" PostToolUse",
+            "type": "command"
+          }
+        ],
+        "matcher": "^(Bash|apply_patch|Edit|Write|Read|Grep|Glob|WebFetch|WebSearch|mcp__.*)$"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "\"${PLUGIN_ROOT}/hooks/deadeye-codex-hook.sh\" PreToolUse",
+            "type": "command"
+          }
+        ],
+        "matcher": "^(Bash|apply_patch|Edit|Write|Read|Grep|WebFetch)$"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "command": "\"${PLUGIN_ROOT}/hooks/deadeye-codex-hook.sh\" SessionEnd",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "\"${PLUGIN_ROOT}/hooks/deadeye-codex-hook.sh\" SessionStart",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "\"${PLUGIN_ROOT}/hooks/deadeye-codex-hook.sh\" Stop",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "command": "\"${PLUGIN_ROOT}/hooks/deadeye-codex-hook.sh\" SubagentStart",
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "\"${PLUGIN_ROOT}/hooks/deadeye-codex-hook.sh\" UserPromptSubmit",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
+}
