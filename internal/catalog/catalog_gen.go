@@ -18,3 +18,37 @@ var builtin = Catalog{
 		{ID: "claude-fable-5-1", Family: "fable", InputPrice: 10, OutputPrice: 50, Tier: 3},
 	},
 }
+
+// builtinByHost holds the compiled-in catalog of every non-Claude host,
+// keyed by the --host value its hook adapter passes.
+var builtinByHost = map[string]Catalog{
+	// Prices sourced from https://developers.openai.com/api/docs/pricing.
+	"codex": {
+		BuiltAt: "2026-10-11",
+		Source:  "builtin",
+		Models: []Model{
+			{ID: "gpt-6-luna", Family: "luna", InputPrice: 0.1, OutputPrice: 0.5, Tier: 0},
+			{ID: "gpt-6.1-sol", Family: "sol", InputPrice: 2, OutputPrice: 10, Tier: 1, Role: "unsure_ceiling"},
+			{ID: "gpt-6-astra", Family: "astra", InputPrice: 10, OutputPrice: 50, Tier: 2, Role: "high_ceiling"},
+		},
+	},
+	// Prices sourced from https://ai.google.dev/gemini-api/docs/pricing.
+	"gemini": {
+		BuiltAt: "2026-10-11",
+		Source:  "builtin",
+		Models: []Model{
+			{ID: "gemini-3.5-flash-lite", Family: "flash-lite", InputPrice: 0.3, OutputPrice: 2.5, Tier: 0},
+			{ID: "gemini-3.8-flash", Family: "flash", InputPrice: 0.75, OutputPrice: 3.75, Tier: 1, Role: "unsure_ceiling"},
+			{ID: "gemini-3.1-pro-preview", Family: "pro", InputPrice: 2, OutputPrice: 12, Tier: 2, Role: "high_ceiling"},
+		},
+	},
+	// Prices sourced from https://cursor.com/docs/models.
+	"cursor": {
+		BuiltAt: "2026-10-11",
+		Source:  "builtin",
+		Models: []Model{
+			{ID: "Composer 2.5", Family: "composer", InputPrice: 0.5, OutputPrice: 2.5, Tier: 0},
+			{ID: "Grok 4.7", Family: "grok", InputPrice: 2, OutputPrice: 6, Tier: 1},
+		},
+	},
+}

@@ -40,6 +40,9 @@ type Input struct {
 	// ClientVersion is the host CLI's version, set by the daemon from the
 	// request envelope -- never part of the host's payload. "" = unknown.
 	ClientVersion string `json:"-"`
+	// Host is the hook adapter's --host value, set the same way. "" and
+	// "claude" both mean Claude Code.
+	Host string `json:"-"`
 }
 
 // PermissionDecision values. Claude accepts allow|deny|ask; Codex accepts

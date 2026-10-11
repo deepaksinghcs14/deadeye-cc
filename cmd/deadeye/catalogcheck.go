@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
@@ -13,7 +14,14 @@ import (
 )
 
 const catalogCheckTTLSeconds = 24 * 60 * 60
-const catalogHostedURL = "https://deepaksinghcs14.github.io/deadeye-cc/catalog.json"
+const catalogHostedBase = "https://deepaksinghcs14.github.io/deadeye-cc/"
+
+// catalogHostedURL is where host's catalog is published: catalog.json for
+// Claude Code, catalog-<host>.json for a host with its own.
+func catalogHostedURL(host string) string {
+	return catalogHostedBase + filepath.Base(meta.CatalogOverridePathFor(host))
+}
+
 const catalogMaxBodyBytes = 1 << 20 // 1MB -- a price table is a few hundred bytes; anything past this is not one
 
 // catalogRefreshEnabled gates the background network refresh, same
@@ -31,30 +39,35 @@ type catalogCheckState struct {
 	CheckedUnix int64 `json:"checked_unix"`
 }
 
-func loadCatalogCheckState() catalogCheckState {
+func loadCatalogCheckState(host string) catalogCheckState {
 	var s catalogCheckState
-	if b, err := os.ReadFile(meta.CatalogCheckPath()); err == nil {
+	if b, err := os.ReadFile(meta.CatalogCheckPathFor(host)); err == nil {
 		_ = json.Unmarshal(b, &s)
 	}
 	return s
 }
 
-func saveCatalogCheckState(s catalogCheckState) {
+func saveCatalogCheckState(host string, s catalogCheckState) {
 	b, _ := json.Marshal(s)
 	_ = os.MkdirAll(meta.StateDir(), 0o700)
-	_ = os.WriteFile(meta.CatalogCheckPath(), append(b, '\n'), 0o600)
+	_ = os.WriteFile(meta.CatalogCheckPathFor(host), append(b, '\n'), 0o600)
 }
 
 // maybeRefreshCatalog kicks a background fetch of the hosted catalog if
 // mode.catalog_check is on and the TTL has elapsed. Never blocks the
 // caller and never touches the hot Load() path -- the refreshed file
 // takes effect on the NEXT daemon start, same as the update check.
-func maybeRefreshCatalog(cfg config.Config) {
+func maybeRefreshCatalog(cfg config.Config, host string) {
 	if cfg.Mode.CatalogCheck == "off" || !catalogRefreshEnabled {
 		return
 	}
-	if nowUnix()-loadCatalogCheckState().CheckedUnix > catalogCheckTTLSeconds {
-		go refreshCatalogCache()
+	// A host without its own catalog reads Claude's, so that is the one
+	// to keep fresh for it.
+	if !catalog.HostedFor(host) || host == "claude" {
+		host = ""
+	}
+	if nowUnix()-loadCatalogCheckState(host).CheckedUnix > catalogCheckTTLSeconds {
+		go refreshCatalogCache(host)
 	}
 }
 
@@ -63,9 +76,9 @@ func maybeRefreshCatalog(cfg config.Config) {
 // bad or unreachable publish leaves whatever was cached before untouched,
 // never half-applies. CheckedUnix is stamped regardless of outcome so a
 // flaky network or a malformed publish doesn't retry every daemon start.
-func refreshCatalogCache() {
-	saveCatalogCheckState(catalogCheckState{CheckedUnix: nowUnix()})
-	fetched, ok := fetchHostedCatalog()
+func refreshCatalogCache(host string) {
+	saveCatalogCheckState(host, catalogCheckState{CheckedUnix: nowUnix()})
+	fetched, ok := fetchHostedCatalog(host)
 	if !ok {
 		return
 	}
@@ -74,12 +87,12 @@ func refreshCatalogCache() {
 		return
 	}
 	_ = os.MkdirAll(meta.StateDir(), 0o700)
-	_ = os.WriteFile(meta.CatalogCachePath(), append(b, '\n'), 0o600)
+	_ = os.WriteFile(meta.CatalogCachePathFor(host), append(b, '\n'), 0o600)
 }
 
-func fetchHostedCatalog() (catalog.Catalog, bool) {
+func fetchHostedCatalog(host string) (catalog.Catalog, bool) {
 	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get(catalogHostedURL)
+	resp, err := client.Get(catalogHostedURL(host))
 	if err != nil {
 		return catalog.Catalog{}, false
 	}

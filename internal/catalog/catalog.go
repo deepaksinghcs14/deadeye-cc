@@ -9,8 +9,10 @@ package catalog
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
@@ -48,15 +50,39 @@ type Catalog struct {
 // older than the compiled-in table), else the compiled-in table. No
 // network call is made here -- the cache file is written by
 // cmd/deadeye's catalogcheck.go, never by Load itself.
-func Load() Catalog {
-	if b, err := os.ReadFile(meta.CatalogOverridePath()); err == nil {
+func Load() Catalog { return LoadFor("") }
+
+// HostedFor reports whether host has a catalog of its own. Claude Code is
+// "" or "claude"; any host without one shares Claude's.
+func HostedFor(host string) bool {
+	_, ok := builtinByHost[host]
+	return ok || host == "" || host == "claude"
+}
+
+// Hosts lists the non-Claude hosts that have their own catalog, sorted.
+func Hosts() []string {
+	return slices.Sorted(maps.Keys(builtinByHost))
+}
+
+// LoadFor is Load for one host's catalog, with the same three-step
+// precedence over that host's own files (catalog-<host>.json and
+// catalog-cache-<host>.json). A host with no catalog of its own gets
+// Claude's, which is what every host got before per-host catalogs existed.
+func LoadFor(host string) Catalog {
+	builtin := builtin
+	if c, ok := builtinByHost[host]; ok {
+		builtin = c
+	} else {
+		host = ""
+	}
+	if b, err := os.ReadFile(meta.CatalogOverridePathFor(host)); err == nil {
 		var c Catalog
 		if json.Unmarshal(b, &c) == nil && len(c.Models) > 0 {
 			c.Source = "override"
 			return c
 		}
 	}
-	if b, err := os.ReadFile(meta.CatalogCachePath()); err == nil {
+	if b, err := os.ReadFile(meta.CatalogCachePathFor(host)); err == nil {
 		var c Catalog
 		// BuiltAt is a plain string from an unsigned file, and ">=" alone
 		// let a hosted catalog claim any freshness it liked ("9999") and

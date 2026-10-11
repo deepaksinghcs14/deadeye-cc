@@ -391,6 +391,19 @@ directly and pushed — no release needed to roll out a new model or price,
 though the seed table should be brought back in sync before the next
 `go run` overwrites it.
 
+Each host has its own catalog, because a model id only means something to
+the host that runs it:
+
+| Host | Hosted file | Local override | Used for |
+|---|---|---|---|
+| Claude Code | `catalog.json` | `~/.deadeye/catalog.json` | Routing, advice, stats |
+| Codex CLI | `catalog-codex.json` | `~/.deadeye/catalog-codex.json` | Display and stats |
+| Gemini CLI | `catalog-gemini.json` | `~/.deadeye/catalog-gemini.json` | Display and stats |
+| Cursor | `catalog-cursor.json` | `~/.deadeye/catalog-cursor.json` | Display and stats |
+
+The Cursor table lists Cursor's own models only; it also resells the other
+vendors' models. `deadeye status` prints all four.
+
 ## FAQ
 
 **Does it phone home?**

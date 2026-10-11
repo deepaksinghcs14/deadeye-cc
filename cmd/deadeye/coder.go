@@ -120,7 +120,7 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 	if u := updateNudge(cfg, state, in.SessionID); u != "" {
 		text += "\n\n" + u
 	}
-	maybeRefreshCatalog(cfg) // silent background refresh, no nudge text -- see catalogcheck.go
+	maybeRefreshCatalog(cfg, host) // silent background refresh, no nudge text -- see catalogcheck.go
 	if sk := skewNudge(pluginRoot, state, in.SessionID); sk != "" {
 		text += "\n\n" + sk
 	}

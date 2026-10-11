@@ -56,6 +56,7 @@ func decide(req proto.Request, state *daemonState) (out hookio.Output) {
 	var in hookio.Input
 	_ = json.Unmarshal(req.Payload, &in)
 	in.ClientVersion = req.ClientVersion
+	in.Host = req.Host
 	cfg := config.LoadFor(in.Cwd, req.Off)
 
 	switch req.Event {

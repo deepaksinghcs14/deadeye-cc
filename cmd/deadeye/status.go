@@ -94,9 +94,17 @@ func runStatus() {
 	}
 	fmt.Println()
 
-	fmt.Println(cHead("Catalog") + cDim(fmt.Sprintf(" (%s, built %s)", cat.Source, cat.BuiltAt)))
-	for _, m := range cat.Models {
-		fmt.Printf("  tier %d  %-28s %s\n", m.Tier, m.ID, cDim(fmt.Sprintf("in $%.2f/MTok  out $%.2f/MTok", m.InputPrice, m.OutputPrice)))
+	printCatalog := func(label string, c catalog.Catalog) {
+		fmt.Println(cHead(label) + cDim(fmt.Sprintf(" (%s, built %s)", c.Source, c.BuiltAt)))
+		for _, m := range c.Models {
+			fmt.Printf("  tier %d  %-28s %s\n", m.Tier, m.ID, cDim(fmt.Sprintf("in $%.2f/MTok  out $%.2f/MTok", m.InputPrice, m.OutputPrice)))
+		}
+	}
+	printCatalog("Catalog", cat)
+	// Each other host has its own table: a model id only means something to
+	// the host that runs it.
+	for _, host := range catalog.Hosts() {
+		printCatalog("Catalog: "+host, catalog.LoadFor(host))
 	}
 	fmt.Println()
 

@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.73.0
+
+**Each host now has its own model catalog.** There was one table, of Claude
+models, shared by every host -- so `deadeye status` in a Codex session
+listed models Codex cannot run. A model id only means something to the host
+that runs it, so Codex CLI, Gemini CLI and Cursor each get their own.
+
+| Host | Models | Prices from |
+|---|---|---|
+| Codex CLI | `gpt-6-luna`, `gpt-6.1-sol`, `gpt-6-astra` | OpenAI's API pricing page |
+| Gemini CLI | `gemini-3.5-flash-lite`, `gemini-3.8-flash`, `gemini-3.1-pro-preview` | Google's Gemini API pricing page |
+| Cursor | Composer 2.5, Grok 4.7 | Cursor's models page |
+
+- **Same three sources per host.** A local override
+  (`~/.deadeye/catalog-<host>.json`) wins, then the hosted copy refreshed in
+  the background, then the compiled-in table. Claude Code's files keep
+  their existing names, so current overrides still load.
+- **Hosted per host too.** `catalog-codex.json`, `catalog-gemini.json` and
+  `catalog-cursor.json` are published next to `catalog.json`, so a price
+  change still reaches installs without a release.
+- **`deadeye status` prints all four.**
+
+These three catalogs feed display and stats only for now. Nothing routes on
+them yet: none of those hosts' integrations rewrites a subagent's model
+today.
+
+Three things the tables simplify, each marked in the seed:
+
+- `gemini-3.8-flash` is at its introductory price, which doubles on
+  2027-01-01.
+- `gemini-3.1-pro-preview` is at its rate for prompts under 200k tokens.
+- The Cursor table holds Cursor's own models, under the display names its
+  pricing page uses -- that page publishes no ids for them. Cursor also
+  resells other vendors' models, which are not listed.
+
 ## 0.72.0
 
 **The routing judge costs about a twelfth of what it did, and answers in

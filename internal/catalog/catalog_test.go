@@ -319,3 +319,59 @@ func TestLoadRejectsImplausiblyDatedRemoteCatalog(t *testing.T) {
 		})
 	}
 }
+
+// Every host's hosted file must pass the gate a remote fetch of it goes
+// through, same as TestHostedCatalogJSONIsValid does for Claude's.
+func TestEveryHostHasAValidHostedCatalog(t *testing.T) {
+	for _, host := range Hosts() {
+		name := "catalog-" + host + ".json"
+		b, err := os.ReadFile(filepath.Join("..", "..", "docs", "site", name))
+		if err != nil {
+			t.Errorf("%s: %v -- every host in builtinByHost needs a published file", name, err)
+			continue
+		}
+		var c Catalog
+		if err := json.Unmarshal(b, &c); err != nil || !c.Valid() {
+			t.Errorf("%s fails Valid() (err %v) -- a hosted fetch of it would fall back to builtin", name, err)
+		}
+		if !builtinByHost[host].Valid() {
+			t.Errorf("builtin catalog for %s fails Valid()", host)
+		}
+	}
+}
+
+// A host's catalog must never leak into another's: Codex routing hands the
+// chosen id straight to spawn_agent, and a Claude id there is a failed spawn.
+func TestLoadForKeepsHostsApart(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	claude, codex := LoadFor(""), LoadFor("codex")
+	if _, ok := codex.TierFor(claude.Models[0].ID); ok {
+		t.Errorf("codex catalog contains a Claude model: %s", claude.Models[0].ID)
+	}
+	if LoadFor("claude").Models[0].ID != claude.Models[0].ID {
+		t.Error(`LoadFor("claude") and LoadFor("") disagree`)
+	}
+	// A host with no catalog of its own shares Claude's, as before.
+	if got := LoadFor("windsurf"); got.Models[0].ID != claude.Models[0].ID {
+		t.Errorf("unknown host got %s, want Claude's catalog", got.Models[0].ID)
+	}
+
+	// The override for one host must not be read by another.
+	dir := filepath.Dir(meta.CatalogOverridePathFor("codex"))
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	override := `{"models":[{"model_id":"my-codex-model","family":"x","input_price":1,"output_price":1,"tier":0}]}`
+	if err := os.WriteFile(meta.CatalogOverridePathFor("codex"), []byte(override), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := LoadFor("codex"); got.Source != "override" || got.Models[0].ID != "my-codex-model" {
+		t.Errorf("codex override not applied: %+v", got)
+	}
+	if got := LoadFor(""); got.Source != "builtin" {
+		t.Errorf("codex override leaked into Claude's catalog: source %s", got.Source)
+	}
+	if meta.CatalogOverridePathFor("") != meta.CatalogOverridePath() || meta.CatalogOverridePathFor("claude") != meta.CatalogOverridePath() {
+		t.Error("Claude's catalog path changed -- existing overrides would stop loading")
+	}
+}

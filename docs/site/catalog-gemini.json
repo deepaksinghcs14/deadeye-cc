@@ -1,0 +1,29 @@
+{
+  "models": [
+    {
+      "model_id": "gemini-3.5-flash-lite",
+      "family": "flash-lite",
+      "input_price": 0.3,
+      "output_price": 2.5,
+      "tier": 0
+    },
+    {
+      "model_id": "gemini-3.8-flash",
+      "family": "flash",
+      "input_price": 0.75,
+      "output_price": 3.75,
+      "tier": 1,
+      "role": "unsure_ceiling"
+    },
+    {
+      "model_id": "gemini-3.1-pro-preview",
+      "family": "pro",
+      "input_price": 2,
+      "output_price": 12,
+      "tier": 2,
+      "role": "high_ceiling"
+    }
+  ],
+  "built_at": "2026-10-11",
+  "source": "hosted"
+}

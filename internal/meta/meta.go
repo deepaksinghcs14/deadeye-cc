@@ -23,7 +23,7 @@ const Name = "deadeye"
 // compiled-in dev string instead of the real tag on both, caught only by
 // checking the actual downloaded release binary's output, not by reading
 // this file.
-var Version = "0.72.0-dev"
+var Version = "0.73.0-dev"
 
 // StateDir returns ~/.deadeye, creating no directories itself.
 func StateDir() string {
@@ -80,5 +80,19 @@ func ConfigPath() string           { return filepath.Join(StateDir(), "config.js
 func CatalogOverridePath() string  { return filepath.Join(StateDir(), "catalog.json") }
 func CatalogCachePath() string     { return filepath.Join(StateDir(), "catalog-cache.json") }
 func CatalogCheckPath() string     { return filepath.Join(StateDir(), "catalog-check.json") }
-func OSVCachePath() string         { return filepath.Join(StateDir(), "osv-cache.json") }
-func ReportPath() string           { return filepath.Join(StateDir(), "report.html") }
+
+// hostFile names a per-host state file: Claude Code (the "" / "claude" host)
+// keeps the original unsuffixed name, every other host gets "<stem>-<host>".
+func hostFile(stem, host string) string {
+	if host != "" && host != "claude" {
+		stem += "-" + host
+	}
+	return filepath.Join(StateDir(), stem+".json")
+}
+
+// The per-host forms of the three catalog paths above.
+func CatalogOverridePathFor(host string) string { return hostFile("catalog", host) }
+func CatalogCachePathFor(host string) string    { return hostFile("catalog-cache", host) }
+func CatalogCheckPathFor(host string) string    { return hostFile("catalog-check", host) }
+func OSVCachePath() string                      { return filepath.Join(StateDir(), "osv-cache.json") }
+func ReportPath() string                        { return filepath.Join(StateDir(), "report.html") }

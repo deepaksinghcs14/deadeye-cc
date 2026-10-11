@@ -256,7 +256,10 @@ footer a{color:var(--brass);}
           without a plugin release. Read-only GET, no request body. Cached ~24h, never blocks
           the hook response, and only takes effect if the fetched catalog is well-formed — a
           bad or unreachable fetch always falls back to the compiled-in table. A local
-          <code>~/.deadeye/catalog.json</code> override always wins over the hosted copy.</p>
+          <code>~/.deadeye/catalog.json</code> override always wins over the hosted copy.
+          Codex, Gemini CLI and Cursor each have their own table, refreshed and overridden
+          the same way (<code>catalog-codex.json</code>, <code>catalog-gemini.json</code>,
+          <code>catalog-cursor.json</code>).</p>
       </li>
     </ul>
   </section>

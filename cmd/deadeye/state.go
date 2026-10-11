@@ -61,6 +61,7 @@ type sessionState struct {
 type daemonState struct {
 	mu       sync.Mutex
 	cat      catalog.Catalog
+	hostCats map[string]catalog.Catalog // non-Claude hosts' catalogs, see catFor
 	logs     *logstore.Store
 	outcomes *lessons.Store
 	// outcomeCache mirrors what's on disk in outcomes.jsonl so Phase 6's
@@ -402,6 +403,26 @@ func (d *daemonState) consumePendingRewrite(sessionID, rewrittenCmd string) stri
 	rule := s.pendingRewrites[rewrittenCmd]
 	delete(s.pendingRewrites, rewrittenCmd)
 	return rule
+}
+
+// catFor returns host's catalog: the daemon's own for Claude Code (and for
+// any host without one), otherwise that host's, loaded once and kept for
+// the daemon's life like d.cat is.
+func (d *daemonState) catFor(host string) catalog.Catalog {
+	if host == "" || host == "claude" || !catalog.HostedFor(host) {
+		return d.cat
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.hostCats == nil {
+		d.hostCats = map[string]catalog.Catalog{}
+	}
+	c, ok := d.hostCats[host]
+	if !ok {
+		c = catalog.LoadFor(host)
+		d.hostCats[host] = c
+	}
+	return c
 }
 
 // maxPendingAgents bounds pendingAgents: a denied or failed Agent call never

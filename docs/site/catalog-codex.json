@@ -1,0 +1,29 @@
+{
+  "models": [
+    {
+      "model_id": "gpt-6-luna",
+      "family": "luna",
+      "input_price": 0.1,
+      "output_price": 0.5,
+      "tier": 0
+    },
+    {
+      "model_id": "gpt-6.1-sol",
+      "family": "sol",
+      "input_price": 2,
+      "output_price": 10,
+      "tier": 1,
+      "role": "unsure_ceiling"
+    },
+    {
+      "model_id": "gpt-6-astra",
+      "family": "astra",
+      "input_price": 10,
+      "output_price": 50,
+      "tier": 2,
+      "role": "high_ceiling"
+    }
+  ],
+  "built_at": "2026-10-11",
+  "source": "hosted"
+}
