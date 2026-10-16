@@ -73,12 +73,16 @@ PATH, retry once with `~/.deadeye/bin/deadeye`; if that also fails, move
 on, it's never a reason to withhold the finding):
 
 ```bash
-deadeye lessons record coder-miss security:<tag>
+deadeye lessons record coder-miss security:<tag> "<one line: what in this repo let it through>"
 ```
 
 using the finding's tag name without its trailing colon (a `crypto:`
-finding → `security:crypto`). Recorded per repo, and read back as the
-"recent misses" reminder.
+finding → `security:crypto "tokens are compared with == in the auth
+helper"`). The reason names the helper, wrapper, or path that let it
+through, in your own words, plain text — no backticks, quotes, or `$`, it
+goes through the shell. Recorded per repo, and read back as the
+"recent misses" reminder; the reason is read back by the next review's
+`deadeye lessons priority`.
 
 ## Dependency pass
 

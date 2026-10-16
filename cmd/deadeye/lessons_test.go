@@ -389,6 +389,53 @@ func TestRunLessonsPriorityReportsBothDirections(t *testing.T) {
 	}
 }
 
+// TestRecordReasonReachesPriorityButNotSessionStart pins the one design
+// decision in the reason field: a lesson's "why" is read back where a
+// review runs (`deadeye lessons priority`) and shown in the audit view, but
+// never in the budgeted SessionStart reminder, which stays shape-only. The
+// reason is also normalized -- newlines collapse, control bytes are
+// neutralized, and the length is capped -- because an external-miss reason is paraphrased
+// from someone else's PR comment and is read back into a review prompt.
+func TestRecordReasonReachesPriorityButNotSessionStart(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	repoDir := t.TempDir()
+	t.Chdir(repoDir)
+
+	runLessonsRecord([]string{"review-false-positive", "correctness:race", "the map is only\nwritten under the init \x1b[31mlock"})
+	runLessonsRecord([]string{"coder-miss", "security:inject", strings.Repeat("x", 500)})
+	runLessonsRecord([]string{"coder-miss", "security:authz"}) // no reason: still records
+
+	got, err := lessons.Scan(meta.OutcomesPath())
+	if err != nil || len(got) != 3 {
+		t.Fatalf("scan: %v, %d rows", err, len(got))
+	}
+	if !strings.HasPrefix(got[0].Reason, "the map is only written under the init ") || strings.ContainsRune(got[0].Reason, 0x1b) {
+		t.Errorf("reason not normalized to one clean line: %q", got[0].Reason)
+	}
+	if len(got[1].Reason) != maxReasonLen {
+		t.Errorf("reason not capped: len %d", len(got[1].Reason))
+	}
+	if got[2].Reason != "" {
+		t.Errorf("reason-less record got %q", got[2].Reason)
+	}
+
+	out := captureStdout(t, runLessonsPriority)
+	if !strings.Contains(out, "correctness:race: the map is only written under the init ") {
+		t.Errorf("priority view must carry the dispute's reason:\n%s", out)
+	}
+	if !strings.Contains(out, "security:inject: xxx") {
+		t.Errorf("priority view must carry the miss's reason:\n%s", out)
+	}
+
+	state := newDaemonState(testCatalogForLessons(), nil)
+	if inj := lessonsMissesText(state, repoDir); strings.Contains(inj, "xxx") {
+		t.Errorf("SessionStart reminder must stay shape-only, got %q", inj)
+	}
+	if audit := captureStdout(t, func() { runLessons(nil) }); !strings.Contains(audit, "why: the map is only written") {
+		t.Errorf("audit view must show the reason:\n%s", audit)
+	}
+}
+
 func TestRunLessonsPriorityEmptyWhenNoOutcomes(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Chdir(t.TempDir())

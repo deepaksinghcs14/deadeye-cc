@@ -292,7 +292,7 @@ Four environment variables are kill switches: `DEADEYE=off` (everything),
 | `deadeye doctor` | Checks that it is actually working. Exits non-zero if anything failed |
 | `deadeye update` | Update the binary (sha256-verified) |
 | `deadeye config` | Interactive settings picker in your terminal |
-| `deadeye lessons [reset]` | Show or clear what the learning loop has recorded |
+| `deadeye lessons [reset]` | Show or clear what the learning loop has recorded, with the reason behind each entry |
 | `deadeye report` | Write `~/.deadeye/report.html`, a visual status page |
 | `deadeye uninstall [<host>\|--purge]` | Remove a host's install, or everything |
 

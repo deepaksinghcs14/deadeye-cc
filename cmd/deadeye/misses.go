@@ -169,7 +169,7 @@ func renderMisses(receiptsPath, outcomesPath, repo string, g gitReader, isFix fu
 		fmt.Printf("  %s  %d finding(s) you disputed %s\n", cHead("False positives"), disputes, cDim("(from deadeye lessons record review-false-positive)"))
 	} else {
 		fmt.Println("  " + cHead("False positives") + cDim("  none recorded -- dispute one with"))
-		fmt.Println("  " + cDim("                    deadeye lessons record review-false-positive <lens>:<tag>"))
+		fmt.Println("  " + cDim("                    deadeye lessons record review-false-positive <lens>:<tag> \"<why it isn't a bug here>\""))
 	}
 	if truncated > 0 {
 		fmt.Printf("  %s        %d line range(s) past the per-review cap of %d went unscanned\n", cHead("Truncated"), truncated, maxRangesPerReceipt)
@@ -180,7 +180,7 @@ func renderMisses(receiptsPath, outcomesPath, repo string, g gitReader, isFix fu
 	fmt.Println(cDim("  it is not proof. The fix may be new work, a refactor, or a bug the diff"))
 	fmt.Println(cDim("  never contained. Nothing here is recorded automatically; when one is"))
 	fmt.Println(cDim("  genuinely a miss, record it yourself so the next review weighs it:"))
-	fmt.Println("  " + cValue("deadeye lessons record external-miss <lens>:<tag>"))
+	fmt.Println("  " + cValue("deadeye lessons record external-miss <lens>:<tag> \"<what the fix showed, one line>\""))
 }
 
 // logAfter lists commits after base that touched any of paths, oldest

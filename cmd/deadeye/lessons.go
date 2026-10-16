@@ -196,6 +196,9 @@ func runLessons(args []string) {
 		fmt.Println(cHead(surface))
 		for _, o := range section {
 			fmt.Printf("  %s  %-22s %-40s %s/%s  weight %.1f\n", cDim(o.TS), o.Kind, o.TaskShape, o.Model, o.Effort, o.Weight)
+			if o.Reason != "" {
+				fmt.Printf("      %s %s\n", cDim("why:"), o.Reason)
+			}
 		}
 	}
 	fmt.Println()
@@ -261,10 +264,47 @@ func runLessonsPriority() {
 	}
 	if len(misses) > 0 {
 		fmt.Println("Scrutinize harder (recent coder misses): " + renderShapes(misses))
+		printReasons(misses)
 	}
 	if len(disputes) > 0 {
 		fmt.Println("Recently disputed, need stronger proof before reporting again (never skip outright): " + renderShapes(disputes))
+		printReasons(disputes)
 	}
+}
+
+// printReasons lists each shape's recorded reasons under the priority line,
+// newest first -- the part of a lesson that tells the next review WHAT to
+// recheck or WHY the last report was wrong, not just which tag. Deliberately
+// not part of renderShapes: that string also feeds the budgeted SessionStart
+// reminder, which stays shape-only.
+func printReasons(shapes []lessons.RankedShape) {
+	for _, s := range shapes {
+		for _, r := range s.Reasons {
+			fmt.Printf("  %s: %s\n", s.Shape, r)
+		}
+	}
+}
+
+// maxReasonLen bounds a recorded reason. The reason for an external-miss
+// is paraphrased from someone else's PR comment, and every reason is read
+// back into a review prompt, so it is held to one line of bounded length
+// rather than trusted as-is; past the cap it is cut silently because this
+// command is best-effort by contract and a usage error would make the
+// calling skill drop the whole record.
+const maxReasonLen = 200
+
+// normalizeReason collapses a reason to a single line of bounded length:
+// whitespace runs (newlines included) become one space, any control byte
+// or ANSI escape left after that goes through the same sanitizer codemap
+// uses on commit subjects, and the result is cut at maxReasonLen runes.
+// Whitespace first, so a newline reads as a space rather than the
+// sanitizer's "?" placeholder.
+func normalizeReason(words []string) string {
+	r := []rune(gitutil.SanitizeControlBytes(strings.Join(strings.Fields(strings.Join(words, " ")), " ")))
+	if len(r) > maxReasonLen {
+		r = r[:maxReasonLen]
+	}
+	return string(r)
 }
 
 // recordableKinds maps a `deadeye lessons record` kind to its surface.
@@ -283,7 +323,7 @@ var recordableKinds = map[string]string{
 	"review-false-positive": lessons.SurfacePRReview,
 }
 
-const recordUsage = "usage: deadeye lessons record <coder-miss|external-miss|review-false-positive> <lens:tag>"
+const recordUsage = "usage: deadeye lessons record <coder-miss|external-miss|review-false-positive> <lens:tag> [reason...]"
 
 // shapeRe validates a lens:tag shape (e.g. "security:inject") against
 // internal/prreview/ruleset.md's finding-tag FORMAT, without duplicating
@@ -319,11 +359,13 @@ var shapeRe = regexp.MustCompile(`^[a-z][a-z-]*:[a-z][a-z0-9-]*$`)
 //   - review-false-positive: no gate -- a user can dispute a finding
 //     whether or not coder mode ever ran.
 func runLessonsRecord(args []string) {
-	if len(args) != 2 {
+	if len(args) < 2 {
 		fmt.Fprintln(os.Stderr, recordUsage)
 		os.Exit(2)
 	}
-	kind, shape := args[0], args[1]
+	// Everything past the shape is the reason, so a skill can pass it quoted
+	// or bare -- either way it lands as one normalized line.
+	kind, shape, reason := args[0], args[1], normalizeReason(args[2:])
 	surface, ok := recordableKinds[kind]
 	if !ok {
 		fmt.Fprintln(os.Stderr, recordUsage)
@@ -344,6 +386,7 @@ func runLessonsRecord(args []string) {
 		Kind:      kind,
 		Weight:    lessons.WeightMiss,
 		Repo:      gitutil.ProjectKey(cwd),
+		Reason:    reason,
 	}
 	if err := lessons.Open(meta.OutcomesPath()).Append(o); err != nil {
 		os.Exit(1)

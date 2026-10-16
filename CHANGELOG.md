@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.77.0
+
+**A lesson now carries its reason.** The learning loop used to record only
+a tag: `correctness:race, disputed once`. The next review could lower its
+confidence in that tag but had no way to know *why* the last report was
+wrong, so the same false positive came back with more hedging. A recorded
+miss had the same gap: `security:inject (2×)` says "look harder", not
+which helper or path let it through.
+
+- **`deadeye lessons record <kind> <lens:tag> "<reason>"`** takes an
+  optional one-line reason: what in this repo let a miss through, or the
+  user's grounds for disputing a finding. Normalized to one line, control
+  bytes neutralized, capped at 200 characters. Older entries without a reason
+  still load.
+- **`deadeye lessons priority`** prints each shape's recent reasons under
+  it, newest first, three per shape. `/deadeye-review`, `/deadeye-pr` and
+  `/deadeye-vapt` read this before finalizing and are now told what to do
+  with a reason: for a miss, recheck the path it names in this diff; for a
+  dispute, check whether its grounds still hold before reporting that tag
+  again.
+- **`deadeye lessons`** shows the reason under each entry.
+- **The session-start reminder is unchanged.** It still lists shapes only,
+  inside the same token budget. The reason reaches Claude when a review
+  skill runs, not while code is being written.
+- `/deadeye-pr` paraphrases an external reviewer's finding in its own words
+  when recording it. The reason is read back into a later review's prompt,
+  so the comment itself is never stored.
+- `/deadeye-vapt` no longer claims recording is a no-op outside coder mode.
+  It has recorded unconditionally since 0.61.2.
+
 ## 0.76.0
 
 **The review rubric closes the exits real misses went through.** A content

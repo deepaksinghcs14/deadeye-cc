@@ -491,21 +491,26 @@ findings on the `security:` lens raise the bar for the matching tag here
 too — this rubric shares the learning signal with `/deadeye-guard` and
 `/deadeye-review`'s security lens, not a separate ledger.
 
+Under each shape it prints the reasons recorded with it. For a miss,
+recheck the path the reason names; for a dispute, check whether its
+grounds still hold before reporting that tag again.
+
 For each finding that survives verification and makes the final report:
 
 ```bash
-deadeye lessons record coder-miss security:<tag>
+deadeye lessons record coder-miss security:<tag> "<one line: what in this repo let it through>"
 ```
 
 using the tag without its trailing colon — e.g. an `authz:` finding →
-`deadeye lessons record coder-miss security:authz`. No-op when coder mode
-wasn't active this session.
+`deadeye lessons record coder-miss security:authz "the admin router skips
+the auth middleware"`. One line, your own words, plain text — no
+backticks, quotes, or `$`, it goes through the shell.
 
 When the user disputes a finding ("that's not reachable", "already
-gated upstream", "won't fix"):
+gated upstream", "won't fix"), record it with their grounds:
 
 ```bash
-deadeye lessons record review-false-positive security:<tag>
+deadeye lessons record review-false-positive security:<tag> "<one line: why it isn't reachable here>"
 ```
 
 ## Boundaries

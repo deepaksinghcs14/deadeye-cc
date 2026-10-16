@@ -63,6 +63,15 @@ type Outcome struct {
 	// measurement has been trusted for a while.
 	JudgedTier *int   `json:"judged_tier,omitempty"`
 	Repo       string `json:"repo,omitempty"` // gitutil.ProjectKey; "" means global (routing's shape already is)
+	// Reason is one line of repo-specific context on a coder-miss,
+	// external-miss, or review-false-positive: what in THIS repo made the
+	// finding a miss, or why the user said it isn't a bug. Without it the
+	// shape alone ("correctness:race, disputed 1x") can only dampen the next
+	// review's confidence, never tell it what to check -- so the same false
+	// positive comes back. Optional and omitempty; rows written before the
+	// field existed parse unchanged. Read back only on demand (`deadeye
+	// lessons priority`), never in the budgeted SessionStart line.
+	Reason string `json:"reason,omitempty"`
 }
 
 // SurfaceRouting, SurfaceCoder, and SurfacePRReview are Outcome.Surface's
@@ -159,7 +168,16 @@ type RankedShape struct {
 	Shape  string
 	Count  int
 	Weight float64
+	// Reasons holds the newest non-empty Outcome.Reason values for this
+	// shape, newest first, capped at ReasonsPerShape. Nil when none of the
+	// shape's outcomes carried one.
+	Reasons []string
 }
+
+// ReasonsPerShape caps RankedShape.Reasons -- the on-demand priority view
+// is unbudgeted but still a reviewer's working memory, and the same cap as
+// the shape list keeps it bounded rather than growing with every record.
+const ReasonsPerShape = 3
 
 // RecentShapes ranks the task shapes recorded for surface+repo within the
 // same 30-day recencyWindow AdjustedDownshiftThreshold uses (no new
@@ -168,6 +186,8 @@ type RankedShape struct {
 // "recent misses" list -- never unbounded, per INV-4's no-silent-creep
 // intent. repo == "" matches only global-scoped outcomes (routing's
 // shape); coder and pr-review outcomes are always repo-scoped in practice.
+// The store is append-only, so later rows are newer: Reasons is filled
+// newest-first by prepending.
 func RecentShapes(outcomes []Outcome, surface, repo string, now time.Time, n int) []RankedShape {
 	if n <= 0 {
 		return nil
@@ -189,6 +209,12 @@ func RecentShapes(outcomes []Outcome, surface, repo string, now time.Time, n int
 		}
 		r.Count++
 		r.Weight += o.Weight
+		if o.Reason != "" {
+			r.Reasons = append([]string{o.Reason}, r.Reasons...)
+			if len(r.Reasons) > ReasonsPerShape {
+				r.Reasons = r.Reasons[:ReasonsPerShape]
+			}
+		}
 	}
 	ranked := make([]RankedShape, 0, len(order))
 	for _, shape := range order {

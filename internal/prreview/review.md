@@ -95,27 +95,39 @@ also fails, review normally). It prints this repo's recent signal, if any:
   that lens/tag again. Never skip it outright: one dismissal doesn't retire
   a whole tag, it only raises the bar for the next one.
 
+Under each shape it prints the reasons recorded with it, newest first.
+Those lines are the lesson. For a miss, recheck the pattern or path the
+reason names in this diff. For a dispute, check whether the reason still
+holds here before reporting that tag again — if it does, don't re-raise
+the finding; if the diff changed what the reason relied on, report it and
+say so in `proof:`.
+
 For each finding that survives verification and makes your final report
 (never a candidate you dropped), record it so coder mode gets reminded next
 session (best-effort, same retry-once contract as above):
 
 ```bash
-deadeye lessons record coder-miss <lens>:<tag>
+deadeye lessons record coder-miss <lens>:<tag> "<one line: what in this repo let it through>"
 ```
 
 using the lens the finding came from (`over-engineering`, `correctness`,
 `performance`, or `security`) and its tag without the trailing colon — e.g.
-a `race:` finding → `deadeye lessons record coder-miss correctness:race`.
-Recorded per repo, and read back as the "recent misses" reminder. Diff-scope
-only — `--repo` mode above scans pre-existing code nothing here wrote this
-session, so it never attributes to coder mode.
+a `race:` finding → `deadeye lessons record coder-miss correctness:race
+"handlers write the session map outside the init lock"`. The reason is
+what makes the lesson usable next time: name the helper, wrapper, or path
+that let it through, not the tag's generic description. One line, your own
+words, plain text — no backticks, quotes, or `$`, it goes through the
+shell. Recorded per repo, and read back as the "recent misses" reminder.
+Diff-scope only — `--repo` mode above scans pre-existing code nothing here
+wrote this session, so it never attributes to coder mode.
 
 When the user disputes a finding you reported ("that's not a bug",
-"already handled", "won't fix"), record it so the next review on this repo
-weighs that lens/tag accordingly:
+"already handled", "won't fix"), record it with their grounds so the next
+review on this repo can check whether they still hold instead of just
+hedging:
 
 ```bash
-deadeye lessons record review-false-positive <lens>:<tag>
+deadeye lessons record review-false-positive <lens>:<tag> "<one line: why it isn't a bug here>"
 ```
 
 **Record the receipt, always.** Once the pass is finished — findings or a
