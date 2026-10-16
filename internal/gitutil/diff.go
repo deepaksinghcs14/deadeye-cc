@@ -105,14 +105,11 @@ func parseHunkNewSide(header string) (Range, bool) {
 	return Range{Start: s, End: s + n - 1}, true
 }
 
-// Numstat returns the file/insertion/deletion counts for one revision.
-// Fails open to zeroes, like every other read here -- a commit that can't
-// be measured is skipped by callers, never reported as a zero-line commit.
-func Numstat(root, rev string) (files, adds, dels int) {
-	out := Output(root, "show", "--numstat", "--format=", rev)
-	if out == "" {
-		return 0, 0, 0
-	}
+// ParseNumstat sums `git show --numstat --format=` output into file,
+// insertion and deletion counts. Empty input (a failed or empty git read)
+// yields zeroes, so a commit that can't be measured is skipped by callers,
+// never reported as a zero-line commit.
+func ParseNumstat(out string) (files, adds, dels int) {
 	for _, line := range strings.Split(out, "\n") {
 		f := strings.Fields(line)
 		if len(f) < 3 {

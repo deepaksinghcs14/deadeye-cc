@@ -110,20 +110,6 @@ func TestGroupDominantExtension(t *testing.T) {
 	}
 }
 
-func TestFingerprintStableAndSensitive(t *testing.T) {
-	base := "a.go\nb.go\nc.go\n"
-	if Fingerprint(base) != Fingerprint(base) {
-		t.Error("same input produced different fingerprints")
-	}
-	if Fingerprint(base) == Fingerprint(base+"d.go\n") {
-		t.Error("added path did not change the fingerprint")
-	}
-	// git's output is sorted -- a reorder means real drift, not noise.
-	if Fingerprint(base) == Fingerprint("b.go\na.go\nc.go\n") {
-		t.Error("reordered input did not change the fingerprint")
-	}
-}
-
 // TestRenderDisclaimsPurposeColumn pins a real fix, not a style choice: the
 // Purpose column is extracted from this repo's OWN doc comments (EnrichGo),
 // so an untrusted/adversarial repo controls that text completely, and it's

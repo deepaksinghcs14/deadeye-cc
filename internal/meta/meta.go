@@ -23,7 +23,7 @@ const Name = "deadeye"
 // compiled-in dev string instead of the real tag on both, caught only by
 // checking the actual downloaded release binary's output, not by reading
 // this file.
-var Version = "0.77.0-dev"
+var Version = "0.77.1-dev"
 
 // StateDir returns ~/.deadeye, creating no directories itself.
 func StateDir() string {
@@ -77,9 +77,6 @@ func OutcomesPath() string         { return filepath.Join(StateDir(), "outcomes.
 func ReceiptsPath() string         { return filepath.Join(StateDir(), "receipts.jsonl") }
 func CapturesDir() string          { return filepath.Join(StateDir(), "captures") }
 func ConfigPath() string           { return filepath.Join(StateDir(), "config.json") }
-func CatalogOverridePath() string  { return filepath.Join(StateDir(), "catalog.json") }
-func CatalogCachePath() string     { return filepath.Join(StateDir(), "catalog-cache.json") }
-func CatalogCheckPath() string     { return filepath.Join(StateDir(), "catalog-check.json") }
 
 // hostFile names a per-host state file: Claude Code (the "" / "claude" host)
 // keeps the original unsuffixed name, every other host gets "<stem>-<host>".
@@ -90,7 +87,8 @@ func hostFile(stem, host string) string {
 	return filepath.Join(StateDir(), stem+".json")
 }
 
-// The per-host forms of the three catalog paths above.
+// The three catalog paths, per host. Claude Code keeps the original
+// unsuffixed names, so existing overrides still load.
 func CatalogOverridePathFor(host string) string { return hostFile("catalog", host) }
 func CatalogCachePathFor(host string) string    { return hostFile("catalog-cache", host) }
 func CatalogCheckPathFor(host string) string    { return hostFile("catalog-check", host) }

@@ -266,22 +266,6 @@ func runInit(args []string) {
 	fmt.Println(cDim("Remove any time with: deadeye uninstall codex"))
 }
 
-// hasDeadeyeEntry reports whether one of entries already invokes our
-// script (matched by path prefix, so event-name args don't matter).
-func hasDeadeyeEntry(entries []any, script string) bool {
-	for _, e := range entries {
-		em, _ := e.(map[string]any)
-		inner, _ := em["hooks"].([]any)
-		for _, h := range inner {
-			hm, _ := h.(map[string]any)
-			if cmd, _ := hm["command"].(string); strings.HasPrefix(cmd, script) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func normalizeCodexDeadeyeEntry(entry any, script, event, matcher string) (found bool, changed bool) {
 	em, _ := entry.(map[string]any)
 	if em == nil {
@@ -408,18 +392,4 @@ func removeCodexSidecars() {
 	for _, cmd := range hostCmds {
 		removeCommand(cmd, "codex")
 	}
-}
-
-// codexRegistered reports whether any of our entries exist in codex's
-// hooks.json -- status display only.
-func codexRegistered() bool {
-	hooksPath, err := codexHooksPath()
-	if err != nil {
-		return false
-	}
-	b, err := os.ReadFile(hooksPath)
-	if err != nil {
-		return false
-	}
-	return strings.Contains(string(b), "deadeye-codex-hook.sh")
 }

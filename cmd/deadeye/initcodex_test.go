@@ -200,3 +200,19 @@ func TestCodexPluginManifest(t *testing.T) {
 		t.Errorf("manifest points at a hooks file that isn't there: %v", err)
 	}
 }
+
+// hasDeadeyeEntry reports whether one of entries already invokes our
+// script (matched by path prefix, so event-name args don't matter).
+func hasDeadeyeEntry(entries []any, script string) bool {
+	for _, e := range entries {
+		em, _ := e.(map[string]any)
+		inner, _ := em["hooks"].([]any)
+		for _, h := range inner {
+			hm, _ := h.(map[string]any)
+			if cmd, _ := hm["command"].(string); strings.HasPrefix(cmd, script) {
+				return true
+			}
+		}
+	}
+	return false
+}

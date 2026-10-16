@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.77.1
+
+**`/deadeye-sweep` records lesson reasons too.** It was the one skill still
+writing tag-only lessons after 0.77.0, and it is the skill that applies the
+most fixes. Its record command now carries the same one-line reason as the
+others. The `/deadeye-stats` example and the bad-shape usage message show
+the reason as well.
+
+Dead code found by a whole-repo sweep, removed:
+
+- The per-host catalog lookup in the daemon. It was added in 0.73.0 for
+  routing on non-Claude hosts that never shipped, and nothing called it.
+- An unused Codex registration check.
+- Three catalog path functions replaced by their per-host forms in 0.73.0.
+  Claude Code's catalog files keep their original names; a test pins that.
+- An unused codemap fingerprint helper.
+- A second copy of the `git show --numstat` parser. The adherence report and
+  the git helpers now share one.
+
+No behavior change outside the sweep skill's instructions.
+
 ## 0.77.0
 
 **A lesson now carries its reason.** The learning loop used to record only

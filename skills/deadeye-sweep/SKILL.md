@@ -200,8 +200,13 @@ with `~/.deadeye/bin/deadeye`, else continue regardless). For every finding
 you actually **applied** this run:
 
 ```bash
-deadeye lessons record coder-miss <lens>:<tag>
+deadeye lessons record coder-miss <lens>:<tag> "<one line: what in this repo let it through>"
 ```
+
+The reason names the helper, wrapper, or path that let it through, in your
+own words, plain text — no backticks, quotes, or `$`, it goes through the
+shell. It is what the next review reads back from `deadeye lessons
+priority`; a record without one only says which tag to look at harder.
 
 Diff and PR scope only — `--repo` sweeps pre-existing code nothing wrote this
 session, so it never attributes to coder mode. Never call

@@ -31,7 +31,7 @@ var catalogRefreshEnabled bool
 
 // catalogCheckState is ~/.deadeye/catalog-check.json: just the TTL
 // bookkeeping, kept in its OWN file deliberately separate from
-// ~/.deadeye/catalog-cache.json (meta.CatalogCachePath()). That second
+// ~/.deadeye/catalog-cache.json (meta.CatalogCachePathFor("")). That second
 // file is a bare catalog.Catalog -- the exact shape catalog.Load() reads,
 // with no wrapper -- so Load stays a plain, network-free file read with
 // no knowledge of refresh timing.

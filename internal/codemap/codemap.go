@@ -97,13 +97,6 @@ type Entry struct {
 	Purpose string // Go package/command doc one-liner; "" when absent
 }
 
-// Fingerprint hashes the raw tracked-file listing (git ls-files output is
-// already sorted, so the bytes hash directly). First 12 hex chars.
-func Fingerprint(raw string) string {
-	sum := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(sum[:])[:12]
-}
-
 // groupKey buckets one repo-relative path into its skeleton row: top-level
 // files go to "(root)", a file directly under a first-level directory goes
 // to that directory, and a deeper file goes to its SECOND-level directory

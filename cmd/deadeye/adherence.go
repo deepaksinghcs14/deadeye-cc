@@ -185,24 +185,10 @@ func attributeCommits(g gitReader, rs []receipts.Receipt) []adherenceCommit {
 	return out
 }
 
-// numstatVia mirrors gitutil.Numstat through the gitReader seam so the
+// numstatVia reads a revision's numstat through the gitReader seam so the
 // report stays testable without a real repo.
 func numstatVia(g gitReader, rev string) (files, adds, dels int) {
-	out := g.run("show", "--numstat", "--format=", rev)
-	for _, line := range strings.Split(out, "\n") {
-		f := strings.Fields(line)
-		if len(f) < 3 {
-			continue
-		}
-		files++
-		if n, err := strconv.Atoi(f[0]); err == nil {
-			adds += n
-		}
-		if n, err := strconv.Atoi(f[1]); err == nil {
-			dels += n
-		}
-	}
-	return files, adds, dels
+	return gitutil.ParseNumstat(g.run("show", "--numstat", "--format=", rev))
 }
 
 // newDepsIn finds dependencies ADDED by a commit, reusing the same

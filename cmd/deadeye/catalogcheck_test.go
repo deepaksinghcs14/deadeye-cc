@@ -21,7 +21,7 @@ func TestCatalogRefreshDisabledOutsideDaemon(t *testing.T) {
 	var on config.Config
 	on.Mode.CatalogCheck = "on"
 	maybeRefreshCatalog(on, "") // must not spawn a fetch
-	if _, err := os.Stat(meta.CatalogCachePath()); err == nil {
+	if _, err := os.Stat(meta.CatalogCachePathFor("")); err == nil {
 		t.Error("maybeRefreshCatalog wrote a cache file while catalogRefreshEnabled was false")
 	}
 }
@@ -38,7 +38,7 @@ func TestCatalogCheckOffNeverFetchesEvenWhenEnabled(t *testing.T) {
 	var off config.Config
 	off.Mode.CatalogCheck = "off"
 	maybeRefreshCatalog(off, "")
-	if _, err := os.Stat(meta.CatalogCachePath()); err == nil {
+	if _, err := os.Stat(meta.CatalogCachePathFor("")); err == nil {
 		t.Error("maybeRefreshCatalog wrote a cache file with catalog_check=off")
 	}
 }

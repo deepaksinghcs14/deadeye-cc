@@ -124,9 +124,9 @@ func TestNumstatAndHeadOnRealRepo(t *testing.T) {
 		t.Error("Root returned empty inside a repo")
 	}
 
-	files, adds, dels := Numstat(dir, "HEAD")
+	files, adds, dels := ParseNumstat(Output(dir, "show", "--numstat", "--format=", "HEAD"))
 	if files != 1 || adds != 3 || dels != 0 {
-		t.Errorf("Numstat = %d files, +%d/-%d; want 1 file, +3/-0", files, adds, dels)
+		t.Errorf("ParseNumstat = %d files, +%d/-%d; want 1 file, +3/-0", files, adds, dels)
 	}
 }
 
@@ -140,7 +140,7 @@ func TestFailsOpenOutsideRepo(t *testing.T) {
 	if got := Head(dir); got != "" {
 		t.Errorf("Head outside a repo = %q, want \"\"", got)
 	}
-	if f, a, d := Numstat(dir, "HEAD"); f != 0 || a != 0 || d != 0 {
-		t.Errorf("Numstat outside a repo = %d,%d,%d; want zeroes", f, a, d)
+	if f, a, d := ParseNumstat(Output(dir, "show", "--numstat", "--format=", "HEAD")); f != 0 || a != 0 || d != 0 {
+		t.Errorf("ParseNumstat outside a repo = %d,%d,%d; want zeroes", f, a, d)
 	}
 }

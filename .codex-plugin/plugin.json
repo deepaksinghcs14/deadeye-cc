@@ -1,6 +1,6 @@
 {
   "name": "deadeye",
-  "version": "0.77.0",
+  "version": "0.77.1",
   "description": "Fits effort and context to each task in Codex: trims verbose command output, guards credentials, keeps a codebase map, and holds code to a lean-first discipline.",
   "hooks": "./hooks/codex-hooks.json"
 }

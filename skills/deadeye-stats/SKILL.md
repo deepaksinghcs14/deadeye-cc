@@ -77,7 +77,7 @@ exactly when presenting any view:
   touching lines a review passed is evidence, not proof — the fix may be
   new work, a refactor, or a bug the reviewed diff never contained.
 - Nothing is recorded automatically. If a candidate is genuinely a miss,
-  the user records it (`deadeye lessons record external-miss <lens>:<tag>`);
+  the user records it (`deadeye lessons record external-miss <lens>:<tag> "<what the fix showed>"`);
   never present the report's count as a confirmed miss count.
 - Reviewed work that hasn't been committed yet is excluded from the
   denominator, not counted as a clean pass. Keep that distinction when

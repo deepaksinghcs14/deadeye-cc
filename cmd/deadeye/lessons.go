@@ -372,7 +372,7 @@ func runLessonsRecord(args []string) {
 		os.Exit(2)
 	}
 	if !shapeRe.MatchString(shape) {
-		fmt.Fprintln(os.Stderr, `usage: deadeye lessons record <kind> <lens:tag>  (shape must look like "security:inject")`)
+		fmt.Fprintln(os.Stderr, `usage: deadeye lessons record <kind> <lens:tag> [reason...]  (shape must look like "security:inject")`)
 		os.Exit(2)
 	}
 	cwd, err := os.Getwd()

@@ -249,7 +249,7 @@ func TestLoadPrefersOverrideThenCacheThenBuiltin(t *testing.T) {
 
 	t.Run("valid cache beats builtin", func(t *testing.T) {
 		t.Setenv("HOME", t.TempDir())
-		writeJSON(meta.CatalogCachePath(), validTestCatalog())
+		writeJSON(meta.CatalogCachePathFor(""), validTestCatalog())
 		c := Load()
 		if c.Source != "remote" {
 			t.Errorf("Source = %q, want remote", c.Source)
@@ -261,8 +261,8 @@ func TestLoadPrefersOverrideThenCacheThenBuiltin(t *testing.T) {
 
 	t.Run("override beats a valid cache", func(t *testing.T) {
 		t.Setenv("HOME", t.TempDir())
-		writeJSON(meta.CatalogCachePath(), validTestCatalog())
-		writeJSON(meta.CatalogOverridePath(), Catalog{Models: []Model{{ID: "solo", Tier: 0}}})
+		writeJSON(meta.CatalogCachePathFor(""), validTestCatalog())
+		writeJSON(meta.CatalogOverridePathFor(""), Catalog{Models: []Model{{ID: "solo", Tier: 0}}})
 		c := Load()
 		if c.Source != "override" {
 			t.Errorf("Source = %q, want override", c.Source)
@@ -273,7 +273,7 @@ func TestLoadPrefersOverrideThenCacheThenBuiltin(t *testing.T) {
 		t.Setenv("HOME", t.TempDir())
 		invalid := validTestCatalog()
 		invalid.Models[1].Tier = 0 // duplicate tier -> fails Valid()
-		writeJSON(meta.CatalogCachePath(), invalid)
+		writeJSON(meta.CatalogCachePathFor(""), invalid)
 		if c := Load(); c.Source != "builtin" {
 			t.Errorf("Source = %q, want builtin (invalid cache must not be used)", c.Source)
 		}
@@ -283,7 +283,7 @@ func TestLoadPrefersOverrideThenCacheThenBuiltin(t *testing.T) {
 		t.Setenv("HOME", t.TempDir())
 		stale := validTestCatalog()
 		stale.BuiltAt = "2000-01-01" // older than builtin.BuiltAt
-		writeJSON(meta.CatalogCachePath(), stale)
+		writeJSON(meta.CatalogCachePathFor(""), stale)
 		if c := Load(); c.Source != "builtin" {
 			t.Errorf("Source = %q, want builtin (stale cache must not win)", c.Source)
 		}
@@ -301,7 +301,7 @@ func TestLoadRejectsImplausiblyDatedRemoteCatalog(t *testing.T) {
 		t.Run(bad, func(t *testing.T) {
 			home := t.TempDir()
 			t.Setenv("HOME", home)
-			if err := os.MkdirAll(filepath.Dir(meta.CatalogCachePath()), 0o700); err != nil {
+			if err := os.MkdirAll(filepath.Dir(meta.CatalogCachePathFor("")), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			c := validTestCatalog()
@@ -310,7 +310,7 @@ func TestLoadRejectsImplausiblyDatedRemoteCatalog(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(meta.CatalogCachePath(), b, 0o600); err != nil {
+			if err := os.WriteFile(meta.CatalogCachePathFor(""), b, 0o600); err != nil {
 				t.Fatal(err)
 			}
 			if got := Load(); got.Source == "remote" {
@@ -371,7 +371,7 @@ func TestLoadForKeepsHostsApart(t *testing.T) {
 	if got := LoadFor(""); got.Source != "builtin" {
 		t.Errorf("codex override leaked into Claude's catalog: source %s", got.Source)
 	}
-	if meta.CatalogOverridePathFor("") != meta.CatalogOverridePath() || meta.CatalogOverridePathFor("claude") != meta.CatalogOverridePath() {
+	if meta.CatalogOverridePathFor("") != filepath.Join(meta.StateDir(), "catalog.json") || meta.CatalogOverridePathFor("claude") != filepath.Join(meta.StateDir(), "catalog.json") {
 		t.Error("Claude's catalog path changed -- existing overrides would stop loading")
 	}
 }
