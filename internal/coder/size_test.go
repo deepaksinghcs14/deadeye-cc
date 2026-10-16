@@ -11,11 +11,15 @@ import "testing"
 // claim to audit; bound the root-cause fix to the change; a guard covers one
 // path -- grep the siblings), 9.35KB -> 9.6KB for "Match the toolchain" (never
 // write syntax the project's declared go.mod/package.json/pyproject.toml/
-// Cargo.toml version can't run -- a build break shipped as a fix). With
-// modest headroom.
+// Cargo.toml version can't run -- a build break shipped as a fix), 9.6KB ->
+// 10.1KB for the logging rule (code that can fail leaves a log behind,
+// unasked, at error or warn -- never info/debug unasked, and never per item
+// or per layer; it replaced the observability keep, which only protected
+// logs from deletion and so never made Claude add one).
+// With modest headroom.
 func TestInjectionSizeBudget(t *testing.T) {
 	for _, l := range []string{LevelSpotter, LevelMarksman, LevelSniper} {
-		if n := len(Instructions(l)); n > 9600 {
+		if n := len(Instructions(l)); n > 10100 {
 			t.Errorf("%s injection is %d bytes -- trim before adding more", l, n)
 		} else {
 			t.Logf("%s: %d bytes", l, n)

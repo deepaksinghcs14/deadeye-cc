@@ -144,9 +144,10 @@ linter firing rules:
 - `yagni:` — flexibility nothing uses (interface with one impl, config for a constant)
 - `shrink:` — works, but a shorter form does the same job
 
-Log spam is over-instrumentation, cut it: a line per loop iteration, a metric
-nobody reads, a span on a trivial call → `delete:`/`shrink:`. But the one
-breadcrumb at a real failure boundary is signal, not bloat — leave it.
+Log spam is over-instrumentation, cut it: a line per loop iteration, every
+attempt of an uncapped retry, a metric nobody reads, a span on a trivial call,
+one error logged at every layer →
+`delete:`/`shrink:`. A log where a failure is handled is signal — leave it.
 
 Before `yagni:`/`delete:`, grep for implementers/callers outside the diff — a
 second impl in a test file makes it a false positive. Footer:
@@ -155,7 +156,7 @@ second impl in a test file makes it a false positive. Footer:
 ### Correctness
 
 - `logic:` — wrong result or a mishandled edge case (empty, zero, boundary, unicode, before/after state, rollback/revert, an AST/node-kind contract)
-- `nil:` — an unchecked nil / null / undefined, a swallowed/ignored error, or a failure path that leaves no diagnostic behind
+- `nil:` — an unchecked nil / null / undefined, a swallowed/ignored error, or a handled failure (failed I/O, retry, fallback, fail-open) with no warn/error log line. Wrapped and returned upward is not a miss: the log belongs where it's handled.
 - `race:` — a data race, unsynchronized shared state, async cancellation, a promise that never resolves, an ordering race, or check-then-act invalidated across `await`
 - `bound:` — off-by-one, slice/array overrun, integer overflow
 - `contract:` — violates a caller assumption or the function's own documented contract

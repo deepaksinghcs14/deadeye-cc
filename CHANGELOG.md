@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.78.0
+
+**Coder mode logs failures without being asked.** The old rule said logs
+were a "lean keep": don't delete them. It never said to add one, and the
+rest of the persona pushes toward the shortest diff, so Claude left a
+handled failure silent unless asked. The new rule makes logging a default,
+the way a runnable check already is.
+
+- **Where.** A failure the code gives up on logs at `error`. A failure it
+  recovers from (retried, fallen back, failed open, swallowed) logs at
+  `warn`, and so does an auth failure. Nothing is logged at `info` or
+  `debug` unasked: success is silent.
+- **Once.** The log goes where the error is handled. Every other layer
+  wraps the error with context and returns it.
+- **No explosion.** A loop logs one summary line after it, never one per
+  item. A retry logs each attempt only when attempts are capped, otherwise
+  just the give-up.
+- **What and how.** Operation, the ids that find it, the error, as
+  structured fields when the logger has them. The repo's own logger, else
+  the standard library's; never a new dependency. Never secrets, tokens,
+  full payloads or personal data.
+
+**`/deadeye-review` and `/deadeye-pr` check the same rule.** A handled
+failure with no `warn` or `error` line is a `nil:` finding. An error
+wrapped and returned upward is not, so the reviewer doesn't flag every
+function that returns an error. The same failure logged at every layer, or
+every attempt of an uncapped retry, is log spam.
+
+Measured on the coder benchmark's retry task, Sonnet, persona appended to
+the system prompt with deadeye's hooks off:
+
+| Persona | Correct | Logged the retried failure | Quiet on success | No explosion | warn or error |
+|---|---|---|---|---|---|
+| None | 3/3 | 0/3 | 3/3 | not run | not run |
+| 0.77.1 ruleset | 3/3 | 0/3 | 3/3 | not run | not run |
+| First draft of this rule | 6/6 | 5/6 | 6/6 | not run | not run |
+| This rule | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+
+The coder persona grows from 9.5KB to 10.0KB; its size ceiling moves from
+9.6KB to 10.1KB.
+
 ## 0.77.1
 
 **`/deadeye-sweep` records lesson reasons too.** It was the one skill still

@@ -232,3 +232,18 @@ func TestSubagentCard(t *testing.T) {
 		t.Errorf("review card should defer to the skill: %q", card)
 	}
 }
+
+// TestLoggingRuleAtEveryLevel pins the logging mandate into every level's
+// injection. It replaced an observability note that only protected logs
+// from deletion, so Claude never added one unasked; the review lenses'
+// nil: wording enforces the same log-once-where-handled contract.
+func TestLoggingRuleAtEveryLevel(t *testing.T) {
+	for _, l := range []string{LevelSpotter, LevelMarksman, LevelSniper} {
+		got := Instructions(l)
+		for _, want := range []string{"leaves a log behind", "Log once, where the error is handled", "Never log secrets", "No log explosion", "success is silent"} {
+			if !strings.Contains(got, want) {
+				t.Errorf("%s injection is missing %q", l, want)
+			}
+		}
+	}
+}

@@ -144,9 +144,10 @@ floor/reach gates as any other tag — and every fix sweep writes already
 inherits the toolchain guardrail for free, since coder mode stays active for
 the whole run.
 
-Never delete the one runnable check coder mode leaves behind, or the one log
-breadcrumb at a real failure boundary — both are load-bearing, same as in
-`/deadeye-review`.
+Never delete the one runnable check coder mode leaves behind, or a log where
+a failure is handled — both are load-bearing, same as in `/deadeye-review`.
+A `nil:` finding for a missing log is fixed by adding that one line, at the
+place the error is handled, never at every layer.
 
 ## The verify gate
 

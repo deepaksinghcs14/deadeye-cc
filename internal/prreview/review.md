@@ -175,10 +175,8 @@ Findings are a LIST. Do not apply or push any code change unless asked.
 - Findings are a LIST. Do not apply them unless asked.
 - Never flag the one runnable check coder mode leaves behind for
   deletion — lean code without its check is unfinished.
-- Log spam is over-instrumentation, cut it (a line per loop, a metric nobody
-  reads) — but never flag the one breadcrumb at a real failure boundary as
-  bloat; a wrapped error or the log where it fails is load-bearing, like the
-  runnable check.
+- Never flag the log where a failure is handled as bloat — like the
+  runnable check, it's load-bearing; its absence is a `nil:` finding.
 - All four lenses are in scope here. `/deadeye-guard` is the deeper,
   dedicated security pass (native dependency auditors, a wider weakest-path
   sweep) for when security alone is the ask; `/deadeye-pr` is this same

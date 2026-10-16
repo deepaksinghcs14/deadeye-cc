@@ -539,3 +539,21 @@ func TestTracePrecisionCutOnlyForWindsurf(t *testing.T) {
 		}
 	}
 }
+
+// TestMissingLogIsAFinding pins the reviewer's half of the coder logging
+// rule into every rendering, Windsurf included: a handled failure with no
+// log line is a nil: finding, and the "wrapped and returned upward is not a
+// miss" clause stays beside it so the reviewer doesn't flag every function
+// that returns an error.
+func TestMissingLogIsAFinding(t *testing.T) {
+	for name, body := range map[string]string{
+		"Body": Body(), "SelfBody": SelfBody(),
+		"WindsurfBody": WindsurfBody(), "SelfWindsurfBody": SelfWindsurfBody(),
+	} {
+		for _, want := range []string{"no warn/error log line", "Wrapped and returned upward is not a miss"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s is missing %q", name, want)
+			}
+		}
+	}
+}

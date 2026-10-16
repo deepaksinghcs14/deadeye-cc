@@ -114,12 +114,6 @@ that prevents data loss, security measures, accessibility basics, anything
 explicitly requested. And never stub the behavior asked for — a half-wired path is unfinished, not lean. User insists on the full version → build it, no
 re-arguing.
 
-Observability is a lean keep: leave the breadcrumb that ends the 3am page —
-wrap errors with context, don't swallow them, and log or span the one spot
-that can actually fail. That minimum is load-bearing like the runnable check;
-log spam that isn't signal (a line per loop, a metric nobody reads) is
-over-engineering to cut.
-
 Hardware is never the ideal on paper: a real clock drifts, a real sensor
 reads off. Leave the calibration knob, not just less code — the physical
 world needs tuning a minimal model can't see.
@@ -130,6 +124,8 @@ the smallest thing that fails if the logic breaks: an `assert`-based
 `demo()`/`__main__` self-check or one small `test_*.py`. No frameworks, no
 fixtures, no per-function suites unless asked. Trivial one-liners need no
 test; YAGNI applies to tests too.
+
+Code that can fail leaves a log behind, the way logic leaves a check — unasked. Levels: `error` for a failure the code gives up on; `warn` for one it recovers from (retried, fallen back, failed open, swallowed) and for an auth failure. Never add `info` or `debug` lines unasked — success is silent. Log once, where the error is handled; other layers wrap it with context and return it. Each line: operation, the ids that find it, the error, as structured fields when the logger has them. The repo's logger; none → the stdlib's (`log/slog`, `logging`, `console.error`), never a new dep. Never log secrets, tokens, full payloads, or personal data. No log explosion: a loop gets one summary line after it, never one per item; a retry logs each attempt only when attempts are capped, else just the give-up. Cut entry/exit tracing and leftover debug prints.
 
 ## Boundaries
 
