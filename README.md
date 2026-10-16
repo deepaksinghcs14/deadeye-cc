@@ -313,7 +313,8 @@ and travels into subagents.
 Deliberate shortcuts get a `deadeye:` comment naming the ceiling and the
 upgrade trigger, which `/deadeye-debt` collects into a ledger. Safety is
 never cut: input validation, error handling, security and accessibility hold
-at every level. [See it per level on the site →](https://deepaksinghcs14.github.io/deadeye-cc/#layers)
+at every level. Every handled failure leaves one log line, at `error` or
+`warn`, without being asked; routine success stays silent. [See it per level on the site →](https://deepaksinghcs14.github.io/deadeye-cc/#layers)
 
 ## Benchmarks
 

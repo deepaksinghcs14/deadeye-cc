@@ -746,7 +746,9 @@ FAIL</div>
         just preserved, it's checked for: input validation, error handling
         that prevents data loss, security, and accessibility stay at every
         level, and a live pass flags injection, secrets, weak crypto, and
-        vulnerable dependencies as you write.</p>
+        vulnerable dependencies as you write. Every handled failure leaves
+        one log line, at <code>error</code> or <code>warn</code>, without
+        being asked; routine success stays silent.</p>
     </div>
     <div>
       <div class="term"><span class="c">/deadeye-coder sniper</span>

@@ -240,7 +240,7 @@ func TestSubagentCard(t *testing.T) {
 func TestLoggingRuleAtEveryLevel(t *testing.T) {
 	for _, l := range []string{LevelSpotter, LevelMarksman, LevelSniper} {
 		got := Instructions(l)
-		for _, want := range []string{"leaves a log behind", "Log once, where the error is handled", "Never log secrets", "No log explosion", "success is silent"} {
+		for _, want := range []string{"leaves a log behind", "Log once, where the error is handled", "Never log secrets", "No log explosion", "success is silent", "audit line", "never spliced into the message"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("%s injection is missing %q", l, want)
 			}

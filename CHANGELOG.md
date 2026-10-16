@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.78.1
+
+**The logging rule and the security reviews agree.** 0.78.0's "never
+`info` unasked" steered coder mode away from audit lines, while
+`/deadeye-guard` and `/deadeye-vapt` flag a privileged action with no audit
+trail. Coder mode would write the code the next guard pass reports.
+
+- **A privileged action gets one `info` audit line**: who, what, which
+  resource. A role change, a delete or an export, for example. It is the one
+  exception to "no `info` unasked"; routine success stays silent.
+- **User input goes in a structured field, never spliced into the
+  message.** That is the defense against log forging, which `/deadeye-vapt`
+  checks for.
+- The README and the site's coder-mode section now say that every handled
+  failure leaves one log line.
+
+The retry task from 0.78.0 still passes every logging check, 3 of 3. The
+coder persona grows by about 170 bytes; its size ceiling moves from 10.1KB to
+10.3KB.
+
 ## 0.78.0
 
 **Coder mode logs failures without being asked.** The old rule said logs
