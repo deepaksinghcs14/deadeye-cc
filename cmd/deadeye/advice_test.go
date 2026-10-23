@@ -575,7 +575,7 @@ func TestRepeatCommandSkipsPollsAndRemoteQueries(t *testing.T) {
 		"curl -s localhost:8080/healthz", "ssh host uptime", "tail -f /tmp/proj/app.log",
 		"tail -n 20 -F /tmp/proj/app.log", "git status", "git log -1 --oneline", "git fetch origin",
 		"for i in 1 2 3; do echo $i; sleep 1; done", "watch ls", "wget -qO- http://localhost/x",
-		"cut -c1-220 /tmp/proj/tasks/bik54yalo.output",
+		"cut -c1-220 /tmp/proj/tasks/abc123.output",
 	} {
 		state := newDaemonState(catalog.Catalog{}, nil)
 		bashAt(t, state, t0, cmd)
