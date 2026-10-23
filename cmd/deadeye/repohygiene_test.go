@@ -26,7 +26,12 @@ func TestNoPersonalPathsInFixturesOrBenchmarks(t *testing.T) {
 	if err != nil {
 		t.Skipf("not a git checkout: %v", err)
 	}
-	markers := [][]byte{[]byte("/" + "Users" + "/"), []byte("/private/tmp/" + "claude-")}
+	markers := [][]byte{
+		[]byte("/" + "Users" + "/"),
+		[]byte("/private/tmp/" + "claude-"),
+		[]byte("private-tmp-" + "claude-"), // the same path as a dashed project slug
+		[]byte("claude-" + "501"),
+	}
 	for _, rel := range strings.Split(string(out), "\x00") {
 		if rel == "" || !(strings.HasPrefix(rel, "benchmarks/") || strings.Contains(rel, "testdata/")) {
 			continue

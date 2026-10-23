@@ -1,7 +1,7 @@
 [1m============================= test session starts ==============================[0m
-platform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0 -- /home/user/.claude/jobs/baeac04b/tmp/pytestenv/bin/python3
+platform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0 -- /home/user/.claude/jobs/job0000/tmp/pytestenv/bin/python3
 cachedir: .pytest_cache
-rootdir: /home/user/.claude/jobs/baeac04b/tmp/fixtures/pyproj
+rootdir: /home/user/.claude/jobs/job0000/tmp/fixtures/pyproj
 [1mcollecting ... [0mcollected 1 item
 
 test_x.py::test_add [31mFAILED[0m[31m                                               [100%][0m
