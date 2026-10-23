@@ -114,3 +114,28 @@ func TestAgentStateIsFreedAndMergedForCodemap(t *testing.T) {
 		t.Errorf("SessionEnd left %d state entries", len(state.sessions))
 	}
 }
+
+// If a host never sends agent_id (a real PreToolUse payload from inside a
+// subagent has not been observed; only SubagentStart is captured), state
+// falls back to the session id: the pre-existing behaviour, never an error
+// and never lost advice.
+func TestMissingAgentIDFallsBackToSessionState(t *testing.T) {
+	if got := agentKey(hookio.Input{SessionID: "s1"}); got != "s1" {
+		t.Fatalf("agentKey without agent_id = %q, want the session id", got)
+	}
+	state := newDaemonState(catalog.Catalog{}, nil)
+	path := filepath.Join(t.TempDir(), "a.go")
+	if err := os.WriteFile(path, []byte("package p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readAs(t, state, "", path); got != "" {
+		t.Fatalf("first read advised: %q", got)
+	}
+	if got := readAs(t, state, "", path); !strings.Contains(got, "already read") {
+		t.Errorf("without agent_id the session-level repeat was lost: %q", got)
+	}
+	state.endAgent(hookio.Input{SessionID: "s1"}) // no agent_id: must be a no-op
+	if len(state.sessions) != 1 {
+		t.Errorf("endAgent without agent_id changed state: %d entries", len(state.sessions))
+	}
+}
