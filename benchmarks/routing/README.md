@@ -203,6 +203,15 @@ cannot produce a trustworthy accuracy rate from six tasks and seven probes. The
 direction of the error is the finding; the magnitude is not.
 
 
+> **Note: the real-prompt corpus files were removed from the repository.**
+> `corpus/wild_raw.jsonl`, `corpus/wild_sample.jsonl` and `corpus/full_sample.jsonl`
+> held prompts harvested from private sessions. The results below that used them
+> (Dataset 2, the checkpoint transfer test on real prompts, the policy engine
+> and the judge-agreement run) were produced before the removal and cannot be
+> re-run from this checkout; `checkpoint_ab.py` runs its synthetic half only and
+> `policy_engine.py` exits with a message. The derived numeric files
+> (`wild_signals.jsonl`, labels, splits) and the synthetic corpus remain.
+
 ## Decomposition experiment (`corpus/`)
 
 Laya answers deadeye's one 3-way "which tier" question badly: across a 66-case
@@ -408,7 +417,7 @@ Three flaws in everything above, all corrected here:
 
 1. **The corpus was truncated at 300 chars.** Real Agent prompts average 2,697
    and reach 10,470 — so every earlier measurement judged ~11% of each task.
-   `corpus/full_sample.jsonl` carries untruncated prompts.
+   `corpus/full_sample.jsonl` carried untruncated prompts (removed, see the note above).
 2. **Annotator labels were unreliable** (50-61% agreement) *and* labeller A
    worked from a 150-char view while B, Laya and the kernel saw 300. Dropped
    entirely: this run uses **the judge's own answer** as ground truth — what

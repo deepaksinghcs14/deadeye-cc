@@ -44,12 +44,17 @@ def tier(text, model):
 def main():
     A = {int(k): v for k, v in json.load(open(os.path.join(HERE, "labels_a.json"))).items()}
     B = {int(x["id"]): int(x["tier"]) for x in json.load(open(os.path.join(HERE, "labels_b.json")))}
-    wild = {r["id"]: r for r in (json.loads(l) for l in open(os.path.join(HERE, "wild_sample.jsonl")))}
-    agreed = [i for i in sorted(set(A) & set(B)) if A[i] == B[i]]
+    wild_path = os.path.join(HERE, "wild_sample.jsonl")
     syn = [json.loads(l) for l in open(os.path.join(HERE, "signals.jsonl"))]
+    runs = [("SYNTHETIC corpus", [(r["text"], r["tier"]) for r in syn], None)]
+    if os.path.exists(wild_path):
+        wild = {r["id"]: r for r in (json.loads(l) for l in open(wild_path))}
+        agreed = [i for i in sorted(set(A) & set(B)) if A[i] == B[i]]
+        runs.insert(0, ("REAL prompts (annotator-agreed)", [(wild[i]["text"], A[i]) for i in agreed], None))
+    else:
+        print("note: wild_sample.jsonl (real prompts) is not in the repository; running the synthetic corpus only.")
 
-    for name, items, label in (("REAL prompts (annotator-agreed)", [(wild[i]["text"], A[i]) for i in agreed], None),
-                               ("SYNTHETIC corpus", [(r["text"], r["tier"]) for r in syn], None)):
+    for name, items, label in runs:
         print(f"\n=== {name}, n={len(items)} ===")
         got = {}
         for model in ("english", "typed-decisions"):
