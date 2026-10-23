@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.78.2
+
+**Three advisories that fired wrong almost every time, fixed; the compact
+tax cut.** A session-level replay of recorded hook firings found the plan
+gate, "identical to the previous command", and "already read this
+session" hints were each wrong on nearly every real firing, and that the
+full coder ruleset was being re-injected on every compact.
+
+- **Plan gate measures the prompt, not the dirty working tree.** File
+  scope is now the tracked files the prompt itself names, not `git diff` --
+  a busy repo with several modified files no longer makes any
+  implementation-shaped prompt fire. A prompt ending in `?` is scored
+  without its question marks, teammate/task/idle/compact envelopes are
+  recognized anywhere in the prompt, and a brief over 60 words is treated
+  as specific rather than vague.
+- **Read, repeat-command, explore-streak and context-arrival state is now
+  keyed per agent, not per session**, so a subagent's reads, bash
+  commands and tool output no longer leak into the parent's "already
+  read" / "identical command" / compact-timing advice.
+- **"Identical to the previous command" only fires within a 30 s window**,
+  never on polls, remote queries, followed logs or `git status/log/fetch`,
+  and now rides preprocess rewrites too -- so it correctly fires on a
+  repeated `go test ./...`, which it used to skip entirely.
+- **A compact restores the persona as a ~700-byte digest plus a pointer to
+  the `deadeye-coder` skill**, instead of the full ~10 KB ruleset every
+  time (hosts without that skill -- Codex, Gemini -- still get the full
+  ruleset). `coder.injection_budget_tokens` default moves from 2000 to
+  2600 to match.
+
+Replayed against the recorded firings: plan gate 18/18 -> 4/18 (the
+remaining 4 are a documented follow-up, not this fix); repeat-command
+15/15 -> 0/15; cross-agent "already read" false positives 24 -> 0.
+
+Also: removed the real-prompt benchmark corpus and scrubbed personal
+paths/session-ids out of 15 tracked fixture and benchmark files, and
+bumped `go.mod` to `go 1.27.3` for the `crypto/x509` stdlib fix
+([GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809)).
+
 ## 0.78.1
 
 **The logging rule and the security reviews agree.** 0.78.0's "never
