@@ -110,7 +110,10 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 	// not the whole ruleset again (see coder.CompactInstructions); the
 	// once-ever nudges below belong to a real session start, so a compact
 	// neither shows nor consumes them.
-	compact := in.Source == "compact"
+	// Only Claude Code ships the deadeye-coder skill the digest points to;
+	// Codex and Gemini get no such skill from `deadeye init`, so they keep
+	// the full ruleset on a compact.
+	compact := in.Source == "compact" && hosts.UsesRawInjection(host)
 	text := coder.Instructions(level)
 	reason := "coder ruleset injection"
 	if compact {

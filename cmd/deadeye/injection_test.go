@@ -111,3 +111,19 @@ func TestSyntheticPromptGetsNoGuidanceAndKeepsTheSlot(t *testing.T) {
 		t.Error("first real prompt did not get the session guidance")
 	}
 }
+
+// The digest points at the deadeye-coder skill, which only the Claude Code
+// plugin ships; other hosts must still get the full ruleset on a compact.
+func TestCompactKeepsFullRulesetOnHostsWithoutTheSkill(t *testing.T) {
+	for _, host := range []string{"codex", "gemini"} {
+		state := coderTestState(t)
+		out := decideCoderSessionStart(hookio.Input{SessionID: "s1", HookEventName: "SessionStart", Source: "compact"}, config.Default(), "", "", host, state)
+		text := out.Raw
+		if out.HookSpecificOutput != nil {
+			text = []byte(out.HookSpecificOutput.AdditionalContext)
+		}
+		if len(text) < 9000 || strings.Contains(string(text), "deadeye-coder skill") {
+			t.Errorf("%s compact injected %d bytes / pointer present; want the full ruleset", host, len(text))
+		}
+	}
+}
