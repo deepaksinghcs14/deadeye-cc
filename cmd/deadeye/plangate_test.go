@@ -72,12 +72,11 @@ func TestPlanGateThresholdDiscipline(t *testing.T) {
 	}
 }
 
-// TestPlanGateFiresOnMultiFileWorkingTree: filescope's signal is about the
-// CURRENT working tree's modified/staged files, not filenames mentioned in
-// the prompt text -- an implementation-shaped prompt against a working
-// tree with several already-touched files should trigger even without any
-// vague wording.
-func TestPlanGateFiresOnMultiFileWorkingTree(t *testing.T) {
+// planRepo makes a git repo with a.go..c.go committed and every one of
+// them modified (unstaged), i.e. the busy dirty tree that used to make the
+// gate fire on any prompt containing "fix" or "change".
+func planRepo(t *testing.T) string {
+	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("no git on PATH")
 	}
@@ -91,25 +90,104 @@ func TestPlanGateFiresOnMultiFileWorkingTree(t *testing.T) {
 		}
 	}
 	run("init", "-q")
-	for _, f := range []string{"a.go", "b.go", "c.go"} {
+	files := []string{"a.go", "b.go", "c.go"}
+	for _, f := range files {
 		if err := os.WriteFile(filepath.Join(dir, f), []byte("package p\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	run("add", ".")
 	run("commit", "-q", "-m", "initial")
-	for _, f := range []string{"a.go", "b.go"} {
+	for _, f := range files {
 		if err := os.WriteFile(filepath.Join(dir, f), []byte("package p\n// changed\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	run("add", ".")
+	return dir
+}
 
+// TestPlanGateMeasuresThePromptNotTheWorkingTree replaces
+// TestPlanGateFiresOnMultiFileWorkingTree, which pinned the opposite
+// intent: a dirty tree says nothing about the size of THIS request. With 3
+// modified files, prompts naming 0 or 1 of them must stay quiet; a prompt
+// naming 3 real files and "refactor" must still fire.
+func TestPlanGateMeasuresThePromptNotTheWorkingTree(t *testing.T) {
+	dir := planRepo(t)
 	cfg := config.PlanGate{MinFiles: 2}
-	in := hookio.Input{Prompt: "Update these files to add a new field", Cwd: dir}
-	_, _, fire := planGateSoftTrigger(in, cfg)
-	if !fire {
-		t.Error("expected the gate to fire against a working tree with 2 staged files (MinFiles=2)")
+	cases := []struct {
+		name, prompt string
+		want         bool
+	}{
+		{"names no file", "Fix the typo in the readme wording", false},
+		{"no code changes yet", "ask pm to review this, no code changes yet", false},
+		{"names one file", "Update a.go to add a new field", false},
+		{"names two files", "Update a.go and b.go to add a new field", true},
+		{"names three files, refactor", "Refactor a.go, b.go and c.go to share one helper", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, _, fire := planGateSoftTrigger(hookio.Input{Prompt: c.prompt, Cwd: dir}, cfg)
+			if fire != c.want {
+				t.Errorf("fired=%v, want %v for %q", fire, c.want, c.prompt)
+			}
+		})
+	}
+}
+
+// TestPlanGateQuestionMarksAreNotVagueness: promptshape adds 0.1 per "?",
+// so three honest questions crossed the 0.3 line on their own. A prompt that
+// ends in "?" is scored without them; real vague wording still fires (see
+// TestPlanGateSoftFiresOncePerMarker's prompt).
+func TestPlanGateQuestionMarksAreNotVagueness(t *testing.T) {
+	prompt := "Should we change the retry logic? What about the timeout? And the backoff?"
+	_, _, fire := planGateSoftTrigger(hookio.Input{Prompt: prompt, Cwd: t.TempDir()}, config.PlanGate{MinFiles: 2})
+	if fire {
+		t.Errorf("plan gate fired on a pure question: %q", prompt)
+	}
+}
+
+// TestPlanGateLongBriefIsNotVague: a pasted multi-paragraph brief is the
+// opposite of vague. The same broad wording in a short prompt still fires.
+func TestPlanGateLongBriefIsNotVague(t *testing.T) {
+	cfg := config.PlanGate{MinFiles: 2}
+	short := "Not sure, maybe look into a redesign of the architecture across the codebase"
+	long := short + ". " + strings.Repeat("The requirements, owners, deadlines and acceptance checks for each part are listed below in detail. ", 8)
+	if _, _, fire := planGateSoftTrigger(hookio.Input{Prompt: short, Cwd: t.TempDir()}, cfg); !fire {
+		t.Fatal("control: the short vague prompt should fire")
+	}
+	if _, _, fire := planGateSoftTrigger(hookio.Input{Prompt: long, Cwd: t.TempDir()}, cfg); fire {
+		t.Error("a 100+ word brief fired as vague scope")
+	}
+}
+
+// TestPlanGateIgnoresEnvelopesAnywhere feeds the gate the raw prompt field
+// of hook inputs that are not user requests. Each would fire if typed by a
+// user (implementation verb + vague words); none may, including envelopes
+// that do not start with "<".
+func TestPlanGateIgnoresEnvelopesAnywhere(t *testing.T) {
+	body := "fix this somehow, maybe look into the whole architecture and rewrite it"
+	prompts := map[string]string{
+		"teammate message":      `<teammate-message teammate_id="eng" color="blue">` + body + `</teammate-message>`,
+		"teammate after text":   "queued: <teammate-message teammate_id=\"eng\">" + body + "</teammate-message>",
+		"idle notification":     `{"type":"idle_notification","from":"eng","note":"` + body + `"}`,
+		"task notification":     "  \n<task-notification><summary>" + body + "</summary></task-notification>",
+		"task notification mid": "background job done. <task-notification>" + body + "</task-notification>",
+		"compact summary":       "This session is being continued from a previous conversation that ran out of context. " + body,
+	}
+	for name, prompt := range prompts {
+		t.Run(name, func(t *testing.T) {
+			state := newDaemonState(catalog.Catalog{}, nil)
+			in := hookio.Input{SessionID: "s", Prompt: prompt, Cwd: t.TempDir()}
+			if _, fired := decidePlanGateSoft(in, config.Default(), state); fired {
+				t.Errorf("plan gate fired on %s", name)
+			}
+		})
+	}
+	// Control: the same body typed by a user does fire, so the cases above
+	// are not passing for an unrelated reason.
+	state := newDaemonState(catalog.Catalog{}, nil)
+	if _, fired := decidePlanGateSoft(hookio.Input{SessionID: "s", Prompt: body, Cwd: t.TempDir()}, config.Default(), state); !fired {
+		t.Error("control prompt did not fire; envelope tests prove nothing")
 	}
 }
 

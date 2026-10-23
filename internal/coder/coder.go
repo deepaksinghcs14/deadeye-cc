@@ -107,6 +107,26 @@ func Instructions(level string) string {
 	return banner + "\n\n" + FilterForLevel(ruleset, level)
 }
 
+// compactDigest is what a COMPACT restores: the habits that change
+// behavior, in about 500 bytes. The full ruleset (10 KB, ~2.6k tokens) was
+// being re-injected on every compact -- 9 copies in one session -- though
+// the compacted context never lost the skill that holds it. The ladder and
+// never-cut list are the same rules as ruleset.md in fewer words; the
+// level-specific wording lives only in the full text behind the pointer.
+const compactDigest = "Ladder, stop at the first rung that holds: needs to exist? > already in this codebase? > stdlib > native feature > installed library > one line > minimum code. Bug fix = root cause where every caller routes. No unrequested abstraction, config or scaffolding. Mark a deliberate shortcut: `deadeye: <shortcut>. ceiling: <limit>. upgrade: <trigger>.` Never cut: input validation at trust boundaries, security, error handling that prevents data loss, one runnable check for non-trivial logic. Output: code first, then at most 3 lines on what was skipped."
+
+const compactPointer = "(Context was compacted; the full rules are in the deadeye-coder skill -- invoke it if you need the detail.)"
+
+// CompactInstructions is the persona text for a SessionStart that follows a
+// compact: banner, compactDigest and a pointer to the full rules, instead of
+// the whole ruleset again. Review mode is already one line.
+func CompactInstructions(level string) string {
+	if level == LevelReview {
+		return Instructions(level)
+	}
+	return "DEADEYE CODER ACTIVE — level: " + level + "\n" + compactDigest + "\n" + compactPointer
+}
+
 // rulesFileHeader marks a rules file as deadeye's, so init/uninstall can
 // tell a file it wrote from one the user authored, and sets honest
 // expectations: a static rules file is the persona ONLY. The routing,

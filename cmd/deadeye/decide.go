@@ -142,7 +142,10 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 		}
 	}
 
-	if state.markInjectedIfFirst(in.SessionID) {
+	// A synthetic prompt (teammate/task/idle notice, compact summary) must
+	// not carry the session guidance, and must not use up its once-per-
+	// session slot either: the first REAL prompt still gets it.
+	if !isSyntheticPrompt(in.Prompt) && state.markInjectedIfFirst(in.SessionID) {
 		// Native-restore guard (PLAN.md §5.7/§10.10): a resumed or
 		// compacted session already carries its own context, so the memory
 		// paragraph -- and the codebase map, whose content the replayed
@@ -372,8 +375,8 @@ func decidePreToolUse(in hookio.Input, cfg config.Config, state *daemonState) ho
 		// the same command AFTER a change is legitimate verification. It
 		// ends an orientation phase too -- belt and braces beside the
 		// PostToolUse reset, for hosts where PostToolUse Edit never arrives.
-		state.clearLastBash(in.SessionID)
-		state.resetExploreStreak(in.SessionID)
+		state.clearLastBash(agentKey(in))
+		state.resetExploreStreak(agentKey(in))
 		// Both can fire on the same edit: the gate asks permission
 		// (PermissionDecision), the vuln advisory adds context
 		// (AdditionalContext) -- different fields of the same
@@ -618,6 +621,20 @@ func balancedParens(script string, open int) string {
 	return script[open+1:]
 }
 
+// pollsOrReadsRemoteState reports commands whose whole purpose is to be run
+// again and see something different: waits and polls, requests to other
+// machines, followed logs, and git queries about state that moves without
+// an edit here; also a background task's output file, which grows while the
+// task runs. "Identical to the previous command" is wrong for these by
+// construction (15 of 15 sampled firings were such re-runs).
+func pollsOrReadsRemoteState(cmd string) bool {
+	return pollCommandRe.MatchString(cmd)
+}
+
+var pollCommandRe = regexp.MustCompile(`\b(sleep|until|while|watch|curl|wget|ssh)\b|\btail\s(?:[^|;&]*\s)?-[fF]\b|\bgit\s+(status|log|fetch)\b|/tasks/\w+\.output\b`)
+
+const repeatCommandAdvice = "deadeye: identical to the previous command, with no file changes in between -- the output is unlikely to differ."
+
 func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	if cfg.Mode.Preprocess != "on" {
 		return hookio.Empty()
@@ -633,7 +650,7 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 	// retry-loop pathology -- nothing changed, so the output won't either.
 	// The retry key catches the same loop with shifting flags.
 	retryKey, _ := normalizeBashRetryKey(bi.Command)
-	repeat, retryCount := state.noteBashCommand(in.SessionID, bi.Command, retryKey)
+	repeat, retryCount := state.noteBashCommand(agentKey(in), bi.Command, retryKey)
 
 	disabled := cfg.DisabledRuleSet()
 
@@ -652,14 +669,17 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "bash-retry"})
 	}
 
+	// repeat-command rides EVERY return path, rewrites included, for the same
+	// reason as bash-retry: `go test ./...` is the canonical retry loop and
+	// is exactly what the rewrite rules match, so a hint that skipped
+	// rewritten commands never fired on it.
+	if repeat && !pollsOrReadsRemoteState(bi.Command) && !disabled["repeat-command"] && !state.isMuted(in.SessionID) {
+		retryAdvice = repeatCommandAdvice // bash-retry is never set on a raw repeat (see !repeat above)
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "repeat-command"})
+	}
+
 	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, disabled)
 	if !applied {
-		if repeat && !disabled["repeat-command"] && !state.isMuted(in.SessionID) {
-			out := hookio.ForEvent("PreToolUse")
-			out.HookSpecificOutput.AdditionalContext = "deadeye: identical to the previous command, with no file changes in between -- the output is unlikely to differ."
-			state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "repeat-command"})
-			return out
-		}
 		if retryAdvice != "" {
 			out := hookio.ForEvent("PreToolUse")
 			out.HookSpecificOutput.AdditionalContext = retryAdvice
@@ -736,7 +756,7 @@ func decideReadAdvice(in hookio.Input, cfg config.Config, state *daemonState) ho
 	if err != nil {
 		return hookio.Empty() // can't assess -- stay quiet, the Read itself will surface the error
 	}
-	unchangedRepeat := state.markFileRead(in.SessionID, ri.FilePath, fi.ModTime().UnixNano())
+	unchangedRepeat := state.markFileRead(agentKey(in), ri.FilePath, fi.ModTime().UnixNano())
 
 	// The VISIBLE advisory keeps its original gate exactly -- only the
 	// tracking above became independent of mode.preprocess.
@@ -809,7 +829,7 @@ func withDelegateExplore(in hookio.Input, cfg config.Config, state *daemonState,
 	if cfg.Mode.Preprocess != "on" || cfg.DisabledRuleSet()["delegate-explore"] || state.isMuted(in.SessionID) {
 		return out
 	}
-	if state.exploreStreakFor(in.SessionID) < exploreStreakThreshold {
+	if state.exploreStreakFor(agentKey(in)) < exploreStreakThreshold {
 		return out
 	}
 	if !state.markSuggestedIfFirst(in.SessionID, "delegate-explore") {
@@ -883,15 +903,15 @@ func decidePostToolUse(in hookio.Input, cfg config.Config, state *daemonState) h
 	// orientation phase.
 	switch in.ToolName {
 	case "Read", "Grep", "Glob":
-		state.noteExploreTool(in.SessionID)
+		state.noteExploreTool(agentKey(in))
 	default:
-		state.resetExploreStreak(in.SessionID)
+		state.resetExploreStreak(agentKey(in))
 	}
 	// Context-arrival accounting for compact-timing: EVERY tool response,
 	// explicitly -- only >8KB outliers are ever logged, so deriving this
 	// from log rows would undercount badly. Raw-JSON length slightly
 	// overstates the visible text, which is why the advisory says "~".
-	state.noteArrivalBytes(in.SessionID, len(in.ToolResponse))
+	state.noteArrivalBytes(agentKey(in), len(in.ToolResponse))
 	switch {
 	case in.ToolName == "Bash":
 		var bi bashInput
@@ -997,6 +1017,7 @@ func recordResolvedAgentModel(in hookio.Input, state *daemonState) {
 // calls launch in the background, so the tool's own response has the
 // resolved model but no token counts.
 func decideSubagentStop(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
+	state.endAgent(in)
 	if cfg.Mode.Routing == "off" || in.AgentTranscriptPath == "" {
 		return hookio.Empty()
 	}

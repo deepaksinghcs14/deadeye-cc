@@ -54,7 +54,12 @@ def fit(X, y, k=3, iters=4000, lr=0.5, l2=0.05):
 
 
 def main():
-    text = {r["id"]: r["text"] for r in (json.loads(l) for l in open(os.path.join(HERE, "wild_sample.jsonl")))}
+    wild_path = os.path.join(HERE, "wild_sample.jsonl")
+    if not os.path.exists(wild_path):
+        print("skipped: wild_sample.jsonl (real prompts) is not in the repository, "
+              "so this experiment cannot be re-run from this checkout.")
+        return
+    text = {r["id"]: r["text"] for r in (json.loads(l) for l in open(wild_path))}
     laya = {r["id"]: r for r in (json.loads(l) for l in open(os.path.join(HERE, "wild_signals.jsonl")))}
     dx = {r["id"]: r for r in (json.loads(l) for l in open(os.path.join(HERE, "deadeye_signals.jsonl")))}
 
