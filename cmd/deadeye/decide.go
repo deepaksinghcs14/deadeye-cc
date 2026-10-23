@@ -142,7 +142,10 @@ func decideUserPromptSubmit(in hookio.Input, cfg config.Config, clientVersion, h
 		}
 	}
 
-	if state.markInjectedIfFirst(in.SessionID) {
+	// A synthetic prompt (teammate/task/idle notice, compact summary) must
+	// not carry the session guidance, and must not use up its once-per-
+	// session slot either: the first REAL prompt still gets it.
+	if !isSyntheticPrompt(in.Prompt) && state.markInjectedIfFirst(in.SessionID) {
 		// Native-restore guard (PLAN.md §5.7/§10.10): a resumed or
 		// compacted session already carries its own context, so the memory
 		// paragraph -- and the codebase map, whose content the replayed

@@ -178,7 +178,7 @@ func Default() Config {
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",
-			InjectionBudgetTokens: 2000, // raised alongside the "Check your backstop" section; see internal/coder/size_test.go
+			InjectionBudgetTokens: 2600, // = the 10300-byte cap in internal/coder/size_test.go at 4 bytes/token; TestCoderBudgetCoversEveryLevel keeps the two in step
 			Security:              "advise",
 			SecurityOSV:           boolPtr(true),
 		},

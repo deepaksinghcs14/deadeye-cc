@@ -106,22 +106,32 @@ func decideCoderSessionStart(in hookio.Input, cfg config.Config, pluginRoot, con
 	writeCoderModeFile(in.SessionID, level)
 	writeCoderReceipt(in.Cwd, in.SessionID, level)
 
+	// After a compact the persona is restored as a short digest + pointer,
+	// not the whole ruleset again (see coder.CompactInstructions); the
+	// once-ever nudges below belong to a real session start, so a compact
+	// neither shows nor consumes them.
+	compact := in.Source == "compact"
 	text := coder.Instructions(level)
 	reason := "coder ruleset injection"
-	if inject.EstimateTokens(text) > cfg.Coder.InjectionBudgetTokens {
+	if compact {
+		text = coder.CompactInstructions(level)
+		reason = "coder ruleset injection (compact digest)"
+	} else if inject.EstimateTokens(text) > cfg.Coder.InjectionBudgetTokens {
 		reason = "coder ruleset injection (over budget, shipped anyway -- trim before adding more)"
 	}
-	if w := welcomeNudge(state, in.SessionID); w != "" {
-		text += "\n\n" + w
-	}
-	if nudge := statuslineNudge(pluginRoot, configDir, state, in.SessionID); nudge != "" {
-		text += "\n\n" + nudge
-	}
-	if u := updateNudge(cfg, state, in.SessionID); u != "" {
-		text += "\n\n" + u
+	if !compact {
+		if w := welcomeNudge(state, in.SessionID); w != "" {
+			text += "\n\n" + w
+		}
+		if nudge := statuslineNudge(pluginRoot, configDir, state, in.SessionID); nudge != "" {
+			text += "\n\n" + nudge
+		}
+		if u := updateNudge(cfg, state, in.SessionID); u != "" {
+			text += "\n\n" + u
+		}
 	}
 	maybeRefreshCatalog(cfg, host) // silent background refresh, no nudge text -- see catalogcheck.go
-	if sk := skewNudge(pluginRoot, state, in.SessionID); sk != "" {
+	if sk := skewNudge(pluginRoot, state, in.SessionID); sk != "" && !compact {
 		text += "\n\n" + sk
 	}
 
