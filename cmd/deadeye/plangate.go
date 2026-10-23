@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/config"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/gitutil"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/signals"
@@ -46,9 +47,28 @@ func looksImplementationShaped(prompt string) bool {
 // implementation request. Real user prompts don't start with a raw XML
 // tag, so this is a cheap, general guard rather than hardcoding just the
 // one tag name observed.
+//
+// The prefix test alone missed real events (teammate idle notices, task
+// notifications and the post-compact summary all reached the gate), so the
+// known envelopes are also matched ANYWHERE in the prompt: a teammate
+// message can be preceded by other text, and the compact summary is plain
+// prose that starts with a fixed sentence.
 func isSyntheticPrompt(prompt string) bool {
-	return strings.HasPrefix(strings.TrimSpace(prompt), "<")
+	p := strings.TrimSpace(prompt)
+	if strings.HasPrefix(p, "<") || strings.HasPrefix(p, compactSummaryPrefix) {
+		return true
+	}
+	for _, m := range syntheticMarkers {
+		if strings.Contains(p, m) {
+			return true
+		}
+	}
+	return false
 }
+
+const compactSummaryPrefix = "This session is being continued from a previous conversation"
+
+var syntheticMarkers = []string{"<teammate-message", "<task-notification>", `"type":"idle_notification"`}
 
 // truncatedMarker caps a task marker at 60 RUNES, not bytes -- byte-slicing
 // (prompt[:60]) can split a multi-byte UTF-8 rune in half, corrupting both
@@ -69,12 +89,20 @@ func truncatedMarker(prompt string) string {
 // doesn't depend on (§13 non-goals) -- degrades to just (a)/(b), which is
 // the correct behavior per PLAN.md §3.1's "absent or erroring -> kernel
 // proceeds with weaker evidence."
+// longPromptWords is promptshape's own "long prompt" line.
+const longPromptWords = 60
+
 func planGateSoftTrigger(in hookio.Input, cfg config.PlanGate) (suggestion, marker string, fire bool) {
 	if in.Prompt == "" || !looksImplementationShaped(in.Prompt) {
 		return "", "", false
 	}
 
-	scope := newScope(in.Prompt, in.Cwd)
+	// File scope is what the PROMPT names, never the dirty working tree: a
+	// tree with 2+ modified files is the normal state of a busy repo and
+	// said nothing about the size of THIS request (the old reading fired on
+	// 11 of 11 sampled turns that edited nothing). Unknown scope stays
+	// quiet here; the routing path keeps its own tree-based scope (INV-1).
+	scope := promptScope(in.Prompt, in.Cwd)
 	evidence := signals.AssessAll(context.Background(), scope, []signals.Signal{signals.PromptShape{}, signals.FileScope{}})
 
 	vague, multiFile := false, false
@@ -91,6 +119,14 @@ func planGateSoftTrigger(in hookio.Input, cfg config.PlanGate) (suggestion, mark
 		}
 	}
 
+	// A long brief is specific, not vague: promptshape adds weight for length
+	// (right for routing, where long means big) and for broad words, and two
+	// pasted multi-paragraph initiative briefs (600 and 900 words) tripped
+	// "vague scope" on that alone. Past this many words only the file count
+	// can fire the gate.
+	if len(strings.Fields(in.Prompt)) > longPromptWords {
+		vague = false
+	}
 	if !vague && !multiFile {
 		return "", "", false
 	}
@@ -162,4 +198,22 @@ func decidePlanGateHard(in hookio.Input, cfg config.Config, state *daemonState) 
 	out.HookSpecificOutput.PermissionDecisionReason = "deadeye: plan gate asked -- this looks like a multi-file/high-radius change and no plan was approved. Approve to proceed, or ask for a plan."
 	state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/" + in.ToolName, Action: "gate-ask", Reason: pending})
 	return out
+}
+
+// promptScope is the plan gate's scope: only tracked files the prompt
+// names, and a prompt ending in "?" is scored without its question marks --
+// asking is not vagueness (promptshape adds 0.1 per "?").
+func promptScope(prompt, cwd string) signals.Scope {
+	repo := gitutil.Output(cwd, "rev-parse", "--show-toplevel")
+	if repo == "" {
+		repo = cwd
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), gitTimeout)
+	defer cancel()
+	files := signals.FilesNamedIn(ctx, repo, prompt)
+	shape := prompt
+	if strings.HasSuffix(strings.TrimSpace(prompt), "?") {
+		shape = strings.ReplaceAll(prompt, "?", "")
+	}
+	return signals.Scope{Prompt: shape, Files: files, Repo: repo}
 }
