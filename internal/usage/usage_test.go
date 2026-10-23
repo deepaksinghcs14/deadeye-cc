@@ -7,8 +7,8 @@ import (
 )
 
 func TestProjectDirEncodesSlashesAsDashes(t *testing.T) {
-	got := ProjectDir("/home/u/.claude", "/Users/deepaksingh/GolandProjects/deadeye-cc")
-	want := "/home/u/.claude/projects/-Users-deepaksingh-GolandProjects-deadeye-cc"
+	got := ProjectDir("/home/u/.claude", "/home/user/proj")
+	want := "/home/u/.claude/projects/-home-user-proj"
 	if got != want {
 		t.Errorf("ProjectDir = %q, want %q", got, want)
 	}
