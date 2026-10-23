@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
@@ -38,6 +39,7 @@ type sessionState struct {
 	lastShownBytesSaved int               // bytesSaved value at the last Stop summary shown -- avoids repeating a stale line
 	readFiles           map[string]int64  // Read'd file path -> mtime (unix nanos) at read time, for duplicate-read advice
 	lastBashCommand     string            // previous Bash command, cleared by any Edit/Write -- consecutive-repeat detection
+	lastBashAt          time.Time         // when lastBashCommand ran -- a repeat after bashRepeatWindow is a fresh look, not a retry
 	lastBashRetryKey    string            // normalized retry key of the previous Bash command (see normalizeBashRetryKey)
 	bashRetryCount      int               // consecutive same-retry-key runs, including the current one
 	pendingRewrites     map[string]string // rewritten command -> rule name, consumed at PostToolUse to measure real output size
@@ -387,6 +389,15 @@ func (d *daemonState) noteWebFetch(sessionID, url string) (repeat bool) {
 	return seen
 }
 
+// bashRepeatWindow: output that can change on its own (a build finishing, a
+// log growing, a service coming up) is expected to differ after a while, so
+// only a re-run this soon after the last one reads as a retry loop. 30 s is
+// the architect's figure; a calibration knob, not a measured optimum.
+const bashRepeatWindow = 30 * time.Second
+
+// bashNow is time.Now, replaceable so tests need no sleeps.
+var bashNow = time.Now
+
 // noteBashCommand records cmd as the session's most recent Bash command
 // and reports whether it's an immediate raw repeat -- the same command run
 // again with no Edit/Write in between (clearLastBash handles the
@@ -397,8 +408,10 @@ func (d *daemonState) noteBashCommand(sessionID, cmd, retryKey string) (consecut
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	s := d.getOrCreate(sessionID)
-	repeat := s.lastBashCommand != "" && s.lastBashCommand == cmd
+	now := bashNow()
+	repeat := s.lastBashCommand != "" && s.lastBashCommand == cmd && now.Sub(s.lastBashAt) <= bashRepeatWindow
 	s.lastBashCommand = cmd
+	s.lastBashAt = now
 	if retryKey != "" && retryKey == s.lastBashRetryKey {
 		s.bashRetryCount++
 	} else if retryKey != "" {

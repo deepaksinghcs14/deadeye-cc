@@ -535,3 +535,72 @@ func TestSubagentStartInjectsBrevityGuidance(t *testing.T) {
 		t.Errorf("expected brevity guidance, got %+v", out.HookSpecificOutput)
 	}
 }
+
+// bashAt runs cmd as the session's next Bash call at a fake time and
+// returns the advisory text it got ("" for none).
+func bashAt(t *testing.T, state *daemonState, now time.Time, cmd string) string {
+	t.Helper()
+	bashNow = func() time.Time { return now }
+	t.Cleanup(func() { bashNow = time.Now })
+	b, _ := json.Marshal(map[string]any{"command": cmd})
+	out := decideBashPreprocess(hookio.Input{SessionID: "s1", ToolName: "Bash", ToolInput: b, Cwd: t.TempDir()}, config.Default(), state)
+	if out.HookSpecificOutput == nil {
+		return ""
+	}
+	return out.HookSpecificOutput.AdditionalContext
+}
+
+// TestRepeatCommandNeedsAShortWindow: the same command re-run after the
+// window is a fresh look at output that may have changed on its own.
+func TestRepeatCommandNeedsAShortWindow(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	state := newDaemonState(catalog.Catalog{}, nil)
+	bashAt(t, state, t0, "ls -la")
+	if got := bashAt(t, state, t0.Add(10*time.Second), "ls -la"); !strings.Contains(got, "identical") {
+		t.Errorf("repeat 10s later not flagged: %q", got)
+	}
+	state = newDaemonState(catalog.Catalog{}, nil)
+	bashAt(t, state, t0, "ls -la")
+	if got := bashAt(t, state, t0.Add(31*time.Second), "ls -la"); got != "" {
+		t.Errorf("repeat 31s after the previous run flagged: %q", got)
+	}
+}
+
+// TestRepeatCommandSkipsPollsAndRemoteQueries: commands whose point is to
+// be re-run and differ must never get "output unlikely to differ".
+func TestRepeatCommandSkipsPollsAndRemoteQueries(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	for _, cmd := range []string{
+		"sleep 5", "until curl -sf localhost:8080/healthz; do sleep 1; done",
+		"curl -s localhost:8080/healthz", "ssh host uptime", "tail -f /tmp/proj/app.log",
+		"tail -n 20 -F /tmp/proj/app.log", "git status", "git log -1 --oneline", "git fetch origin",
+		"for i in 1 2 3; do echo $i; sleep 1; done", "watch ls", "wget -qO- http://localhost/x",
+		"cut -c1-220 /tmp/proj/tasks/bik54yalo.output",
+	} {
+		state := newDaemonState(catalog.Catalog{}, nil)
+		bashAt(t, state, t0, cmd)
+		if got := bashAt(t, state, t0.Add(time.Second), cmd); strings.Contains(got, "identical") {
+			t.Errorf("%q flagged as an identical repeat", cmd)
+		}
+	}
+}
+
+// TestRepeatCommandStillFiresOnRewrittenTestRun: `go test ./...` is
+// rewritten by a preprocess rule, and the hint used to skip every
+// rewritten command -- so the canonical retry loop never got it. Identical
+// run inside the window with no Edit between must fire; an Edit between
+// must not.
+func TestRepeatCommandStillFiresOnRewrittenTestRun(t *testing.T) {
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	state := newDaemonState(catalog.Catalog{}, nil)
+	if got := bashAt(t, state, t0, "go test ./..."); got != "" {
+		t.Errorf("first run advised: %q", got)
+	}
+	if got := bashAt(t, state, t0.Add(20*time.Second), "go test ./..."); !strings.Contains(got, "identical") {
+		t.Errorf("identical go test within 30s not flagged: %q", got)
+	}
+	state.clearLastBash("s1")
+	if got := bashAt(t, state, t0.Add(25*time.Second), "go test ./..."); got != "" {
+		t.Errorf("go test after an edit flagged: %q", got)
+	}
+}

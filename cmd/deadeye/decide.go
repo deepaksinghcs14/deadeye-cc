@@ -618,6 +618,20 @@ func balancedParens(script string, open int) string {
 	return script[open+1:]
 }
 
+// pollsOrReadsRemoteState reports commands whose whole purpose is to be run
+// again and see something different: waits and polls, requests to other
+// machines, followed logs, and git queries about state that moves without
+// an edit here; also a background task's output file, which grows while the
+// task runs. "Identical to the previous command" is wrong for these by
+// construction (15 of 15 sampled firings were such re-runs).
+func pollsOrReadsRemoteState(cmd string) bool {
+	return pollCommandRe.MatchString(cmd)
+}
+
+var pollCommandRe = regexp.MustCompile(`\b(sleep|until|while|watch|curl|wget|ssh)\b|\btail\s(?:[^|;&]*\s)?-[fF]\b|\bgit\s+(status|log|fetch)\b|/tasks/\w+\.output\b`)
+
+const repeatCommandAdvice = "deadeye: identical to the previous command, with no file changes in between -- the output is unlikely to differ."
+
 func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState) hookio.Output {
 	if cfg.Mode.Preprocess != "on" {
 		return hookio.Empty()
@@ -652,14 +666,17 @@ func decideBashPreprocess(in hookio.Input, cfg config.Config, state *daemonState
 		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "bash-retry"})
 	}
 
+	// repeat-command rides EVERY return path, rewrites included, for the same
+	// reason as bash-retry: `go test ./...` is the canonical retry loop and
+	// is exactly what the rewrite rules match, so a hint that skipped
+	// rewritten commands never fired on it.
+	if repeat && !pollsOrReadsRemoteState(bi.Command) && !disabled["repeat-command"] && !state.isMuted(in.SessionID) {
+		retryAdvice = repeatCommandAdvice // bash-retry is never set on a raw repeat (see !repeat above)
+		state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "repeat-command"})
+	}
+
 	rule, newCmd, applied := preprocess.Apply(in.Cwd, bi.Command, disabled)
 	if !applied {
-		if repeat && !disabled["repeat-command"] && !state.isMuted(in.SessionID) {
-			out := hookio.ForEvent("PreToolUse")
-			out.HookSpecificOutput.AdditionalContext = "deadeye: identical to the previous command, with no file changes in between -- the output is unlikely to differ."
-			state.log(logstore.Record{TS: nowRFC3339(), SessionID: in.SessionID, Surface: "PreToolUse/Bash", Action: "advise", Reason: "repeat-command"})
-			return out
-		}
 		if retryAdvice != "" {
 			out := hookio.ForEvent("PreToolUse")
 			out.HookSpecificOutput.AdditionalContext = retryAdvice
