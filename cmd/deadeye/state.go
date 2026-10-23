@@ -2,9 +2,11 @@ package main
 
 import (
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/deepaksinghcs14/deadeye-cc/internal/catalog"
+	"github.com/deepaksinghcs14/deadeye-cc/internal/hookio"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/lessons"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/logstore"
 	"github.com/deepaksinghcs14/deadeye-cc/internal/meta"
@@ -79,6 +81,34 @@ func newDaemonState(cat catalog.Catalog, logs *logstore.Store) *daemonState {
 		outcomeCache: cached,
 		sessions:     map[string]*sessionState{},
 	}
+}
+
+// agentKey is the state key for the per-AGENT advisories (read dedupe,
+// repeat-command, exploration streak, context arrival). A subagent shares
+// its parent's session_id, so keying these by session alone let a file a
+// subagent read produce "already read" in the parent's context, where it was
+// never read. Hook input carries agent_id only inside subagents (see
+// hookio.Input); the main thread keeps the bare session id. Session-level
+// flags (injection, mute, plan gate, dedupe of suggestions) stay on the
+// session id.
+func agentKey(in hookio.Input) string {
+	if in.AgentID == "" {
+		return in.SessionID
+	}
+	return in.SessionID + agentSep + in.AgentID
+}
+
+const agentSep = "\x00"
+
+// endAgent frees a finished subagent's state; its reads were never in the
+// parent's context, so nothing is merged back.
+func (d *daemonState) endAgent(in hookio.Input) {
+	if in.AgentID == "" {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	delete(d.sessions, agentKey(in))
 }
 
 func (d *daemonState) getOrCreate(sessionID string) *sessionState {
@@ -270,9 +300,17 @@ func (d *daemonState) markFileRead(sessionID, path string, mtime int64) (unchang
 func (d *daemonState) readFilesSnapshot(sessionID string) []string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	s := d.getOrCreate(sessionID)
-	paths := make([]string, 0, len(s.readFiles))
-	for p := range s.readFiles {
+	// Codemap wants the files the SESSION touched, any agent included.
+	set := map[string]bool{}
+	for key, s := range d.sessions {
+		if key == sessionID || strings.HasPrefix(key, sessionID+agentSep) {
+			for p := range s.readFiles {
+				set[p] = true
+			}
+		}
+	}
+	paths := make([]string, 0, len(set))
+	for p := range set {
 		paths = append(paths, p)
 	}
 	sort.Strings(paths)
@@ -486,7 +524,11 @@ func (d *daemonState) isMuted(sessionID string) bool {
 func (d *daemonState) endSession(sessionID string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	delete(d.sessions, sessionID)
+	for key := range d.sessions {
+		if key == sessionID || strings.HasPrefix(key, sessionID+agentSep) {
+			delete(d.sessions, key)
+		}
+	}
 }
 
 // clearLastRouting consumes the session's last routing decision after an
