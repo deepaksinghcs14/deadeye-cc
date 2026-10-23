@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.78.2
+## 0.78.3
 
 **Three advisories that fired wrong almost every time, fixed; the compact
 tax cut.** A session-level replay of recorded hook firings found the plan
