@@ -342,8 +342,6 @@ then start a new session or run `/reload-plugins`. Once on:
   decision log; context from the session.
 - **`/deadeye theme`**: a picker over sixteen themes, previewed on your live
   session, saved to `mod.theme`. `/deadeye theme nord` sets one by name.
-- **A status-line badge** with the level, so `deadeye-statusline.sh` is no
-  longer needed on Claude Code.
 
 | Family | Themes |
 |---|---|

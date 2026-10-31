@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.79.3
+
+**No more `⚠ deadeye: [DEADEYE]` under the prompt.** The mod pinned its
+level badge as a plugin status line, which Claude Code draws as a warning
+notice, not as the quiet badge `deadeye-statusline.sh` paints. The HUD
+band already carries the level, so the status line is gone; a kill switch
+(`DEADEYE=off`, `DEADEYE_CODER=off`) now shows in the HUD's level chip
+instead (`DEADEYE OFF`, `CODER OFF`), and `auto` picks Ghost for either.
+
 ## 0.79.2
 
 **The mod draws in an installed plugin.** 0.79.0 and 0.79.1 built their

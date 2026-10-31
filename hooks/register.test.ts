@@ -48,12 +48,12 @@ for (const mod of [undefined, 'off'] as const) {
   })
 }
 
-test('mode.mod on: badge, and Claude repainted to the configured theme', async ($, on) => {
+test('mode.mod on: no status-line notice, Claude repainted to the configured theme', async ($, on) => {
   const seen = host(on, 'on', { theme: 'tokyonight' })
 
   await $.session.start(start)
 
-  expect(seen.statuses).toEqual(['[DEADEYE:SNIPER]'])
+  expect(seen.statuses).toEqual([])
   expect(seen.config).toEqual([['theme', 'deadeye-tokyonight']])
   const file = seen.writes['/home/u/.claude/themes/deadeye-tokyonight.json']
   expect(JSON.parse(file).overrides.claude).toBe('#7aa2f7')

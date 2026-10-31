@@ -14,9 +14,6 @@ import { THEMES, THEME_SLUGS, autoTheme, claudeThemeFile, themeBySlug, type Them
 
 const SCOPE = 'deadeye-scope'
 const PICKER = 'deadeye-theme'
-const BADGES: Record<string, string> = {
-  marksman: '[DEADEYE]', spotter: '[DEADEYE:SPOTTER]', sniper: '[DEADEYE:SNIPER]', review: '[DEADEYE:REVIEW]',
-}
 const TIERS: [RegExp, string][] = [[/haiku/, 'tier 0'], [/sonnet/, 'tier 1'], [/opus/, 'tier 2'], [/fable/, 'tier 3']]
 
 type ModConfig = { enabled: boolean; theme: string; repaint: boolean; sounds: boolean; notify: boolean }
@@ -54,12 +51,6 @@ async function coderLevel($: EngineInterface): Promise<string> {
   return 'off'
 }
 
-async function badge($: EngineInterface, level: string): Promise<string | undefined> {
-  if ((await $.env.get('DEADEYE')) === 'off') return '[DEADEYE:OFF]'
-  if ((await $.env.get('DEADEYE_CODER')) === 'off') return '[DEADEYE:CODER OFF]'
-  return BADGES[level]
-}
-
 // deadeye is not always on PATH; fall back to its self-bootstrap install.
 async function deadeye($: EngineInterface, ...args: string[]) {
   const h = await home($)
@@ -90,9 +81,17 @@ async function decisions($: EngineInterface, sid: string) {
   return { route, saved: Math.round(saved), accuracy }
 }
 
+// The HUD's level chip: the coder level, or which kill switch silenced it
+// (silence is indistinguishable from "forgot I turned it off").
+async function levelChip($: EngineInterface): Promise<string> {
+  if ((await $.env.get('DEADEYE')) === 'off') return 'deadeye off'
+  if ((await $.env.get('DEADEYE_CODER')) === 'off') return 'coder off'
+  return coderLevel($)
+}
+
 async function refresh($: EngineInterface, cfg: ModConfig, patch: Partial<Hud> = {}) {
   const sid = await $.session.id()
-  const level = await coderLevel($)
+  const level = await levelChip($)
   const h = await home($)
   const [d, usage, daemon] = await Promise.all([
     decisions($, sid),
@@ -160,14 +159,11 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     cfg = await modConfig($)
     if (!cfg.enabled) {
-      $.ui.status(undefined)
       await unpaint($)
       return next(e)
     }
     await $.command.register({ name: 'deadeye', description: 'deadeye scope pane; `theme` opens the theme picker, `theme <name>` sets one' })
     await applyTheme($, cfg.theme, false)
-    const h = await read($, hud)
-    $.ui.status(await badge($, h.level))
     return next(e)
   })
 
@@ -181,7 +177,6 @@ export const register: Register = on => {
     const restyled = fresh.enabled && (fresh.theme !== cfg.theme || fresh.repaint !== cfg.repaint)
     cfg = { ...fresh, theme: fresh.enabled ? fresh.theme : cfg.theme }
     if (toggled && !cfg.enabled) {
-      $.ui.status(undefined)
       await unpaint($)
       return next(e)
     }
@@ -190,7 +185,6 @@ export const register: Register = on => {
     if (toggled || restyled) await applyTheme($, cfg.theme, false)
     const h = await refresh($, cfg)
     if (cfg.theme === 'auto' && h.theme !== theme.slug) await applyTheme($, 'auto', false)
-    $.ui.status(await badge($, h.level))
     const took = e.durationMs
     if (cfg.sounds && e.reason === 'answer') void $.audio.play({ asset: 'hooks/sounds/target.wav' }).catch(() => undefined)
     if (cfg.notify && took > 60_000) void $.ui.notify(`${theme.done} in ${Math.round(took / 1000)}s`, { title: 'deadeye' }).catch(() => undefined)

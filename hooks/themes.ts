@@ -96,7 +96,8 @@ export function themeBySlug(slug: string | undefined): Theme | undefined {
 // `auto` follows the coder level, so the look says what mode you're in.
 export function autoTheme(level: string | undefined): Theme {
   const map: Record<string, string> = { review: 'blueprint', sniper: 'nightvision', off: 'ghost' }
-  return themeBySlug(map[level ?? ''] ?? 'marksman')!
+  const key = level?.endsWith('off') ? 'off' : level ?? ''
+  return themeBySlug(map[key] ?? 'marksman')!
 }
 
 // Claude Code's custom theme file (~/.claude/themes/<slug>.json): a base
