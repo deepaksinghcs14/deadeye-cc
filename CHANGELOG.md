@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.79.8
+
+**Every theme readable.** Claude's `subtle` text colour was mapped to each
+theme's border colour, which sits at 1.1-1.3x against the background by
+design, so secondary text vanished in every theme and a light one (Rosé
+Pine Dawn) hid whole lines. `subtle` is now the theme's dim text colour.
+Palettes measured against WCAG contrast and corrected from each theme's
+own scale: Tokyo Night and Nord dim text, Solarized text and dim, and
+Dawn's accents (pine, iris, gold-brown, love, foam instead of the
+dark-background picks), so chips and tags read on light. Every text
+colour now clears 3:1 on its background and body text 4.5:1. The site's
+theme cards use the same values.
+
 ## 0.79.7
 
 **The Claude recolour switches by itself.** Claude's `/config` theme row
