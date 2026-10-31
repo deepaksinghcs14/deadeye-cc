@@ -37,7 +37,7 @@ let statsLines: string[] = []
 const isOurCommand = (name: string) => name === 'deadeye' || name === 'deadeye:deadeye'
 const TIERS: [RegExp, string][] = [[/haiku/, 'tier 0'], [/sonnet/, 'tier 1'], [/opus/, 'tier 2'], [/fable/, 'tier 3']]
 
-type ModConfig = { enabled: boolean; theme: string; repaint: boolean; background: boolean; sounds: boolean; notify: boolean; hud: 'auto' | 'full' | 'deadeye' | 'off' }
+type ModConfig = { enabled: boolean; theme: string; repaint: boolean; background: boolean; sounds: boolean; notify: boolean; hud: 'auto' | 'full' | 'deadeye' | 'off'; tips: boolean }
 
 const hud = atom({ plugin: 'deadeye', key: 'hud' } as const, {
   level: 'marksman', theme: 'marksman', route: '—', saved: 0, savedAll: 0, gate: 'clear', accuracy: null, context: null, daemon: false, repaint: 'off',
@@ -59,6 +59,7 @@ async function modConfig($: EngineInterface): Promise<ModConfig> {
     repaint: m.repaint !== 'off',
     background: m.background !== 'off',
     hud: ['full', 'deadeye', 'off'].includes(m.hud) ? m.hud : 'auto',
+    tips: m.tips !== 'off',
     sounds: m.sounds === 'on',
     notify: m.notify === 'on',
   }
@@ -294,7 +295,53 @@ const pct = (p: number | null) => (p === null ? '—' : `${p}%`)
 const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`)
 
 // Module state: reset by a reload, refilled by session.start (which a reload runs again).
-let cfg: ModConfig = { enabled: false, theme: 'marksman', repaint: false, background: false, sounds: false, notify: false, hud: 'auto' }
+let cfg: ModConfig = { enabled: false, theme: 'marksman', repaint: false, background: false, sounds: false, notify: false, hud: 'auto', tips: true }
+
+// Tips about deadeye's commands, the way Claude shows its own: one every
+// fifth turn, in the spinner while it runs and at the hint line's tail while
+// you type. A tip retires once its command has been used ($.store, across
+// sessions), so the deck shrinks to what you haven't tried.
+const TIPS: [string, string][] = [
+  ['deadeye config', '/deadeye config — every setting in a pane, enter cycles a value'],
+  ['deadeye theme', '/deadeye theme — sixteen looks for Claude, pick one from a list'],
+  ['deadeye stats', '/deadeye stats — what deadeye measured: savings, routing, context'],
+  ['deadeye help', '/deadeye help — the card of every deadeye command'],
+  ['deadeye-coder', '/deadeye-coder sniper — one shot only: the one-liner, and the rest challenged'],
+  ['deadeye-review', '/deadeye-review — four-lens self-review of your diff before a PR'],
+  ['deadeye-pr', '/deadeye-pr 123 --post — review a GitHub PR, post the findings'],
+  ['deadeye-guard', '/deadeye-guard — OWASP-mapped security review of the current diff'],
+  ['deadeye-sweep', '/deadeye-sweep — apply the review findings, verify the build, re-scan'],
+  ['deadeye-vapt', '/deadeye-vapt — whole-service pen-test pass, ranked worst-first'],
+  ['deadeye-mute', '/deadeye-mute — quiet the advisories for this session; trimming stays on'],
+  ['deadeye-debt', '/deadeye-debt — the ledger of every deadeye: shortcut marker in the repo'],
+  ['deadeye-route', '/deadeye-route <task> — what deadeye would route a task to, and why'],
+  ['deadeye-status', '/deadeye-status — modes, level, kill switches, daemon in one screen'],
+  ['kill', 'DEADEYE=off in your shell turns everything off; DEADEYE_CODER=off just the persona'],
+]
+let turns = 0
+let tip: string | null = null
+let lastTip = ''
+let tipsUsed: string[] = []
+
+async function loadTipsUsed($: EngineInterface) {
+  const v = await $.store.get('tipsUsed').catch(() => undefined)
+  tipsUsed = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
+}
+
+async function markUsed($: EngineInterface, command: string, sub: string) {
+  const key = command.replace(/^deadeye:/, '') === 'deadeye' ? `deadeye ${sub}` : command.replace(/^deadeye:/, '')
+  if (!TIPS.some(([k]) => k === key) || tipsUsed.includes(key)) return
+  tipsUsed = [...tipsUsed, key]
+  await $.store.set('tipsUsed', tipsUsed).catch(() => undefined)
+}
+
+function pickTip(): string | null {
+  const deck = TIPS.filter(([k, text]) => !tipsUsed.includes(k) && text !== lastTip)
+  if (!deck.length) return null
+  const [, text] = deck[turns % deck.length]!
+  lastTip = text
+  return text
+}
 // Whether Claude's own statusLine is configured (then the HUD row shows only deadeye's figures).
 let hasStatusLine = false
 
@@ -330,6 +377,7 @@ export const register: Register = on => {
       return next(e)
     }
     if (cfg.repaint) await installThemes($)
+    await loadTipsUsed($)
     await applyTheme($, cfg.theme, false)
     return next(e)
   })
@@ -349,6 +397,8 @@ export const register: Register = on => {
     }
     if (!cfg.enabled) return next(e)
     if (toggled || restyled) await applyTheme($, cfg.theme, false)
+    turns++
+    tip = cfg.tips && turns % 5 === 0 ? pickTip() : null
     const h = await refresh($, cfg)
     if (cfg.theme === 'auto' && h.theme !== theme.slug) await applyTheme($, 'auto', false)
     const took = e.durationMs
@@ -381,9 +431,10 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e)) // a UI nicety never blocks a tool call
 
   on('command.run', async ($, e, next) => {
+    const [sub, name] = e.args.trim().split(/\s+/)
+    if (/^(deadeye:)?deadeye(-|$)/.test(e.command)) await markUsed($, e.command, sub ?? '')
     // Mod off: the /deadeye skill runs as it always has (status, config, theme from chat).
     if (!isOurCommand(e.command) || !cfg.enabled) return next(e)
-    const [sub, name] = e.args.trim().split(/\s+/)
     if (sub === 'stats') {
       const view = name && STATS_VIEWS[name] ? name : 'impact'
       const args = [...STATS_VIEWS[view]!, ...(view === 'context' && name === 'context' ? e.args.trim().split(/\s+/).slice(2) : [])]
@@ -490,7 +541,8 @@ export const register: Register = on => {
   on('ui.render', { component: 'Spinner' }, ($, e, next) => {
     if (!cfg.enabled || e.props.message) return next(e)
     const verb = theme.verbs[Math.floor(Date.now() / 2500) % theme.verbs.length] ?? e.props.word
-    return next({ ...e, props: { ...e.props, word: verb } })
+    const suffix = tip ? ` · tip: ${tip}${e.props.suffix}` : e.props.suffix
+    return next({ ...e, props: { ...e.props, word: verb, suffix } })
   })
 
   // Elements are built by calling the surface's constructors, not JSX: the
@@ -570,7 +622,7 @@ export const register: Register = on => {
         ...meter('routed right', h.accuracy, t.c.acc), sep,
         ...meter('context', h.context, h.context !== null && h.context >= 80 ? t.c.warn : t.c.acc2), sep,
         Text({ dimColor: true, children: 'gate ' }), Text({ color: h.gate === 'holding' ? t.c.warn : t.c.good, children: h.gate }),
-        Text({ dimColor: true, children: '  · /deadeye' }),
+        Text({ dimColor: true, children: tip ? `  · tip: ${tip}` : '  · /deadeye' }),
       ] })
     }
     return Text({ children: [
@@ -581,14 +633,15 @@ export const register: Register = on => {
       ...(h.usage === null ? [] : [sep, Text({ dimColor: true, children: 'Usage: ' }), Text({ color: h.usage >= 80 ? t.c.warn : t.c.fg, children: `${h.usage}% ` }),
         Text({ color: h.usage >= 80 ? t.c.warn : t.c.acc, children: usageBar }),
         ...(h.resetAt ? [Text({ dimColor: true, children: ` → reset ${h.resetAt}` })] : [])]),
-      Text({ dimColor: true, children: '  · /deadeye' }),
+      Text({ dimColor: true, children: tip ? `  · tip: ${tip}` : '  · /deadeye' }),
     ] })
   })
 
   on('ui.render', { component: 'InfoNotice' }, async ($, e, next) => {
     if (!cfg.enabled) return next(e)
     const h = await read($, hud)
-    return next({ ...e, props: { ...e.props, text: `${e.props.text} · deadeye ${themeFor(h).name} · ${h.level}` } })
+    const first = cfg.tips ? TIPS.find(([k]) => !tipsUsed.includes(k))?.[1] : undefined
+    return next({ ...e, props: { ...e.props, text: `${e.props.text} · deadeye ${themeFor(h).name} · ${h.level}${first ? ` · ${first}` : ''}` } })
   })
 
   // Scope pane: docked beside the transcript, or a two-row strip inline.

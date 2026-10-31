@@ -350,6 +350,10 @@ then start a new session or run `/reload-plugins`. Once on:
 - **`/deadeye config`**: every setting in a pane; enter cycles a value
   through `deadeye config set`, so the binary still validates. Free-text
   keys say so. With the mod off the same command is the chat picker.
+- **Tips**, the way Claude shows its own: about one turn in five, a
+  one-liner about a deadeye command in the spinner line and at the end of
+  the hint line (`tip: /deadeye-review — four-lens self-review of your
+  diff`). A command's tip retires once you've used it. `mod.tips off`.
 
 | Family | Themes |
 |---|---|

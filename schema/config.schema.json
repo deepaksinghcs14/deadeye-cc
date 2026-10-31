@@ -253,6 +253,12 @@
           "default": "auto",
           "description": "The HUD row under the prompt (drawn in place of the idle hint line). full: level, branch, model, context, rate-limit usage and reset time. deadeye: level, theme, routing accuracy, gate -- for people whose own statusLine already shows branch/model/context/usage. auto (default): deadeye when a statusLine is configured in Claude's settings, full otherwise. off: Claude's own hint line."
         },
+        "tips": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "on",
+          "description": "One-line tips about deadeye's commands, the way Claude Code shows its own: in the spinner line while a turn runs and at the end of the hint line while you type, about one turn in five, never the same tip twice in a row. A command's tip retires once you have used that command."
+        },
         "sounds": {
           "type": "string",
           "enum": ["off", "on"],

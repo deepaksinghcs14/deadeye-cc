@@ -56,6 +56,7 @@ type Mod struct {
 	Repaint    string `json:"repaint"`
 	Background string `json:"background"`
 	Hud        string `json:"hud"`
+	Tips       string `json:"tips"`
 	Sounds     string `json:"sounds"`
 	Notify     string `json:"notify"`
 }
@@ -197,7 +198,7 @@ func Default() Config {
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
 		TierSample:            TierSample{Rate: 10},
-		Mod:                   Mod{Theme: "marksman", Repaint: "on", Background: "on", Hud: "auto", Sounds: "off", Notify: "off"},
+		Mod:                   Mod{Theme: "marksman", Repaint: "on", Background: "on", Hud: "auto", Tips: "on", Sounds: "off", Notify: "off"},
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",

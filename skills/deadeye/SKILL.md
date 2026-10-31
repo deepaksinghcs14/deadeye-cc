@@ -59,6 +59,7 @@ Keys and allowed values (authoritative -- never invent others):
 | `mod.repaint` | off · on |
 | `mod.background` | off · on |
 | `mod.hud` | auto · full · deadeye · off |
+| `mod.tips` | off · on |
 | `mod.sounds` | off · on |
 | `mod.notify` | off · on |
 | `coder.default_level` | off · spotter · marksman · sniper |

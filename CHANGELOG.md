@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.81.0
+
+**Tips about deadeye's commands, the way Claude shows its own.** About
+one turn in five, a one-liner about a command appears in the spinner line
+while the turn runs (`Sighting · tip: /deadeye stats — what deadeye
+measured… (4s)`) and at the end of the hint line while you type; the line
+under the logo carries one at session start. Fifteen tips cover
+`/deadeye config|theme|stats|help`, the coder levels, the review commands
+(`-review`, `-pr --post`, `-guard`, `-sweep`, `-vapt`, `-debt`), `-mute`,
+`-route`, `-status` and the kill switches. Never the same tip twice in a
+row, and a command's tip retires once you have used that command (kept
+across sessions), so the deck shrinks to what you haven't tried.
+`mod.tips off` silences them.
+
 ## 0.80.0
 
 **One `/deadeye` command, and settings in a pane.** `/deadeye-config` is
