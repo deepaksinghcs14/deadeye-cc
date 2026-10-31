@@ -5,8 +5,9 @@
 **The scope tab says why the pane is inline.** A `layout` row reports what
 the engine told the pane -- `fullscreen · 172 cols · docked` or `main
 screen · 172 cols · inline` -- and an inline pane adds the one-line
-remedy: fullscreen mode (`/config` → Fullscreen, then a new session) at
-110+ columns docks it; tmux and some terminals keep the main-screen layout.
+remedy: start Claude with `CLAUDE_CODE_NO_FLICKER=1` (the fullscreen
+layout; the `fullscreen` setting alone did not take on the author's
+machine) at 110+ columns and it docks; tmux keeps the main-screen layout.
 
 ## 0.82.0
 
