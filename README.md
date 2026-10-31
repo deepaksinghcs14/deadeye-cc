@@ -362,7 +362,8 @@ is put back when the mod goes off. All sixteen theme files are written when
 the mod comes on; Claude Code reads that folder at startup, so restart it
 once after the first run and every theme then repaints by itself. The
 terminal's own background and foreground follow too (iTerm2, Ghostty, Kitty,
-WezTerm, Alacritty, VS Code; JetBrains terminals and Terminal.app ignore it),
+WezTerm, Alacritty, VS Code, and a tmux pane through its pane style; JetBrains
+terminals and Terminal.app ignore it),
 reset when the session ends; `mod.background off` keeps them. Opt-in extras: `mod.sounds` (macOS click and tone) and `mod.notify`
 (desktop notification after a long turn). [Every key on the settings page →](https://deepaksinghcs14.github.io/deadeye-cc/settings.html#mod)
 

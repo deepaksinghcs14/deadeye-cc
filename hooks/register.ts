@@ -166,17 +166,19 @@ async function repaint($: EngineInterface, t: Theme): Promise<Hud['repaint']> {
     if (row.value === slug || row.value === `custom:${slug}`) return 'on'
     let set = await $.config.set({ key: 'theme', value: `custom:${slug}` })
     if (set.deny) set = await $.config.set({ key: 'theme', value: slug })
-    if (set.deny) {
-      repaintWhy = `${set.deny} (row kind ${row.kind}, value ${JSON.stringify(row.value)}${row.options ? `, options: ${row.options.slice(0, 10).join(', ')}` : ''}${row.isLocked ? ', locked' : ''})`
-      // Claude loads custom themes at startup: a theme written in this
-      // session is not among the row's options until the next one.
-      if (!restartHinted && !(row.options ?? []).includes(slug)) {
+    if (!set.deny) return 'on'
+    // The /config row takes only the built-in names; a custom theme is what
+    // /theme writes to settings.json as "custom:<slug>". Do the same.
+    const wrote = await writeSettingsTheme($, `custom:${slug}`)
+    if (wrote === 'on') {
+      if (!restartHinted) {
         restartHinted = true
-        $.ui.toast('deadeye themes installed — restart Claude Code once, then themes repaint by themselves')
+        $.ui.toast(`deadeye: Claude theme set to ${t.name} — restart Claude Code if the colours don't change`)
       }
-      return 'refused'
+      return 'on'
     }
-    return 'on'
+    repaintWhy = `${set.deny}; settings.json: ${wrote}`
+    return 'refused'
   } catch (err) {
     repaintWhy = err instanceof Error ? err.message : String(err)
     return 'refused'
@@ -193,6 +195,18 @@ let terminalPainted = false
 let terminalWhy = ''
 
 async function paintTerminal($: EngineInterface, t: Theme | null) {
+  // Inside tmux the pane swallows OSC 11; tmux's own pane style colours
+  // Claude's pane instead (and only that pane). `bg=default` resets.
+  const tmux = await $.env.get('TMUX')
+  const pane = await $.env.get('TMUX_PANE')
+  if (tmux && pane) {
+    const style = t ? `bg=${t.c.bg},fg=${t.c.fg}` : 'bg=default,fg=default'
+    const ran = await $.process.run(['tmux', 'select-pane', '-t', pane, '-P', style], { env: { TMUX: tmux, TMUX_PANE: pane }, timeoutMs: 3_000 })
+      .catch(err => ({ exitCode: -1, stdout: '', stderr: err instanceof Error ? err.message : String(err) }))
+    terminalWhy = ran.exitCode === 0 ? `tmux pane ${pane} style ${style}` : `tmux: ${(ran.stderr || ran.stdout).trim() || `exit ${ran.exitCode}`}`
+    if (ran.exitCode === 0) terminalPainted = t !== null
+    return
+  }
   const seq = t ? `\\033]11;${t.c.bg}\\007\\033]10;${t.c.fg}\\007` : '\\033]111\\007\\033]110\\007'
   const script = 'p=$PPID; for i in 1 2 3 4 5 6; do t=$(/bin/ps -o tty= -p "$p" | tr -d " "); case "$t" in ""|"?"|"??") p=$(/bin/ps -o ppid= -p "$p" | tr -d " "); [ -z "$p" ] && { echo "no tty up the process tree"; exit 1; };; *) printf "$SEQ" > "/dev/$t" && echo "/dev/$t"; exit $?;; esac; done; echo "no tty within 6 parents"; exit 1'
   const ran = await $.process.run(['/bin/sh', '-c', script], { env: { SEQ: seq }, timeoutMs: 3_000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: err instanceof Error ? err.message : String(err) }))
@@ -200,12 +214,32 @@ async function paintTerminal($: EngineInterface, t: Theme | null) {
   if (ran.exitCode === 0) terminalPainted = t !== null
 }
 
+// Sets "theme" in Claude's settings.json the way /theme does, touching no
+// other key. Resolves 'on', or why not.
+async function writeSettingsTheme($: EngineInterface, value: string): Promise<string> {
+  const dir = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? `${await home($)}/.claude`
+  const path = `${dir}/settings.json`
+  try {
+    const raw = await $.fs.read(path).catch(() => '{}')
+    const settings = JSON.parse(raw || '{}')
+    if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) return 'settings.json is not an object'
+    if (settings.theme === value) return 'on'
+    if (typeof settings.theme === 'string' && !settings.theme.replace(/^custom:/, '').startsWith('deadeye-')) await $.store.set('prevTheme', settings.theme)
+    settings.theme = value
+    await $.fs.write(path, JSON.stringify(settings, null, 2) + '\n')
+    return 'on'
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err)
+  }
+}
+
 async function unpaint($: EngineInterface) {
   if (terminalPainted) await paintTerminal($, null)
   const prev = await $.store.get('prevTheme')
   const row = (await $.config.list().catch(() => []))?.find(r => r.key === 'theme')
   if (typeof prev === 'string' && typeof row?.value === 'string' && row.value.replace(/^custom:/, '').startsWith('deadeye-')) {
-    await $.config.set({ key: 'theme', value: prev }).catch(() => undefined)
+    const set = await $.config.set({ key: 'theme', value: prev }).catch(() => ({ deny: 'threw' }))
+    if (set.deny) await writeSettingsTheme($, prev)
   }
 }
 
@@ -313,7 +347,7 @@ export const register: Register = on => {
       const rp = await repaint($, theme)
       await update($, hud, v => ({ ...v, repaint: rp }))
       if (cfg.background) await paintTerminal($, theme)
-      const bg = cfg.background ? ` Terminal: ${terminalWhy} (only iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS Code honour it).` : ' Terminal: mod.background is off.'
+      const bg = cfg.background ? ` Terminal: ${terminalWhy} (tmux panes, iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS Code; JetBrains terminals and Terminal.app ignore it).` : ' Terminal: mod.background is off.'
       return { text: (rp === 'on' ? `deadeye: Claude repainted to ${theme.name}.` : `deadeye: repaint refused — ${repaintWhy}. Pick "deadeye ${theme.name}" under /theme by hand.`) + bg }
     }
     if (sub === 'theme' && name) {

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.79.7
+
+**The Claude recolour switches by itself.** Claude's `/config` theme row
+accepts only the seven built-in names, so a plugin cannot select a custom
+theme through it, even though `/theme` stores one as
+`"theme": "custom:<slug>"` in `settings.json`. The mod now writes that key
+the same way when the row refuses (touching no other setting), restores
+the previous value the same way when the mod goes off, and `/deadeye
+repaint` reports which path it took. If the colours don't change in the
+running session, restart Claude Code once.
+
+- **`mod.background` inside tmux:** a tmux pane swallows OSC 11, so the
+  mod colours Claude's pane through tmux's own pane style instead
+  (`select-pane -P bg=…,fg=…`, reset to `default` when the session ends).
+
 ## 0.79.6
 
 **`mod.background` on by default; the site's header fixed.** The terminal

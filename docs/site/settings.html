@@ -428,7 +428,8 @@ footer a{color:var(--brass);}
           the whole window changes, not just Claude's colours. Written as OSC 11/10 to the
           terminal that hosts Claude and reset (OSC 111/110) when the session ends or the mod
           goes off. Honoured by iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS Code's
-          terminal; ignored by JetBrains terminals and Terminal.app. If a session dies before
+          terminal; inside tmux the pane is coloured through tmux's own pane style;
+          ignored by JetBrains terminals and Terminal.app. If a session dies before
           resetting: <code>printf '\e]111\a\e]110\a'</code>.</p>
       </li>
       <li class="field">
