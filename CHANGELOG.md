@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.79.1
+
+**The mod switch takes effect on the next turn.** 0.79.0 read `mode.mod`
+and `mod.*` only when a session started, so `deadeye config set mode.mod
+on` in a running session did nothing until a new session, and
+`/reload-plugins` re-ran nothing because the plugin's files had not
+changed. The mod now re-reads its config at the end of every turn: turning
+it on registers `/deadeye` and applies the theme, turning it off clears the
+badge and puts the previous Claude theme back, and a theme or repaint
+change from the CLI applies -- all on the next turn.
+
 ## 0.79.0
 
 **deadeye inside Claude Code, themed.** A Claude Code mod ships in the

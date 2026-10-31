@@ -141,7 +141,6 @@ const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`)
 // Module state: reset by a reload, refilled by session.start (which a reload runs again).
 let cfg: ModConfig = { enabled: false, theme: 'marksman', repaint: false, sounds: false, notify: false }
 let theme: Theme = THEMES[0]!
-let turnStarted = 0
 
 const themeFor = (h: Hud) => themeBySlug(h.theme) ?? THEMES[0]!
 
@@ -172,18 +171,27 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('prompt.submit', ($, e, next) => {
-    turnStarted = Date.now()
-    return next(e)
-  })
-
   // The coder level can change mid-turn (/deadeye-coder); refresh at turn end.
   on('turn.complete', async ($, e, next) => {
+    // Re-read the config each turn: `deadeye config set mode.mod on` (or a
+    // theme change from the CLI) then takes effect on the next turn, no
+    // restart or reload needed.
+    const fresh = await modConfig($)
+    const toggled = fresh.enabled !== cfg.enabled
+    const restyled = fresh.enabled && (fresh.theme !== cfg.theme || fresh.repaint !== cfg.repaint)
+    cfg = { ...fresh, theme: fresh.enabled ? fresh.theme : cfg.theme }
+    if (toggled && !cfg.enabled) {
+      $.ui.status(undefined)
+      await unpaint($)
+      return next(e)
+    }
     if (!cfg.enabled) return next(e)
+    if (toggled) await $.command.register({ name: 'deadeye', description: 'deadeye scope pane; `theme` opens the theme picker, `theme <name>` sets one' }).catch(() => undefined)
+    if (toggled || restyled) await applyTheme($, cfg.theme, false)
     const h = await refresh($, cfg)
     if (cfg.theme === 'auto' && h.theme !== theme.slug) await applyTheme($, 'auto', false)
     $.ui.status(await badge($, h.level))
-    const took = turnStarted ? Date.now() - turnStarted : 0
+    const took = e.durationMs
     if (cfg.sounds && e.reason === 'answer') void $.audio.play({ asset: 'hooks/sounds/target.wav' }).catch(() => undefined)
     if (cfg.notify && took > 60_000) void $.ui.notify(`${theme.done} in ${Math.round(took / 1000)}s`, { title: 'deadeye' }).catch(() => undefined)
     return next(e)
