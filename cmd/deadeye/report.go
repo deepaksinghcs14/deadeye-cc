@@ -23,7 +23,7 @@ const reportRecordUsage = "usage: deadeye report record <reviewed|finding|posted
 // runReport backs `deadeye report` (generate + print the path) and
 // `deadeye report record <kind> [arg]` (the /deadeye-pr write-back CLI,
 // docs/PRD-lessons.md's PR-review-activity follow-up). Generation is also
-// called from runGain so the link `deadeye stats`/`/deadeye-stats` prints
+// called from runGain so the link `deadeye stats`/`/deadeye stats` prints
 // is never stale (internal/report.Generate is the one shared entry point).
 func runReport(args []string) {
 	if len(args) > 0 && args[0] == "record" {

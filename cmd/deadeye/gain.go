@@ -12,7 +12,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/report"
 )
 
-// runGain backs `deadeye gain` / the /deadeye-stats skill: a compact
+// runGain backs `deadeye gain` / the /deadeye stats skill: a compact
 // scoreboard of what deadeye has actually done on THIS machine, from the
 // decision log. Real `measured` bytes and per-rule estimates are shown
 // under different labels -- "measured, not estimated" means never blending
@@ -144,12 +144,12 @@ func renderGain(logPath string) {
 	fmt.Println(cDim("  never written, so there is no baseline to subtract from."))
 	fmt.Println("  This repo:  " + cValue("/deadeye-debt") + cDim("  (shortcuts you deferred)"))
 	fmt.Println("              " + cValue("/deadeye-review --repo") + cDim(" (what's still cuttable, or risky)"))
-	fmt.Println("  Full detail: " + cValue("/deadeye-stats savings"))
+	fmt.Println("  Full detail: " + cValue("/deadeye stats savings"))
 }
 
 // printReportLink regenerates report.html (internal/report.Generate is the
 // one shared entry point `deadeye report` also calls) and prints its path
-// as the last line -- the link `deadeye gain`/`/deadeye-stats` shows is
+// as the last line -- the link `deadeye gain`/`/deadeye stats` shows is
 // never stale. Best-effort: a generation failure is swallowed, same
 // posture as every other cache-artifact write in this codebase (codemap,
 // session memory) -- a broken report must never break the text scoreboard

@@ -15,6 +15,7 @@ export type Hud = {
   branch: string
   usage: number | null
   resetAt: string | null
+  rev: number
 }
 
 declare module 'claude-code' {

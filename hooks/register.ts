@@ -14,14 +14,35 @@ import { THEMES, THEME_SLUGS, autoTheme, claudeThemeFile, themeBySlug, type Them
 
 const SCOPE = 'deadeye-scope'
 const PICKER = 'deadeye-theme'
+const CONFIG = 'deadeye-config'
+const STATS = 'deadeye-stats'
+const HELP = 'deadeye-help'
+// The stats views, each one of the binary's own reports (the skill's table).
+const STATS_VIEWS: Record<string, string[]> = { impact: ['gain'], savings: ['audit'], context: ['context'], accuracy: ['misses'], disagreement: ['disagreement'], adherence: ['adherence'] }
+const COMMANDS: [string, string][] = [
+  ['/deadeye', 'this scope pane (again closes it)'], ['/deadeye config', 'every setting; enter cycles a value'],
+  ['/deadeye theme [name]', 'pick a theme, or set one by name'], ['/deadeye stats [view]', 'impact · savings · context · accuracy · disagreement · adherence'],
+  ['/deadeye help', 'the full command card'], ['/deadeye repaint', 'retry recolouring Claude and the terminal'],
+  ['/deadeye-status', 'modes, level, kill switches, catalog, daemon'], ['/deadeye-coder [level]', 'spotter · marksman · sniper · off'],
+  ['/deadeye-route [task]', 'dry-run the routing decision'], ['/deadeye-mute [off]', 'mute advisories this session'],
+  ['/deadeye-review [--repo]', 'four-lens self-review of the diff'], ['/deadeye-pr [<PR>] [--post]', 'the same lenses on a GitHub PR'],
+  ['/deadeye-guard', 'OWASP-mapped security review of the diff'], ['/deadeye-vapt', 'whole-service pen-test pass'],
+  ['/deadeye-sweep [--repo|--pr]', 'apply the findings, verify, re-scan'], ['/deadeye-debt', 'ledger of deadeye: shortcut markers'],
+]
+// The last stats report, drawn by the stats pane.
+let statsTitle = ''
+let statsLines: string[] = []
+// The /deadeye skill ships the command; the mod answers it when on. A
+// plugin skill's name may reach command.run plain or prefixed.
+const isOurCommand = (name: string) => name === 'deadeye' || name === 'deadeye:deadeye'
 const TIERS: [RegExp, string][] = [[/haiku/, 'tier 0'], [/sonnet/, 'tier 1'], [/opus/, 'tier 2'], [/fable/, 'tier 3']]
 
 type ModConfig = { enabled: boolean; theme: string; repaint: boolean; background: boolean; sounds: boolean; notify: boolean; hud: 'auto' | 'full' | 'deadeye' | 'off' }
 
 const hud = atom({ plugin: 'deadeye', key: 'hud' } as const, {
   level: 'marksman', theme: 'marksman', route: '—', saved: 0, savedAll: 0, gate: 'clear', accuracy: null, context: null, daemon: false, repaint: 'off',
-  model: '', branch: '', usage: null, resetAt: null,
-} as Hud, { shape: 'hud-3' })
+  model: '', branch: '', usage: null, resetAt: null, rev: 0,
+} as Hud, { shape: 'hud-4' })
 
 async function home($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
 
@@ -55,7 +76,7 @@ async function coderLevel($: EngineInterface): Promise<string> {
 }
 
 // deadeye is not always on PATH; fall back to its self-bootstrap install.
-async function deadeye($: EngineInterface, ...args: string[]) {
+async function deadeye($: EngineInterface, args: readonly string[]) {
   const h = await home($)
   for (const bin of ['deadeye', `${h}/.deadeye/bin/deadeye`]) {
     const ran = await $.process.run([bin, ...args], { timeoutMs: 10_000 }).catch(() => undefined)
@@ -128,6 +149,27 @@ async function refresh($: EngineInterface, cfg: ModConfig, patch: Partial<Hud> =
 // With mod.repaint on, Claude's own colours follow the theme: a custom
 // theme file under ~/.claude/themes, then the theme row in /config. The
 // theme the person had is kept in $.store and put back when the mod stops.
+// `deadeye config list` rows: "  key   value   a · b · c" or "free text".
+type ConfigRow = { key: string; value: string; allowed: string[] | null }
+let configRows: ConfigRow[] = []
+let configWhy = ''
+
+async function loadConfigRows($: EngineInterface) {
+  const ran = await deadeye($, ['config', 'list'])
+  if (!ran || ran.exitCode !== 0) {
+    configWhy = (ran?.stderr || 'deadeye binary not found').trim().slice(0, 160)
+    configRows = []
+    return
+  }
+  configWhy = ''
+  configRows = ran.stdout.split('\n').flatMap(line => {
+    const m = /^\s{2}(\S+)\s{2,}(\S+)\s{2,}(.+?)\s*$/.exec(line)
+    if (!m) return []
+    const [, key, value, rest] = m as unknown as [string, string, string, string]
+    return [{ key, value, allowed: rest === 'free text' ? null : rest.split(' · ') }]
+  })
+}
+
 // Why the last repaint was refused, for the pane and `/deadeye repaint`.
 let repaintWhy = ''
 let restartHinted = false
@@ -274,7 +316,7 @@ async function applyTheme($: EngineInterface, slug: string, persist: boolean) {
   else if (terminalPainted) await paintTerminal($, null)
   await update($, hud, v => ({ ...v, repaint: rp }))
   if (persist) {
-    const ran = await deadeye($, 'config', 'set', 'mod.theme', slug)
+    const ran = await deadeye($, ['config', 'set', 'mod.theme', slug])
     if (!ran || ran.exitCode !== 0) $.ui.toast(`deadeye: theme set for this session only — ${(ran?.stderr || 'deadeye binary not found').trim().slice(0, 120)}`)
   }
 }
@@ -287,7 +329,6 @@ export const register: Register = on => {
       await unpaint($)
       return next(e)
     }
-    await $.command.register({ name: 'deadeye', description: 'Toggle the deadeye scope pane; `close`, `theme` (picker), `theme <name>`, `repaint` (retry recolouring Claude and say why if refused)' })
     if (cfg.repaint) await installThemes($)
     await applyTheme($, cfg.theme, false)
     return next(e)
@@ -307,7 +348,6 @@ export const register: Register = on => {
       return next(e)
     }
     if (!cfg.enabled) return next(e)
-    if (toggled) await $.command.register({ name: 'deadeye', description: 'Toggle the deadeye scope pane; `close`, `theme` (picker), `theme <name>`, `repaint` (retry recolouring Claude and say why if refused)' }).catch(() => undefined)
     if (toggled || restyled) await applyTheme($, cfg.theme, false)
     const h = await refresh($, cfg)
     if (cfg.theme === 'auto' && h.theme !== theme.slug) await applyTheme($, 'auto', false)
@@ -340,9 +380,30 @@ export const register: Register = on => {
     return ran
   }).catch(($, e, next) => next(e)) // a UI nicety never blocks a tool call
 
-  on('command.run', { command: 'deadeye' }, async ($, e) => {
-    if (!cfg.enabled) return { text: 'deadeye mod is off: `deadeye config set mode.mod on`, then /reload-plugins.' }
+  on('command.run', async ($, e, next) => {
+    // Mod off: the /deadeye skill runs as it always has (status, config, theme from chat).
+    if (!isOurCommand(e.command) || !cfg.enabled) return next(e)
     const [sub, name] = e.args.trim().split(/\s+/)
+    if (sub === 'stats') {
+      const view = name && STATS_VIEWS[name] ? name : 'impact'
+      const args = [...STATS_VIEWS[view]!, ...(view === 'context' && name === 'context' ? e.args.trim().split(/\s+/).slice(2) : [])]
+      const ran = await deadeye($, args)
+      statsTitle = `deadeye · stats · ${view}`
+      statsLines = ran ? (ran.stdout + (ran.exitCode === 0 ? '' : '\n' + ran.stderr)).replace(/\x1b\[[0-9;]*m/g, '').split('\n') : ['deadeye binary not found (PATH or ~/.deadeye/bin).']
+      await update($, hud, v => ({ ...v, rev: v.rev + 1 }))
+      await $.ui.open({ id: STATS, title: statsTitle, rows: Math.min(40, statsLines.length + 3) })
+      return { text: `${statsTitle} opened (${Object.keys(STATS_VIEWS).join(' · ')}). Figures are the binary's own; estimates and measurements are labelled as such.` }
+    }
+    if (sub === 'help') {
+      await $.ui.open({ id: HELP, title: 'deadeye · help', rows: Math.min(40, COMMANDS.length + 6) })
+      return { text: 'Command card opened.' }
+    }
+    if (sub === 'config') {
+      await loadConfigRows($)
+      await update($, hud, v => ({ ...v, rev: v.rev + 1 }))
+      await $.ui.open({ id: CONFIG, title: 'deadeye · config', focus: true, closeOnEscape: true, rows: Math.min(32, configRows.length + 4) })
+      return { text: configWhy ? `deadeye config: ${configWhy}` : 'Settings pane opened: ↑↓ move, enter cycles a value, esc closes. Free-text keys: `deadeye config set <key> <value>`.' }
+    }
     if (sub === 'repaint') {
       const rp = await repaint($, theme)
       await update($, hud, v => ({ ...v, repaint: rp }))
@@ -365,7 +426,64 @@ export const register: Register = on => {
       return { text: `${theme.pane} pane closed.` }
     }
     await $.ui.open({ id: SCOPE, title: `deadeye · ${theme.pane}` })
-    return { text: `${theme.pane} pane opened. /deadeye again closes it.` }
+    return { text: `${theme.pane} pane opened. /deadeye again closes it; /deadeye config, /deadeye theme.` }
+  }).catch(($, e, next) => next(e))
+
+  on('ui.render', { component: 'Pane', requestId: STATS }, async ($, e) => {
+    await read($, hud)
+    const { Box, Text } = $.ui.resolve(e)
+    return Box({ flexDirection: 'column', children: [
+      ...statsLines.map(l => Text({ dimColor: !l.trim() || /^\s/.test(l) && !/\d/.test(l), children: l || ' ' })),
+      Text({ dimColor: true, children: `/deadeye stats ${Object.keys(STATS_VIEWS).join('|')}` }),
+    ] })
+  })
+
+  on('ui.render', { component: 'Pane', requestId: HELP }, ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+    const t = theme
+    return Box({ flexDirection: 'column', children: [
+      ...COMMANDS.map(([c, d]) => Text({ children: [Text({ color: t.c.acc, children: c.padEnd(30) }), Text({ dimColor: true, children: d })] })),
+      Text({ children: ' ' }),
+      Text({ dimColor: true, children: 'kill switches: DEADEYE=off · DEADEYE_PREPROCESS=off · DEADEYE_GATE=off · DEADEYE_CODER=off' }),
+      Text({ dimColor: true, children: 'coder level: /deadeye-coder spotter|marksman|sniper|off · "normal mode" turns it off mid-session' }),
+    ] })
+  })
+
+  // Settings pane: every key the CLI knows, enter cycles an enum value
+  // through `deadeye config set`, so validation stays the binary's.
+  on('ui.render', { component: 'Pane', requestId: CONFIG }, async ($, e) => {
+    await read($, hud)
+    const t = $.ui.resolve(e)
+    const { Box, Text } = t
+    if (!configRows.length) return Text({ color: theme.c.warn, children: configWhy || 'no settings read; run /deadeye config again' })
+    const width = Math.max(...configRows.map(r => r.key.length)) + 2
+    const options = configRows.map(r => ({ key: r.key, value: r.key, label: `${r.key.padEnd(width)} ${r.value.padEnd(11)} ${r.allowed ? r.allowed.join(' · ') : 'free text'}` }))
+    if (!('Select' in t)) return Box({ flexDirection: 'column', children: options.map(o => Text({ children: o.label })) })
+    const { Select } = t
+    return Box({ flexDirection: 'column', gap: 1, children: [
+      Select({ key: 'config', options, autoFocus: true, onSelect: async (key: string) => {
+        const row = configRows.find(r => r.key === key)
+        if (!row) return
+        if (key === 'mod.theme') {
+          await $.ui.open({ id: PICKER, title: 'deadeye · theme', focus: true, closeOnEscape: true, rows: THEMES.length + 4 })
+          return
+        }
+        if (!row.allowed) {
+          $.ui.toast(`${key} is free text: deadeye config set ${key} <value>`)
+          return
+        }
+        const next = row.allowed[(row.allowed.indexOf(row.value) + 1) % row.allowed.length] ?? row.allowed[0]!
+        const ran = await deadeye($, ['config', 'set', key, next])
+        if (!ran || ran.exitCode !== 0) {
+          $.ui.toast(`deadeye: ${(ran?.stderr || 'config set failed').trim().slice(0, 140)}`)
+          return
+        }
+        await loadConfigRows($)
+        await update($, hud, v => ({ ...v, rev: v.rev + 1 }))
+        $.ui.toast(`${key} → ${next}${key.startsWith('mod.') ? ' (applies on the next turn)' : ''}`)
+      } }),
+      Text({ dimColor: true, children: '↑↓ move · enter cycles the value · esc close · mod.theme opens the picker' }),
+    ] })
   })
 
   // Spinner: the theme's verbs in place of the engine's ("Sighting… (4s)").
@@ -493,6 +611,7 @@ export const register: Register = on => {
           dim('route', h.route, t.c.fg), dim('saved', h.saved ? `${k(h.saved)} tok` : `${k(h.savedAll)} all-time`, t.c.good),
           dim('gate', h.gate, good(h.gate === 'clear')), dim('daemon', h.daemon ? 'up' : 'down', good(h.daemon)),
         ] }),
+        Text({ dimColor: true, children: '/deadeye config · theme · stats · help · /deadeye again closes' }),
       ] })
     }
     const w = Math.max(10, Math.min(28, e.props.bodyColumns - 2))
@@ -517,7 +636,11 @@ export const register: Register = on => {
       ] }),
       Box({ flexDirection: 'column', children: kv.map(([a, b, c]) => row(a, b, c)) }),
       ...why,
-      Text({ dimColor: true, children: '/deadeye theme to restyle' }),
+      Box({ flexDirection: 'column', children: [
+        Text({ color: t.c.dim, weight: 'bold', children: 'commands' }),
+        ...COMMANDS.slice(0, 6).map(([c, d]) => Text({ children: [Text({ color: t.c.acc, children: c.padEnd(22) }), Text({ dimColor: true, children: d })] })),
+        Text({ dimColor: true, children: '/deadeye help for the rest' }),
+      ] }),
     ] })
   })
 

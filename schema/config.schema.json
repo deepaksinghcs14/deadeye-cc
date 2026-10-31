@@ -105,7 +105,7 @@
             "on"
           ],
           "default": "off",
-          "description": "Sample CONFIDENT high-tier routing decisions through the AI judge, which the live path never second-guesses (applyRoutingJudge only runs on an unsure decision). Exists to make over-routing visible: an escalation already biases routing UP, and nothing measured the other direction. Reports a judge-DISAGREEMENT rate, not an over-route rate -- an arbitrary production subtask has no grader, so the work can't be replayed and scored. Off by default because, unlike every other mode here, each sample spends a real `claude -p` call to buy measurement rather than a better answer for the call paying for it. See /deadeye-stats disagreement."
+          "description": "Sample CONFIDENT high-tier routing decisions through the AI judge, which the live path never second-guesses (applyRoutingJudge only runs on an unsure decision). Exists to make over-routing visible: an escalation already biases routing UP, and nothing measured the other direction. Reports a judge-DISAGREEMENT rate, not an over-route rate -- an arbitrary production subtask has no grader, so the work can't be replayed and scored. Off by default because, unlike every other mode here, each sample spends a real `claude -p` call to buy measurement rather than a better answer for the call paying for it. See /deadeye stats disagreement."
         },
         "mod": {
           "type": "string",

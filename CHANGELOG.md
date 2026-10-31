@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.80.0
+
+**One `/deadeye` command, and settings in a pane.** `/deadeye-config` is
+gone; `/deadeye config` takes its place and works on every host:
+
+- With the mod on, `/deadeye config` opens a settings pane listing every
+  key `deadeye config list` knows, with its value and allowed values.
+  Enter cycles an enum value and writes it through `deadeye config set`,
+  so validation and the file stay the binary's; `mod.*` changes apply on
+  the next turn, `mode.*` changes reach the hooks at once; the `mod.theme`
+  row opens the theme picker; free-text keys say so.
+- With the mod off, `/deadeye config` is the chat picker `/deadeye-config`
+  was, `/deadeye` runs `deadeye status`, and `/deadeye theme <name>` sets
+  the theme. The command is a skill the plugin always ships; the mod
+  answers it with panes only when `mode.mod` is on.
+- `/deadeye stats [view]` and `/deadeye help` replace `/deadeye-stats` and
+  `/deadeye-help` the same way: panes with the mod on (the stats pane shows
+  the binary's own report for the view; the help pane is the command
+  card), the skill's text otherwise. The scope pane lists the commands,
+  so they are discoverable.
+- `/deadeye-status`, `-route`, `-coder`, `-mute`, and the review commands
+  (`-review`, `-pr`, `-guard`, `-vapt`, `-sweep`, `-debt`) are unchanged.
+
 ## 0.79.8
 
 **Every theme readable.** Claude's `subtle` text colour was mapped to each

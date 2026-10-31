@@ -209,7 +209,7 @@ command runs, so only the part worth keeping ever enters context.
 | Coder persona a subagent inherits, per spawn | 9,499 B | 1,099 B | **88.4%** |
 
 The command rows are logged to `~/.deadeye/decisions.jsonl`; the persona row
-is measured off the two rendered rulesets. Run `/deadeye-stats savings` to
+is measured off the two rendered rulesets. Run `/deadeye stats savings` to
 see your own.
 
 ## How it works
@@ -252,8 +252,8 @@ touches the others.
 | Workflow suggestion | `off` / `on` | Flags tasks that look like parallel work. Only ever suggests; never starts one. |
 | Update check | `off` / `on` | A daily background check for a newer release; asks once per version. |
 
-Change a setting with **`/deadeye-config`** from chat, **`deadeye config`**
-in a terminal, or `deadeye config set <key> <value>`. Settings live in
+Change a setting with **`/deadeye config`** (a settings pane with the mod on, a
+picker from chat otherwise), **`deadeye config`** in a terminal, or `deadeye config set <key> <value>`. Settings live in
 `~/.deadeye/config.json`, with an optional per-repo `.deadeye.json`; the full
 list is on the [settings page](https://deepaksinghcs14.github.io/deadeye-cc/settings.html).
 
@@ -268,13 +268,13 @@ Four environment variables are kill switches: `DEADEYE=off` (everything),
 |---|---|
 | `/deadeye-status` | Modes, coder level, kill switches, model catalogs, daemon health |
 | `/deadeye-route [task]` | What deadeye would decide for a task, and why. Changes nothing |
-| `/deadeye-config` | View or change any setting from chat |
 | `/deadeye-coder [level]` | Switch or report the coder persona level |
 | `/deadeye-mute [off]` | Mute advice for this session; rewrites keep working |
-| `/deadeye-stats [view]` | Measured impact, token savings, context use, and the self-checks below |
-| `/deadeye-help` | Quick-reference card |
-| `/deadeye` | Scope pane inside Claude Code: level, routing accuracy, context, tokens saved, gate, daemon (mod, see below) |
-| `/deadeye theme [name]` | Pick a theme for the mod from a list, or set one by name |
+| `/deadeye stats [view]` | Measured impact, token savings, context use, and the self-checks below |
+| `/deadeye help` | Quick-reference card |
+| `/deadeye` | With the mod on: the scope pane (toggle). Otherwise `deadeye status` from chat |
+| `/deadeye config` | Every setting: a pane where enter cycles a value (mod on), or a picker from chat |
+| `/deadeye theme [name]` | Pick a theme from a list, or set one by name |
 
 **Review**
 
@@ -345,8 +345,11 @@ then start a new session or run `/reload-plugins`. Once on:
   from 110 columns; a two-row strip above the prompt otherwise. Routing
   accuracy and tokens saved come from deadeye's own decision log; context
   from the session.
-- **`/deadeye theme`**: a picker over sixteen themes, previewed on your live
-  session, saved to `mod.theme`. `/deadeye theme nord` sets one by name.
+- **`/deadeye theme`**: a picker over sixteen themes, saved to `mod.theme`.
+  `/deadeye theme nord` sets one by name.
+- **`/deadeye config`**: every setting in a pane; enter cycles a value
+  through `deadeye config set`, so the binary still validates. Free-text
+  keys say so. With the mod off the same command is the chat picker.
 
 | Family | Themes |
 |---|---|
@@ -402,7 +405,7 @@ silences a check.
 - **PR review:** dispute a finding, and that lens needs stronger proof
   before it reports again on this repo.
 
-Four `/deadeye-stats` views hold it to its own claims:
+Four `/deadeye stats` views hold it to its own claims:
 
 | View | What it shows |
 |---|---|

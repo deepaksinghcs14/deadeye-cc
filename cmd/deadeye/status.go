@@ -117,7 +117,7 @@ func runStatus() {
 
 	fmt.Println()
 	fmt.Println(cDim("Change a setting:  deadeye config set <key> <value>   (interactive: deadeye config)"))
-	fmt.Println(cDim("All commands:      /deadeye-help"))
+	fmt.Println(cDim("All commands:      /deadeye help"))
 
 	// CLAUDE_CODE_EFFORT_LEVEL, not CLAUDE_EFFORT: Claude Code sets the
 	// latter in every session to report the current level, and a per-call

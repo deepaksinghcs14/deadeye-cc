@@ -78,7 +78,7 @@ func (s *Store) Append(r Record) error {
 }
 
 // Scan reads every record in the log, in file order, for /deadeye-status
-// and /deadeye-stats. A missing file is not an error -- it means no
+// and /deadeye stats. A missing file is not an error -- it means no
 // decisions have been logged yet.
 func Scan(path string) ([]Record, error) {
 	f, err := os.Open(path)

@@ -51,7 +51,7 @@ func decideWorkflowHint(in hookio.Input, cfg config.Config, clientVersion, host 
 	// a "workflow-suggest" row recorded) that must not fire on a host that
 	// can never show the resulting text -- a call-site-only gate burned the
 	// dedup key and logged a suggestion the user never saw on Codex/Gemini,
-	// corrupting /deadeye-stats' measured-impact scoreboard for them.
+	// corrupting /deadeye stats' measured-impact scoreboard for them.
 	if !hosts.HasSubagentSurface(host) {
 		return "", false
 	}

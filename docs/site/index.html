@@ -591,7 +591,7 @@ FAIL</div>
         <code>npm install express mocha</code>: 553 bytes of progress spam
         shrank to 55, errors still passed through. Three separate real
         measurements, not one number blended across different situations —
-        run <code>/deadeye-stats savings</code> to see your own numbers.
+        run <code>/deadeye stats savings</code> to see your own numbers.
       </div>
     </div>
   </header>
@@ -714,11 +714,11 @@ FAIL</div>
         <tr><td class="axis">PR review</td><td class="desc"><code>/deadeye-pr</code> puts a whole PR through the same four lenses, ranked by severity. Prints locally; <code>--post</code> adds inline comments with one-click suggestions.</td><td class="mode"><span class="pill soft">four lenses</span></td></tr>
         <tr><td class="axis">Plan mode</td><td class="desc">Native plan mode exists, but nothing triggers it. deadeye's gate notices a risky multi-file edit coming and nudges into it.</td><td class="mode"><span class="pill soft">triggers</span></td></tr>
         <tr><td class="axis">Output truncation</td><td class="desc">Native truncation cuts by size, at 30K characters. deadeye rewrites the command before it runs, so only the failure context enters at all.</td><td class="mode"><span class="pill soft">stacks</span></td></tr>
-        <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, or sets it for you, and <code>/deadeye-stats</code> shows what each subagent actually ran on.</td><td class="mode"><span class="pill soft">routes</span></td></tr>
+        <tr><td class="axis">Subagent models</td><td class="desc">Native subagents inherit the parent's model. deadeye recommends the cheapest tier the evidence supports, or sets it for you, and <code>/deadeye stats</code> shows what each subagent actually ran on.</td><td class="mode"><span class="pill soft">routes</span></td></tr>
         <tr><td class="axis">No native equivalent</td><td class="desc"><code>/deadeye-vapt</code>: a whole-service pen-test pass with full OWASP coverage, ranked worst-first, every finding linked to its source standard.</td><td class="mode"><span class="pill">unique</span></td></tr>
         <tr><td class="axis">No native equivalent</td><td class="desc"><code>/deadeye-sweep</code>: applies the serious findings from the reviews above, verifies the build, and re-scans until clean. Never pushes or comments without asking.</td><td class="mode"><span class="pill">unique</span></td></tr>
         <tr><td class="axis">No native equivalent</td><td class="desc">Coder mode: a lean-first coding discipline injected every session. Expands below.</td><td class="mode"><span class="pill">unique</span></td></tr>
-        <tr><td class="axis">No native equivalent</td><td class="desc">It checks its own claims: <code>/deadeye-stats accuracy</code>, <code>disagreement</code> and <code>adherence</code> report where the reviewer, the router and the persona fell short.</td><td class="mode"><span class="pill">unique</span></td></tr>
+        <tr><td class="axis">No native equivalent</td><td class="desc">It checks its own claims: <code>/deadeye stats accuracy</code>, <code>disagreement</code> and <code>adherence</code> report where the reviewer, the router and the persona fell short.</td><td class="mode"><span class="pill">unique</span></td></tr>
       </tbody>
     </table>
   </div>
@@ -962,7 +962,7 @@ internal/coder/          4 files  .go   the lean-first
     number — if it isn't a real row in <code>decisions.jsonl</code>, it
     doesn't get printed.</p>
 
-  <div class="term"><span class="c">/deadeye-stats savings</span>  <span class="m">real session, this repo -- add Mark() + test, subagent delegated</span>
+  <div class="term"><span class="c">/deadeye stats savings</span>  <span class="m">real session, this repo -- add Mark() + test, subagent delegated</span>
 
 <span class="m">17 decisions logged</span>
 
@@ -1027,7 +1027,7 @@ Cross-check these figures against /usage's plugin attribution.</div>
         the judge for a second opinion on some confident decisions, to
         measure over-routing. Same payload, and it runs after the decision.</p></details>
       <details><summary>Can I check whether any of this actually works?</summary>
-        <p><code>/deadeye-stats</code> has three views that hold deadeye to
+        <p><code>/deadeye stats</code> has three views that hold deadeye to
         its own claims:</p>
         <ul>
           <li><code>accuracy</code>: reviewed diffs where a later fix landed

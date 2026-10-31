@@ -90,7 +90,7 @@ func TestWorkflowHintGatedOnOldClient(t *testing.T) {
 // TestWorkflowHintSkipsReducedHostsWithNoSideEffects is the phantom-log
 // regression: a reduced host (no Agent/subagent surface) must not fire
 // AND must not consume the once-per-task dedup or write a decision-log
-// entry -- otherwise /deadeye-stats records a "workflow-suggest" the user
+// entry -- otherwise /deadeye stats records a "workflow-suggest" the user
 // never saw.
 func TestWorkflowHintSkipsReducedHostsWithNoSideEffects(t *testing.T) {
 	state := newDaemonState(catalog.Catalog{}, nil)

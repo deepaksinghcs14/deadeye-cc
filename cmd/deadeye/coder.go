@@ -211,8 +211,8 @@ func statuslineNudge(pluginRoot, configDir string, state *daemonState, sessionID
 
 // welcomeNudge returns, at most once ever, a first-run onboarding message
 // asking the AGENT to briefly orient the user -- what deadeye does, and where
-// to see (/deadeye-status), change (/deadeye-config), and list every command
-// (/deadeye-help). Same once-ever O_EXCL claim as statuslineNudge: the flag
+// to see (/deadeye-status), change (/deadeye config), and list every command
+// (/deadeye help). Same once-ever O_EXCL claim as statuslineNudge: the flag
 // file at WelcomedPath records that the welcome was shown, so it never repeats.
 func welcomeNudge(state *daemonState, sessionID string) string {
 	if _, err := os.Stat(meta.WelcomedPath()); err == nil {
@@ -231,9 +231,9 @@ func welcomeNudge(state *daemonState, sessionID string) string {
 		"welcome -- do not repeat it in later turns or sessions. Concisely cover:\n" +
 		"- what deadeye does: fits the model, effort, and context to each task to save " +
 		"tokens, plus a lean-first coding persona; it advises by default and never blocks.\n" +
-		"- /deadeye-help -- lists EVERY command (send them here to discover the rest).\n" +
+		"- /deadeye help -- lists EVERY command (send them here to discover the rest).\n" +
 		"- /deadeye-status -- see what's on and your current settings.\n" +
-		"- /deadeye-config -- change any setting (or just ask in plain English, e.g. " +
+		"- /deadeye config -- change any setting (or just ask in plain English, e.g. " +
 		"\"turn off the plan gate\").\n" +
 		"- turn it all off any time with DEADEYE=off.\n" +
 		"Keep it to a few lines; don't lecture."

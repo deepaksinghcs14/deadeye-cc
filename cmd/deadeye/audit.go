@@ -13,7 +13,7 @@ import (
 	"github.com/deepaksinghcs14/deadeye-cc/internal/usage"
 )
 
-// runAudit backs the /deadeye-stats slash command: everything it reports
+// runAudit backs the /deadeye stats slash command: everything it reports
 // comes straight from the decision log, per PLAN.md's "no fabricated
 // numbers" rule (§12.1) -- no estimated aggregate is presented as measured.
 func runAudit() {
