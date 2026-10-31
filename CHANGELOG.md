@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.82.0
+
+**One pane, five tabs, keys to roam.** The five separate panes were raw
+dumps; they are now one pane with a tab row (`1 scope · 2 config · 3
+themes · 4 stats · 5 help · esc close`) whose keys work while the pane has
+focus, and a key line at the bottom of every tab.
+
+- **scope**: `◎ MARKSMAN · Tokyo Night · Fable 5.1 · ⎇ main`, the routed-right,
+  context and usage meters, then route, tokens saved, gate, daemon, reset
+  and repaint in two aligned columns. The reticle art is gone.
+- **config**: a group row (`m mode · o mod · c coder · s security · t
+  tuning`), then that group's settings as a list showing what enter will
+  change each to (`routing  advise  ▸ enforce`); free-text keys open an
+  input in place (enter writes, esc cancels); the changed row gets a tick.
+- **themes**: the list with a palette strip and the spinner verbs of the
+  highlighted theme; enter applies and stays, so several can be tried.
+- **stats**: a view row (`i impact · s savings · c context · a accuracy ·
+  d disagreement · h adherence`), the report styled: section titles bold,
+  `estimated` amber and `measured` green as the binary labels them,
+  numbers aligned, the `file://` link and the boundaries kept verbatim.
+- **help**: commands grouped under deadeye · review · session, then the
+  kill switches and coder levels.
+
+`/deadeye` opens on scope, `/deadeye config|theme|stats [view]|help` on
+that tab; once open, the keys move between them.
+
 ## 0.81.0
 
 **Tips about deadeye's commands, the way Claude shows its own.** About

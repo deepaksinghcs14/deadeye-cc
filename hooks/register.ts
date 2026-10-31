@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderElement } from 'claude-code'
 
 import type { Hud } from '../types'
 import { THEMES, THEME_SLUGS, autoTheme, claudeThemeFile, themeBySlug, type Theme } from './themes'
@@ -12,28 +12,41 @@ import { THEMES, THEME_SLUGS, autoTheme, claudeThemeFile, themeBySlug, type Them
 // Claude's own colours through a custom theme file. Display only: routing,
 // the gates and the coder persona stay in the Go binary.
 
-const SCOPE = 'deadeye-scope'
-const PICKER = 'deadeye-theme'
-const CONFIG = 'deadeye-config'
-const STATS = 'deadeye-stats'
-const HELP = 'deadeye-help'
+const PANE = 'deadeye'
+type Tab = 'scope' | 'config' | 'themes' | 'stats' | 'help'
+const TABS: [Tab, string][] = [['scope', '1'], ['config', '2'], ['themes', '3'], ['stats', '4'], ['help', '5']]
 // The stats views, each one of the binary's own reports (the skill's table).
-const STATS_VIEWS: Record<string, string[]> = { impact: ['gain'], savings: ['audit'], context: ['context'], accuracy: ['misses'], disagreement: ['disagreement'], adherence: ['adherence'] }
-const COMMANDS: [string, string][] = [
-  ['/deadeye', 'this scope pane (again closes it)'], ['/deadeye config', 'every setting; enter cycles a value'],
-  ['/deadeye theme [name]', 'pick a theme, or set one by name'], ['/deadeye stats [view]', 'impact · savings · context · accuracy · disagreement · adherence'],
-  ['/deadeye help', 'the full command card'], ['/deadeye repaint', 'retry recolouring Claude and the terminal'],
-  ['/deadeye-status', 'modes, level, kill switches, catalog, daemon'], ['/deadeye-coder [level]', 'spotter · marksman · sniper · off'],
-  ['/deadeye-route [task]', 'dry-run the routing decision'], ['/deadeye-mute [off]', 'mute advisories this session'],
-  ['/deadeye-review [--repo]', 'four-lens self-review of the diff'], ['/deadeye-pr [<PR>] [--post]', 'the same lenses on a GitHub PR'],
-  ['/deadeye-guard', 'OWASP-mapped security review of the diff'], ['/deadeye-vapt', 'whole-service pen-test pass'],
-  ['/deadeye-sweep [--repo|--pr]', 'apply the findings, verify, re-scan'], ['/deadeye-debt', 'ledger of deadeye: shortcut markers'],
+const STATS_VIEWS: [string, string, string[]][] = [
+  ['impact', 'i', ['gain']], ['savings', 's', ['audit']], ['context', 'c', ['context']],
+  ['accuracy', 'a', ['misses']], ['disagreement', 'd', ['disagreement']], ['adherence', 'h', ['adherence']],
 ]
-// The last stats report, drawn by the stats pane.
-let statsTitle = ''
+const CONFIG_GROUPS: [string, string][] = [['mode', 'm'], ['mod', 'o'], ['coder', 'c'], ['security', 's'], ['tuning', 't']]
+const COMMANDS: [string, string, string][] = [
+  ['deadeye', '/deadeye', 'this pane (again closes it); 1-5 switch tabs'],
+  ['deadeye', '/deadeye config', 'every setting; enter cycles a value'],
+  ['deadeye', '/deadeye theme [name]', 'pick a theme, or set one by name'],
+  ['deadeye', '/deadeye stats [view]', 'impact · savings · context · accuracy · disagreement · adherence'],
+  ['deadeye', '/deadeye help', 'this card'],
+  ['deadeye', '/deadeye repaint', 'retry recolouring Claude and the terminal'],
+  ['review', '/deadeye-review [--repo]', 'four-lens self-review of the diff'],
+  ['review', '/deadeye-pr [<PR>] [--post]', 'the same lenses on a GitHub PR'],
+  ['review', '/deadeye-guard', 'OWASP-mapped security review of the diff'],
+  ['review', '/deadeye-vapt', 'whole-service pen-test pass'],
+  ['review', '/deadeye-sweep [--repo|--pr]', 'apply the findings, verify, re-scan'],
+  ['review', '/deadeye-debt', 'ledger of deadeye: shortcut markers'],
+  ['session', '/deadeye-status', 'modes, level, kill switches, catalog, daemon'],
+  ['session', '/deadeye-coder [level]', 'spotter · marksman · sniper · off'],
+  ['session', '/deadeye-route [task]', 'dry-run the routing decision'],
+  ['session', '/deadeye-mute [off]', 'mute advisories this session'],
+]
+// Pane state: which tab, which stats view, which config group, the free-text
+// key being edited, the last changed setting (shown with a tick), the report.
+let tab: Tab = 'scope'
+let statsView = 'impact'
+let configGroup = 'mode'
+let editingKey: string | null = null
+let flash: { key: string; value: string } | null = null
 let statsLines: string[] = []
-// The /deadeye skill ships the command; the mod answers it when on. A
-// plugin skill's name may reach command.run plain or prefixed.
 const isOurCommand = (name: string) => name === 'deadeye' || name === 'deadeye:deadeye'
 const TIERS: [RegExp, string][] = [[/haiku/, 'tier 0'], [/sonnet/, 'tier 1'], [/opus/, 'tier 2'], [/fable/, 'tier 3']]
 
@@ -169,6 +182,37 @@ async function loadConfigRows($: EngineInterface) {
     const [, key, value, rest] = m as unknown as [string, string, string, string]
     return [{ key, value, allowed: rest === 'free text' ? null : rest.split(' · ') }]
   })
+}
+
+function groupOf(key: string): string {
+  const head = key.split('.')[0] ?? ''
+  return key.includes('.') && CONFIG_GROUPS.some(([g]) => g === head) ? head : 'tuning'
+}
+
+async function redraw($: EngineInterface) {
+  await update($, hud, v => ({ ...v, rev: v.rev + 1 }))
+}
+
+async function loadStats($: EngineInterface, view: string, extra: readonly string[] = []) {
+  const entry = STATS_VIEWS.find(([v]) => v === view) ?? STATS_VIEWS[0]!
+  statsView = entry[0]
+  const ran = await deadeye($, [...entry[2], ...extra])
+  statsLines = ran
+    ? (ran.stdout + (ran.exitCode === 0 ? '' : '\n' + ran.stderr)).replace(/\x1b\[[0-9;]*m/g, '').replace(/\s+$/, '').split('\n')
+    : ['deadeye binary not found (PATH or ~/.deadeye/bin).']
+}
+
+async function switchTab($: EngineInterface, to: Tab) {
+  tab = to
+  editingKey = null
+  if (to === 'config') await loadConfigRows($)
+  if (to === 'stats' && !statsLines.length) await loadStats($, statsView)
+  await redraw($)
+}
+
+async function openPane($: EngineInterface, to: Tab) {
+  await switchTab($, to)
+  await $.ui.open({ id: PANE, title: 'deadeye', focus: true, closeOnEscape: true, rows: 22 })
 }
 
 // Why the last repaint was refused, for the pane and `/deadeye repaint`.
@@ -375,6 +419,37 @@ async function applyTheme($: EngineInterface, slug: string, persist: boolean) {
   }
 }
 
+
+// Pane actions, called from the pane's handlers.
+async function changeSetting($: EngineInterface, key: string) {
+  const row = configRows.find(r => r.key === key)
+  if (!row) return
+  if (key === 'mod.theme') { await switchTab($, 'themes'); return }
+  if (!row.allowed) { editingKey = key; await redraw($); return }
+  const next = row.allowed[(row.allowed.indexOf(row.value) + 1) % row.allowed.length] ?? row.allowed[0]!
+  await submitSetting($, key, next)
+}
+
+async function submitSetting($: EngineInterface, key: string, value: string) {
+  editingKey = null
+  const ran = await deadeye($, ['config', 'set', key, value])
+  if (!ran || ran.exitCode !== 0) {
+    $.ui.toast(`deadeye: ${(ran?.stderr || ran?.stdout || 'config set failed').trim().slice(0, 140)}`)
+    await redraw($)
+    return
+  }
+  await loadConfigRows($)
+  flash = { key, value }
+  await redraw($)
+  $.ui.toast(`${key} → ${value}${key.startsWith('mod.') ? ' (applies on the next turn)' : ''}`)
+}
+
+async function chooseTheme($: EngineInterface, value: string) {
+  await applyTheme($, value, true)
+  await redraw($)
+  $.ui.toast(`deadeye theme: ${value === 'auto' ? `auto (${theme.name})` : theme.name}`)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     cfg = await modConfig($)
@@ -440,29 +515,24 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e)) // a UI nicety never blocks a tool call
 
   on('command.run', async ($, e, next) => {
-    const [sub, name] = e.args.trim().split(/\s+/)
+    const words = e.args.trim().split(/\s+/).filter(Boolean)
+    const [sub, name] = words
     if (/^(deadeye:)?deadeye(-|$)/.test(e.command)) await markUsed($, e.command, sub ?? '')
     // Mod off: the /deadeye skill runs as it always has (status, config, theme from chat).
     if (!isOurCommand(e.command) || !cfg.enabled) return next(e)
     if (sub === 'stats') {
-      const view = name && STATS_VIEWS[name] ? name : 'impact'
-      const args = [...STATS_VIEWS[view]!, ...(view === 'context' && name === 'context' ? e.args.trim().split(/\s+/).slice(2) : [])]
-      const ran = await deadeye($, args)
-      statsTitle = `deadeye · stats · ${view}`
-      statsLines = ran ? (ran.stdout + (ran.exitCode === 0 ? '' : '\n' + ran.stderr)).replace(/\x1b\[[0-9;]*m/g, '').split('\n') : ['deadeye binary not found (PATH or ~/.deadeye/bin).']
-      await update($, hud, v => ({ ...v, rev: v.rev + 1 }))
-      await $.ui.open({ id: STATS, title: statsTitle, rows: Math.min(40, statsLines.length + 3) })
-      return { text: `${statsTitle} opened (${Object.keys(STATS_VIEWS).join(' · ')}). Figures are the binary's own; estimates and measurements are labelled as such.` }
+      const view = name && STATS_VIEWS.some(([v]) => v === name) ? name : 'impact'
+      await loadStats($, view, view === 'context' ? words.slice(2) : [])
+      await openPane($, 'stats')
+      return { text: `deadeye · stats · ${view} opened; i/s/c/a/d/h switch views, 1-5 tabs, esc closes. Figures are the binary's own; estimates and measurements are labelled as such.` }
     }
     if (sub === 'help') {
-      await $.ui.open({ id: HELP, title: 'deadeye · help', rows: Math.min(40, COMMANDS.length + 6) })
-      return { text: 'Command card opened.' }
+      await openPane($, 'help')
+      return { text: 'deadeye · help opened; 1-5 switch tabs, esc closes.' }
     }
     if (sub === 'config') {
-      await loadConfigRows($)
-      await update($, hud, v => ({ ...v, rev: v.rev + 1 }))
-      await $.ui.open({ id: CONFIG, title: 'deadeye · config', focus: true, closeOnEscape: true, rows: Math.min(32, configRows.length + 4) })
-      return { text: configWhy ? `deadeye config: ${configWhy}` : 'Settings pane opened: ↑↓ move, enter cycles a value, esc closes. Free-text keys: `deadeye config set <key> <value>`.' }
+      await openPane($, 'config')
+      return { text: configWhy ? `deadeye config: ${configWhy}` : 'deadeye · config opened: m/o/c/s/t pick a group, ↑↓ move, enter cycles a value (or edits a free-text one), esc closes.' }
     }
     if (sub === 'repaint') {
       const rp = await repaint($, theme)
@@ -477,74 +547,17 @@ export const register: Register = on => {
       return { text: `deadeye theme: ${name === 'auto' ? `auto (${theme.name})` : theme.name}.` }
     }
     if (sub === 'theme') {
-      await $.ui.open({ id: PICKER, title: 'deadeye · theme', focus: true, closeOnEscape: true, rows: THEMES.length + 4 })
-      return { text: 'Theme picker opened: ↑↓ move, enter keeps, esc cancels.' }
+      await openPane($, 'themes')
+      return { text: 'deadeye · themes opened: ↑↓ move, enter applies (and stays), esc closes.' }
     }
-    const shown = (await $.ui.panes().catch(() => [])).some(p => p.id === SCOPE && p.isShown)
+    const shown = (await $.ui.panes().catch(() => [])).some(p => p.id === PANE && p.isShown)
     if (sub === 'close' || (shown && !sub)) {
-      await $.ui.close({ id: SCOPE })
-      return { text: `${theme.pane} pane closed.` }
+      await $.ui.close({ id: PANE })
+      return { text: 'deadeye pane closed.' }
     }
-    await $.ui.open({ id: SCOPE, title: `deadeye · ${theme.pane}` })
-    return { text: `${theme.pane} pane opened. /deadeye again closes it; /deadeye config, /deadeye theme.` }
+    await openPane($, 'scope')
+    return { text: 'deadeye pane opened: 1 scope · 2 config · 3 themes · 4 stats · 5 help · esc closes. /deadeye again closes it.' }
   }).catch(($, e, next) => next(e))
-
-  on('ui.render', { component: 'Pane', requestId: STATS }, async ($, e) => {
-    await read($, hud)
-    const { Box, Text } = $.ui.resolve(e)
-    return Box({ flexDirection: 'column', children: [
-      ...statsLines.map(l => Text({ dimColor: !l.trim() || /^\s/.test(l) && !/\d/.test(l), children: l || ' ' })),
-      Text({ dimColor: true, children: `/deadeye stats ${Object.keys(STATS_VIEWS).join('|')}` }),
-    ] })
-  })
-
-  on('ui.render', { component: 'Pane', requestId: HELP }, ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
-    const t = theme
-    return Box({ flexDirection: 'column', children: [
-      ...COMMANDS.map(([c, d]) => Text({ children: [Text({ color: t.c.acc, children: c.padEnd(30) }), Text({ dimColor: true, children: d })] })),
-      Text({ children: ' ' }),
-      Text({ dimColor: true, children: 'kill switches: DEADEYE=off · DEADEYE_PREPROCESS=off · DEADEYE_GATE=off · DEADEYE_CODER=off' }),
-      Text({ dimColor: true, children: 'coder level: /deadeye-coder spotter|marksman|sniper|off · "normal mode" turns it off mid-session' }),
-    ] })
-  })
-
-  // Settings pane: every key the CLI knows, enter cycles an enum value
-  // through `deadeye config set`, so validation stays the binary's.
-  on('ui.render', { component: 'Pane', requestId: CONFIG }, async ($, e) => {
-    await read($, hud)
-    const t = $.ui.resolve(e)
-    const { Box, Text } = t
-    if (!configRows.length) return Text({ color: theme.c.warn, children: configWhy || 'no settings read; run /deadeye config again' })
-    const width = Math.max(...configRows.map(r => r.key.length)) + 2
-    const options = configRows.map(r => ({ key: r.key, value: r.key, label: `${r.key.padEnd(width)} ${r.value.padEnd(11)} ${r.allowed ? r.allowed.join(' · ') : 'free text'}` }))
-    if (!('Select' in t)) return Box({ flexDirection: 'column', children: options.map(o => Text({ children: o.label })) })
-    const { Select } = t
-    return Box({ flexDirection: 'column', gap: 1, children: [
-      Select({ key: 'config', options, autoFocus: true, onSelect: async (key: string) => {
-        const row = configRows.find(r => r.key === key)
-        if (!row) return
-        if (key === 'mod.theme') {
-          await $.ui.open({ id: PICKER, title: 'deadeye · theme', focus: true, closeOnEscape: true, rows: THEMES.length + 4 })
-          return
-        }
-        if (!row.allowed) {
-          $.ui.toast(`${key} is free text: deadeye config set ${key} <value>`)
-          return
-        }
-        const next = row.allowed[(row.allowed.indexOf(row.value) + 1) % row.allowed.length] ?? row.allowed[0]!
-        const ran = await deadeye($, ['config', 'set', key, next])
-        if (!ran || ran.exitCode !== 0) {
-          $.ui.toast(`deadeye: ${(ran?.stderr || 'config set failed').trim().slice(0, 140)}`)
-          return
-        }
-        await loadConfigRows($)
-        await update($, hud, v => ({ ...v, rev: v.rev + 1 }))
-        $.ui.toast(`${key} → ${next}${key.startsWith('mod.') ? ' (applies on the next turn)' : ''}`)
-      } }),
-      Text({ dimColor: true, children: '↑↓ move · enter cycles the value · esc close · mod.theme opens the picker' }),
-    ] })
-  })
 
   // Spinner: the theme's verbs in place of the engine's ("Sighting… (4s)").
   on('ui.render', { component: 'Spinner' }, ($, e, next) => {
@@ -653,79 +666,132 @@ export const register: Register = on => {
     return next({ ...e, props: { ...e.props, text: `${e.props.text} · deadeye ${themeFor(h).name} · ${h.level}${first ? ` · ${first}` : ''}` } })
   })
 
-  // Scope pane: docked beside the transcript, or a two-row strip inline.
-  on('ui.render', { component: 'Pane', requestId: SCOPE }, async ($, e) => {
+  // The pane: one pane, five tabs, keys to roam. Elements are built by
+  // calling the surface's constructors (no JSX in the installed runtime).
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const h = await read($, hud)
     const t = themeFor(h)
-    const { Box, Text } = $.ui.resolve(e)
+    const el = $.ui.resolve(e)
+    const { Box, Text } = el
+    const inline = e.props.placement === 'inline'
+    const cols = Math.max(40, e.props.bodyColumns)
+    const dim = (text: string) => Text({ dimColor: true, children: text })
     const good = (ok: boolean) => (ok ? t.c.good : t.c.warn)
-    const dim = (label: string, value: string, color: string) => Text({ dimColor: true, children: [`${label} `, Text({ color, children: value })] })
-    const meter = (label: string, value: number | null, color: string, width: number) =>
-      Text({ dimColor: true, children: [`${label} `, Text({ color, children: bar(value, width) }), ' ', Text({ color: t.c.fg, children: pct(value) })] })
-    if (e.props.placement === 'inline') {
-      return Box({ flexDirection: 'column', children: [
-        Box({ flexDirection: 'row', gap: 2, flexWrap: 'wrap', children: [
-          Text({ color: t.c.acc, weight: 'bold', children: `${t.glyph.tool} ${h.level.toUpperCase()}` }),
-          meter('routed right', h.accuracy, t.c.acc, 10),
-          meter('context', h.context, t.c.acc2, 10),
-        ] }),
-        Box({ flexDirection: 'row', gap: 2, flexWrap: 'wrap', children: [
-          dim('route', h.route, t.c.fg), dim('saved', h.saved ? `${k(h.saved)} tok` : `${k(h.savedAll)} all-time`, t.c.good),
-          dim('gate', h.gate, good(h.gate === 'clear')), dim('daemon', h.daemon ? 'up' : 'down', good(h.daemon)),
-        ] }),
-        Text({ dimColor: true, children: '/deadeye config · theme · stats · help · /deadeye again closes' }),
-      ] })
-    }
-    const w = Math.max(10, Math.min(28, e.props.bodyColumns - 2))
-    const reticle = ['      │      ', '   ╭──┼──╮   ', '  ╱   │   ╲  ', ' ─┼───◎───┼─ ', '  ╲   │   ╱  ', '   ╰──┼──╯   ', '      │      ']
-    const kv: [string, string, string][] = [
-      ['level', h.level, t.c.fg], ['theme', t.name, t.c.fg], ['model', h.model || '—', t.c.fg], ['branch', h.branch || '—', t.c.fg],
-      ['usage', h.usage === null ? '—' : `${h.usage}%${h.resetAt ? ` → reset ${h.resetAt}` : ''}`, h.usage !== null && h.usage >= 80 ? t.c.warn : t.c.fg],
-      ['last route', h.route, t.c.fg],
-      ['tokens saved', h.saved ? k(h.saved) : `${k(h.savedAll)} all-time`, t.c.good], ['plan gate', h.gate, good(h.gate === 'clear')],
-      ['daemon', h.daemon ? 'up' : 'down', good(h.daemon)], ['repaint', h.repaint, h.repaint === 'refused' ? t.c.warn : t.c.dim],
-    ]
-    const why = h.repaint === 'refused' && repaintWhy ? [Text({ color: t.c.warn, wrap: 'wrap', children: `repaint: ${repaintWhy.slice(0, 200)}` }), Text({ dimColor: true, children: '/deadeye repaint retries · /theme picks it by hand' })] : []
-    const row = (a: string, b: string, c: string) =>
-      Box({ flexDirection: 'row', justifyContent: 'space-between', gap: 2, children: [Text({ dimColor: true, children: a }), Text({ color: c, children: b })] })
-    return Box({ flexDirection: 'column', gap: 1, children: [
-      Box({ flexDirection: 'column', alignItems: 'center', children: reticle.map(line => Text({ color: t.c.acc, children: line })) }),
-      Box({ flexDirection: 'column', children: [
-        row('routed right first time', pct(h.accuracy), t.c.fg),
-        Text({ color: t.c.acc, children: bar(h.accuracy, w) }),
-        row('context used', pct(h.context), t.c.fg),
-        Text({ color: t.c.acc2, children: bar(h.context, w) }),
-      ] }),
-      Box({ flexDirection: 'column', children: kv.map(([a, b, c]) => row(a, b, c)) }),
-      ...why,
-      Box({ flexDirection: 'column', children: [
-        Text({ color: t.c.dim, weight: 'bold', children: 'commands' }),
-        ...COMMANDS.slice(0, 6).map(([c, d]) => Text({ children: [Text({ color: t.c.acc, children: c.padEnd(22) }), Text({ dimColor: true, children: d })] })),
-        Text({ dimColor: true, children: '/deadeye help for the rest' }),
-      ] }),
-    ] })
-  })
+    const hasButtons = 'Button' in el
+    const keyed = (hotkey: string, label: string, selected: boolean, onPress: () => void) =>
+      hasButtons
+        ? el.Button({ key: `k-${hotkey}-${label}`, hotkey, plain: true, label, dimColor: !selected, onPress })
+        : Text({ color: selected ? t.c.acc : undefined, dimColor: !selected, children: `${hotkey}: ${label}` })
 
-  // Theme picker: a list; enter keeps, esc leaves the theme as it was.
-  on('ui.render', { component: 'Pane', requestId: PICKER }, async ($, e) => {
-    const h = await read($, hud)
-    const t = $.ui.resolve(e)
-    const { Box, Text } = t
-    const options = [
-      ...THEMES.map(x => ({ key: x.slug, value: x.slug, label: `${x.glyph.tool} ${x.name.padEnd(18)} ${x.blurb}` })),
-      { key: 'auto', value: 'auto', label: `↻ ${'Auto'.padEnd(18)} follows the coder level` },
-    ]
-    if (!('Select' in t)) {
-      return Box({ flexDirection: 'column', children: options.map(o => Text({ color: o.value === h.theme ? theme.c.acc : undefined, children: o.label })) })
-    }
-    const { Select } = t
-    return Box({ flexDirection: 'column', gap: 1, children: [
-      Select({ key: 'theme', options, value: cfg.theme, autoFocus: true, onSelect: async (value: string) => {
-        await applyTheme($, value, true)
-        await $.ui.close({ id: PICKER })
-        $.ui.toast(`deadeye theme: ${value === 'auto' ? `auto (${theme.name})` : theme.name}`)
-      } }),
-      Text({ dimColor: true, children: '↑↓ move · enter keep · esc cancel' }),
+    const tabBar = Box({ flexDirection: 'row', gap: 3, flexWrap: 'wrap', children: [
+      ...TABS.map(([id, key]) => keyed(key, id, id === tab, () => { void switchTab($, id) })),
+      dim('esc close'),
     ] })
+    const rule = Text({ color: t.c.line, children: '─'.repeat(Math.min(cols, 60)) })
+
+    let body: RenderElement[] = []
+    let footer = ''
+
+    if (tab === 'scope') {
+      const w = inline ? 10 : Math.min(24, cols - 30)
+      const meter = (label: string, value: number | null, color: string) =>
+        Box({ flexDirection: 'row', gap: 1, children: [dim(label.padEnd(14)), Text({ color, children: bar(value, w) }), Text({ color: t.c.fg, children: pct(value) })] })
+      const row = (a: string, b: string, c: string) => Box({ flexDirection: 'row', gap: 1, children: [dim(a.padEnd(14)), Text({ color: c, children: b })] })
+      body = [
+        Text({ children: [Text({ color: t.c.acc, weight: 'bold', children: `${t.glyph.tool} ${h.level.toUpperCase()}` }), dim(` · ${t.name} · ${h.model || '—'} · ⎇ ${h.branch || '—'}`)] }),
+        meter('routed right', h.accuracy, t.c.acc),
+        meter('context', h.context, h.context !== null && h.context >= 80 ? t.c.warn : t.c.acc2),
+        ...(h.usage === null ? [] : [meter('usage', h.usage, h.usage >= 80 ? t.c.warn : t.c.acc2)]),
+        Box({ flexDirection: 'row', gap: 3, flexWrap: 'wrap', children: [
+          Box({ flexDirection: 'column', children: [
+            row('last route', h.route, t.c.fg),
+            row('tokens saved', h.saved ? k(h.saved) : `${k(h.savedAll)} all-time`, t.c.good),
+            row('plan gate', h.gate, good(h.gate === 'clear')),
+          ] }),
+          Box({ flexDirection: 'column', children: [
+            row('daemon', h.daemon ? 'up' : 'down', good(h.daemon)),
+            row('reset', h.resetAt ?? '—', t.c.fg),
+            row('repaint', h.repaint, h.repaint === 'refused' ? t.c.warn : t.c.dim),
+          ] }),
+        ] }),
+        ...(h.repaint === 'refused' && repaintWhy ? [Text({ color: t.c.warn, wrap: 'wrap', children: `repaint: ${repaintWhy.slice(0, 160)} · /deadeye repaint retries` })] : []),
+      ]
+      footer = '2 config · 3 themes · 4 stats · 5 help'
+    }
+
+    if (tab === 'config') {
+      const groupBar = Box({ flexDirection: 'row', gap: 3, flexWrap: 'wrap', children: CONFIG_GROUPS.map(([g, key]) => keyed(key, g, g === configGroup, () => { configGroup = g; editingKey = null; void redraw($) })) })
+      const rows = configRows.filter(r => groupOf(r.key) === configGroup)
+      if (!configRows.length) {
+        body = [groupBar, Text({ color: t.c.warn, children: configWhy || 'no settings read; press 2 again' })]
+      } else {
+        const width = Math.max(...rows.map(r => r.key.length)) + 2
+        const label = (r: ConfigRow) => {
+          const nextValue = r.allowed ? r.allowed[(r.allowed.indexOf(r.value) + 1) % r.allowed.length] : null
+          const mark = flash?.key === r.key ? ' ✓' : ''
+          return `${r.key.padEnd(width)} ${r.value.padEnd(11)} ${r.allowed ? `▸ ${nextValue}` : '✎ free text'}${mark}`
+        }
+        const list = 'Select' in el
+          ? el.Select({ key: `cfg-${configGroup}`, options: rows.map(r => ({ key: r.key, value: r.key, label: label(r) })), autoFocus: editingKey ? undefined : true, onSelect: (key: string) => { void changeSetting($, key) } })
+          : Box({ flexDirection: 'column', children: rows.map(r => Text({ children: label(r) })) })
+        const editor = editingKey && 'Input' in el
+          ? el.Input({ key: `edit-${editingKey}`, label: `${editingKey} =`, value: configRows.find(r => r.key === editingKey)?.value.replace('(unset)', '') ?? '', autoFocus: true, onSubmit: (value: string) => { void submitSetting($, editingKey!, value) } })
+          : null
+        body = [groupBar, list, ...(editor ? [editor, dim('enter writes · esc cancels')] : [])]
+      }
+      footer = 'm/o/c/s/t group · ↑↓ move · enter cycles the value, or edits a free-text one'
+    }
+
+    if (tab === 'themes') {
+      const swatch = Box({ flexDirection: 'row', gap: 1, children: [
+        ...['bg', 'acc', 'acc2', 'warn', 'bad', 'good'].map(key => Text({ backgroundColor: t.c[key as keyof typeof t.c], children: '   ' })),
+        dim(`${t.name} · spinner: ${t.verbs.join(' → ')} · "${t.done}"`),
+      ] })
+      const options = [
+        ...THEMES.map(x => ({ key: x.slug, value: x.slug, label: `${x.glyph.tool} ${x.name.padEnd(18)} ${x.blurb}` })),
+        { key: 'auto', value: 'auto', label: `↻ ${'Auto'.padEnd(18)} follows the coder level` },
+      ]
+      const list = 'Select' in el
+        ? el.Select({ key: 'themes', options, value: cfg.theme, autoFocus: true, onSelect: (value: string) => { void chooseTheme($, value) } })
+        : Box({ flexDirection: 'column', children: options.map(o => Text({ color: o.value === cfg.theme ? t.c.acc : undefined, children: o.label })) })
+      body = [swatch, list]
+      footer = '↑↓ move · enter applies and stays here · themes.html shows them all'
+    }
+
+    if (tab === 'stats') {
+      const viewBar = Box({ flexDirection: 'row', gap: 3, flexWrap: 'wrap', children: STATS_VIEWS.map(([v, key]) => keyed(key, v, v === statsView, () => { void loadStats($, v).then(() => redraw($)) })) })
+      const lines = statsLines.length ? statsLines : ['loading…']
+      const styled = lines.map(line => {
+        if (!line.trim()) return Text({ children: ' ' })
+        const indent = line.length - line.trimStart().length
+        const text = line.trim()
+        if (text.includes('file://')) return Text({ color: t.c.acc, children: text })
+        if (indent === 0) return Text({ color: t.c.acc, weight: 'bold', children: text })
+        const m = /^(\S+)\s{2,}(.*)$/.exec(text)
+        if (indent <= 2 && m && /^[A-Z]/.test(m[1]!)) return Text({ children: [Text({ weight: 'bold', children: m[1]!.padEnd(16) }), Text({ color: t.c.fg, children: m[2]! })] })
+        if (m && /^(estimated|measured)$/.test(m[1]!)) return Text({ children: ['    ', Text({ color: m[1] === 'measured' ? t.c.good : t.c.warn, children: m[1]!.padEnd(12) }), dim(m[2]!)] })
+        if (m) return Text({ children: ['  '.repeat(Math.max(1, Math.floor(indent / 2))), dim(m[1]!.padEnd(24)), Text({ color: t.c.fg, children: m[2]! })] })
+        return Text({ dimColor: true, wrap: 'wrap', children: '  '.repeat(Math.max(1, Math.floor(indent / 2))) + text })
+      })
+      body = [viewBar, ...styled]
+      footer = "i/s/c/a/d/h views · figures are the binary's own; estimated and measured are labelled"
+    }
+
+    if (tab === 'help') {
+      const group = (name: string) => [
+        Text({ color: t.c.acc, weight: 'bold', children: name }),
+        ...COMMANDS.filter(([g]) => g === name).map(([, c, d]) => Text({ children: [Text({ color: t.c.fg, children: c.padEnd(30) }), dim(d)] })),
+      ]
+      body = [
+        ...group('deadeye'), Text({ children: ' ' }), ...group('review'), Text({ children: ' ' }), ...group('session'), Text({ children: ' ' }),
+        Text({ color: t.c.acc, weight: 'bold', children: 'kill switches' }),
+        dim('DEADEYE=off everything · DEADEYE_PREPROCESS=off context hygiene · DEADEYE_GATE=off plan gate · DEADEYE_CODER=off persona'),
+        Text({ color: t.c.acc, weight: 'bold', children: 'coder levels' }),
+        dim('spotter names the leaner way · marksman enforces the ladder (default) · sniper ships the one-liner · "normal mode" turns it off'),
+      ]
+      footer = 'settings: /deadeye config · looks: /deadeye theme'
+    }
+
+    return Box({ flexDirection: 'column', gap: inline ? 0 : 1, children: [tabBar, rule, ...body, dim(footer)] })
   })
 }
