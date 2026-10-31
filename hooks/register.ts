@@ -238,16 +238,16 @@ export const register: Register = on => {
     return next({ ...e, props: { ...e.props, word: verb } })
   })
 
+  // Elements are built by calling the surface's constructors, not JSX: the
+  // installed-plugin runtime has no `h` global (dev loaders do).
+
   // Finish line: "✓ On target in 14s" instead of "Baked for 14s".
   on('ui.render', { component: 'TurnDuration' }, ($, e, next) => {
     if (!cfg.enabled || e.props.waitingFor || e.props.isExpanded) return next(e)
     const { Text } = $.ui.resolve(e)
     const secs = Math.round(e.props.durationMs / 1000)
-    return (
-      <Text dimColor>
-        <Text color={theme.c.acc}>{theme.glyph.done}</Text> {theme.done} in {secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`}
-      </Text>
-    )
+    const dur = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`
+    return Text({ dimColor: true, children: [Text({ color: theme.c.acc, children: theme.glyph.done }), ` ${theme.done} in ${dur}`] })
   })
 
   // Tool rows: a themed glyph and a one-line target for the read-only tools.
@@ -258,13 +258,11 @@ export const register: Register = on => {
     const { Text } = $.ui.resolve(e)
     const input = (p.input ?? {}) as Record<string, unknown>
     const target = String(input.file_path ?? input.pattern ?? '').slice(0, 80)
-    return (
-      <Text>
-        <Text color={p.isErrored ? theme.c.bad : theme.c.acc}>{theme.glyph.tool}</Text>{' '}
-        <Text weight="bold">{p.tool}</Text> <Text>{target}</Text>
-        {p.isRunning ? <Text dimColor>{' …'}</Text> : null}
-      </Text>
-    )
+    return Text({ children: [
+      Text({ color: p.isErrored ? theme.c.bad : theme.c.acc, children: theme.glyph.tool }), ' ',
+      Text({ weight: 'bold', children: p.tool }), ' ', target,
+      p.isRunning ? Text({ dimColor: true, children: ' …' }) : '',
+    ] })
   })
 
   // A deadeye block as one short tag line instead of an error wall.
@@ -275,29 +273,26 @@ export const register: Register = on => {
     if (at < 0) return next(e)
     const { Text } = $.ui.resolve(e)
     const reason = text.slice(at + 'deadeye:'.length).replace(/\s+/g, ' ').trim().slice(0, 120)
-    return (
-      <Text>
-        {'  '}<Text color={theme.c.bg} backgroundColor={theme.c.warn} weight="bold">{` ${theme.tag} `}</Text>{' '}
-        <Text color={theme.c.bad}>{reason}</Text>
-      </Text>
-    )
+    return Text({ children: [
+      '  ', Text({ color: theme.c.bg, backgroundColor: theme.c.warn, weight: 'bold', children: ` ${theme.tag} ` }), ' ',
+      Text({ color: theme.c.bad, children: reason }),
+    ] })
   })
 
-  // HUD band above the prompt: level · route · saved · gate.
+  // HUD band above the prompt: level · route · saved · gate · ctx.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (!cfg.enabled) return next(e)
     const h = await read($, hud)
     const t = themeFor(h)
     const { Box, Text } = $.ui.resolve(e)
-    return (
-      <Box flexDirection="row" gap={2} flexWrap="wrap">
-        <Text color={t.c.bg} backgroundColor={t.c.acc} weight="bold">{` ${h.level.toUpperCase()} `}</Text>
-        <Text dimColor>route <Text color={t.c.fg}>{h.route}</Text></Text>
-        <Text dimColor>saved <Text color={t.c.fg}>{k(h.saved)} tok</Text></Text>
-        <Text dimColor>gate <Text color={h.gate === 'holding' ? t.c.warn : t.c.good}>{h.gate}</Text></Text>
-        <Text dimColor>ctx <Text color={t.c.fg}>{pct(h.context)}</Text></Text>
-      </Box>
-    )
+    const dim = (label: string, value: string, color: string) => Text({ dimColor: true, children: [`${label} `, Text({ color, children: value })] })
+    return Box({ flexDirection: 'row', gap: 2, flexWrap: 'wrap', children: [
+      Text({ color: t.c.bg, backgroundColor: t.c.acc, weight: 'bold', children: ` ${h.level.toUpperCase()} ` }),
+      dim('route', h.route, t.c.fg),
+      dim('saved', `${k(h.saved)} tok`, t.c.fg),
+      dim('gate', h.gate, h.gate === 'holding' ? t.c.warn : t.c.good),
+      dim('ctx', pct(h.context), t.c.fg),
+    ] })
   })
 
   on('ui.render', { component: 'PromptHint' }, ($, e, next) => {
@@ -317,52 +312,45 @@ export const register: Register = on => {
     const t = themeFor(h)
     const { Box, Text } = $.ui.resolve(e)
     const good = (ok: boolean) => (ok ? t.c.good : t.c.warn)
+    const dim = (label: string, value: string, color: string) => Text({ dimColor: true, children: [`${label} `, Text({ color, children: value })] })
+    const meter = (label: string, value: number | null, color: string, width: number) =>
+      Text({ dimColor: true, children: [`${label} `, Text({ color, children: bar(value, width) }), ' ', Text({ color: t.c.fg, children: pct(value) })] })
     if (e.props.placement === 'inline') {
-      return (
-        <Box flexDirection="column">
-          <Box flexDirection="row" gap={2} flexWrap="wrap">
-            <Text color={t.c.acc} weight="bold">{t.glyph.tool} {h.level.toUpperCase()}</Text>
-            <Text dimColor>routed right <Text color={t.c.acc}>{bar(h.accuracy, 10)}</Text> <Text color={t.c.fg}>{pct(h.accuracy)}</Text></Text>
-            <Text dimColor>context <Text color={t.c.acc2}>{bar(h.context, 10)}</Text> <Text color={t.c.fg}>{pct(h.context)}</Text></Text>
-          </Box>
-          <Box flexDirection="row" gap={2} flexWrap="wrap">
-            <Text dimColor>route <Text color={t.c.fg}>{h.route}</Text></Text>
-            <Text dimColor>saved <Text color={t.c.good}>{k(h.saved)} tok</Text></Text>
-            <Text dimColor>gate <Text color={good(h.gate === 'clear')}>{h.gate}</Text></Text>
-            <Text dimColor>daemon <Text color={good(h.daemon)}>{h.daemon ? 'up' : 'down'}</Text></Text>
-          </Box>
-        </Box>
-      )
+      return Box({ flexDirection: 'column', children: [
+        Box({ flexDirection: 'row', gap: 2, flexWrap: 'wrap', children: [
+          Text({ color: t.c.acc, weight: 'bold', children: `${t.glyph.tool} ${h.level.toUpperCase()}` }),
+          meter('routed right', h.accuracy, t.c.acc, 10),
+          meter('context', h.context, t.c.acc2, 10),
+        ] }),
+        Box({ flexDirection: 'row', gap: 2, flexWrap: 'wrap', children: [
+          dim('route', h.route, t.c.fg), dim('saved', `${k(h.saved)} tok`, t.c.good),
+          dim('gate', h.gate, good(h.gate === 'clear')), dim('daemon', h.daemon ? 'up' : 'down', good(h.daemon)),
+        ] }),
+      ] })
     }
     const w = Math.max(10, Math.min(28, e.props.bodyColumns - 2))
     const reticle = ['      │      ', '   ╭──┼──╮   ', '  ╱   │   ╲  ', ' ─┼───◎───┼─ ', '  ╲   │   ╱  ', '   ╰──┼──╯   ', '      │      ']
     const kv: [string, string, string][] = [
       ['level', h.level, t.c.fg], ['theme', t.name, t.c.fg], ['last route', h.route, t.c.fg],
-      ['tokens saved', `${k(h.saved)}`, t.c.good], ['plan gate', h.gate, good(h.gate === 'clear')],
+      ['tokens saved', k(h.saved), t.c.good], ['plan gate', h.gate, good(h.gate === 'clear')],
       ['daemon', h.daemon ? 'up' : 'down', good(h.daemon)], ['repaint', h.repaint, h.repaint === 'refused' ? t.c.warn : t.c.dim],
     ]
-    return (
-      <Box flexDirection="column" gap={1}>
-        <Box flexDirection="column" alignItems="center">
-          {reticle.map(row => <Text color={t.c.acc}>{row}</Text>)}
-        </Box>
-        <Box flexDirection="column">
-          <Box flexDirection="row" justifyContent="space-between"><Text dimColor>routed right first time</Text><Text weight="bold">{pct(h.accuracy)}</Text></Box>
-          <Text color={t.c.acc}>{bar(h.accuracy, w)}</Text>
-          <Box flexDirection="row" justifyContent="space-between"><Text dimColor>context used</Text><Text weight="bold">{pct(h.context)}</Text></Box>
-          <Text color={t.c.acc2}>{bar(h.context, w)}</Text>
-        </Box>
-        <Box flexDirection="column">
-          {kv.map(([a, b, c]) => (
-            <Box flexDirection="row" justifyContent="space-between" gap={2}><Text dimColor>{a}</Text><Text color={c}>{b}</Text></Box>
-          ))}
-        </Box>
-        <Text dimColor>/deadeye theme to restyle</Text>
-      </Box>
-    )
+    const row = (a: string, b: string, c: string) =>
+      Box({ flexDirection: 'row', justifyContent: 'space-between', gap: 2, children: [Text({ dimColor: true, children: a }), Text({ color: c, children: b })] })
+    return Box({ flexDirection: 'column', gap: 1, children: [
+      Box({ flexDirection: 'column', alignItems: 'center', children: reticle.map(line => Text({ color: t.c.acc, children: line })) }),
+      Box({ flexDirection: 'column', children: [
+        row('routed right first time', pct(h.accuracy), t.c.fg),
+        Text({ color: t.c.acc, children: bar(h.accuracy, w) }),
+        row('context used', pct(h.context), t.c.fg),
+        Text({ color: t.c.acc2, children: bar(h.context, w) }),
+      ] }),
+      Box({ flexDirection: 'column', children: kv.map(([a, b, c]) => row(a, b, c)) }),
+      Text({ dimColor: true, children: '/deadeye theme to restyle' }),
+    ] })
   })
 
-  // Theme picker: a list; enter keeps, esc puts nothing back (nothing changed yet).
+  // Theme picker: a list; enter keeps, esc leaves the theme as it was.
   on('ui.render', { component: 'Pane', requestId: PICKER }, async ($, e) => {
     const h = await read($, hud)
     const t = $.ui.resolve(e)
@@ -372,18 +360,16 @@ export const register: Register = on => {
       { key: 'auto', value: 'auto', label: `↻ ${'Auto'.padEnd(18)} follows the coder level` },
     ]
     if (!('Select' in t)) {
-      return <Box flexDirection="column">{options.map(o => <Text color={o.value === h.theme ? theme.c.acc : undefined}>{o.label}</Text>)}</Box>
+      return Box({ flexDirection: 'column', children: options.map(o => Text({ color: o.value === h.theme ? theme.c.acc : undefined, children: o.label })) })
     }
     const { Select } = t
-    return (
-      <Box flexDirection="column" gap={1}>
-        <Select key="theme" options={options} value={cfg.theme} autoFocus onSelect={async value => {
-          await applyTheme($, value, true)
-          await $.ui.close({ id: PICKER })
-          $.ui.toast(`deadeye theme: ${value === 'auto' ? `auto (${theme.name})` : theme.name}`)
-        }} />
-        <Text dimColor>↑↓ move · enter keep · esc cancel</Text>
-      </Box>
-    )
+    return Box({ flexDirection: 'column', gap: 1, children: [
+      Select({ key: 'theme', options, value: cfg.theme, autoFocus: true, onSelect: async (value: string) => {
+        await applyTheme($, value, true)
+        await $.ui.close({ id: PICKER })
+        $.ui.toast(`deadeye theme: ${value === 'auto' ? `auto (${theme.name})` : theme.name}`)
+      } }),
+      Text({ dimColor: true, children: '↑↓ move · enter keep · esc cancel' }),
+    ] })
   })
 }

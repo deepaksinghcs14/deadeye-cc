@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.79.2
+
+**The mod draws in an installed plugin.** 0.79.0 and 0.79.1 built their
+HUD, finish line, tool rows and panes with JSX, which compiles to calls on
+an `h` global that the dev loaders provide and the installed-plugin runtime
+does not: every drawing hook was skipped with `TypeError: h is not a
+function`, so the mod loaded (badge, toasts, repaint) but drew nothing.
+Elements are now built by calling the constructors `$.ui.resolve(e)`
+returns, which is the documented shape on every loader; the module is
+`hooks/register.ts`.
+
 ## 0.79.1
 
 **The mod switch takes effect on the next turn.** 0.79.0 read `mode.mod`
