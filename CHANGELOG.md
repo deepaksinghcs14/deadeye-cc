@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.79.5
+
+**The HUD lives under the writing area; one restart, then every theme
+repaints by itself.**
+
+- The dim hint line under the prompt is now the HUD while you type:
+  `MARKSMAN ⎇ main │ Fable 5.1 │ Ctx: 44% │ Usage: 59% ▓▓▓▓▓▓░░░░ → reset
+  11:40 AM` -- coder level, branch, model, context used, and the rate-limit
+  window with its reset time, in the theme's colours. With a `statusLine`
+  of your own configured (which already shows those), the row carries
+  deadeye's figures: level, theme, `routed right █████░░░░░ 47%`,
+  `context █████░░░░░ 45%`, gate; `mod.hud`
+  (auto · full · deadeye · off) overrides. While a turn runs Claude's own
+  line stays (esc to interrupt).
+- Custom themes are stored as `custom:<slug>` in Claude's settings; the
+  repaint now sets that form (the bare slug as a fallback), which is why
+  the automatic switch was refused before. The pane carries the same
+  figures plus routing accuracy, tokens saved, gate, daemon and repaint.
+
+Claude Code reads
+`~/.claude/themes` when it starts, so a theme file written during a
+session is not selectable until the next one -- which made the first
+0.79.x releases look like a two-step: pick in `/deadeye theme`, then pick
+again under `/theme`. The mod now writes all sixteen theme files when it
+comes on (rewritten only when their content changes), and a toast on the
+first run says to restart Claude Code once. From then on `/deadeye theme
+<name>` recolours Claude on its own. If a switch is still refused, the
+pane shows why and `/deadeye repaint` retries.
+
+- **`mod.background` (off):** paints the terminal's own background and
+  foreground to match the theme, through OSC 11/10 written to the terminal
+  that hosts Claude, and resets them (OSC 111/110) when the session ends or
+  the mod goes off. iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS
+  Code's terminal honour it; JetBrains terminals and Terminal.app ignore
+  it. The font stays the terminal's.
+
 ## 0.79.4
 
 **Quieter: no HUD band, the pane on demand, routing accuracy counts tiers.**

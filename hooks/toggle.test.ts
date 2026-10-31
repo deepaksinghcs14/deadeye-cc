@@ -36,7 +36,7 @@ test('mode.mod toggled mid-session applies on the next turn', async ($, on) => {
   modOn = true
   await $.turn.complete({ reason: 'answer', answer: 'ok', durationMs: 1000, isAborted: false, turnId: 't1' })
   expect(registered).toEqual(['deadeye'])
-  expect(config.at(-1)).toEqual(['theme', 'deadeye-nord'])
+  expect(config.at(-1)).toEqual(['theme', 'custom:deadeye-nord'])
 
   modOn = false
   await $.turn.complete({ reason: 'answer', answer: 'ok', durationMs: 1000, isAborted: false, turnId: 't1' })

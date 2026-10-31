@@ -45,6 +45,8 @@ var tunables = []tunable{
 	{"mode.mod", "Claude Code mod (themes, HUD, pane)", "enum", []string{"off", "on"}},
 	{"mod.theme", "mod theme", "enum", modThemes},
 	{"mod.repaint", "mod recolours Claude Code", "enum", []string{"off", "on"}},
+	{"mod.background", "mod recolours the terminal background", "enum", []string{"off", "on"}},
+	{"mod.hud", "mod HUD row under the prompt", "enum", []string{"auto", "full", "deadeye", "off"}},
 	{"mod.sounds", "mod sounds (macOS)", "enum", []string{"off", "on"}},
 	{"mod.notify", "mod desktop notification on long turns", "enum", []string{"off", "on"}},
 	{"coder.default_level", "coder persona", "enum", []string{"off", "spotter", "marksman", "sniper"}},

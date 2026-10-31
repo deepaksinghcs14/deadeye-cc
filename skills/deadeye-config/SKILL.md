@@ -45,6 +45,8 @@ Keys and allowed values (authoritative -- never invent others):
 | `mode.mod` | off · on |
 | `mod.theme` | auto · marksman · nightvision · highnoon · blueprint · ghost · tokyonight · catppuccin · rosepine · gruvbox · dracula · nord · kanagawa · everforest · synthwave · solarized · dawn |
 | `mod.repaint` | off · on |
+| `mod.background` | off · on |
+| `mod.hud` | auto · full · deadeye · off |
 | `mod.sounds` | off · on |
 | `mod.notify` | off · on |
 | `coder.default_level` | off · spotter · marksman · sniper |

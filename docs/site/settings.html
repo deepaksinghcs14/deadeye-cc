@@ -267,10 +267,11 @@ footer a{color:var(--brass);}
         <div class="field-head"><span class="key">mode.mod</span><span class="default">default: <b>off</b></span></div>
         <div class="field-values">off · on</div>
         <p class="field-set">Set: <code>deadeye config set mode.mod on</code></p>
-        <p class="field-desc">deadeye in Claude Code's own UI, themed: a themed spinner and
-          finish line, themed tool rows, a one-tag line for every deadeye block (and one row
-          above the prompt while the plan gate holds), the <code>/deadeye</code> scope pane on
-          demand (level, routing accuracy, context, last route, tokens saved, gate, daemon;
+        <p class="field-desc">deadeye in Claude Code's own UI, themed: a HUD under the writing
+          area (coder level, branch, model, context used, rate-limit window and reset time), a
+          themed spinner and finish line, themed tool rows, a one-tag line for every deadeye
+          block (and one row above the prompt while the plan gate holds), the
+          <code>/deadeye</code> scope pane on demand (level, routing accuracy, context, last route, tokens saved, gate, daemon;
           docked beside the transcript or inline above the prompt), and
           <code>/deadeye theme</code>, a picker over sixteen themes. Display only —
           routing and gates don't change. Tuned by <a href="#mod"><code>mod.*</code></a>. Takes
@@ -413,8 +414,33 @@ footer a{color:var(--brass);}
         <p class="field-desc">Recolours Claude Code itself to match the theme — accent, prompt border,
           diffs, your message background — through a custom theme file written to
           <code>~/.claude/themes/deadeye-&lt;theme&gt;.json</code> and Claude's own theme setting. The
-          theme you had is put back when <code>mode.mod</code> goes off. Your terminal's background and
-          font stay yours.</p>
+          theme you had is put back when <code>mode.mod</code> goes off. All sixteen theme files are
+          written when the mod comes on; Claude Code reads that folder at startup, so restart it
+          once after the first run and every theme then repaints by itself.
+          <code>/deadeye repaint</code> retries and says why if Claude refused. Your terminal's
+          background and font stay yours.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mod.background</span><span class="default">default: <b>off</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mod.background on</code></p>
+        <p class="field-desc">Paints the terminal's own background and foreground to match the theme, so
+          the whole window changes, not just Claude's colours. Written as OSC 11/10 to the
+          terminal that hosts Claude and reset (OSC 111/110) when the session ends or the mod
+          goes off. Honoured by iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS Code's
+          terminal; ignored by JetBrains terminals and Terminal.app. If a session dies before
+          resetting: <code>printf '\e]111\a\e]110\a'</code>.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mod.hud</span><span class="default">default: <b>auto</b></span></div>
+        <div class="field-values">auto · full · deadeye · off</div>
+        <p class="field-set">Set: <code>deadeye config set mod.hud full</code></p>
+        <p class="field-desc">The HUD row under the prompt, drawn in place of the idle hint line.
+          <code>full</code>: level, branch, model, context, rate-limit usage and reset time.
+          <code>deadeye</code>: level, theme, routing-accuracy and context meters, gate — for people whose own
+          <code>statusLine</code> already shows branch, model, context and usage.
+          <code>auto</code> picks <code>deadeye</code> when a statusLine is configured in Claude's
+          settings and <code>full</code> otherwise. <code>off</code> leaves Claude's hint line.</p>
       </li>
       <li class="field">
         <div class="field-head"><span class="key">mod.sounds</span><span class="default">default: <b>off</b></span></div>

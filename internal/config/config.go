@@ -48,12 +48,16 @@ type Modes struct {
 // Mod tunes the Claude Code mod (hooks/register.tsx) once mode.mod is on.
 // Theme is a slug from hooks/themes.ts or "auto" (follows the coder
 // level); Repaint recolours Claude Code itself through a custom theme file;
-// Sounds and Notify are opt-in extras (macOS sound, desktop notification).
+// Background paints the terminal's own background/foreground to match
+// (OSC 11/10; iTerm2, Ghostty, Kitty, WezTerm, Alacritty, VS Code -- not
+// JetBrains or Terminal.app); Sounds and Notify are opt-in extras.
 type Mod struct {
-	Theme   string `json:"theme"`
-	Repaint string `json:"repaint"`
-	Sounds  string `json:"sounds"`
-	Notify  string `json:"notify"`
+	Theme      string `json:"theme"`
+	Repaint    string `json:"repaint"`
+	Background string `json:"background"`
+	Hud        string `json:"hud"`
+	Sounds     string `json:"sounds"`
+	Notify     string `json:"notify"`
 }
 
 // Preprocess is per-rule config for internal/preprocess.
@@ -193,7 +197,7 @@ func Default() Config {
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
 		TierSample:            TierSample{Rate: 10},
-		Mod:                   Mod{Theme: "marksman", Repaint: "on", Sounds: "off", Notify: "off"},
+		Mod:                   Mod{Theme: "marksman", Repaint: "on", Background: "off", Hud: "auto", Sounds: "off", Notify: "off"},
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",

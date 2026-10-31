@@ -11,6 +11,10 @@ export type Hud = {
   context: number | null
   daemon: boolean
   repaint: 'on' | 'off' | 'refused'
+  model: string
+  branch: string
+  usage: number | null
+  resetAt: string | null
 }
 
 declare module 'claude-code' {

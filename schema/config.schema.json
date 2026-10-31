@@ -241,6 +241,18 @@
           "default": "on",
           "description": "Recolour Claude Code itself to match the theme, through a custom theme file in ~/.claude/themes and the /config theme row. Your previous theme is put back when the mod is turned off."
         },
+        "background": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "off",
+          "description": "Paint the terminal's own background and foreground to match the theme (OSC 11/10, written to the terminal that hosts Claude), reset when the session ends or the mod goes off. Honoured by iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS Code's terminal; ignored by JetBrains terminals and Terminal.app. If a session dies without resetting, `printf '\\e]111\\a\\e]110\\a'` restores the terminal's defaults."
+        },
+        "hud": {
+          "type": "string",
+          "enum": ["auto", "full", "deadeye", "off"],
+          "default": "auto",
+          "description": "The HUD row under the prompt (drawn in place of the idle hint line). full: level, branch, model, context, rate-limit usage and reset time. deadeye: level, theme, routing accuracy, gate -- for people whose own statusLine already shows branch/model/context/usage. auto (default): deadeye when a statusLine is configured in Claude's settings, full otherwise. off: Claude's own hint line."
+        },
         "sounds": {
           "type": "string",
           "enum": ["off", "on"],

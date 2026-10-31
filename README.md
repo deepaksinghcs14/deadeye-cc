@@ -329,8 +329,11 @@ deadeye config set mode.mod on
 
 then start a new session or run `/reload-plugins`. Once on:
 
-- **One row above the prompt, only while the plan gate holds**
-  (`HOLD · plan gate …`); nothing otherwise.
+- **The HUD under the writing area**, in place of the idle hint line:
+  `MARKSMAN ⎇ main │ Fable 5.1 │ Ctx: 44% │ Usage: 59% ▓▓▓▓▓▓░░░░ → reset
+  11:40 AM`, coder level, branch, model, context used, rate-limit window
+  and its reset time. One row above the prompt only while the plan gate
+  holds (`HOLD · plan gate …`).
 - **A themed spinner and finish line**: `Sighting… Steadying… Squeezing…`
   while it works, `✓ On target in 14s` when the turn lands.
 - **Themed tool rows** for `Read`, `Grep` and `Glob`, and a one-tag line
@@ -355,8 +358,12 @@ then start a new session or run `/reload-plugins`. Once on:
 
 With `mod.repaint on` (the default) the theme recolours Claude Code itself,
 through a custom theme file in `~/.claude/themes`; your previous Claude theme
-is put back when the mod goes off. Your terminal's background and font stay
-yours. Opt-in extras: `mod.sounds` (macOS click and tone) and `mod.notify`
+is put back when the mod goes off. All sixteen theme files are written when
+the mod comes on; Claude Code reads that folder at startup, so restart it
+once after the first run and every theme then repaints by itself. With
+`mod.background on`, the terminal's own background and foreground follow too
+(iTerm2, Ghostty, Kitty, WezTerm, Alacritty, VS Code; JetBrains terminals and
+Terminal.app ignore it), reset when the session ends. Opt-in extras: `mod.sounds` (macOS click and tone) and `mod.notify`
 (desktop notification after a long turn). [Every key on the settings page →](https://deepaksinghcs14.github.io/deadeye-cc/settings.html#mod)
 
 Display only: routing, the gates and the coder persona still run in the
