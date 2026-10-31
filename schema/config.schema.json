@@ -106,6 +106,15 @@
           ],
           "default": "off",
           "description": "Sample CONFIDENT high-tier routing decisions through the AI judge, which the live path never second-guesses (applyRoutingJudge only runs on an unsure decision). Exists to make over-routing visible: an escalation already biases routing UP, and nothing measured the other direction. Reports a judge-DISAGREEMENT rate, not an over-route rate -- an arbitrary production subtask has no grader, so the work can't be replayed and scored. Off by default because, unlike every other mode here, each sample spends a real `claude -p` call to buy measurement rather than a better answer for the call paying for it. See /deadeye-stats disagreement."
+        },
+        "mod": {
+          "type": "string",
+          "enum": [
+            "off",
+            "on"
+          ],
+          "default": "off",
+          "description": "Claude Code mod (Claude Code 2.1.75+ with mods): coder-level status badge, a toast when a deadeye hook denies a tool call, and a /deadeye status pane. Display only -- routing and gates are unchanged. Read when a session starts."
         }
       }
     },
@@ -215,6 +224,37 @@
           "description": "Extra glob patterns treated as sensitive credential paths, additive to the built-in table (~/.ssh private keys, ~/.aws/credentials, .env, ~/.claude/.credentials.json, ~/.netrc, ~/.kube/config, and more). Matched with filepath.Match against the full path and basename."
         }
       }
+    },
+    "mod": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "theme": {
+          "type": "string",
+          "enum": ["auto", "marksman", "nightvision", "highnoon", "blueprint", "ghost", "tokyonight", "catppuccin", "rosepine", "gruvbox", "dracula", "nord", "kanagawa", "everforest", "synthwave", "solarized", "dawn"],
+          "default": "marksman",
+          "description": "Theme for the Claude Code mod (mode.mod on): five deadeye originals (marksman, nightvision, highnoon, blueprint, ghost) and ports of popular terminal palettes. auto follows the coder level (blueprint in review, nightvision as sniper, ghost when off). Change it live with /deadeye theme."
+        },
+        "repaint": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "on",
+          "description": "Recolour Claude Code itself to match the theme, through a custom theme file in ~/.claude/themes and the /config theme row. Your previous theme is put back when the mod is turned off."
+        },
+        "sounds": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "off",
+          "description": "A soft click when a turn lands and a low tone on a deadeye block. macOS only (afplay); other platforms play nothing."
+        },
+        "notify": {
+          "type": "string",
+          "enum": ["off", "on"],
+          "default": "off",
+          "description": "Desktop notification when a turn longer than a minute finishes."
+        }
+      },
+      "description": "Tuning for the Claude Code mod (mode.mod)."
     },
     "tier_sample": {
       "type": "object",

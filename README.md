@@ -273,6 +273,8 @@ Four environment variables are kill switches: `DEADEYE=off` (everything),
 | `/deadeye-mute [off]` | Mute advice for this session; rewrites keep working |
 | `/deadeye-stats [view]` | Measured impact, token savings, context use, and the self-checks below |
 | `/deadeye-help` | Quick-reference card |
+| `/deadeye` | Scope pane inside Claude Code: level, routing accuracy, context, tokens saved, gate, daemon (mod, see below) |
+| `/deadeye theme [name]` | Pick a theme for the mod from a list, or set one by name |
 
 **Review**
 
@@ -315,6 +317,49 @@ upgrade trigger, which `/deadeye-debt` collects into a ledger. Safety is
 never cut: input validation, error handling, security and accessibility hold
 at every level. Every handled failure leaves one log line, at `error` or
 `warn`, without being asked; routine success stays silent. [See it per level on the site →](https://deepaksinghcs14.github.io/deadeye-cc/#layers)
+
+## Themes and the Claude Code mod
+
+deadeye can also live in Claude Code's own interface. It is off until you
+turn it on:
+
+```
+deadeye config set mode.mod on
+```
+
+then start a new session or run `/reload-plugins`. Once on:
+
+- **A HUD band above the prompt**: coder level, last routing decision,
+  tokens saved by context hygiene, plan-gate state, context used.
+- **A themed spinner and finish line**: `Sighting… Steadying… Squeezing…`
+  while it works, `✓ On target in 14s` when the turn lands.
+- **Themed tool rows** for `Read`, `Grep` and `Glob`, and a one-tag line
+  (`HOLD · plan gate …`) wherever a deadeye hook blocks a call, in place of
+  the error wall. A toast carries the same reason.
+- **`/deadeye`**: the scope pane. Docked beside the transcript in a
+  fullscreen terminal from 110 columns; a two-row strip above the prompt
+  otherwise. Routing accuracy and tokens saved come from deadeye's own
+  decision log; context from the session.
+- **`/deadeye theme`**: a picker over sixteen themes, previewed on your live
+  session, saved to `mod.theme`. `/deadeye theme nord` sets one by name.
+- **A status-line badge** with the level, so `deadeye-statusline.sh` is no
+  longer needed on Claude Code.
+
+| Family | Themes |
+|---|---|
+| deadeye originals | `marksman` (default), `nightvision`, `highnoon`, `blueprint`, `ghost` |
+| Community palettes | `tokyonight`, `catppuccin`, `rosepine`, `gruvbox`, `dracula`, `nord`, `kanagawa`, `everforest`, `synthwave`, `solarized`, `dawn` (light) |
+| `auto` | Follows the coder level: Blueprint in review, Night Vision as sniper, Ghost when off |
+
+With `mod.repaint on` (the default) the theme recolours Claude Code itself,
+through a custom theme file in `~/.claude/themes`; your previous Claude theme
+is put back when the mod goes off. Your terminal's background and font stay
+yours. Opt-in extras: `mod.sounds` (macOS click and tone) and `mod.notify`
+(desktop notification after a long turn). [Every key on the settings page →](https://deepaksinghcs14.github.io/deadeye-cc/settings.html#mod)
+
+Display only: routing, the gates and the coder persona still run in the
+binary and its hooks, on every host. Needs a Claude Code build with mods
+(2.1.75 or newer); older builds load the rest of deadeye unchanged.
 
 ## Benchmarks
 

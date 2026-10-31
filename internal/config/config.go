@@ -38,6 +38,22 @@ type Modes struct {
 	// a decision that was already made, buying measurement rather than a
 	// better answer for the call that pays for it.
 	TierSample string `json:"tier_sample"`
+	// Mod (off|on) turns on the Claude Code mod in hooks/register.tsx:
+	// status badge, toasts on deadeye denials, /deadeye pane. The mod reads
+	// this key itself; a plugin.json userConfig switch would make Claude
+	// Code < 2.1.75 drop the whole plugin. Default off: opt-in UI.
+	Mod string `json:"mod"`
+}
+
+// Mod tunes the Claude Code mod (hooks/register.tsx) once mode.mod is on.
+// Theme is a slug from hooks/themes.ts or "auto" (follows the coder
+// level); Repaint recolours Claude Code itself through a custom theme file;
+// Sounds and Notify are opt-in extras (macOS sound, desktop notification).
+type Mod struct {
+	Theme   string `json:"theme"`
+	Repaint string `json:"repaint"`
+	Sounds  string `json:"sounds"`
+	Notify  string `json:"notify"`
 }
 
 // Preprocess is per-rule config for internal/preprocess.
@@ -121,6 +137,7 @@ type Config struct {
 	Preprocess            Preprocess `json:"preprocess"`
 	PlanGate              PlanGate   `json:"plan_gate"`
 	TierSample            TierSample `json:"tier_sample"`
+	Mod                   Mod        `json:"mod"`
 	Coder                 Coder      `json:"coder"`
 	Security              Security   `json:"security"`
 }
@@ -170,11 +187,13 @@ func Default() Config {
 			RoutingJudge: "on", // the LLM judge calls claude -p (sonnet) on unsure cases -- deliberately trades zero-network for accuracy; off restores pure heuristics
 			CatalogCheck: "on",
 			TierSample:   "off", // spends a judge call purely to measure; opt in
+			Mod:          "off",
 		},
 		DownshiftThreshold:    0.8,
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
 		TierSample:            TierSample{Rate: 10},
+		Mod:                   Mod{Theme: "marksman", Repaint: "on", Sounds: "off", Notify: "off"},
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",

@@ -42,6 +42,11 @@ Keys and allowed values (authoritative -- never invent others):
 | `mode.update_check` | off · on |
 | `mode.routing_judge` | off · on |
 | `mode.catalog_check` | off · on |
+| `mode.mod` | off · on |
+| `mod.theme` | auto · marksman · nightvision · highnoon · blueprint · ghost · tokyonight · catppuccin · rosepine · gruvbox · dracula · nord · kanagawa · everforest · synthwave · solarized · dawn |
+| `mod.repaint` | off · on |
+| `mod.sounds` | off · on |
+| `mod.notify` | off · on |
 | `coder.default_level` | off · spotter · marksman · sniper |
 | `coder.security` | off · advise · ask |
 | `coder.security_osv` | true · false |

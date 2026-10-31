@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.79.0
+
+**deadeye inside Claude Code, themed.** A Claude Code mod ships in the
+plugin, off until `deadeye config set mode.mod on`. Sixteen themes, a HUD
+band, a themed spinner and finish line, themed tool rows, a one-tag line
+for every block, the `/deadeye` scope pane (docked or inline), and
+`/deadeye theme`, a picker that previews on the live session. With
+`mod.repaint` (default on) the theme recolours Claude Code itself through a
+custom theme file; the previous theme is put back when the mod goes off.
+
+- **Off by default, and harmless to older hosts.** The switch is deadeye's
+  own `mode.mod`, read from `~/.deadeye/config.json`, not a `userConfig`
+  field in `plugin.json`: Claude Code builds before 2.1.75 silently drop a
+  plugin whose manifest has one, shell hooks and all (checked by loading
+  the plugin into 2.1.0 through 2.1.150). The `modules` line in
+  `hooks/hooks.json` is ignored by builds without mods, so the plugin loads
+  there exactly as before.
+- **New settings:** `mode.mod`, `mod.theme` (sixteen slugs or `auto`, which
+  follows the coder level), `mod.repaint`, `mod.sounds` (macOS, off),
+  `mod.notify` (off). All on the settings page, in `/deadeye-config`, and
+  validated by `deadeye config set`; `TestModThemesMatchTable` keeps the
+  CLI's theme list, the schema and `hooks/themes.ts` in step.
+- **What the numbers are:** routing accuracy is how often a routing
+  advisory was followed (`PostToolUse/Agent` resolved records, this
+  session first, all recent sessions when there are fewer than three);
+  tokens saved is the sum of rewrite savings in this session; context comes
+  from the session itself. Display only: routing, the gates and the coder
+  persona are unchanged.
+
 ## 0.78.3
 
 **Three advisories that fired wrong almost every time, fixed; the compact

@@ -42,6 +42,11 @@ var tunables = []tunable{
 	{"mode.routing_judge", "AI routing judge", "enum", []string{"off", "on"}},
 	{"mode.catalog_check", "hosted catalog refresh", "enum", []string{"off", "on"}},
 	{"mode.tier_sample", "over-route sampling", "enum", []string{"off", "on"}},
+	{"mode.mod", "Claude Code mod (themes, HUD, pane)", "enum", []string{"off", "on"}},
+	{"mod.theme", "mod theme", "enum", modThemes},
+	{"mod.repaint", "mod recolours Claude Code", "enum", []string{"off", "on"}},
+	{"mod.sounds", "mod sounds (macOS)", "enum", []string{"off", "on"}},
+	{"mod.notify", "mod desktop notification on long turns", "enum", []string{"off", "on"}},
 	{"coder.default_level", "coder persona", "enum", []string{"off", "spotter", "marksman", "sniper"}},
 	{"coder.security", "coder security check", "enum", []string{"off", "advise", "ask"}},
 	{"coder.security_osv", "OSV dependency lookup", "bool", []string{"true", "false"}},
@@ -53,6 +58,11 @@ var tunables = []tunable{
 	{"plan_gate.min_files", "plan gate min files", "int", nil},
 	{"tier_sample.rate", "over-route sample rate (1-in-N)", "int", nil},
 }
+
+// modThemes mirrors the slugs in hooks/themes.ts (TestModThemesMatchTable
+// keeps them in step): the mod reads mod.theme, the CLI validates it.
+var modThemes = []string{"auto", "marksman", "nightvision", "highnoon", "blueprint", "ghost",
+	"tokyonight", "catppuccin", "rosepine", "gruvbox", "dracula", "nord", "kanagawa", "everforest", "synthwave", "solarized", "dawn"}
 
 func findTunable(key string) (tunable, bool) {
 	for _, t := range tunables {

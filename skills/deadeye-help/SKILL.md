@@ -31,6 +31,8 @@ Present this reference card, formatted cleanly:
 | `/deadeye-route [task]` | Dry-run the routing decision with full reasoning |
 | `/deadeye-coder [level]` | Switch/report the coder persona level |
 | `/deadeye-mute [off]` | Session-scoped mute for advisories/nags (rewrites stay on) |
+| `/deadeye` | Scope pane: level, routing accuracy, context, tokens saved, gate, daemon (needs `mode.mod on`) |
+| `/deadeye theme [name]` | Theme picker for the mod, or set one by name; `auto` follows the coder level |
 | `/deadeye-review [--repo]` | Four-lens self-review of the working diff, or the whole repo with `--repo` -- the pre-PR version of `/deadeye-pr` |
 | `/deadeye-guard` | Security review of the current diff -- full OWASP-mapped coverage (Top 10:2025, API Security Top 10 2023, LLM Top 10:2025), deps |
 | `/deadeye-vapt` | Whole-service pen-test/VAPT pass -- full OWASP Top 10:2025/API Security Top 10 2023/LLM Top 10:2025 coverage |

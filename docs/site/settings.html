@@ -156,6 +156,7 @@ footer a{color:var(--brass);}
       <a href="#coder">Coder</a>
       <a href="#security">Security</a>
       <a href="#plan-gate">Plan gate</a>
+      <a href="#mod">Mod</a>
       <a href="#global">Global tunables</a>
       <a href="#preprocess">Preprocess rules</a>
     </nav>
@@ -260,6 +261,19 @@ footer a{color:var(--brass);}
           Codex, Gemini CLI and Cursor each have their own table, refreshed and overridden
           the same way (<code>catalog-codex.json</code>, <code>catalog-gemini.json</code>,
           <code>catalog-cursor.json</code>).</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mode.mod</span><span class="default">default: <b>off</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mode.mod on</code></p>
+        <p class="field-desc">deadeye in Claude Code's own UI, themed: a HUD band above the
+          prompt (level, last route, tokens saved, gate state, context), a themed spinner and
+          finish line, themed tool rows, a one-tag line for every deadeye block, the
+          <code>/deadeye</code> scope pane (docked beside the transcript or inline above the
+          prompt), and <code>/deadeye theme</code>, a picker over sixteen themes. Display only —
+          routing and gates don't change. Tuned by <a href="#mod"><code>mod.*</code></a>. Takes
+          effect in the next session or after <code>/reload-plugins</code>. Needs a Claude Code
+          build with mods (2.1.75+); older builds load the rest of deadeye as before.</p>
       </li>
     </ul>
   </section>
@@ -371,6 +385,48 @@ footer a{color:var(--brass);}
         <p class="field-desc">Working-tree modified/staged file count at which the gate's
           multi-file trigger fires — see <a href="#mode"><code>mode.plan_gate</code></a> for
           what happens once it does.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="mod">
+    <h2>mod.*</h2>
+    <h3 class="section-title">Claude Code mod</h3>
+    <ul class="field-list">
+      <li class="field">
+        <div class="field-head"><span class="key">mod.theme</span><span class="default">default: <b>marksman</b></span></div>
+        <div class="field-values">auto · marksman · nightvision · highnoon · blueprint · ghost · tokyonight · catppuccin · rosepine · gruvbox · dracula · nord · kanagawa · everforest · synthwave · solarized · dawn</div>
+        <p class="field-set">Set: <code>deadeye config set mod.theme tokyonight</code> — or <code>/deadeye theme</code> in Claude Code, which previews on your live session and saves the same key.</p>
+        <p class="field-desc">Five deadeye originals (Marksman, Night Vision, High Noon, Blueprint, Ghost)
+          and ports of the palettes people use most in their terminals (Tokyo Night, Catppuccin
+          Mocha, Rosé Pine, Gruvbox, Dracula, Nord, Kanagawa, Everforest, Synthwave '84, Solarized
+          Dark, and Rosé Pine Dawn for daytime). Each one styles what the mod draws — spinner verbs,
+          finish line, tool-row glyph, block tag, HUD, scope pane. <code>auto</code> follows the
+          coder level: Blueprint in review, Night Vision as sniper, Ghost when the persona is off.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mod.repaint</span><span class="default">default: <b>on</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mod.repaint off</code></p>
+        <p class="field-desc">Recolours Claude Code itself to match the theme — accent, prompt border,
+          diffs, your message background — through a custom theme file written to
+          <code>~/.claude/themes/deadeye-&lt;theme&gt;.json</code> and Claude's own theme setting. The
+          theme you had is put back when <code>mode.mod</code> goes off. Your terminal's background and
+          font stay yours.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mod.sounds</span><span class="default">default: <b>off</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mod.sounds on</code></p>
+        <p class="field-desc">A soft click when a turn lands, a low tone when deadeye blocks a call.
+          macOS only; other platforms play nothing.</p>
+      </li>
+      <li class="field">
+        <div class="field-head"><span class="key">mod.notify</span><span class="default">default: <b>off</b></span></div>
+        <div class="field-values">off · on</div>
+        <p class="field-set">Set: <code>deadeye config set mod.notify on</code></p>
+        <p class="field-desc">A desktop notification when a turn longer than a minute finishes while
+          you're away.</p>
       </li>
     </ul>
   </section>
