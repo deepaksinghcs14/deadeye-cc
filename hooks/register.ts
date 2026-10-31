@@ -715,7 +715,7 @@ export const register: Register = on => {
             row('layout', `${e.viewport?.isFullscreen ? 'fullscreen' : 'main screen'} · ${e.viewport?.columns ?? '?'} cols · ${inline ? 'inline' : 'docked'}`, inline ? t.c.warn : t.c.dim),
           ] }),
         ] }),
-        ...(inline ? [dim('docks beside the transcript at 110+ cols in fullscreen mode: start Claude with CLAUDE_CODE_NO_FLICKER=1; tmux stays inline')] : []),
+        ...(inline ? [dim('docks beside the transcript at 110+ cols under the fullscreen layout: "tui": "fullscreen" in ~/.claude/settings.json (or CLAUDE_CODE_NO_FLICKER=1), new session; tmux stays inline')] : []),
         ...(h.repaint === 'refused' && repaintWhy ? [Text({ color: t.c.warn, wrap: 'wrap', children: `repaint: ${repaintWhy.slice(0, 160)} · /deadeye repaint retries` })] : []),
       ]
       footer = '2 config · 3 themes · 4 stats · 5 help'

@@ -342,8 +342,9 @@ then start a new session or run `/reload-plugins`. Once on:
 - **`/deadeye`**: the scope pane, on demand (`/deadeye` again closes it).
   Level, routing accuracy and context meters, last route, tokens saved,
   plan gate, daemon. Docked beside the transcript from 110 columns when
-  Claude runs its fullscreen layout (`CLAUDE_CODE_NO_FLICKER=1 claude`);
-  inline above the prompt otherwise, and always inside tmux. Routing
+  Claude runs its fullscreen layout (`"tui": "fullscreen"` in
+  `~/.claude/settings.json`, or `CLAUDE_CODE_NO_FLICKER=1 claude`); inline
+  above the prompt otherwise, and always inside tmux. Routing
   accuracy and tokens saved come from deadeye's own decision log; context
   from the session.
 - **`/deadeye theme`**: a picker over sixteen themes, saved to `mod.theme`.

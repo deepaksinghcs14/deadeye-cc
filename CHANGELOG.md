@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.82.2
+
+**The docking hint names the right setting.** Claude's fullscreen layout
+is `"tui": "fullscreen"` in `~/.claude/settings.json` (a new session
+after), or `CLAUDE_CODE_NO_FLICKER=1` in the shell; the pane's inline
+hint, the README and the settings page say so.
+
 ## 0.82.1
 
 **The scope tab says why the pane is inline.** A `layout` row reports what
