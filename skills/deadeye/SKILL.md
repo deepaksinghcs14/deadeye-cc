@@ -1,4 +1,5 @@
 ---
+name: deadeye
 description: "deadeye's home command: `/deadeye` (status), `/deadeye config` (view or change any setting), `/deadeye theme [name]`, `/deadeye stats [view]` (every report deadeye computes about itself), `/deadeye help` (the reference card). With the Claude Code mod on these open panes; otherwise they work from chat."
 argument-hint: "[config|theme [name]|stats [impact|savings|context|accuracy|disagreement|adherence] [session-id]|help]"
 allowed-tools: Bash(deadeye status), Bash(~/.deadeye/bin/deadeye status), Bash(deadeye config *), Bash(~/.deadeye/bin/deadeye config *), Bash(deadeye gain), Bash(~/.deadeye/bin/deadeye gain), Bash(deadeye audit), Bash(~/.deadeye/bin/deadeye audit), Bash(deadeye context *), Bash(~/.deadeye/bin/deadeye context *), Bash(deadeye misses), Bash(~/.deadeye/bin/deadeye misses), Bash(deadeye disagreement), Bash(~/.deadeye/bin/deadeye disagreement), Bash(deadeye adherence), Bash(~/.deadeye/bin/deadeye adherence)

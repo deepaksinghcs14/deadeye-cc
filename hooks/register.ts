@@ -297,6 +297,13 @@ const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`)
 // Module state: reset by a reload, refilled by session.start (which a reload runs again).
 let cfg: ModConfig = { enabled: false, theme: 'marksman', repaint: false, background: false, sounds: false, notify: false, hud: 'auto', tips: true }
 
+// The /deadeye skill ships the command for every host; with the mod on the
+// mod registers it too, so /deadeye resolves even where the skill's name
+// folds differently. A refusal (already taken) is fine.
+async function registerCommand($: EngineInterface) {
+  await $.command.register({ name: 'deadeye', description: 'deadeye: scope pane; config · theme [name] · stats [view] · help · repaint · close' }).catch(() => undefined)
+}
+
 // Tips about deadeye's commands, the way Claude shows its own: one every
 // fifth turn, in the spinner while it runs and at the hint line's tail while
 // you type. A tip retires once its command has been used ($.store, across
@@ -378,6 +385,7 @@ export const register: Register = on => {
     }
     if (cfg.repaint) await installThemes($)
     await loadTipsUsed($)
+    await registerCommand($)
     await applyTheme($, cfg.theme, false)
     return next(e)
   })
@@ -396,6 +404,7 @@ export const register: Register = on => {
       return next(e)
     }
     if (!cfg.enabled) return next(e)
+    if (toggled) await registerCommand($)
     if (toggled || restyled) await applyTheme($, cfg.theme, false)
     turns++
     tip = cfg.tips && turns % 5 === 0 ? pickTip() : null
