@@ -771,10 +771,9 @@ DEADEYE CODER ACTIVE — level: sniper
         <code>normal mode</code>, or <code>DEADEYE_CODER=off</code>. An
         optional statusline badge shows each session's live level — deadeye
         offers the setup once and never edits your settings itself. On Claude
-        Code, <code>deadeye config set mode.mod on</code> goes further: a themed
-        spinner, finish line, tool rows and an on-demand scope pane inside the terminal, sixteen
-        themes via <code>/deadeye theme</code> — see them all on the
-        <a href="themes.html">themes page</a>.</p>
+        Code, <code>deadeye config set mode.mod on</code> goes further — a HUD, a tabbed pane,
+        sixteen themes and command tips inside the terminal: see
+        <a href="#mod">deadeye in the terminal itself</a> below.</p>
     </div>
   </div>
 
@@ -952,6 +951,54 @@ internal/coder/          4 files  .go   the lean-first
   </div></div>
 </details>
 </div>
+</section>
+<section id="mod" class="reveal">
+  <p class="eyebrow">Inside Claude Code</p>
+  <h2>deadeye in the terminal itself</h2>
+  <p class="lede">On Claude Code, one setting makes deadeye part of the
+    interface: a HUD under the prompt, a tabbed pane, sixteen themes, and
+    tips about its commands drawn where Claude draws its own. Off until you
+    switch it on, and display only — routing, the gates and the coder
+    persona don't change.</p>
+  <div class="two">
+    <div>
+      <div class="term"><span class="c">deadeye config set mode.mod on</span>
+<span class="m">next session, or /reload-plugins:</span>
+
+<span class="g">◆</span> Read internal/kernel/kernel.go <span class="m">· 412 lines</span>
+<span class="g">◆</span> On target in 22s
+<span class="g">◜</span> Sighting <span class="m">· tip: /deadeye-review — four-lens self-review of your diff</span>
+
+<span class="m">under the prompt:</span>
+<span class="c">MARKSMAN</span> Tokyo Night │ routed right █████░░░░░ 47% │ context ████░░░░░░ 39% │ gate clear</div>
+      <p class="note" style="margin-top:14px">The spinner verbs, the finish line, the tool-row glyph and the
+        block tag all belong to the theme; <code>/deadeye theme</code> picks one of sixteen,
+        <a href="themes.html">drawn here</a>. With <code>mod.repaint</code> on, Claude's own accent,
+        prompt border and diffs follow; with <code>mod.background</code> on, the terminal's
+        background does too where the terminal allows it.</p>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-top"><span>/deadeye</span><span>one pane, five tabs, keys to roam</span></div>
+        <table>
+          <tbody>
+            <tr><td class="axis">1 scope</td><td class="desc">Level, model, branch; routed-right, context and usage meters; last route, tokens saved, plan gate, daemon.</td></tr>
+            <tr><td class="axis">2 config</td><td class="desc">Every setting, grouped (<code>m</code> mode · <code>o</code> mod · <code>c</code> coder · <code>s</code> security · <code>t</code> tuning). Enter cycles a value, free-text keys edit in place — written through <code>deadeye config set</code>, so the binary still validates.</td></tr>
+            <tr><td class="axis">3 themes</td><td class="desc">The sixteen looks with a palette strip; enter applies and stays, so several can be tried.</td></tr>
+            <tr><td class="axis">4 stats</td><td class="desc">impact · savings · context · accuracy · disagreement · adherence — the binary's own reports, <em>estimated</em> and <em>measured</em> labelled as the binary labels them.</td></tr>
+            <tr><td class="axis">5 help</td><td class="desc">Every command, grouped under deadeye · review · session; the kill switches; the coder levels.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="margin-top:14px"><code>/deadeye config</code>, <code>theme</code>, <code>stats [view]</code> and
+        <code>help</code> open on that tab; with the mod off the same commands work from chat.
+        The pane docks beside the transcript from 110 columns under Claude's fullscreen layout
+        (<code>"tui": "fullscreen"</code> in <code>~/.claude/settings.json</code>, new session
+        after) and sits inline above the prompt otherwise — always inline in tmux. Tips: about
+        one turn in five, a one-liner about a command you haven't used yet, in the spinner and
+        the hint line; <code>mod.tips off</code>. Every knob: <a href="settings.html#mod">mod.*</a>.</p>
+    </div>
+  </div>
 </section>
 <section id="measured" class="reveal">
   <p class="eyebrow">Measured, not estimated</p>
