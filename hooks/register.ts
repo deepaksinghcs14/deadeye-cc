@@ -712,8 +712,10 @@ export const register: Register = on => {
             row('daemon', h.daemon ? 'up' : 'down', good(h.daemon)),
             row('reset', h.resetAt ?? '—', t.c.fg),
             row('repaint', h.repaint, h.repaint === 'refused' ? t.c.warn : t.c.dim),
+            row('layout', `${e.viewport?.isFullscreen ? 'fullscreen' : 'main screen'} · ${e.viewport?.columns ?? '?'} cols · ${inline ? 'inline' : 'docked'}`, inline ? t.c.warn : t.c.dim),
           ] }),
         ] }),
+        ...(inline ? [dim('docks beside the transcript in fullscreen mode (/config → Fullscreen, new session) at 110+ cols; tmux and some terminals stay inline')] : []),
         ...(h.repaint === 'refused' && repaintWhy ? [Text({ color: t.c.warn, wrap: 'wrap', children: `repaint: ${repaintWhy.slice(0, 160)} · /deadeye repaint retries` })] : []),
       ]
       footer = '2 config · 3 themes · 4 stats · 5 help'

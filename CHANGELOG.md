@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.82.1
+
+**The scope tab says why the pane is inline.** A `layout` row reports what
+the engine told the pane -- `fullscreen · 172 cols · docked` or `main
+screen · 172 cols · inline` -- and an inline pane adds the one-line
+remedy: fullscreen mode (`/config` → Fullscreen, then a new session) at
+110+ columns docks it; tmux and some terminals keep the main-screen layout.
+
 ## 0.82.0
 
 **One pane, five tabs, keys to roam.** The five separate panes were raw
