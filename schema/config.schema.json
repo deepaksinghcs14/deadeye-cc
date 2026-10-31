@@ -244,7 +244,7 @@
         "background": {
           "type": "string",
           "enum": ["off", "on"],
-          "default": "off",
+          "default": "on",
           "description": "Paint the terminal's own background and foreground to match the theme (OSC 11/10, written to the terminal that hosts Claude), reset when the session ends or the mod goes off. Honoured by iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS Code's terminal; ignored by JetBrains terminals and Terminal.app. If a session dies without resetting, `printf '\\e]111\\a\\e]110\\a'` restores the terminal's defaults."
         },
         "hud": {

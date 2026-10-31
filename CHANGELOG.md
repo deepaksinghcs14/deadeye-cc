@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.79.6
+
+**`mod.background` on by default; the site's header fixed.** The terminal
+background/foreground paint is harmless where a terminal ignores it
+(JetBrains, Terminal.app) and right where it doesn't, so it no longer
+needs opting in; `mod.background off` keeps the terminal's colours. The
+home page's nav wrapped its labels mid-word once the Themes link was
+added; links now stay whole and wrap as a row.
+
 ## 0.79.5
 
 **The HUD lives under the writing area; one restart, then every theme
@@ -29,12 +38,12 @@ first run says to restart Claude Code once. From then on `/deadeye theme
 <name>` recolours Claude on its own. If a switch is still refused, the
 pane shows why and `/deadeye repaint` retries.
 
-- **`mod.background` (off):** paints the terminal's own background and
+- **`mod.background` (on):** paints the terminal's own background and
   foreground to match the theme, through OSC 11/10 written to the terminal
   that hosts Claude, and resets them (OSC 111/110) when the session ends or
   the mod goes off. iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS
   Code's terminal honour it; JetBrains terminals and Terminal.app ignore
-  it. The font stays the terminal's.
+  it, which is why it can be on by default. The font stays the terminal's.
 
 ## 0.79.4
 

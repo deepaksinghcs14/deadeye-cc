@@ -36,7 +36,7 @@ async function modConfig($: EngineInterface): Promise<ModConfig> {
     enabled: c?.mode?.mod === 'on',
     theme: typeof m.theme === 'string' ? m.theme : 'marksman',
     repaint: m.repaint !== 'off',
-    background: m.background === 'on',
+    background: m.background !== 'off',
     hud: ['full', 'deadeye', 'off'].includes(m.hud) ? m.hud : 'auto',
     sounds: m.sounds === 'on',
     notify: m.notify === 'on',
@@ -189,12 +189,15 @@ async function repaint($: EngineInterface, t: Theme): Promise<Hud['repaint']> {
 // own). iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS Code honour it;
 // JetBrains terminals and Terminal.app ignore it. Reset with OSC 111 / 110.
 let terminalPainted = false
+// What the last paint did, for `/deadeye repaint`: the tty it wrote to, or why it couldn't.
+let terminalWhy = ''
 
 async function paintTerminal($: EngineInterface, t: Theme | null) {
   const seq = t ? `\\033]11;${t.c.bg}\\007\\033]10;${t.c.fg}\\007` : '\\033]111\\007\\033]110\\007'
-  const script = 'p=$PPID; for i in 1 2 3 4 5 6; do t=$(/bin/ps -o tty= -p "$p" | tr -d " "); case "$t" in ""|"?"|"??") p=$(/bin/ps -o ppid= -p "$p" | tr -d " "); [ -z "$p" ] && exit 1;; *) printf "$SEQ" > "/dev/$t"; exit 0;; esac; done; exit 1'
-  const ran = await $.process.run(['/bin/sh', '-c', script], { env: { SEQ: seq }, timeoutMs: 3_000 }).catch(() => undefined)
-  if (ran?.exitCode === 0) terminalPainted = t !== null
+  const script = 'p=$PPID; for i in 1 2 3 4 5 6; do t=$(/bin/ps -o tty= -p "$p" | tr -d " "); case "$t" in ""|"?"|"??") p=$(/bin/ps -o ppid= -p "$p" | tr -d " "); [ -z "$p" ] && { echo "no tty up the process tree"; exit 1; };; *) printf "$SEQ" > "/dev/$t" && echo "/dev/$t"; exit $?;; esac; done; echo "no tty within 6 parents"; exit 1'
+  const ran = await $.process.run(['/bin/sh', '-c', script], { env: { SEQ: seq }, timeoutMs: 3_000 }).catch(err => ({ exitCode: -1, stdout: '', stderr: err instanceof Error ? err.message : String(err) }))
+  terminalWhy = ran.exitCode === 0 ? `wrote OSC ${t ? '11/10' : '111/110'} to ${ran.stdout.trim()}` : `${(ran.stdout + ran.stderr).trim() || `exit ${ran.exitCode}`}`
+  if (ran.exitCode === 0) terminalPainted = t !== null
 }
 
 async function unpaint($: EngineInterface) {
@@ -309,7 +312,9 @@ export const register: Register = on => {
     if (sub === 'repaint') {
       const rp = await repaint($, theme)
       await update($, hud, v => ({ ...v, repaint: rp }))
-      return { text: rp === 'on' ? `deadeye: Claude repainted to ${theme.name}. Pick it under /theme if it doesn't show.` : `deadeye: repaint refused — ${repaintWhy}. Pick "deadeye ${theme.name}" under /theme by hand.` }
+      if (cfg.background) await paintTerminal($, theme)
+      const bg = cfg.background ? ` Terminal: ${terminalWhy} (only iTerm2, Ghostty, Kitty, WezTerm, Alacritty and VS Code honour it).` : ' Terminal: mod.background is off.'
+      return { text: (rp === 'on' ? `deadeye: Claude repainted to ${theme.name}.` : `deadeye: repaint refused — ${repaintWhy}. Pick "deadeye ${theme.name}" under /theme by hand.`) + bg }
     }
     if (sub === 'theme' && name) {
       if (name !== 'auto' && !themeBySlug(name)) return { text: `deadeye: no theme "${name}". Themes: auto, ${THEME_SLUGS.join(', ')}.` }

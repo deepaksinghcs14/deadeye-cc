@@ -197,7 +197,7 @@ func Default() Config {
 		InjectionBudgetTokens: 400,
 		PlanGate:              PlanGate{MinFiles: 2},
 		TierSample:            TierSample{Rate: 10},
-		Mod:                   Mod{Theme: "marksman", Repaint: "on", Background: "off", Hud: "auto", Sounds: "off", Notify: "off"},
+		Mod:                   Mod{Theme: "marksman", Repaint: "on", Background: "on", Hud: "auto", Sounds: "off", Notify: "off"},
 		Coder: Coder{
 			DefaultLevel:          "marksman",
 			SubagentMatcher:       "",
