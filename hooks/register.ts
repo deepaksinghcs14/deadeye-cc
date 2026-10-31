@@ -212,7 +212,7 @@ async function switchTab($: EngineInterface, to: Tab) {
 
 async function openPane($: EngineInterface, to: Tab) {
   await switchTab($, to)
-  await $.ui.open({ id: PANE, title: 'deadeye', focus: true, closeOnEscape: true, rows: 22 })
+  await $.ui.open({ id: PANE, title: 'deadeye', focus: true, closeOnEscape: true, rows: 22, backgroundColor: theme.c.bg })
 }
 
 // Why the last repaint was refused, for the pane and `/deadeye repaint`.
