@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.82.3
+
+**The pane is painted in the theme's background.** It opened without one,
+so the pane engine filled its body with its own default surface, white on
+some setups; it now opens with the theme's background, whatever the
+terminal or Claude theme.
+
 ## 0.82.2
 
 **The docking hint names the right setting.** Claude's fullscreen layout
