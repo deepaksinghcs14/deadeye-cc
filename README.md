@@ -351,6 +351,8 @@ then start a new session or run `/reload-plugins`. Once on:
 | Community palettes | `tokyonight`, `catppuccin`, `rosepine`, `gruvbox`, `dracula`, `nord`, `kanagawa`, `everforest`, `synthwave`, `solarized`, `dawn` (light) |
 | `auto` | Follows the coder level: Blueprint in review, Night Vision as sniper, Ghost when off |
 
+[See every theme drawn on a sample session →](https://deepaksinghcs14.github.io/deadeye-cc/themes.html)
+
 With `mod.repaint on` (the default) the theme recolours Claude Code itself,
 through a custom theme file in `~/.claude/themes`; your previous Claude theme
 is put back when the mod goes off. Your terminal's background and font stay
