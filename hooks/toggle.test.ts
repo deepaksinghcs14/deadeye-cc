@@ -26,6 +26,7 @@ test('mode.mod toggled mid-session applies on the next turn', async ($, on) => {
   on('store.get', () => ({ value: prev }))
   on('store.set', (_, e) => ((prev = e.value), { value: undefined }))
   on('ui.status', (_, e) => (statuses.push(e.text), { value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'narrow' } }))
   on('ui.toast', () => ({ value: undefined }))
   on('turn.complete', () => ({ text: 'ok' }))
 

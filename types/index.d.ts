@@ -5,6 +5,7 @@ export type Hud = {
   theme: string
   route: string
   saved: number
+  savedAll: number
   gate: 'clear' | 'holding'
   accuracy: number | null
   context: number | null

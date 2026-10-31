@@ -329,17 +329,19 @@ deadeye config set mode.mod on
 
 then start a new session or run `/reload-plugins`. Once on:
 
-- **A HUD band above the prompt**: coder level, last routing decision,
-  tokens saved by context hygiene, plan-gate state, context used.
+- **One row above the prompt, only while the plan gate holds**
+  (`HOLD · plan gate …`); nothing otherwise.
 - **A themed spinner and finish line**: `Sighting… Steadying… Squeezing…`
   while it works, `✓ On target in 14s` when the turn lands.
 - **Themed tool rows** for `Read`, `Grep` and `Glob`, and a one-tag line
   (`HOLD · plan gate …`) wherever a deadeye hook blocks a call, in place of
   the error wall. A toast carries the same reason.
-- **`/deadeye`**: the scope pane. Docked beside the transcript in a
-  fullscreen terminal from 110 columns; a two-row strip above the prompt
-  otherwise. Routing accuracy and tokens saved come from deadeye's own
-  decision log; context from the session.
+- **`/deadeye`**: the scope pane, on demand (`/deadeye` again closes it).
+  Level, routing accuracy and context meters, last route, tokens saved,
+  plan gate, daemon. Docked beside the transcript in a fullscreen terminal
+  from 110 columns; a two-row strip above the prompt otherwise. Routing
+  accuracy and tokens saved come from deadeye's own decision log; context
+  from the session.
 - **`/deadeye theme`**: a picker over sixteen themes, previewed on your live
   session, saved to `mod.theme`. `/deadeye theme nord` sets one by name.
 

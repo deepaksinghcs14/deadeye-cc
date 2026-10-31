@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.79.4
+
+**Quieter: no HUD band, the pane on demand, routing accuracy counts tiers.**
+
+- The band above the prompt is gone; it cost a row on every prompt and
+  repeated what the scope pane says better. One row appears there only
+  while the plan gate is holding (`HOLD · plan gate …`) and leaves when an
+  edit lands, since the toast fades and the tag scrolls away.
+- The scope pane is on demand: `/deadeye` toggles it, `/deadeye close`
+  closes it. It shows level, routed-right and context meters, last route,
+  tokens saved (all-time when the session has none), gate, daemon, repaint.
+- "Routed right" compared exact model ids, so a recommended
+  `claude-opus-5-5` that ran as `claude-opus-4-8` counted as a miss (18%
+  on the author's log). It now compares tiers (haiku/sonnet/opus/fable),
+  which is what the number means (about 45% on the same log).
+
 ## 0.79.3
 
 **No more `⚠ deadeye: [DEADEYE]` under the prompt.** The mod pinned its

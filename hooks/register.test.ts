@@ -26,6 +26,7 @@ function host(on: On, mod: 'on' | 'off' | undefined, extra: Record<string, strin
   on('store.get', () => ({ value: undefined }))
   on('store.set', () => ({ value: undefined }))
   on('ui.status', (_, e) => (seen.statuses.push(e.text), { value: undefined }))
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'narrow' } }))
   on('ui.toast', (_, e) => (seen.toasts.push(e.text), { value: undefined }))
   return seen
 }

@@ -267,11 +267,12 @@ footer a{color:var(--brass);}
         <div class="field-head"><span class="key">mode.mod</span><span class="default">default: <b>off</b></span></div>
         <div class="field-values">off · on</div>
         <p class="field-set">Set: <code>deadeye config set mode.mod on</code></p>
-        <p class="field-desc">deadeye in Claude Code's own UI, themed: a HUD band above the
-          prompt (level, last route, tokens saved, gate state, context), a themed spinner and
-          finish line, themed tool rows, a one-tag line for every deadeye block, the
-          <code>/deadeye</code> scope pane (docked beside the transcript or inline above the
-          prompt), and <code>/deadeye theme</code>, a picker over sixteen themes. Display only —
+        <p class="field-desc">deadeye in Claude Code's own UI, themed: a themed spinner and
+          finish line, themed tool rows, a one-tag line for every deadeye block (and one row
+          above the prompt while the plan gate holds), the <code>/deadeye</code> scope pane on
+          demand (level, routing accuracy, context, last route, tokens saved, gate, daemon;
+          docked beside the transcript or inline above the prompt), and
+          <code>/deadeye theme</code>, a picker over sixteen themes. Display only —
           routing and gates don't change. Tuned by <a href="#mod"><code>mod.*</code></a>. Takes
           effect in the next session or after <code>/reload-plugins</code>. Needs a Claude Code
           build with mods (2.1.75+); older builds load the rest of deadeye as before.</p>

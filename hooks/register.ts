@@ -19,8 +19,8 @@ const TIERS: [RegExp, string][] = [[/haiku/, 'tier 0'], [/sonnet/, 'tier 1'], [/
 type ModConfig = { enabled: boolean; theme: string; repaint: boolean; sounds: boolean; notify: boolean }
 
 const hud = atom({ plugin: 'deadeye', key: 'hud' } as const, {
-  level: 'marksman', theme: 'marksman', route: '—', saved: 0, gate: 'clear', accuracy: null, context: null, daemon: false, repaint: 'off',
-} as Hud, { shape: 'hud-1' })
+  level: 'marksman', theme: 'marksman', route: '—', saved: 0, savedAll: 0, gate: 'clear', accuracy: null, context: null, daemon: false, repaint: 'off',
+} as Hud, { shape: 'hud-2' })
 
 async function home($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
 
@@ -73,12 +73,15 @@ async function decisions($: EngineInterface, sid: string) {
   const pick = (rs: any[], f: (r: any) => boolean) => rs.filter(f)
   const advised = pick(mine, r => r.surface === 'PreToolUse/Agent' && r.model).at(-1)
   const route = advised ? `${advised.model.replace(/^claude-/, '').replace(/-\d.*$/, '')} · ${TIERS.find(([re]) => re.test(advised.model))?.[1] ?? '?'}` : '—'
-  const saved = pick(mine, r => r.action === 'rewrite').reduce((n, r) => n + Math.max(0, (r.bytes_before_est ?? 0) - (r.bytes_after ?? 0)), 0) / 4
+  const savedIn = (rs: any[]) => Math.round(rs.filter(r => r.action === 'rewrite').reduce((n, r) => n + Math.max(0, (r.bytes_before_est ?? 0) - (r.bytes_after ?? 0)), 0) / 4)
+  // "Followed" compares tiers, not model ids: the harness may run
+  // claude-opus-4-8 for a recommended claude-opus-5-5, and that is a follow.
+  const tier = (m: string) => TIERS.findIndex(([re]) => re.test(m))
   let resolved = pick(mine, r => r.surface === 'PostToolUse/Agent' && r.action === 'resolved')
   if (resolved.length < 3) resolved = pick(rows, r => r.surface === 'PostToolUse/Agent' && r.action === 'resolved')
-  const followed = resolved.filter(r => typeof r.reason === 'string' && r.reason.endsWith(r.model)).length
+  const followed = resolved.filter(r => typeof r.reason === 'string' && typeof r.model === 'string' && tier(r.model) >= 0 && tier(r.model) === tier(r.reason.replace(/^recommended /, ''))).length
   const accuracy = resolved.length ? Math.round((100 * followed) / resolved.length) : null
-  return { route, saved: Math.round(saved), accuracy }
+  return { route, saved: savedIn(mine), savedAll: savedIn(rows), accuracy }
 }
 
 // The HUD's level chip: the coder level, or which kill switch silenced it
@@ -162,7 +165,7 @@ export const register: Register = on => {
       await unpaint($)
       return next(e)
     }
-    await $.command.register({ name: 'deadeye', description: 'deadeye scope pane; `theme` opens the theme picker, `theme <name>` sets one' })
+    await $.command.register({ name: 'deadeye', description: 'Toggle the deadeye scope pane; `close` closes it, `theme` opens the theme picker, `theme <name>` sets one' })
     await applyTheme($, cfg.theme, false)
     return next(e)
   })
@@ -181,7 +184,7 @@ export const register: Register = on => {
       return next(e)
     }
     if (!cfg.enabled) return next(e)
-    if (toggled) await $.command.register({ name: 'deadeye', description: 'deadeye scope pane; `theme` opens the theme picker, `theme <name>` sets one' }).catch(() => undefined)
+    if (toggled) await $.command.register({ name: 'deadeye', description: 'Toggle the deadeye scope pane; `close` closes it, `theme` opens the theme picker, `theme <name>` sets one' }).catch(() => undefined)
     if (toggled || restyled) await applyTheme($, cfg.theme, false)
     const h = await refresh($, cfg)
     if (cfg.theme === 'auto' && h.theme !== theme.slug) await applyTheme($, 'auto', false)
@@ -221,8 +224,13 @@ export const register: Register = on => {
       await $.ui.open({ id: PICKER, title: 'deadeye · theme', focus: true, closeOnEscape: true, rows: THEMES.length + 4 })
       return { text: 'Theme picker opened: ↑↓ move, enter keeps, esc cancels.' }
     }
+    const shown = (await $.ui.panes().catch(() => [])).some(p => p.id === SCOPE && p.isShown)
+    if (sub === 'close' || (shown && !sub)) {
+      await $.ui.close({ id: SCOPE })
+      return { text: `${theme.pane} pane closed.` }
+    }
     await $.ui.open({ id: SCOPE, title: `deadeye · ${theme.pane}` })
-    return { text: `${theme.pane} pane opened.` }
+    return { text: `${theme.pane} pane opened. /deadeye again closes it.` }
   })
 
   // Spinner: the theme's verbs in place of the engine's ("Sighting… (4s)").
@@ -273,19 +281,18 @@ export const register: Register = on => {
     ] })
   })
 
-  // HUD band above the prompt: level · route · saved · gate · ctx.
+  // Above the prompt: nothing, except one row while the plan gate holds --
+  // the toast fades and the HOLD tag scrolls away, this stays until an edit lands.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (!cfg.enabled) return next(e)
     const h = await read($, hud)
+    if (h.gate !== 'holding') return next(e)
     const t = themeFor(h)
     const { Box, Text } = $.ui.resolve(e)
-    const dim = (label: string, value: string, color: string) => Text({ dimColor: true, children: [`${label} `, Text({ color, children: value })] })
-    return Box({ flexDirection: 'row', gap: 2, flexWrap: 'wrap', children: [
-      Text({ color: t.c.bg, backgroundColor: t.c.acc, weight: 'bold', children: ` ${h.level.toUpperCase()} ` }),
-      dim('route', h.route, t.c.fg),
-      dim('saved', `${k(h.saved)} tok`, t.c.fg),
-      dim('gate', h.gate, h.gate === 'holding' ? t.c.warn : t.c.good),
-      dim('ctx', pct(h.context), t.c.fg),
+    return Box({ flexDirection: 'row', gap: 1, children: [
+      Text({ color: t.c.bg, backgroundColor: t.c.warn, weight: 'bold', children: ` ${t.tag} ` }),
+      Text({ color: t.c.warn, children: 'plan gate' }),
+      Text({ dimColor: true, children: '· present a short plan and wait for the go-ahead · /deadeye for the scope' }),
     ] })
   })
 
@@ -317,7 +324,7 @@ export const register: Register = on => {
           meter('context', h.context, t.c.acc2, 10),
         ] }),
         Box({ flexDirection: 'row', gap: 2, flexWrap: 'wrap', children: [
-          dim('route', h.route, t.c.fg), dim('saved', `${k(h.saved)} tok`, t.c.good),
+          dim('route', h.route, t.c.fg), dim('saved', h.saved ? `${k(h.saved)} tok` : `${k(h.savedAll)} all-time`, t.c.good),
           dim('gate', h.gate, good(h.gate === 'clear')), dim('daemon', h.daemon ? 'up' : 'down', good(h.daemon)),
         ] }),
       ] })
@@ -326,7 +333,7 @@ export const register: Register = on => {
     const reticle = ['      │      ', '   ╭──┼──╮   ', '  ╱   │   ╲  ', ' ─┼───◎───┼─ ', '  ╲   │   ╱  ', '   ╰──┼──╯   ', '      │      ']
     const kv: [string, string, string][] = [
       ['level', h.level, t.c.fg], ['theme', t.name, t.c.fg], ['last route', h.route, t.c.fg],
-      ['tokens saved', k(h.saved), t.c.good], ['plan gate', h.gate, good(h.gate === 'clear')],
+      ['tokens saved', h.saved ? k(h.saved) : `${k(h.savedAll)} all-time`, t.c.good], ['plan gate', h.gate, good(h.gate === 'clear')],
       ['daemon', h.daemon ? 'up' : 'down', good(h.daemon)], ['repaint', h.repaint, h.repaint === 'refused' ? t.c.warn : t.c.dim],
     ]
     const row = (a: string, b: string, c: string) =>

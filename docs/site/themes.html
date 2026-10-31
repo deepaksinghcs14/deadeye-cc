@@ -140,8 +140,8 @@ footer a{color:var(--brass);}
   <header>
     <span class="eyebrow">claude code mod · themes</span>
     <h1>Sixteen looks. <span class="em">Pick one you can see first.</span></h1>
-    <p class="lede">Each card is the same moment of a session — a tool row, a block, the finish line,
-      the HUD band and the prompt — drawn in that theme. The spinner verbs, finish word and block
+    <p class="lede">Each card is the same moment of a session — tool rows, a block, the finish line,
+      the one-row gate notice and the prompt — drawn in that theme. The spinner verbs, finish word and block
       tag belong to the theme too; the numbers are examples.</p>
     <div class="callout">
       <p>Turn the mod on once: <code>deadeye config set mode.mod on</code>. Then pick from inside
@@ -227,9 +227,9 @@ for (const [slug, name, blurb, fam, c, o] of THEMES) {
       <p class="ln">&nbsp;&nbsp;<span class="tag">${esc(t.tag)}</span> <span class="bad">plan gate · multi-file change, no plan approved</span></p>
       <p class="ln d"><span class="g">${esc(t.glyph.done)}</span> ${esc(t.done)} in 14s</p>
       <p class="ln"><span class="g spin">◜</span> <span style="color:var(--acc)">${esc(t.verbs[0])}…</span> <span class="d">(4s · ↓ 1.2k tokens)</span></p>
-      <div class="hud"><span class="lvl">MARKSMAN</span><span>route <b>sonnet·t1</b></span><span>saved <b>18.4k</b></span><span>gate <b>holding</b></span></div>
+      <div class="hud"><span class="tag">${esc(t.tag)}</span><span style="color:var(--warn)">plan gate</span><span>· present a short plan and wait · /deadeye for the scope</span></div>
       <div class="prompt">/deadeye theme ${esc(slug)}</div>
-      <div class="status"><span class="badge">[DEADEYE]</span><span>Opus 5.5</span><span>main</span></div>
+      <div class="status"><span>Opus 5.5</span><span>main</span><span>deadeye · ${esc(name)} · marksman</span></div>
     </div>
     <div class="meta">
       <div class="name"><b>${esc(name)}</b><small>${slug === 'marksman' ? 'default' : fam === 'orig' ? 'deadeye' : 'port'}</small></div>
